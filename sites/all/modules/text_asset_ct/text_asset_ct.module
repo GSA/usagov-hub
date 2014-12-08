@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Text Asset CT feature.
+ */
+
+include_once 'text_asset_ct.features.inc';

@@ -1,0 +1,19 @@
+name = USASearch Index
+description = Provides an index of site content to USA Search.
+core = 7.x
+configure = admin/config/search/usasearch
+package = USASearch
+
+files[] = UsaSearchClient.inc
+dependencies[] = usasearch
+dependencies[] = usasearch_api
+dependencies[] = services
+dependencies[] = services_govformat
+
+
+; Information added by Drupal.org packaging script on 2014-11-13
+version = "7.x-4.1"
+core = "7.x"
+project = "usasearch"
+datestamp = "1415857688"
+

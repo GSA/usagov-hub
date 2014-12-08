@@ -1,0 +1,11 @@
+name = Task 130: Wysiwyg Editor
+description = The WYSIWYG editor should enable a graphical interface for creating content
+core = 7.x
+package = CTAC Custom Features
+version = 7.x-1.0
+project = task_130_wysiwyg_editor
+dependencies[] = features
+dependencies[] = wysiwyg
+features[features_api][] = api:2
+features[filter][] = standard_editor
+features[wysiwyg][] = standard_editor
