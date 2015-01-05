@@ -121,7 +121,7 @@ $handler->display->display_options['fields']['changed']['date_format'] = 'time a
 $handler->display->display_options['fields']['edit_node']['id'] = 'edit_node';
 $handler->display->display_options['fields']['edit_node']['table'] = 'views_entity_node';
 $handler->display->display_options['fields']['edit_node']['field'] = 'edit_node';
-$handler->display->display_options['fields']['edit_node']['label'] = 'Actions';
+$handler->display->display_options['fields']['edit_node']['label'] = 'Operations';
 $handler->display->display_options['fields']['edit_node']['alter']['word_boundary'] = FALSE;
 $handler->display->display_options['fields']['edit_node']['alter']['ellipsis'] = FALSE;
 $handler->display->display_options['fields']['edit_node']['text'] = 'edit';
@@ -203,7 +203,7 @@ $handler->display->display_options['fields']['changed']['date_format'] = 'time a
 $handler->display->display_options['fields']['edit_node']['id'] = 'edit_node';
 $handler->display->display_options['fields']['edit_node']['table'] = 'views_entity_node';
 $handler->display->display_options['fields']['edit_node']['field'] = 'edit_node';
-$handler->display->display_options['fields']['edit_node']['label'] = 'Actions';
+$handler->display->display_options['fields']['edit_node']['label'] = 'Operations';
 $handler->display->display_options['fields']['edit_node']['alter']['word_boundary'] = FALSE;
 $handler->display->display_options['fields']['edit_node']['alter']['ellipsis'] = FALSE;
 $handler->display->display_options['fields']['edit_node']['text'] = 'edit';
@@ -250,7 +250,7 @@ $translatables['workbench_recent_content'] = array(
   t('Type'),
   t('Author'),
   t('Last updated'),
-  t('Actions'),
+  t('Operations'),
   t('edit'),
   t('Published'),
   t('Page'),

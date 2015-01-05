@@ -1,0 +1,13 @@
+<?php
+
+function cmp_repo_menu() 
+{
+  $items = array();
+}
+
+
+/*
+function cmp_repo_elasticsearch_connector_search_api_query_alter($query,&$params)
+{
+}
+*/

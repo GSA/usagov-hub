@@ -382,7 +382,8 @@ class RelationFeedsProcessor extends FeedsProcessor {
       catch (FeedsValidationException $f) {
         return 0;
       }
-      $relations = relation_relation_exists($endpoints, $this->config['bundle']);
+      $type = $this->getTypeInfo();
+      $relations = relation_relation_exists($endpoints, $this->config['bundle'], $type->directional);
       if ($relations) {
         return key($relations);
       }

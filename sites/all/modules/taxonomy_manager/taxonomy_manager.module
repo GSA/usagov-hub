@@ -32,19 +32,24 @@ function taxonomy_manager_menu() {
     'title arguments' => array(4),
     'page callback' => 'drupal_get_form',
     'page arguments' => array('taxonomy_manager_form', 4),
-    'access arguments' => array('administer taxonomy'),
+    //'access arguments' => array('administer taxonomy'),
+    'access arguments' => array(4),
+    'access callback'  => '_has_taxonomy_access',
     'file' => 'taxonomy_manager.admin.inc',
   );
 
   $items['admin/structure/taxonomy_manager/childform'] = array(
     'page callback' => 'taxonomy_manager_tree_build_child_form',
-    'access arguments' => array('administer taxonomy'),
+    //'access arguments' => array('administer taxonomy'),
+    'access arguments' => array(5),
+    'access callback'  => '_has_taxonomy_access',
     'type' => MENU_CALLBACK,
   );
 
   $items['admin/structure/taxonomy_manager/weight'] = array(
     'page callback' => 'taxonomy_manager_update_weights',
-    'access arguments' => array('administer taxonomy'),
+    //'access arguments' => array('administer taxonomy'),
+    'access callback'  => '_has_taxonomy_access',
     'type' => MENU_CALLBACK,
     'file' => 'taxonomy_manager.admin.inc',
   );
@@ -88,6 +93,49 @@ function taxonomy_manager_menu() {
     'file' => 'taxonomy_manager.admin.inc',
   );
   return $items;
+}
+
+function _has_taxonomy_access( $tax_or_id, $account=null )
+{
+    if ( user_access('administer taxonomy') ) { return true; }
+    $taxonomy = null;
+    if ( empty($tax_or_id) )
+    {
+        $submitted_data = $_POST;
+        if (isset($submitted_data['form_token']) && isset($submitted_data['form_id']) && !empty($submitted_data['weights']) && is_array($submitted_data['weights'])) {
+            if (drupal_valid_token($submitted_data['form_token'], $submitted_data['form_id'])) {
+                foreach ($submitted_data['weights'] as $tid => $weight) {
+                    if (is_numeric($tid) && is_numeric($weight)) {
+                        $term = taxonomy_term_load($tid);
+                        if ( $term ) {
+                            $taxonomy = taxonomy_vocabulary_load($term->vid);
+                            if ( $taxonomy ) {
+                                if ( !user_access('administer '.$taxonomy->machine_name.' vocabulary terms') ) {
+                                   return false; 
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (is_object($tax_or_id) )
+    {
+        $taxonomy = $tax_or_id;
+    } else if ( is_numeric($tax_or_id) ) {
+        $taxonomy = taxonomy_vocabulary_load($tax_or_id);
+    } else if ( is_string($tax_or_vid) ) {
+        $taxonomy = taxonomy_vocabulary_machine_name_load($tax_or_id);
+    }
+    if ( $taxonomy )
+    {
+        if ( user_access('administer '.$taxonomy->machine_name.' vocabulary terms') ) 
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**

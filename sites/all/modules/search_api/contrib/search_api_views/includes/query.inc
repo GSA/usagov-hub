@@ -315,7 +315,7 @@ class SearchApiViewsQuery extends views_plugin_query {
       $this->query->range($this->offset, $this->limit);
 
       $start = microtime(TRUE);
-
+     
       // Execute the search.
       $results = $this->query->execute();
       $this->search_api_results = $results;

@@ -58,7 +58,7 @@ function workbench_content() {
       $display_id = $output[$key]['#view_display'];
 
       // Build contextual links.
-      if (module_exists('contextual')) {
+      if (module_exists('contextual') && module_exists('views_ui')) {
         $output[$key] += contextual_element_info();
         views_add_contextual_links($output[$key]['contextual_links'], 'block', $view, $display_id);
       }

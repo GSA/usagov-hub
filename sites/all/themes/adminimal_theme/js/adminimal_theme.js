@@ -1,5 +1,24 @@
 (function($) {
 
+//ctac edits to adminimal
+$(document).ready(function(){
+	// hide certain items in the admin menu based on roles
+	setTimeout(function(){ 
+		// UX Member roles
+		$('body.ux-member #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/agency_tags"]').parent().remove();
+		//$('body.ux-member #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/asset_topic_taxonomy"]').parent().remove();
+		//$('body.ux-member #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy"]').parent().remove();
+		$('body.ux-member #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/workbench"]').parent().remove();
+
+		// Editor roles
+		//$('body.editor #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/agency_tags"]').parent().remove();
+		$('body.editor #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/asset_topic_taxonomy"]').parent().remove();
+		$('body.editor #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy"]').parent().remove();
+		$('body.editor #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/workbench"]').parent().remove();
+	}, 500);
+
+});
+
 // Define jRespond Media queries.
 var jRes = jRespond([
 	{

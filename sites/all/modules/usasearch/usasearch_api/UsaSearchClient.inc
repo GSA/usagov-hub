@@ -53,6 +53,8 @@ class UsaSearchClient extends Client {
         'dc' => $dc,
         'index' => $index,
       ),
+      'timeout' => 5,
+      'connect_timeout' => 5,
     ));
 
     $response = $request->send();

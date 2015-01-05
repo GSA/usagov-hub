@@ -400,6 +400,7 @@ function entity_revision_delete($entity_type, $revision_id) {
  */
 function entity_revision_is_default($entity_type, $entity) {
   $info = entity_get_info($entity_type);
+
   if (empty($info['entity keys']['revision'])) {
     return TRUE;
   }

@@ -904,7 +904,7 @@ function file_entity_theme() {
  */
 function file_entity_entity_info_alter(&$entity_info) {
   $entity_info['file']['fieldable'] = TRUE;
-  $entity_info['file']['entity keys']['bundle'] = 'type';
+  //$entity_info['file']['entity keys']['bundle'] = 'type';
   $entity_info['file']['bundle keys']['bundle'] = 'type';
   $entity_info['file']['bundles'] = array();
   $entity_info['file']['uri callback'] = 'file_entity_uri';
@@ -1230,13 +1230,11 @@ function file_entity_file_formatter_file_image_view($file, $display, $langcode) 
   // Prevent PHP notices when trying to read empty files.
   // @see http://drupal.org/node/681042
   if (!$file->filesize) {
-error_log('FILE ENTITY: NO FILESIZE');
     return;
   }
 
   // Do not bother proceeding if this file does not have an image mime type.
   if (file_entity_file_get_mimetype_type($file) != 'image') {
-error_log('FILE ENTITY: NO MIME TYPE');
     return;
   }
 
@@ -1275,7 +1273,6 @@ error_log('FILE ENTITY: NO MIME TYPE');
     }
     return $element;
   }
-	else { error_log('FILE ENTITY: NOT READABLE'); }
 }
 
 /**
@@ -2167,6 +2164,7 @@ function file_entity_invalidate_field_caches($file) {
 function file_entity_file_is_local($file) {
   $scheme = file_uri_scheme($file->uri);
   $wrappers = file_get_stream_wrappers(STREAM_WRAPPERS_LOCAL);
+  error_log('it is: ' . intval(!empty($wrappers[$scheme]) && empty($wrappers[$scheme]['remote'])) );
   return !empty($wrappers[$scheme]) && empty($wrappers[$scheme]['remote']);
 }
 

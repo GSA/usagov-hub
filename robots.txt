@@ -49,7 +49,6 @@ Disallow: /user/password/
 Disallow: /user/login/
 Disallow: /user/logout/
 # Paths (no clean URLs)
-
 Disallow: /?q=admin/
 Disallow: /?q=comment/reply/
 Disallow: /?q=filter/tips/

@@ -92,7 +92,8 @@ function workbench_access_menu() {
   $items['admin/workbench/sections'] = array(
     'title' => 'My sections',
     'page callback' => 'workbench_access_sections',
-    'access arguments' => array('access workbench'),
+    //'access arguments' => array('access workbench'),
+    'access arguments' => array('use workbench_access my sections tab'),
     'type' => MENU_LOCAL_TASK,
     'weight' => 5,
     'file' => 'workbench_access.admin.inc',
@@ -220,6 +221,9 @@ function workbench_access_permission() {
     ),
     'view workbench taxonomy pages' => array(
       'title' => t('View taxonomy term pages for Workbench Access vocabulary'),
+    ),
+    'use workbench_access my ssections tab' => array(
+      'title' => t('Use "My Sections" workbench tab'),
     ),
   );
   return $permissions;
