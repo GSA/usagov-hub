@@ -39,7 +39,7 @@ function workbench_menu() {
   $items['admin/workbench/create'] = array(
     'title' => 'Create content',
     'page callback' => 'workbench_create',
-    'access arguments' => array('access workbench'),
+    'access callback' => 'workbench_create_access',
     'weight' => -15,
     'type' => MENU_LOCAL_TASK,
     'file' => 'workbench.pages.inc',
@@ -61,6 +61,13 @@ function workbench_menu() {
   }
 
   return $items;
+}
+
+/**
+ * Controls access to admin/workbench/create
+ */
+function workbench_create_access() {
+  return (user_access('access workbench') && _node_add_access());
 }
 
 /**

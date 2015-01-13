@@ -87,6 +87,11 @@ function workbench_moderation_node_history_view($node) {
     drupal_set_message(t('Currently there is no published revision of this node.'), 'warning');
   }
 
+  
+  if ( function_exists('cmp_misc_node_ever_published') && !cmp_misc_node_ever_published($node) ) {
+    drupal_set_message(t('There has never had a published revision of this node'), 'warning');
+  }
+
   // Get all of the node revisions, each with its most recent moderation.
   $query = db_select('node', 'n');
   $query->leftJoin('node_revision', 'r', 'n.nid = r.nid');

@@ -1,0 +1,117 @@
+
+<?php
+
+function cmp_import_menu() {
+    $items = array();
+    $items['sanitize-imported-asset'] = array(
+        'title' => 'Testing',
+        'page callback' => '_builk_update',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+    $items['delete-imported-asset'] = array(
+        'title' => 'Testing',
+        'page callback' => '_delete_text_assets',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+    return $items;
+
+}
+
+function _delete_text_assets() {
+    $sql = "SELECT * FROM node WHERE type LIKE 'text_content_type' and nid not in (22867)  order by nid asc limit 100";
+	$res = '';
+    $result = db_query($sql);
+    foreach ($result as $row) {
+        node_delete($row->nid);
+$res .= $row->nid . '-'. $row->title .'<br />';
+    }
+    return $res;
+}
+
+function _builk_update() {
+
+    ini_set('max_execution_time',0);
+    set_time_limit(0);//and nid = 14694
+
+    $sql = "SELECT * FROM node WHERE type LIKE 'text_content_type' and language='und' LIMIT 400,650  " ;  
+    $ret = '';
+    $result = db_query($sql);
+    foreach ($result as $row) {
+        $node = node_load($row->nid);
+       //dpm($node);
+	$node->language = ($node->field_language['und'][0]['value']=='English' || $node->field_language['und'][0]['value'] == 'en'? 'en':'es');
+        if (isset($node->field_asset_topic_taxonomy['und']) && is_array(($node->field_asset_topic_taxonomy['und']))) {
+            // for use by
+            $node->field_for_use_by_text['und'] = _find_for_use_by($node->field_asset_topic_taxonomy['und']);
+        }
+
+	$node->comment = COMMENT_NODE_CLOSED;
+	$new_body = $node->body['und'][0]['safe_value'];
+	$new_body = str_replace('<p></p>', '', $new_body);
+	$new_body = str_replace('<p>&nbsp;</p>', '', $new_body);
+	$node->body['und'][0]['value']=$new_body;
+	$node->body['und'][0]['safe_value'] =  $new_body;
+	//dpm($new_body);
+        // Date Last Reviewed
+        $node->field_date_last_reviewed['und'][0] = array('value'=> date('Y-m-d H:i:s',time()),
+            'timezone'=>'America/New_York',
+            'timezone_db'=>'UTC',
+            'date_type'=>'datetime');
+
+        // Owner
+        $node->field_owner['und'][0]['target_id'] = $node->uid;
+        $node->status = 1;
+	//$node->workbench_moderation_state_new = 'published';
+        $node->workbench_moderation['current']->from_state ='published';
+	$node->workbench_moderation['current']->state='published';
+        node_save($node);
+        node_submit($node);
+	//dpm($node);
+	$ret .= $node->nid . $node->title ." <br/>";
+    }
+    return $ret;
+}
+
+function _find_for_use_by($asset_topic_tid) {
+    $ret = array();
+    /*
+     USA.gov|USA.gov
+GobiernoUSA.gov|GobiernoUSA.gov
+Kids.USA.gov|Kids.USA.gov
+NCC Knowledge Base|NCC Knowledge Base
+Pint CAH|Pint CAH
+Print Guia|Print Guia
+     */
+
+    $top_parent_terms = array();
+    $top_parent_names = array();	
+    for($i = 0; $i < count($asset_topic_tid); $i++) {	
+    	$term_tid = $asset_topic_tid[$i]['tid'];
+    	$top_parent_term = null;
+    	$parent_terms = taxonomy_get_parents_all($term_tid);
+    	//top parent term has no parents so find it out by checking if it has parents
+    	foreach($parent_terms as $parent) {
+        	$parent_parents = taxonomy_get_parents_all($parent->tid);
+        	if ($parent_parents != false) {
+            	//this is top parent term
+            	$top_parent_terms[] = $parent->tid;
+		$top_parent_names[] = $parent->name;
+       	 	}
+   	 }
+    }
+    if(in_array(126, $top_parent_terms) || in_array('ONLY for Call Center Usage', $top_parent_names)) {
+        $ret[]=array('value'=>'NCC Knowledge Base');
+    }
+
+    if(in_array(381, $top_parent_terms) || in_array('USA.gov', $top_parent_names)) { //'USA.gov'
+        $ret[]=array('value'=>'USA.gov');
+        $ret[]=array('value'=>'NCC Knowledge Base');
+    }
+    if(in_array(125, $top_parent_terms) || in_array('GobiernoUSA.gov', $top_parent_names)) {
+        $ret[]=array('value'=>'GobiernoUSA.gov');
+        $ret[]=array('value'=>'NCC Knowledge Base');
+    }
+    return $ret;
+}

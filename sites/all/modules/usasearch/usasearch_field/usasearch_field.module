@@ -1,0 +1,129 @@
+<?php
+
+/**
+ * @file
+ * Provides a USASearch box field, permitting searching of unique affliate.
+ */
+
+/**
+ * Implements hook_field_info().
+ */
+function usasearch_field_field_info() {
+  return array(
+    'usasearch_field_affiliate' => array(
+      'label' => t('USASearch'),
+      'default_widget' => 'usasearch_field_affiliate_widget',
+      'default_formatter' => 'usasearch_field_affiliate_formatter',
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_widget_info().
+ */
+function usasearch_field_field_widget_info() {
+  return array(
+    'usasearch_field_affiliate_widget' => array(
+      'label' => t('Affiliate ID'),
+      'field types' => array('usasearch_field_affiliate'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function usasearch_field_field_formatter_info() {
+  return array(
+    'usasearch_field_affiliate_formatter' => array(
+      'label' => t('Form'),
+      'field types' => array('usasearch_field_affiliate'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_widget_form().
+ */
+function usasearch_field_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+
+  $value = isset($items[$delta]['usasearch_field_affiliate']) ? $items[$delta]['usasearch_field_affiliate'] : '';
+  $widget = $element;
+
+  switch ($instance['widget']['type']) {
+    case 'usasearch_field_affiliate_widget':
+      module_load_include('inc', 'usasearch_api');
+      $widget += array(
+        '#type' => 'select',
+        '#title' => t('Available USASearch Affiliate IDs'),
+        '#options' => usasearch_affiliates_list(),
+        '#default_value' => $value,
+        '#required' => 1,
+      );
+      break;
+  }
+  $element['usasearch_field_affiliate'] = $widget;
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_is_empty().
+ */
+function usasearch_field_field_is_empty($item, $field) {
+  return empty($item['usasearch_field_affiliate']);
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function usasearch_field_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+
+  $element = array();
+  switch ($display['type']) {
+    case 'usasearch_field_affiliate_formatter':
+      foreach ($items as $delta => $item) {
+
+        module_load_include('inc', 'search', 'search.pages');
+        // We pass the string 'usasearch_field' as a build argument so that
+        // subsequent form_alter() implementation can recognize that this form
+        // was built by the usasearch_field module.
+        $form = drupal_get_form('search_block_form', NULL, NULL, NULL, NULL, 'usasearch_field', $item['usasearch_field_affiliate']);
+        $element[$delta] = $form;
+      }
+      break;
+  }
+  return $element;
+}
+
+/**
+ * Implements hook_form_alter().
+ *
+ * Changes elements in the search block, search theme form, search page form.
+ */
+function usasearch_field_form_alter(&$form, &$form_state, $form_id) {
+  // Search block and search box have similar form structure.
+  if ($form_id == 'search_block_form' || $form_id == 'search_theme_form' || $form_id == 'search_form') {
+    if (!empty($form_state['build_info']['args'][4]) && $form_state['build_info']['args'][4] == 'usasearch_field') {
+      $form['affiliate']['#value'] = $form_state['build_info']['args'][5];
+      $form['search_block_form']['#attributes']['placeholder'] = t('Search');
+      unset($form['search_block_form']['#title']);
+    }
+  }
+}
+
+/**
+ * Submit callback for usasearch_field_form_alter() forms.
+ */
+function usasearch_field_form_submit($form, &$form_state) {
+  // If we are searching via API, provide the affiliate parameter.
+  if (module_exists('usasearch_api') && !empty($form['affiliate']['#value'])) {
+    $form_state['redirect'] = array(
+      $form_state['redirect'],
+      array('query' => array(
+        'affiliate' => $form['affiliate']['#value'],
+        ),
+      ),
+    );
+  }
+}

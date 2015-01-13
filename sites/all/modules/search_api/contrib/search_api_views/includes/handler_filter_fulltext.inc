@@ -145,7 +145,7 @@ class SearchApiViewsHandlerFilterFulltext extends SearchApiViewsHandlerFilterTex
     }
     $fields = $this->options['fields'];
     $fields = $fields ? $fields : array_keys($this->getFulltextFields());
-
+    
     // If something already specifically set different fields, we silently fall
     // back to mere filtering.
     $filter = $this->options['mode'] == 'filter';
@@ -208,6 +208,7 @@ class SearchApiViewsHandlerFilterFulltext extends SearchApiViewsHandlerFilterTex
         $fields[$name] = $f[$name]['name'];
       }
     }
+    
     return $fields;
   }
 

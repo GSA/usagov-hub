@@ -1,0 +1,9 @@
+<?php
+
+
+
+function cmp_repo_install()   {}
+function cmp_repo_uninstall() {}
+function cmp_repo_enable()    {}
+function cmp_repo_disable()   {}
+

@@ -1,0 +1,350 @@
+<?php
+
+function cmp_misc_init() {
+
+    drupal_add_js(drupal_get_path('module', 'cmp_misc') .'/js/global.js');
+    drupal_add_css(drupal_get_path('module', 'cmp_misc') .'/global_fix.css');
+}
+
+function cmp_misc_menu() {
+    $items = array();
+    return $items;
+}
+
+function _get_node_count_by_tid($tids){
+
+    $sql = 'SELECT COUNT(*) FROM node n
+        INNER JOIN taxonomy_index t ON n.nid = t.nid
+        WHERE t.tid IN (' . implode(',', $tids) . ') AND n.status = 1';
+
+    $res = db_query($sql)->fetchField();
+
+    return $res;
+}
+
+function _get_child_terms_count_by_tid($tid){
+
+    $sql = 'SELECT COUNT(*) FROM taxonomy_term_hierarchy t  WHERE t.parent = ' . $tid;
+
+    $res = db_query($sql)->fetchField();
+
+    return $res;
+}
+
+
+function cmp_misc_views_api() {
+    return array(
+        'api' => 3,
+        'path' => drupal_get_path('module', 'cmp_misc'),
+        'template path' => drupal_get_path('module', 'cmp_misc') . '/templates',
+    );
+}
+function cmp_misc_views_pre_execute(&$view){
+}
+function cmp_misc_views_pre_render(&$view) {
+    $i = 0;
+    if ($view->name == "sites_taxonomy_report" && $view->current_display == "summarized_report_page") {
+        foreach($view->result as $row){
+            $nav_count = 0;
+            $asset_count = 0;
+            $asset_page_count = 0;
+            $term = taxonomy_term_load($row->tid);
+
+            // nav pages
+            if (isset($term->field_also_include_on_nav_page['und']) && is_array($term->field_also_include_on_nav_page['und'])) {
+                $nav_count = count($term->field_also_include_on_nav_page['und']);
+            }
+
+            // asset topics
+            $asset_tids  = array();
+            $topic_count = 0;
+            if (isset($term->field_asset_topic_taxonomy['und']) && is_array($term->field_asset_topic_taxonomy['und'])) {
+                $topic_count = count($term->field_asset_topic_taxonomy['und']);
+                foreach(array_values($term->field_asset_topic_taxonomy['und']) as $tid) {
+                    $asset_tids[] = $tid['tid'];
+                }
+                $asset_count = _get_node_count_by_tid($asset_tids);
+            }
+
+            // term_child page count
+            $child_term_count =_get_child_terms_count_by_tid($row->tid);
+            //$term_page_count = _get_node_count_by_tid(array($row->tid));
+            //$page_count= $asset_count+$term_page_count;
+
+            $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
+                . $child_term_count . ' Child Page' . (($child_term_count!=1)?'s':'') . ', '
+                . $nav_count . ' Supplimental Nav Link'. (($nav_count!=1)?'s':'') . ', '
+                . $asset_count . ' Asset' . (($asset_count!=1)?'s':'') . ', '
+                . $topic_count . ' Subtopic' . (($topic_count!=1)?'s':'') . ' )';
+
+            $view->result[$i]->taxonomy_term_data_name = $new_title;
+            $i++;
+        }
+    }
+    elseif( $view->name == "content_taxonomy_report" && $view->current_display == "content_tag_report") {
+        $is_asset_topic = (isset($view->exposed_data)
+            && is_array($view->exposed_data)
+            && $view->exposed_data['machine_name'] == 'asset_topic_taxonomy')? TRUE : FALSE;
+
+        foreach($view->result as $row){
+            $asset_count = _get_node_count_by_tid(array($row->tid));
+
+            $child_topics = ($is_asset_topic) ? _get_child_terms_count_by_tid($row->tid) : 0;
+
+            $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
+                . $asset_count . ' Asset' . (($asset_count!=1)?'s':'')
+                . ($is_asset_topic? (', ' . ($child_topics . ' Subtopic' . (($child_topics!=1)?'s':''))) : '')
+                . ' )';
+
+            $view->result[$i]->taxonomy_term_data_name = $new_title;
+            $i++;
+        }
+    }
+    elseif($view->name == 'overriden_content_report' && $view->current_display == 'overriden_content_report_page') {
+
+        $new_result = array();
+        foreach($view->result as $row) {
+                if ($row->users_node_uid != $row->users_node_revision_uid
+                    && $row->users_node_revision_uid != 0
+                    && $row->users_node_uid != 0) {
+                    $new_result[] = $row;
+                }
+
+        }
+        $view->result = $new_result;
+    }
+}
+
+function cmp_misc_form_views_exposed_form_alter(&$form, $form_state) {
+
+    /*if ($form['#id'] == 'views-exposed-form-overriden-content-report-overriden-content-report-page') {
+        $form['stamp']['min']['#date_format'] = 'm/d/Y';
+        $form['stamp']['max']['#date_format'] = 'm/d/Y';
+        dpm($form);
+    }*/
+
+
+}
+
+
+/**
+ * Has this node ever been published
+ *
+ * @param $node
+ *   The node being queried.
+ *
+ * @return
+ *   Boolean, True if any revision of this node had ever been published.
+ */
+/**/
+function cmp_misc_node_ever_published($node) {
+  global $user;
+
+  if (isset($node->workbench_moderation) && !empty($node->workbench_moderation['published'])) {
+    return true;
+  }
+
+  // Get the moderation history of this node.
+  $query = db_select('workbench_moderation_node_history', 'm');
+  $query->condition('m.nid', $node->nid)
+        ->condition('m.state', 'published')
+        ->fields('m',array('stamp'));
+
+  $moderations = $query->execute()->rowCount();
+
+  // Make sure it's an array.
+  return !empty($moderations);
+}
+/**/
+
+
+function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
+    // If this is the edit form for any node under the 'Text Asset' content-type
+    //if ( $form_id === 'text_content_type_node_form' ) {
+
+        if ( !empty($form['#node']->workbench_moderation) ) {
+
+            global $user;
+            $isAdmin = in_array('administrator', $user->roles);
+
+            $workflowState = $form['#node']->workbench_moderation['current']->state;
+            $canApproveDelete = user_access('moderate content from awaiting_deletion to deleted',$user);
+            $everPublished = cmp_misc_node_ever_published($form['#node']);
+
+            /// if isAdmin : delete button + perm option
+            if ( $isAdmin ) { return; } /// admin can always see delete
+            /// if !ever_published : delete button
+            if ( !$everPublished ) { return; } /// anyone can see delete
+            /// if  ever_published &&  awaiting_deletion && !(state:awaiting->deleted) : disabled delete button + message    
+            if ( $workflowState=='awaiting_deletion' && !$canApproveDelete && !empty($form['actions']['delete']) ) 
+            { /* awaiting deletion approval */ 
+                $form['actions']['delete']['#value'] = 'Awaiting Deletion';
+                $form['actions']['delete']['#type'] = 'button';
+                unset($form['actions']['delete']['#submit']);
+                $form['actions']['delete']['#attributes'] = array(
+                    'style' => 'background-color: lightgray; color: gray; outline: 1px dashed gray;',
+                    "onclick" => "return (false);"
+                );
+                return;
+            }
+            /// if  ever_published &&  awaiting_deletion &&  (state:awaiting->deleted) : approve soft delete button
+            if ( $workflowState=='awaiting_deletion' &&  $canApproveDelete && !empty($form['actions']['delete']) ) 
+            { /* approve deletion */ 
+                $form['actions']['delete']['#value'] = 'Approve Deletion';
+                return;
+            }
+            /// if  ever_published &&  deleted : show state
+            if ( $workflowState=='deleted' && !empty($form['actions']['delete']) ) 
+            {
+                $form['actions']['delete']['#value'] = 'Already Deleted';
+                $form['actions']['delete']['#type'] = 'button';
+                unset($form['actions']['delete']['#submit']);
+                $form['actions']['delete']['#attributes'] = array(
+                    'style' => 'background-color: lightgray; color: gray; outline: 1px dashed gray;',
+                    "onclick" => "return (false);"
+                );
+                return;
+            }
+            /*
+            $disableDelBtn = false;
+             If this user isn't allowed to hard-delete, disabel the delete button if the node is in the soft-delete process
+            if ( !$isAdmin && ( $workflowState == 'deleted' || $workflowState == 'awaiting_deletion' ) ) {
+                $disableDelBtn = true;
+            }
+
+            if ( $disableDelBtn ) {
+                $form['actions']['delete']['#value'] = 'Already ' . str_replace('_', ' ', $workflowState);
+                $form['actions']['delete']['#type'] = 'button';
+                unset($form['actions']['delete']['#submit']);
+                $form['actions']['delete']['#attributes'] = array(
+                    'style' => 'background-color: lightgray; color: gray; outline: 1px dashed gray;',
+                    "onclick" => "return (false);"
+                );
+            }
+            */
+        }
+    //}
+}
+
+
+/**
+* Implements hook_mail_alter
+*/
+function cmp_misc_mail_alter(&$message) {
+    //Sanitize and decode HTML entities in email subject
+    $message['headers']['Content-Type'] = "html/text; charset=UTF-8; format=flowed; delsp=yes";
+}
+
+
+
+/*
+ * Implements HOOK_node_insert
+ *
+ * Some node(s) have a field_workflow_state_search field, which we want to always contain the current workflow-status.
+ * We use this field as an easy way to obtain the workflow information with the ElasticSearch mdoule...
+ */
+function cmp_misc_node_insert($node) {
+    
+    // If this node is of a content-type that has the workflow_state_search field....
+    if ( isset($node->field_workflow_state_search) ) {
+
+        // and if this node is under use of the workbench_moderation/workflow module...
+        if ( isset($node->field_workflow_state_search) || !empty($node->workbench_moderation_state_new) ) {
+            
+            // Get the current work-flow status
+            if ( !empty($node->workbench_moderation_state_new) ) {
+                $currentWorkFlowStatus = $node->workbench_moderation_state_new; // only exsists when value changed?
+            } else {
+                $currentWorkFlowStatus = $node->workbench_moderation['current']->state; // seems to contain old value when the work-flow changes
+            }
+
+            // then set the current workflow-status into the workflow_state_search field
+            $node->field_workflow_state_search = array(
+                'und' => array(
+                    0 => array(
+                        'value' => $currentWorkFlowStatus
+                    )
+                )
+            );
+
+            // Debug - for those of us who tail the error_log
+            $myFunct = __FUNCTION__;
+            error_log(
+                "Notice: {$myFunct} has set the current workflow-status ({$currentWorkFlowStatus}) "
+                ."into field_workflow_state_search for node {$node->nid} ({$node->title})"
+            );
+        }
+    }
+
+}
+
+/*
+ * Implements HOOK_node_update
+ *
+ * Some node(s) have a field_workflow_state_search field, which we want to always contain the current workflow-status.
+ * We use this field as an easy way to obtain the workflow information with the ElasticSearch mdoule...
+ */
+function cmp_misc_node_update($node) {
+
+    // If this node is of a content-type that has the workflow_state_search field....
+    if ( isset($node->field_workflow_state_search) ) {
+
+        // and if this node is under use of the workbench_moderation/workflow module...
+        if ( isset($node->field_workflow_state_search) || !empty($node->workbench_moderation_state_new) ) {
+            
+            // Get the current work-flow status
+            if ( !empty($node->workbench_moderation_state_new) ) {
+                $currentWorkFlowStatus = $node->workbench_moderation_state_new; // only exsists when value changed?
+            } else {
+                $currentWorkFlowStatus = $node->workbench_moderation['current']->state; // seems to contain old value when the work-flow changes
+            }
+
+            // then set the current workflow-status into the workflow_state_search field
+            $node->field_workflow_state_search = array(
+                'und' => array(
+                    0 => array(
+                        'value' => $currentWorkFlowStatus
+                    )
+                )
+            );
+
+            // Debug - for those of us who tail the error_log
+            $myFunct = __FUNCTION__;
+            error_log(
+                "Notice: {$myFunct} has set the current workflow-status ({$currentWorkFlowStatus}) "
+                ."into field_workflow_state_search for node {$node->nid} ({$node->title})"
+            );
+        }
+    }
+
+}
+
+
+
+function cmp_misc_entity_load($entities, $type) 
+{
+    if ( $type === 'file' ) 
+    {
+        foreach ( $entities as $theEntity ) 
+        {
+            if ( !isset($theEntity->type) && isset($theEntity->uri) && strpos($theEntity->uri, 's3://') === 0 ) 
+            {
+                $theEntity->type = 'image';
+            }
+        }
+    }
+    if ( $type === 'node' ) 
+    {
+        foreach ( $entities as $theEntity ) 
+        {
+            if ( $row = db_query("select deleted, deletion_uid, deletion_timestamp, uuid from {node} where {node}.nid = {$theEntity->nid}")->fetchAssoc() )
+            {
+                $theEntity->deleted            = empty($row['deleted']) ? 0 : 1;
+                $theEntity->deletion_uid       = $row['deletion_uid'];
+                $theEntity->deletion_timestamp = $row['deletion_timestamp'];
+                $theEntity->uuid               = $row['uuid'];
+            }
+        }
+    }
+}
+

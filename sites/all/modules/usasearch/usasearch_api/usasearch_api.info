@@ -10,9 +10,9 @@ dependencies[] = composer_manager
 dependencies[] = ctools
 
 
-; Information added by Drupal.org packaging script on 2014-11-13
-version = "7.x-4.1"
+; Information added by Drupal.org packaging script on 2014-12-16
+version = "7.x-4.2"
 core = "7.x"
 project = "usasearch"
-datestamp = "1415857688"
+datestamp = "1418752083"
 
