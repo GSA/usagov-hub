@@ -1,6 +1,20 @@
 
 jQuery(document).ready( function () {
 
+	setInterval(function () {
+		
+		if ( jQuery('.group-asset-topic-placement').length > 0 && jQuery('.group-asset-topic-placement.helper-script-applied').length == 0 ) {
+			console.log('Firing initAssetTopicPlacementHelperScript()');
+			initAssetTopicPlacementHelperScript();
+			jQuery('.group-asset-topic-placement').addClass('helper-script-applied');
+		}
+
+	}, 100);
+
+});
+
+function initAssetTopicPlacementHelperScript() {
+
 	updateAssetTopicPlacementCountClasses();
 
 	// When the user touches a checkbox under the "Asset Topic Taxonomy" field... 
@@ -42,8 +56,7 @@ jQuery(document).ready( function () {
 			updateAssetTopicPlacementCountClasses();
 		});
 	}
-
-});
+}
 
 function updateAssetTopicPlacementCountClasses() {
 
@@ -135,13 +148,15 @@ function alterTermsOnAssetTopicPlacementField(addTermIDs, removeTermIDs, fieldSe
 				jQuery(fieldSelector + ' input[value="' + originalValues[x].tid + '"]').get(0).checked = originalValues[x].checked;
 			}
 
+			console.log('alterTermsOnAssetTopicPlacementField() functionality complete');
+
 			// Trigger callback
 			if ( typeof callback === 'function' ) {
 				callback();
 			}
 
-		}, true);
+		});
 
-	}, true);
+	});
 
 }

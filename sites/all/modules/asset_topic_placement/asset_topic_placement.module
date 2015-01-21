@@ -6,6 +6,7 @@ function asset_topic_placement_init() {
     if ( 
         strpos(request_uri(), 'taxonomy/term/') !== false && strpos(request_uri(), '/edit') !== false 
         || strpos(request_uri(), '/admin/structure/taxonomy/site_strucutre_taxonomy/add') !== false
+        || strpos(request_uri(), '/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy') !== false
     ) {
 
         // Include asset_topic_placement.js

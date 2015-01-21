@@ -16,7 +16,10 @@ $.fn.waitUntilExists	= function (handler, shouldRunHandlerOnce, isChild) {
 
 	var found	= 'found';
 	var $this	= $(this.selector);
-	var $elements	= $this.not(function () { return $(this).data(found); }).each(handler).data(found, true);
+	
+	if ( $this.length > 0 ) {
+		handler();
+	}
 	
 	if (!isChild)
 	{
@@ -24,7 +27,7 @@ $.fn.waitUntilExists	= function (handler, shouldRunHandlerOnce, isChild) {
 			window.setInterval(function () { $this.waitUntilExists(handler, shouldRunHandlerOnce, true); }, 500)
 		;
 	}
-	else if (shouldRunHandlerOnce && $elements.length)
+	else if (shouldRunHandlerOnce && $this.length > 0)
 	{
 		window.clearInterval(window.waitUntilExists_Intervals[this.selector]);
 	}
@@ -47,13 +50,13 @@ $.fn.waitUntilNotExists	= function (handler, shouldRunHandlerOnce, isChild) {
 	
 	if (!isChild)
 	{
-		(window.waitUntilExists_Intervals = window.waitUntilExists_Intervals || {})[this.selector] =
+		(window.waitUntilNotExists_Intervals = window.waitUntilNotExists_Intervals || {})[this.selector] =
 			window.setInterval(function () { $this.waitUntilNotExists(handler, shouldRunHandlerOnce, true); }, 500)
 		;
 	}
 	else if (shouldRunHandlerOnce && $this.length == 0)
 	{
-		window.clearInterval(window.waitUntilExists_Intervals[this.selector]);
+		window.clearInterval(window.waitUntilNotExists_Intervals[this.selector]);
 	}
 	
 	return $this;
