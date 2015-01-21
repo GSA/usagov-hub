@@ -3,6 +3,7 @@ description = A simple one-column, tableless, minimalist administration theme.
 core = 7.x
 scripts[] = js/jRespond.js
 scripts[] = js/adminimal_theme.js
+scripts[] = js/jquery.waituntilexists.js
 settings[shortcut_module_link] = 1
 settings[display_icons_config] = 1
 settings[custom_css] = 0

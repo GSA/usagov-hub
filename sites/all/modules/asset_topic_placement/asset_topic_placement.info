@@ -1,0 +1,6 @@
+name = Asset Topic Placement
+description = Manages the edit page of Site-Structure taxonomy terms - this is a helper script to manage the "Asset Topic Placement" field on this page.
+package = CTAC
+core = 7.x
+files[] = asset_topic_placement.module
+dependencies[] = field_group

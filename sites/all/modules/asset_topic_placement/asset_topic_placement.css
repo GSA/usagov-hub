@@ -1,0 +1,16 @@
+#modalBackdrop,
+#modalContent,
+.group-asset-topic-placement .ervw-add-items {
+  display: none !important;
+}
+.group-asset-topic-placement.term-count-0 {
+  display: none !important;
+}
+.group-asset-topic-placement.term-processing {
+  background: url('/misc/spinner.gif') no-repeat 50% 51%;
+  height: 150px;
+  display: block !important;
+}
+.group-asset-topic-placement.term-processing .fieldset-wrapper {
+  opacity: 0;
+}
