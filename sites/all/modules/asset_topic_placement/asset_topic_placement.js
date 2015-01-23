@@ -42,7 +42,7 @@ function initAssetTopicPlacementHelperScript() {
 							addTids.push(this.value);
 						});
 
-						alterTermsOnAssetTopicPlacementFields(addTids, [], function () {
+						alterTermsOnAssetTopicPlacementFields(function () {
 							updateAssetTopicPlacementCountClasses();
 							jQuery('.group-asset-topic-placement').dequeue();
 						});
@@ -77,7 +77,7 @@ function initAssetTopicPlacementHelperScript() {
 		tickedCheckboxes.each( function () {
 			selectedTermIDs.push( this.value );
 		});
-		alterTermsOnAssetTopicPlacementFields(selectedTermIDs, [], function () {
+		alterTermsOnAssetTopicPlacementFields(function () {
 			updateAssetTopicPlacementCountClasses();
 		});
 	}
@@ -117,33 +117,31 @@ function updateAssetTopicPlacementCountClasses() {
 
 }
 
-function alterTermsOnAssetTopicPlacementFields(addTermIDs, removeTermIDs, callback) {
+function alterTermsOnAssetTopicPlacementFields(callback) {
 
 	jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
 
-	alterTermsOnAssetTopicPlacementField(addTermIDs, removeTermIDs, '.field-name-field-asset-topic-carousel', function () {
-		alterTermsOnAssetTopicPlacementField(addTermIDs, removeTermIDs, '.field-name-field-asset-topic-sidebar', function () {
-			alterTermsOnAssetTopicPlacementField(addTermIDs, removeTermIDs, '.field-name-field-asset-topic-footer', function () {
+	alterTermsOnAssetTopicPlacementField('.field-name-field-asset-order-carousel', function () {
+		alterTermsOnAssetTopicPlacementField('.field-name-field-asset-order-content', function () {
+			alterTermsOnAssetTopicPlacementField('.field-name-field-asset-order-sidebar', function () {
+				alterTermsOnAssetTopicPlacementField('.field-name-field-asset-order-bottom', function () {
 
-				jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+					jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
 
-				// Trigger callback
-				if ( typeof callback === 'function' ) {
-					callback();
-				}
+					// Trigger callback
+					if ( typeof callback === 'function' ) {
+						callback();
+					}
 
+				})
 			})
 		})
 	});
 }
 
-function alterTermsOnAssetTopicPlacementField(addTermIDs, removeTermIDs, fieldSelector, callback) {
+function alterTermsOnAssetTopicPlacementField(fieldSelector, callback) {
 
 	console.log('Now applying changes to the Asset-Topic-Placement-Field: ' + fieldSelector);
-
-
-	// Click the "Add items" button
-	jQuery(fieldSelector + ' .form-submit').mousedown();
 
 	// Remember what was and was not check in this field (we are about to change them)
 	var originalValues = [];
@@ -157,38 +155,26 @@ function alterTermsOnAssetTopicPlacementField(addTermIDs, removeTermIDs, fieldSe
 	// Temporarily set all checkboxes in this field to ticked, so they do not get lost in the next form submission
 	jQuery(fieldSelector + ' input[type="checkbox"]').attr('checked', true);
 
-	// Allow us to loose a values upon form  submissions, that we dont care about
-	for ( var x = 0 ; x < removeTermIDs.length ; x++ ) {
-		jQuery(fieldSelector + ' input[value=' + removeTermIDs[x] + ']').attr('checked', false);
-	}
+	// Click the "Add items" button for this field
+	jQuery(fieldSelector + ' input[type="submit"]').focus();
+	jQuery(fieldSelector + ' input[type="submit"]').mousedown();
 
 	// Wait for the modal entity-reference-view-widget to show...
 	console.log('Waiting for the modal entity-reference-view-widget to show...');
-	jQuery('.view-entity-reference-asset-topic').waitUntilExists( function () {
+	jQuery('.view-entity-reference-asset-nodes').waitUntilExists( function () {
 
-		// Tick every necessary checkbox that is ticket under "Asset Topic Taxonomy"
-		for ( key in addTermIDs ) {
-			if ( jQuery('.view-entity-reference-asset-topic input[value=' + addTermIDs[key] + ']').length == 0 ) {
-				debugger;
-			}
-			jQuery('.view-entity-reference-asset-topic input[value=' + addTermIDs[key] + ']').attr('checked', true);
-			jQuery('.view-entity-reference-asset-topic input[value=' + addTermIDs[key] + ']').get(0).checked = true;
-		}
+		// Tick every checkbox in the modal form
+		jQuery('a#entityreference-view-widget-select-all').click();
 
 		// Click the "Submit" button in the View
-		jQuery('.view-entity-reference-asset-topic #edit-ervw-submit').mousedown();
+		jQuery('#edit-ervw-submit').mousedown();
 
-		// Wait for the "Submit" button to process
+		// Wait for the "Submit" button to process (waitr for the modal form to close)
 		console.log('Waiting for the "Submit" button to process...');
-		jQuery('.view-entity-reference-asset-topic .ajax-progress.ajax-progress-throbber').waitUntilNotExists( function () {
-
-			// Close the modal dailog
-			jQuery('#modalContent .close').click();
+		jQuery('#modalContent').waitUntilNotExists( function () {
 
 			// Set the checkbox(s) to be unticked by default
-			for ( var x = 0 ; x < addTermIDs.length ; x++ ) {
-				jQuery(fieldSelector + ' input[value=' + addTermIDs[x] + ']').get(0).checked = false;
-			}
+			jQuery(fieldSelector + ' input[type="checkbox"]').attr('checked', false);
 
 			// Restore checkbox values
 			for ( var x = 0 ; x < originalValues.length ; x++ ) {

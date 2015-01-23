@@ -15,3 +15,36 @@ function asset_topic_placement_init() {
 
     }
 }
+
+function asset_topic_placement_entityreference_view_widget_views_arguments_alter(&$arguments, $form_state) {
+
+    $selectedAssetTopics = asset_topic_placement_findSelectedTopicsInForm($form_state);
+    $arguments = array(
+        0 => implode('+', $selectedAssetTopics)
+    );
+
+}
+
+function asset_topic_placement_findSelectedTopicsInForm($form_state, $recursiveUse = null) {
+
+    if ( is_null($recursiveUse) ) {
+        return asset_topic_placement_findSelectedTopicsInForm(null, $form_state['values']['field_asset_topic_taxonomy']['und'][0]);
+    }
+
+    $ret = array();
+
+    foreach ( $recursiveUse as $eid => $data ) {
+        if ( is_array($data) ) {
+            $ret = array_merge(
+                $ret, 
+                asset_topic_placement_findSelectedTopicsInForm(null, $data)
+            );
+        } elseif ( is_string($data) || is_numeric($data) ) {
+            if ( intval($data) != 0 ) {
+                $ret[] = intval($data);
+            }
+        }
+    }
+
+    return $ret;
+}
