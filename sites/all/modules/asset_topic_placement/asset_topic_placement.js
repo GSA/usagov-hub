@@ -93,7 +93,7 @@ function enforceAssetTopicOrderVisibilityBasedOnInheritance() {
 		var jqThis = jQuery(this);
 		var inheritCheckbox = jqThis.siblings('input');
 		var fieldsetContainer = jqThis.parents('.fieldset-wrapper').eq(0); // Search up the DOM from $(this) to the first div.fieldset-wrapper
-		var assetTopicOrderField = fieldsetContainer.children('.field-type-taxonomy-term-reference');
+		var assetTopicOrderField = fieldsetContainer.children('.field-widget-entityreference-view-widget');
 
 		if ( inheritCheckbox.attr('checked') ) {
 			assetTopicOrderField.fadeOut();
