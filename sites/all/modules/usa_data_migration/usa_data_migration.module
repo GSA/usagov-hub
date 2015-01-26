@@ -929,7 +929,7 @@ function usa_data_migration_printNodeDump() {
         WHERE n.type IN ('" . implode("', '", variable_get('udm_conttypes', array())) . "') 
     ")->fetchCol();
     if ( $batch > 0 ) {
-        $nids = array_slice($nids, ($size * $batch), $size);
+        $nids = array_slice($nids, ($size * ($batch-1)), $size);
     }
     $returnData['nodeEntities'] = node_load_multiple($nids);
 
