@@ -842,12 +842,26 @@ function usa_data_migration_getExportTaxonomyStructureCode() {
         $selectedFields[$machineName] = $machineName;
     }
 
+    $fieldGroupIds = array();
+    $fieldGroupData = array();
+    $all_groups = function_exists('field_group_info_groups') ? field_group_info_groups() : array();
+    if ( !empty($all_groups) && !empty($all_groups['taxonomy_term']) ) {
+        foreach ($all_groups['taxonomy_term'] as $vocabName => $formData) {
+            foreach ($formData['form'] as $groupName => $data) {
+                $fieldGroupIds[$data->id] = $data->id;
+                $fieldGroupData[$data->id] = $data;
+            }
+        }
+    }
+
     $selected_data = array(
         1 => array(
             'bundles' => $selected_bundles
         ),
         2 => array(
-            'fields' => $selectedFields
+            'fields' => $selectedFields,
+            'fieldgroups' => $fieldGroupIds,
+            'fieldgroups-full' => $fieldGroupData,
         ),
     );
 
