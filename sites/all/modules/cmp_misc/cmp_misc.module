@@ -1,7 +1,21 @@
 <?php
 
-function cmp_misc_init() {
+/** update base_url to be https **/
+if ( empty($GLOBALS['base_url']) && !empty($_SERVER['HTTP_HOST']) )
+{
+    $GLOBALS['base_url'] = ( (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS']=='on') ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'];
+} else {
+    header('XXX: BASE_URL ALREADY SET');
+}
 
+if ( empty(variable_get('s3fs_bucket')) )
+{
+    variable_set( 's3fs_bucket',     getenv('CMP_AWS_S3_BUCKET') );
+    variable_set( 'amazons3_bucket', getenv('CMP_AWS_S3_BUCKET') );
+}
+
+function cmp_misc_init() 
+{
     drupal_add_js(drupal_get_path('module', 'cmp_misc') .'/js/global.js');
     drupal_add_css(drupal_get_path('module', 'cmp_misc') .'/global_fix.css');
 }
