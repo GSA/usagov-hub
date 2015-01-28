@@ -1,0 +1,99 @@
+<?php
+
+function egss_jsonv3_menu() {
+
+  $items = array();
+
+  // Configuration page
+  $items['egss_jsonv3.jsp'] = array(
+      'title' => 'egss_jsonv3.jsp',
+      'description' => 'egss_jsonv3 emulation',
+      'page callback' => 'egss_jsonv3_menucallback',
+      'access arguments' => array(true),
+      'type' => MENU_NORMAL_ITEM
+  );
+
+  return $items;
+}
+
+function egss_jsonv3_menucallback() {
+
+	// Destroy any markup that was about to be printed (logo, menu, etc.)
+	@ob_end_clean();
+	while ( @ob_end_clean() );
+
+	// Headers
+	header('Content-Type: text/javascript');
+
+	// Receive jsoncallback argument 
+	$jsoncallback = 'null'; // default to "null"
+	if ( !empty($_REQUEST['jsoncallback']) ) {
+		$jsoncallback = trim($_REQUEST['jsoncallback']);
+	}
+
+	print $jsoncallback . '({"TOP_ANSWERS": [
+ {
+  "ARTICLE": "CONTENT FLAG SET TO NO",
+  "LASTUPDATE": "01/12/2015",
+  "TITLE": "Weekly Feature - Federal Tax Filing Season",
+  "URL": "http://www.usa.gov/Citizen/Topics/Money/Taxes.shtml"
+ },
+ {
+  "ARTICLE": "CONTENT FLAG SET TO NO",
+  "LASTUPDATE": "12/01/2014",
+  "TITLE": "Affordable Care Act (ACA)",
+  "URL": "http://www.usa.gov/Citizen/Topics/Health/HealthInsurance.shtml"
+ },
+ {
+  "ARTICLE": "CONTENT FLAG SET TO NO",
+  "LASTUPDATE": "12/12/2014",
+  "TITLE": "Find out if the Government Owes You Money",
+  "URL": "http://www.usa.gov/Citizen/Topics/Government-Unclaimed-Money.shtml"
+ },
+ {
+  "ARTICLE": "CONTENT FLAG SET TO NO",
+  "LASTUPDATE": "12/18/2014",
+  "TITLE": "Find a Post Office Near You",
+  "URL": "http://www.usa.gov/Citizen/Topics/Family-Community.shtml"
+ },
+ {
+  "ARTICLE": "CONTENT FLAG SET TO NO",
+  "LASTUPDATE": "12/15/2014",
+  "TITLE": "Housing Help: Home Repairs/Modifications",
+  "URL": "http://www.usa.gov//Citizen/Topics/Family/Homeowners/Home-Repairs.shtml"
+ },
+ {
+  "ARTICLE": "CONTENT FLAG SET TO NO",
+  "LASTUPDATE": "12/19/2014",
+  "TITLE": "Passports",
+  "URL": "http://www.usa.gov/topics/travel/international/passports.shtml"
+ },
+ {
+  "ARTICLE": "CONTENT FLAG SET TO NO",
+  "LASTUPDATE": "12/18/2014",
+  "TITLE": "Government Grants and Loans for Individuals",
+  "URL": "http://www.usa.gov/Citizen/Topics/Benefits.shtml"
+ },
+ {
+  "ARTICLE": "CONTENT FLAG SET TO NO",
+  "LASTUPDATE": "01/07/2015",
+  "TITLE": "Government Jobs",
+  "URL": "http://www.usa.gov/Citizen/Topics/Government-Jobs.shtml"
+ },
+ {
+  "ARTICLE": "CONTENT FLAG SET TO NO",
+  "LASTUPDATE": "12/11/2014",
+  "TITLE": "Address Change",
+  "URL": "http://www.usa.gov/Citizen/Services/Change-Of-Address.shtml"
+ },
+ {
+  "ARTICLE": "CONTENT FLAG SET TO NO",
+  "LASTUPDATE": "11/26/2014",
+  "TITLE": "Replacing Birth, Marriage, Death Certificates, and other Vital Documents ",
+  "URL": "http://www.usa.gov/Citizen/Topics/Family-Issues/Vital-Docs.shtml"
+ }
+]});';
+
+  exit();
+
+}

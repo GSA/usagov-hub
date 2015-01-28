@@ -1,0 +1,5 @@
+name = egss_jsonv3
+description = A script requested by Russell
+package = CTAC
+core = 7.x
+files[] = egss_jsonv3.module
