@@ -1,24 +1,5 @@
 (function($) {
 
-//ctac edits to adminimal
-$(document).ready(function(){
-	// hide certain items in the admin menu based on roles
-	setTimeout(function(){ 
-		// UX Member roles
-		$('body.ux-member #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/agency_tags"]').parent().remove();
-		//$('body.ux-member #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/asset_topic_taxonomy"]').parent().remove();
-		//$('body.ux-member #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy"]').parent().remove();
-		$('body.ux-member #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/workbench"]').parent().remove();
-
-		// Editor roles
-		//$('body.editor #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/agency_tags"]').parent().remove();
-		$('body.editor #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/asset_topic_taxonomy"]').parent().remove();
-		$('body.editor #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy"]').parent().remove();
-		$('body.editor #admin-menu li a[href="/admin/structure/taxonomy_manager/voc/workbench"]').parent().remove();
-	}, 500);
-
-});
-
 // Define jRespond Media queries.
 var jRes = jRespond([
 	{
@@ -96,11 +77,11 @@ Drupal.behaviors.adminimal_move_active_primary_tab = {
 			breakpoint: 'mobile',
 				enter: function() {
 					$( "ul.tabs.primary li.active" ).clone().appendTo( "ul.tabs.primary" ).removeClass( "active" ).addClass( "current" );
-					$( "ul.tabs.primary li.active" ).hide();
+					$( "ul.tabs.primary li.active" ).css("display", "none");
 				},
 				exit: function() {
-					$( "ul.tabs.primary li.active" ).show();
-					$( "ul.tabs.primary li.current" ).hide();
+					$( "ul.tabs.primary li.active" ).css("display", "table");
+					$( "ul.tabs.primary li.current" ).css("display", "none");
 				}
 		});
 	}
