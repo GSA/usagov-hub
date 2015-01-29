@@ -85,7 +85,7 @@ function cmp_import_menu() {
 
 function _fix_percussion_links(){
     $start = (isset($_REQUEST["start"]))? $_REQUEST["start"]:0;
-    $sql = "SELECT n.nid, h.field_html_value as html FROM node n INNER JOIN field_data_field_html h ON h.entity_id = n.nid WHERE type='html_content_type'; ";
+    $sql = "SELECT n.nid, h.field_html_value as html FROM node n INNER JOIN field_data_field_html h ON h.entity_id = n.nid WHERE type='html_content_type' LIMIT " . $start . ", 50";;
     $res=db_query($sql);
     $ret = '';
     $count =0;
@@ -113,44 +113,23 @@ function _fix_percussion_links(){
 
                 $sub_row = db_query('SELECT * FROM sites_taxonomy WHERE contentid=' . $match)->fetchAssoc();
                 if(isset($sub_row) && !empty($sub_row)) {
-                    $tid = db_query("SELECT source_tid FROM migration_site_structure_full_term_log WHERE legacy_path LIKE'" . $sub_row->location . "'")->fetchField();
-                    /*dpm($match);
-                        dpm($content_source_match);
-                    dpm($sub_row);*/
+                    $new_path = $sub_row['location'];
 
-                    $node_sql = "SELECT * FROM taxonomy_index WHERE tid=" . $tid;
-                    $node_res = db_query($node_sql);
-
-                    foreach ($node_res as $node_row) {
-                        $node = node_load($node_row->nid);
-
-                        // set crausel
-                        if (_is_tid_found($crsl, $node->field_asset_topic_taxonomy['und'])) {
-                            //$term->field_asset_order_carousel['und'][] = array("target_id" => $node->nid);
-                        }
-                        // set right side
-                        elseif (_is_tid_found($rt, $node->field_asset_topic_taxonomy['und'])) {
-                            // $term->field_asset_order_sidebar['und'][] = array("target_id" => $node->nid);
-                        }
-                        elseif(_is_tid_found($btm_lvl1, $node->field_asset_topic_taxonomy['und']) || _is_tid_found($btm_lvl2, $node->field_asset_topic_taxonomy['und'])){
-                            //$term->field_asset_order_bottom['und'][] = array("target_id" => $node->nid);
-                        }
-                        else {
-                            //$term->field_asset_order_content['und'][] = array("target_id" => $node->nid);
-                        }
-                    }
                     $count++;
+                    $ret .="Node: <a href='/node/" . $row->nid . "/edit'>" .$row->nid . "</a>  Percu: " . $match . " >> " . $new_path;
                     $ret .= "<hr/>";
 
+                    // !!! Important replace path
+                    $text = str_replace($content_source_match[1], $sub_row['location'], $text);
                 }
                 else {
                     $ret .= "NOT FOUND <a href='/node/" . $row->nid . "'>" .$row->nid . "</a>  <b style='color:red'>" . $match . "</b><br/>";
                     $not_found_counter++;
                 }
             }
-            /*$node = node_load($row->nid);
+            $node = node_load($row->nid);
             $node->field_html['und'][0]['value'] = $text;
-            node_save($node);*/
+            node_save($node);
             $count++;
         }
     }
@@ -1077,6 +1056,7 @@ function _bulk_term_update() {
 
             // Owner
             $node->field_owner['und'][0]['target_id'] = 1;
+            $node->contentid=1;
 
             $tmp_body = array();
             $contents = array();
