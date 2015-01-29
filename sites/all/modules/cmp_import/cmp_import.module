@@ -1,4 +1,3 @@
-
 <?php
 
 function cmp_import_menu() {
@@ -15,45 +14,795 @@ function cmp_import_menu() {
         'type' => MENU_NORMAL_ITEM,
         'access callback' => TRUE
     );
+    $items['kids-create-table-schema'] = array(
+        'title' => 'Testing',
+        'page callback' => '_create_table_schema',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+    /*$items['kids-import-richtext-asset'] = array(
+        'title' => 'Testing',
+        'page callback' => '_import_kids_richtext_asset',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+    $items['kids-import-rawtext-asset'] = array(
+        'title' => 'Testing',
+        'page callback' => '_import_kids_rawtext_asset',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );*/
+    $items['kids-import-site-structure'] = array(
+        'title' => 'Testing',
+        'page callback' => '_import_kids_site_structure',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+    $items['kids-import-term-cck_update'] = array(
+        'title' => 'Testing',
+        'page callback' => '_bulk_term_update',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+
+    $items['kids-import-test'] = array(
+        'title' => 'Testing',
+        'page callback' => '_test_test',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+
+    $items['kids-import-ss-taxonomy'] = array(
+        'title' => 'UPDATING SITE STRUCTURE TAXONOMY',
+        'page callback' => '_update_site_structure_taxonomy',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+
+    $items['kids-not_found_url'] = array(
+        'title' => 'UPDATING SITE STRUCTURE TAXONOMY',
+        'page callback' => '_list_old_path_not_in_taxonomy',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+
+    $items['kids-fix_percussion_links'] = array(
+        'title' => 'UPDATING SITE STRUCTURE TAXONOMY',
+        'page callback' => '_fix_percussion_links',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+
+    $items['kids-build_site_building'] = array(
+        'title' => 'UPDATING SITE STRUCTURE TAXONOMY',
+        'page callback' => '_import_kids_real_site_structure_tax',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+
     return $items;
-
 }
 
-function _delete_text_assets() {
-    $sql = "SELECT * FROM node WHERE type LIKE 'text_content_type' and nid not in (22867)  order by nid asc limit 100";
-	$res = '';
-    $result = db_query($sql);
-    foreach ($result as $row) {
-        node_delete($row->nid);
-$res .= $row->nid . '-'. $row->title .'<br />';
-    }
-    return $res;
-}
-
-function _builk_update() {
-
-    ini_set('max_execution_time',0);
-    set_time_limit(0);//and nid = 14694
-
-    $sql = "SELECT * FROM node WHERE type LIKE 'text_content_type' and language='und' LIMIT 400,650  " ;  
+function _fix_percussion_links(){
+    $start = (isset($_REQUEST["start"]))? $_REQUEST["start"]:0;
+    $sql = "SELECT n.nid, h.field_html_value as html FROM node n INNER JOIN field_data_field_html h ON h.entity_id = n.nid WHERE type='html_content_type'; ";
+    $res=db_query($sql);
     $ret = '';
+    $count =0;
+    $not_found_counter = 0;
+
+    // taxonomy_vocabulary for site_strcuture = 42
+    $parent_term_id = 3897;
+    $vocab = 57;
+    $crsl=_get_term_id($vocab, 'Carousel', $parent_term_id);
+    $rt=_get_term_id($vocab, 'Right Side Bar', $parent_term_id);
+    $btm_lvl1=_get_term_id($vocab, 'Bottom 1', $parent_term_id);
+    $btm_lvl2=_get_term_id($vocab, 'Bottom 2', $parent_term_id);
+
+    foreach($res as $row) {
+
+        $text = $row->html;
+        //preg_match_all('/sys_contentid=(\d+)/', $text, $matchs); http://cm1.usa.gov:9992
+        $matchs=array();
+        preg_match('/http:\/\/cm1.usa.gov:/', $text, $match_init);
+        preg_match_all('/sys_contentid=(\d+)/',$text,$matchs);
+
+        if (!empty($matchs) && count($matchs[1]) > 0) {
+            foreach($matchs[1] as $match) {
+                preg_match('/href=("http:\/\/cm1.usa.gov:9992(.*?)sys_contentid=' . $match . '(.*?)")/', $text, $content_source_match);
+
+                $sub_row = db_query('SELECT * FROM sites_taxonomy WHERE contentid=' . $match)->fetchAssoc();
+                if(isset($sub_row) && !empty($sub_row)) {
+                    $tid = db_query("SELECT source_tid FROM migration_site_structure_full_term_log WHERE legacy_path LIKE'" . $sub_row->location . "'")->fetchField();
+                    /*dpm($match);
+                        dpm($content_source_match);
+                    dpm($sub_row);*/
+
+                    $node_sql = "SELECT * FROM taxonomy_index WHERE tid=" . $tid;
+                    $node_res = db_query($node_sql);
+
+                    foreach ($node_res as $node_row) {
+                        $node = node_load($node_row->nid);
+
+                        // set crausel
+                        if (_is_tid_found($crsl, $node->field_asset_topic_taxonomy['und'])) {
+                            //$term->field_asset_order_carousel['und'][] = array("target_id" => $node->nid);
+                        }
+                        // set right side
+                        elseif (_is_tid_found($rt, $node->field_asset_topic_taxonomy['und'])) {
+                            // $term->field_asset_order_sidebar['und'][] = array("target_id" => $node->nid);
+                        }
+                        elseif(_is_tid_found($btm_lvl1, $node->field_asset_topic_taxonomy['und']) || _is_tid_found($btm_lvl2, $node->field_asset_topic_taxonomy['und'])){
+                            //$term->field_asset_order_bottom['und'][] = array("target_id" => $node->nid);
+                        }
+                        else {
+                            //$term->field_asset_order_content['und'][] = array("target_id" => $node->nid);
+                        }
+                    }
+                    $count++;
+                    $ret .= "<hr/>";
+
+                }
+                else {
+                    $ret .= "NOT FOUND <a href='/node/" . $row->nid . "'>" .$row->nid . "</a>  <b style='color:red'>" . $match . "</b><br/>";
+                    $not_found_counter++;
+                }
+            }
+            /*$node = node_load($row->nid);
+            $node->field_html['und'][0]['value'] = $text;
+            node_save($node);*/
+            $count++;
+        }
+    }
+
+    $ret .= $count . " PAGES has internal links <br/>";
+    $ret .= $not_found_counter . ' PAGES CAN\'T FOUND <BR/>';
+    return $ret;
+}
+
+function _test_test() {
+
+    $ret= "";
+    $start = (isset($_REQUEST["start"]))? $_REQUEST["start"] : 0;
+    $sql = "SELECT * FROM migration_site_structure_full_term_log LIMIT " . $start . ", 100";
     $result = db_query($sql);
+
     foreach ($result as $row) {
-        $node = node_load($row->nid);
-       //dpm($node);
-	$node->language = ($node->field_language['und'][0]['value']=='English' || $node->field_language['und'][0]['value'] == 'en'? 'en':'es');
-        if (isset($node->field_asset_topic_taxonomy['und']) && is_array(($node->field_asset_topic_taxonomy['und']))) {
-            // for use by
-            $node->field_for_use_by_text['und'] = _find_for_use_by($node->field_asset_topic_taxonomy['und']);
+
+        $sub_sql = "SELECT * FROM taxonomy_index WHERE tid=".$row->source_tid;
+        $sub_result = db_query($sub_sql);
+        foreach($sub_result as $sub_row){
+            node_delete($sub_row->nid);
+            $ret .= $sub_row->nid . " <br/>";
+        }
+    }
+
+    return $ret;
+}
+
+function _replicate_ss_tax() {
+
+    $asset_term_id = '';
+    $sbuild_term_id = '';
+}
+
+function _is_tid_found($search_tid, $tid_array) {
+
+    foreach($tid_array as $tid) {
+
+        if ($tid['tid'] == $search_tid){
+            return TRUE;
         }
 
-	$node->comment = COMMENT_NODE_CLOSED;
-	$new_body = $node->body['und'][0]['safe_value'];
-	$new_body = str_replace('<p></p>', '', $new_body);
-	$new_body = str_replace('<p>&nbsp;</p>', '', $new_body);
-	$node->body['und'][0]['value']=$new_body;
-	$node->body['und'][0]['safe_value'] =  $new_body;
-	//dpm($new_body);
+    }
+    return FALSE;
+}
+
+function _list_old_path_not_in_taxonomy() {
+
+    $ret = "";
+    $sql = "SELECT * FROM migration_site_structure_full_term_log";
+    $result = db_query($sql);
+    $i=0;
+
+    foreach ($result as $row) {
+
+        $path = $row->legacy_path;
+
+        $path = str_replace("/art/", "/art-and-music/", $path);
+        $path = str_replace("/watch-videos/art/", "/watch-videos/art-and-music-videos/",$path);
+        //$path = str_replace("/watch-videos/videos/online-safety/index.shtml", "/watch-videos/online-safety/index.shtml", $path);
+        $path = str_replace("/teens-home/", "/teens/",  $path);
+        $path = str_replace("/grown-ups/for-parents/", "/parents/",  $path);
+        $path = str_replace( "/grown-ups/", "/teachers/", $path);
+
+        if (_is_path_exist($path) == false) {
+            $i++;
+            $ret .= $i . "-" . $path. "<br/>";
+            db_query("INSERT INTO location_not_found (old_path) VALUES('" . $path . "')");
+        }
+    }
+
+    return $ret;
+}
+
+function _is_path_exist($location) {
+
+    $ret = FALSE;
+    $sql = "SELECT * FROM field_data_field_friendly_url WHERE field_friendly_url_value LIKE '" .'http://kids.usa.gov' . $location . "'";
+    $res = db_query($sql);
+    foreach($res as $row) {
+        $ret = $row->entity_id;
+    }
+
+    return $ret;
+}
+
+function _update_site_structure_taxonomy(){
+    $ret= "";
+
+    if (isset($_REQUEST['parent']) && isset($_REQUEST["vocab"])) {
+
+        // taxonomy_vocabulary for site_strcuture = 42
+        $parent_term_id = $_REQUEST["parent"]; //3897;
+        $vocab = $_REQUEST["vocab"]; //57;
+
+        $crsl = _get_term_id($vocab, 'Carousel', $parent_term_id);
+        $rt = _get_term_id($vocab, 'Right Side Bar', $parent_term_id);
+        $btm_lvl1 = _get_term_id($vocab, 'Bottom 1', $parent_term_id);
+        $btm_lvl2 = _get_term_id($vocab, 'Bottom 2', $parent_term_id);
+        $start = (isset($_REQUEST["start"])) ? $_REQUEST["start"] : 0;
+        $sql = "SELECT * FROM taxonomy_term_data WHERE vid=42 LIMIT " . $start . ", 50";
+        $result = db_query($sql);
+
+        foreach ($result as $row) {
+            $term = taxonomy_term_load($row->tid);
+            $term->field_asset_order_carousel = array();
+            $term->field_asset_order_sidebar = array();
+            $term->field_asset_order_bottom = array();
+            $term->field_asset_order_content = array();
+            $term->field_asset_topic_taxonomy = array();
+            //dpm($term);
+
+            // teacher parent to some change
+
+            // /grown-ups/for-parents/
+
+            // /grown-ups/
+
+            if (isset($term->field_friendly_url['und'][0]['value'])) {
+
+                $path = str_replace("http://kids.usa.gov", "", $term->field_friendly_url['und'][0]['value']);
+                $path = str_replace("/art-and-music/", "/art/", $path);
+                $path = str_replace("/watch-videos/art-and-music-videos/", "/watch-videos/art/", $path);
+                $path = str_replace("/watch-videos/online-safety/index.shtml", "watch-videos/videos/online-safety/index.shtml", $path);
+                $path = str_replace("/teens/", "/teens-home/", $path);
+                $path = str_replace("/parents/", "/grown-ups/for-parents/", $path);
+                $path = str_replace("/teachers/", "/grown-ups/", $path);
+
+
+                $sub_sql = "SELECT * FROM migration_site_structure_full_term_log WHERE legacy_path LIKE '" . $path . "'";
+                $sub_result = db_query($sub_sql);
+
+                $count = 0;
+                foreach ($sub_result as $sub_row) {
+
+                    $node_sql = "SELECT * FROM taxonomy_index WHERE tid=" . $sub_row->source_tid;
+                    $node_res = db_query($node_sql);
+
+                    $ret .= "<strong><a href='/taxonomy/term/" . $term->tid . "/edit' target='_blank'> " . $path . " </a></strong> <br/>";
+
+                    foreach ($node_res as $node_row) {
+                        $node = node_load($node_row->nid);
+                        $ret .= $node->nid . ">>> " . $node->title . " <br/>";
+
+                        // set crausel
+                        if (_is_tid_found($crsl, $node->field_asset_topic_taxonomy['und'])) {
+                            $term->field_asset_order_carousel['und'][] = array("target_id" => $node->nid);
+                        } // set right side
+                        elseif (_is_tid_found($rt, $node->field_asset_topic_taxonomy['und'])) {
+                            $term->field_asset_order_sidebar['und'][] = array("target_id" => $node->nid);
+                        } elseif (_is_tid_found($btm_lvl1, $node->field_asset_topic_taxonomy['und']) || _is_tid_found($btm_lvl2, $node->field_asset_topic_taxonomy['und'])) {
+                            $term->field_asset_order_bottom['und'][] = array("target_id" => $node->nid);
+                        } else {
+                            $term->field_asset_order_content['und'][] = array("target_id" => $node->nid);
+                        }
+                    }
+                    $count++;
+                    $ret .= "<hr/>";
+                }
+
+                if ($count == 0) {
+                    $ret .= "<h3 style='color:red'> NOT FOUND!!! " . $path . "</h3>";
+                } else {
+                    $term->field_asset_topic_taxonomy['und'][0] = array("tid" => $sub_row->source_tid);
+                    $term->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
+
+                    /*$page = db_query("SELECT * FROM sites_taxonomy WHERE location LIKE '" . $path . "'")->fetchAssoc();
+                    dpm($page);*/
+
+                    taxonomy_term_save($term);
+                }
+            }
+        }
+    }
+    else {
+        $ret .= "parent and vocab not defined";
+    }
+    return $ret;
+}
+
+function _import_kids_site_structure()
+{
+    $return = '';
+
+    db_query("DELETE FROM migration_site_structure_full_term_log");
+
+    $sql = "SELECT * FROM sites_taxonomy WHERE ((location NOT LIKE '/teens-home/%') AND (location NOT LIKE '/grown-ups/%')) ORDER BY length(location)";
+    $result = db_query($sql);
+    $parent_term_id = 3897;
+    $vocab = 57;
+
+    $rt=_get_term_id($vocab, 'Right Side Bar', $parent_term_id);
+    if ($rt == FALSE) {
+
+        $rightterm = new stdClass();
+        $rightterm->name = "Right Side Bar";
+        $rightterm->vid = $vocab;
+        $rightterm->parent = array($parent_term_id);
+        taxonomy_term_save($rightterm);
+
+    }
+    ELSE {
+        $rightterm= taxonomy_term_load($rt);
+    }
+
+    $crsl=_get_term_id($vocab, 'Carousel', $parent_term_id);
+    if ($crsl == FALSE) {
+
+        $crslterm = new stdClass();
+        $crslterm->name = "Carousel";
+        $crslterm->vid = $vocab;
+        $crslterm->parent = array($parent_term_id);
+        taxonomy_term_save($crslterm);
+
+    }
+    ELSE {
+        $crslterm= taxonomy_term_load($crsl);
+    }
+
+    $top_lvl1=_get_term_id($vocab, 'Top Banner', $parent_term_id);
+    if ($top_lvl1 == FALSE) {
+
+        $toplvl1term = new stdClass();
+        $toplvl1term->name = "Top Banner";
+        $toplvl1term->vid = $vocab;
+        $toplvl1term->parent = array($parent_term_id);
+        taxonomy_term_save($toplvl1term);
+
+    }
+    ELSE {
+        $toplvl1term= taxonomy_term_load($top_lvl1);
+    }
+
+    $btm_lvl1=_get_term_id($vocab, 'Bottom 1', $parent_term_id);
+    if ($btm_lvl1 == FALSE) {
+
+        $btmlvl1term = new stdClass();
+        $btmlvl1term->name = "Bottom 1";
+        $btmlvl1term->vid = $vocab;
+        $btmlvl1term->parent = array($parent_term_id);
+        taxonomy_term_save($btmlvl1term);
+
+    }
+    ELSE {
+        $btmlvl1term= taxonomy_term_load($btm_lvl1);
+    }
+
+    $btm_lvl2=_get_term_id($vocab, 'Bottom 2', $parent_term_id);
+    if ($btm_lvl2 == FALSE) {
+
+        $btmlvl2term = new stdClass();
+        $btmlvl2term->name = "Bottom 2";
+        $btmlvl2term->vid = $vocab;
+        $btmlvl2term->parent = array($parent_term_id);
+        taxonomy_term_save($btmlvl2term);
+
+    }
+    ELSE {
+        $btmlvl2term= taxonomy_term_load($btm_lvl2);
+    }
+
+    $kd=_get_term_id($vocab, 'Kids', $parent_term_id);
+    if ($kd == FALSE) {
+
+        $kidterm = new stdClass();
+        $kidterm->name = "Kids";
+        $kidterm->vid = $vocab;
+        $kidterm->parent = array($parent_term_id);
+        taxonomy_term_save($kidterm);
+
+    }
+    ELSE {
+        $kidterm= taxonomy_term_load($kd);
+    }
+
+    // kids
+    foreach ($result as $row) {
+        $loc = $row->location;
+        $return .= $loc . ' <hr />';
+        $tmp = explode("/", $loc);
+
+        $prev_term_name = NULL;
+        $prev_term = taxonomy_term_load( $kidterm->tid);
+        $lvl = 0;
+
+        $nothing_inserted = TRUE;
+        foreach($tmp as $str) {
+            $str = strtolower($str);
+            if (!in_array($str, array('index.shtml', 'saveindex.shtml', 'test.shtml', 'saveindex.shtml', 'error.shtml', 'index.shtml-copy', 'index-delete'))
+                && strlen($str) > 0) {
+                // check whether is exist
+                $name = ucfirst(str_replace("-", " ", $str));
+                if ($lvl == 0) {
+                    // under kids
+                    $term = _get_term_id($vocab, $name, $kidterm->tid);
+                }
+                else {
+                    // something else
+                    $term = _get_term_id($vocab, $name, $prev_term->tid);
+                }
+
+                if ($term === FALSE) {
+
+                    //create term
+                    $new_term = new stdClass();
+                    $new_term->name = $name;
+                    $new_term->vid = $vocab;
+                    $new_term->parent = $prev_term->tid;
+                    taxonomy_term_save($new_term);
+                    $prev_term = $new_term;
+
+                    db_insert('migration_site_structure_full_term_log')
+                        ->fields(array(
+                            'legacy_path' => $row->location,
+                            'source_tid' => $new_term->tid
+                        ))
+                        ->execute();
+                    $nothing_inserted=false;
+                }
+                else {
+                    $prev_term = taxonomy_term_load($term);
+                }
+            }
+            $lvl++;
+        }
+        if ($nothing_inserted){
+            $current_tid = db_query("SELECT source_tid FROM migration_site_structure_full_term_log WHERE legacy_path LIKE'" . $row->location . "'")->fetchField();
+            if($current_tid == 0) {
+                db_insert('migration_site_structure_full_term_log')
+                    ->fields(array(
+                        'legacy_path' => $row->location,
+                        'source_tid' => $prev_term->tid
+                    ))
+                    ->execute();
+            }
+        }
+    }
+
+    $return .= "<b>KIDS ENDED</b><hr/>";
+
+    // TEENS
+    $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/teens-home/%'  ORDER BY length(location);";
+    $result = db_query($sql);
+    $te=_get_term_id($vocab, 'Teens', $parent_term_id);
+
+    if ($te == FALSE) {
+
+        $kidterm = new stdClass();
+        $kidterm->name = "Teens";
+        $kidterm->vid = $vocab;
+        $kidterm->parent = array($parent_term_id);
+        taxonomy_term_save($kidterm);
+
+    }
+    ELSE {
+        $kidterm= taxonomy_term_load($te);
+    }
+    foreach ($result as $row) {
+        $loc = str_replace("/teens-home/", "/", $row->location);
+        $return .= $loc . ' <hr />';
+        $tmp = explode("/", $loc);
+
+        $prev_term_name = NULL;
+        $prev_term = taxonomy_term_load( $kidterm->tid);
+        $lvl = 0;
+        $nothing_inserted = TRUE;
+        foreach($tmp as $str) {
+            $str = strtolower($str);
+            if (!in_array($str, array('index.shtml', 'saveindex.shtml', 'test.shtml', 'saveindex.shtml', 'error.shtml', 'index.shtml-copy', 'index-delete'))
+                && strlen($str) > 0) {
+                // check whether is exist
+                $name = ucfirst(str_replace("-", " ", $str));
+                if ($lvl == 0) {
+                    // under kids
+                    $term = _get_term_id($vocab, $name, $kidterm->tid);
+                }
+                else {
+                    // something else
+                    $term = _get_term_id($vocab, $name, $prev_term->tid);
+                }
+
+                if ($term === FALSE) {
+
+                    //create term
+                    $new_term = new stdClass();
+                    $new_term->name = $name;
+                    $new_term->vid = $vocab;
+                    $new_term->parent = $prev_term->tid;
+                    taxonomy_term_save($new_term);
+                    $prev_term = $new_term;
+                    db_insert('migration_site_structure_full_term_log')
+                        ->fields(array(
+                            'legacy_path' => $row->location,
+                            'source_tid' => $new_term->tid
+                        ))
+                        ->execute();
+                    $nothing_inserted = FALSE;
+                }
+                else {
+                    $prev_term = taxonomy_term_load($term);
+                }
+            }
+            $lvl++;
+        }
+        if ($nothing_inserted){
+            $current_tid = db_query("SELECT source_tid FROM migration_site_structure_full_term_log WHERE legacy_path LIKE'" . $row->location . "'")->fetchField();
+            if($current_tid == 0) {
+                db_insert('migration_site_structure_full_term_log')
+                    ->fields(array(
+                        'legacy_path' => $row->location,
+                        'source_tid' => $prev_term->tid
+                    ))
+                    ->execute();
+            }
+        }
+    }
+
+    $return .= "<b>TEENS ENDED</b><hr/>";
+
+    // TEACHERS
+    $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/grown-ups/%' AND location NOT LIKE '/grown-ups/for-parents/%'  ORDER BY length(location);";
+    $result = db_query($sql);
+    $tc=_get_term_id($vocab, 'Teachers', $parent_term_id);
+
+    if ($tc == FALSE) {
+
+        $kidterm = new stdClass();
+        $kidterm->name = "Teachers";
+        $kidterm->vid = $vocab;
+        $kidterm->parent = array($parent_term_id);
+        taxonomy_term_save($kidterm);
+
+    }
+    ELSE {
+        $kidterm= taxonomy_term_load($tc);
+    }
+    foreach ($result as $row) {
+        $loc = str_replace("/grown-ups/", "/", $row->location);
+        $return .= $loc . ' <hr />';
+        $tmp = explode("/", $loc);
+
+        $prev_term_name = NULL;
+        $prev_term = taxonomy_term_load( $kidterm->tid);
+        $lvl = 0;
+        $nothing_inserted = TRUE;
+        foreach($tmp as $str) {
+            $str = strtolower($str);
+            if (!in_array($str, array('index.shtml', 'saveindex.shtml', 'test.shtml', 'saveindex.shtml', 'error.shtml', 'index.shtml-copy', 'index-delete'))
+                && strlen($str) > 0) {
+                // check whether is exist
+                $name = ucfirst(str_replace("-", " ", $str));
+                if ($lvl == 0) {
+                    // under kids
+                    $term = _get_term_id($vocab, $name, $kidterm->tid);
+                }
+                else {
+                    // something else
+                    $term = _get_term_id($vocab, $name, $prev_term->tid);
+                }
+
+                if ($term === FALSE) {
+
+                    //create term
+                    $new_term = new stdClass();
+                    $new_term->name = $name;
+                    $new_term->vid = $vocab;
+                    $new_term->parent = $prev_term->tid;
+                    taxonomy_term_save($new_term);
+                    $prev_term = $new_term;
+                    db_insert('migration_site_structure_full_term_log')
+                        ->fields(array(
+                            'legacy_path' => $row->location,
+                            'source_tid' => $new_term->tid
+                        ))
+                        ->execute();
+                    $nothing_inserted=FALSE;
+                }
+                else {
+                    $prev_term = taxonomy_term_load($term);
+                }
+            }
+            $lvl++;
+        }
+        if ($nothing_inserted){
+            $current_tid = db_query("SELECT source_tid FROM migration_site_structure_full_term_log WHERE legacy_path LIKE'" . $row->location . "'")->fetchField();
+            if($current_tid == 0) {
+                db_insert('migration_site_structure_full_term_log')
+                    ->fields(array(
+                        'legacy_path' => $row->location,
+                        'source_tid' => $prev_term->tid
+                    ))
+                    ->execute();
+            }
+        }
+    }
+    $return .= "<b>TEACHERS ENDED</b> <hr/>";
+
+    // PARENTS
+    $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/grown-ups/for-parents/%'  ORDER BY length(location);";
+    $result = db_query($sql);
+    $pa=_get_term_id($vocab, 'Parents', $parent_term_id);
+
+    if ($pa == FALSE) {
+
+        $kidterm = new stdClass();
+        $kidterm->name = "Parents";
+        $kidterm->vid = $vocab;
+        $kidterm->parent = array($parent_term_id);
+        taxonomy_term_save($kidterm);
+
+    }
+    ELSE {
+        $kidterm= taxonomy_term_load($pa);
+    }
+    foreach ($result as $row) {
+        $loc = str_replace("/grown-ups/for-parents/", "/", $row->location);
+        $return .= $loc . ' <hr />';
+        $tmp = explode("/", $loc);
+
+        $prev_term_name = NULL;
+        $prev_term = taxonomy_term_load( $kidterm->tid);
+        $lvl = 0;
+        $nothing_inserted = TRUE;
+        foreach($tmp as $str) {
+            $str = strtolower($str);
+            if (!in_array($str, array('index.shtml', 'saveindex.shtml', 'test.shtml', 'saveindex.shtml', 'error.shtml', 'index.shtml-copy', 'index-delete'))
+                && strlen($str) > 0) {
+                // check whether is exist
+                $name = ucfirst(str_replace("-", " ", $str));
+                if ($lvl == 0) {
+                    // under kids
+                    $term = _get_term_id($vocab, $name, $kidterm->tid);
+                }
+                else {
+                    // something else
+                    $term = _get_term_id($vocab, $name, $prev_term->tid);
+                }
+
+                if ($term === FALSE) {
+
+                    //create term
+                    $new_term = new stdClass();
+                    $new_term->name = $name;
+                    $new_term->vid = $vocab;
+                    $new_term->parent = $prev_term->tid;
+                    taxonomy_term_save($new_term);
+                    $prev_term = $new_term;
+                    db_insert('migration_site_structure_full_term_log')
+                        ->fields(array(
+                            'legacy_path' => $row->location,
+                            'source_tid' => $new_term->tid
+                        ))
+                        ->execute();
+                    $nothing_inserted = FALSE;
+                }
+                else {
+                    $prev_term = taxonomy_term_load($term);
+                }
+            }
+            $lvl++;
+        }
+        if ($nothing_inserted){
+            $current_tid = db_query("SELECT source_tid FROM migration_site_structure_full_term_log WHERE legacy_path LIKE'" . $row->location . "'")->fetchField();
+            if($current_tid == 0) {
+                db_insert('migration_site_structure_full_term_log')
+                    ->fields(array(
+                        'legacy_path' => $row->location,
+                        'source_tid' => $prev_term->tid
+                    ))
+                    ->execute();
+            }
+        }
+    }
+    $return .= "<b>PARENTS ENDED</b><hr/>";
+
+    // deleting wrong path
+    /*
+     * +---------------------------------------+------------+
+| legacy_path                           | source_tid |
++---------------------------------------+------------+
+| /error.shtml                          |       9107 |
+| /index.shtml                          |       9107 |
+| /transcripts/test.shtml               |       9123 |
+| /transcripts/index.shtml              |       9123 |
+| /watch-videos/videos/index.shtml      |       9166 |
+| /watch-videos/videos/index.shtml-copy |       9166 |
+| /grown-ups/history/index.shtml        |       9357 |
+| /grown-ups/history/saveindex.shtml    |       9357 |
++---------------------------------------+------------+
+     */
+    db_query("DELETE FROM migration_site_structure_full_term_log WHERE legacy_path LIKE '/transcripts/test.shtml'");
+    db_query("DELETE FROM migration_site_structure_full_term_log WHERE legacy_path LIKE '/grown-ups/history/saveindex.shtml'");
+    db_query("DELETE FROM migration_site_structure_full_term_log WHERE legacy_path LIKE '/watch-videos/videos/index.shtml-copy'");
+    db_query("DELETE FROM migration_site_structure_full_term_log WHERE legacy_path LIKE '/error.shtml'");
+
+    return $return;
+}
+
+function _get_term_id($vid, $name, $parent_tid = 0) {
+    $sql = "SELECT tid FROM taxonomy_term_data  WHERE vid= " . $vid. " AND name LIKE '" . $name . "'" ;
+    $result = db_query($sql);
+    // $found = false;
+    foreach($result as $row) {
+        if ($parent_tid != 0 && $row->tid != 0) {
+            $parent_terms = taxonomy_get_parents_all($row->tid );
+            //top parent term has no parents so find it out by checking if it has parents
+            foreach ($parent_terms as $parent) {
+                if ($parent_tid == $parent->tid) {
+                    return $row->tid;
+                }
+            }
+
+        }
+    }
+    return FALSE;
+}
+
+function _create_table_schema() {
+    db_query("DROP TABLE IF EXISTS migration_site_structure_full_term_log; CREATE TABLE migration_site_structure_full_term_log (legacy_path varchar(255), source_tid INT);");
+
+    //db_query("create table migration_log (res_type varchar(50), sourceid int, legacyid int);");
+}
+
+/*
+function _import_kids_rawtext_asset() {
+    $return = '';
+
+    $sql = "SELECT * FROM legacy_rawhtmlasset;";
+    $result = db_query($sql);
+
+    $i = 0;
+    //$node = node_load(38088);
+    //dpm($node);
+    foreach ($result as $row) {
+
+        $node = new stdClass();
+        $node->title = "Kids.gov Raw HTML Asset"; // what should be the title
+        $node->type = 'html_content_type';
+        node_object_prepare($node);
+        $node->comment = 0;
+        $node->status = 1;
+        $node->promote = 0;
+        $node->language = 'en';
+        $node->field_html['und'][0] = array( 'value'=>$row->HTML, 'format'=>'full_html');
+
+        $node->field_priority['und'][0]['value'] = 'normal';
+
+        // for use by
+        $node->field_for_use_by['und'][0] = array('value'=>'Kids.USA.gov');
+        $node->field_language['und'][0] = array('value'=>'English');
+
         // Date Last Reviewed
         $node->field_date_last_reviewed['und'][0] = array('value'=> date('Y-m-d H:i:s',time()),
             'timezone'=>'America/New_York',
@@ -61,21 +810,1325 @@ function _builk_update() {
             'date_type'=>'datetime');
 
         // Owner
-        $node->field_owner['und'][0]['target_id'] = $node->uid;
-        $node->status = 1;
-	//$node->workbench_moderation_state_new = 'published';
-        $node->workbench_moderation['current']->from_state ='published';
-	$node->workbench_moderation['current']->state='published';
+        $node->field_owner['und'][0]['target_id'] = 1;
+        //$node->legacy_contentid = $row->contentid;
+        //$node->legacy_revisionid = $row->revisionid;
+
+        //$node->workbench_moderation['current']->from_state ='published';
+        //$node->workbench_moderation['current']->state='published';
+        $node = node_submit($node);
         node_save($node);
-        node_submit($node);
-	//dpm($node);
-	$ret .= $node->nid . $node->title ." <br/>";
+
+        $id = db_insert('migration_log')
+            ->fields(array(
+                'res_type' => 'RAWHTML_ASSET',
+                'sourceid' => $node->nid,
+                'legacyid' => $row->CONTENTID,
+            ))
+            ->execute();
+
+
+        // $return .= $row->TEXT . '<hr />';
+        $i++;
     }
+    return $return;
+}
+
+function _import_kids_richtext_asset() {
+    $return = '';
+
+    $sql = "SELECT * FROM legacy_richtextasset;";
+    $result = db_query($sql);
+
+    $i = 0;
+    //$node = node_load(38088);
+    //dpm($node);
+    foreach ($result as $row) {
+
+        $node = new stdClass();
+        $node->title = "Kids.gov Rich Text Asset"; // what should be the title
+        $node->type = 'text_content_type';
+        node_object_prepare($node);
+        $node->comment = 0;
+        $node->status = 1;
+        $node->promote = 0;
+        $node->language = 'en';
+       // $node->field_html['und'][0] = array( 'value'=>$row->TEXT, 'format'=>'full_html');
+        $content = strip_tags($row->TEXT, '<p><ul><ol><li><a><b><i><br><h1><h2><h3><h4><h5><h6><span><strong><hr><table><tr><td><img>');
+        $content = str_replace("<h1", "<h3", $content);
+        $content = str_replace("</h1>", "</h3>", $content);
+        $content = str_replace("<h2", "<h4", $content);
+        $content = str_replace("</h2>", "</h4>", $content);
+        $node->body[$node->language][0]['format'] = 'filtered_html';
+        $node->body[$node->language][0]['summary'] = '';
+        $node->body[$node->language][0]['value'] = $content;
+
+        $node->field_priority['und'][0]['value'] = 'normal';
+
+        // for use by
+        $node->field_for_use_by_text['und'][0] = array('value'=>'Kids.USA.gov');
+        $node->field_language['und'][0] = array('value'=>'English');
+
+        // Date Last Reviewed
+        $node->field_date_last_reviewed['und'][0] = array('value'=> date('Y-m-d H:i:s',time()),
+            'timezone'=>'America/New_York',
+            'timezone_db'=>'UTC',
+            'date_type'=>'datetime');
+
+        // Owner
+        $node->field_owner['und'][0]['target_id'] = 1;
+        //$node->legacy_contentid = $row->contentid;
+        //$node->legacy_revisionid = $row->revisionid;
+
+        //$node->workbench_moderation['current']->from_state ='published';
+        //$node->workbench_moderation['current']->state='published';
+        $node = node_submit($node);
+        node_save($node);
+
+        $id = db_insert('migration_log')
+        ->fields(array(
+                'res_type' => 'RICHTEXT_ASSET',
+                'sourceid' => $node->nid,
+                'legacyid' => $row->CONTENTID,
+            ))
+            ->execute();
+
+
+        // $return .= $row->TEXT . '<hr />';
+        $i++;
+    }
+
+    return $return;
+}
+
+function _delete_text_assets() {
+    $sql = "SELECT * FROM node WHERE type LIKE 'text_content_type'";
+
+    $result = db_query($sql);
+    foreach ($result as $row) {
+        node_delete($row->nid);
+    }
+    return true;
+}
+*/
+
+function _bulk_term_update() {
+    //dpm(node_load(40280));
+
+    $parent_term_id = 3897;
+    $vocab = 57;
+
+    $rt=_get_term_id($vocab, 'Right Side Bar', $parent_term_id);
+    if ($rt == FALSE) {
+
+        $rightterm = new stdClass();
+        $rightterm->name = "Right Side Bar";
+        $rightterm->vid = $vocab;
+        $rightterm->parent = array($parent_term_id);
+        taxonomy_term_save($rightterm);
+
+    }
+    ELSE {
+        $rightterm= taxonomy_term_load($rt);
+    }
+
+    $crsl=_get_term_id($vocab, 'Carousel', $parent_term_id);
+    if ($crsl == FALSE) {
+
+        $crslterm = new stdClass();
+        $crslterm->name = "Carousel";
+        $crslterm->vid = $vocab;
+        $crslterm->parent = array($parent_term_id);
+        taxonomy_term_save($crslterm);
+
+    }
+    ELSE {
+        $crslterm= taxonomy_term_load($crsl);
+    }
+
+    $top_lvl1=_get_term_id($vocab, 'Top Banner', $parent_term_id);
+    if ($top_lvl1 == FALSE) {
+
+        $toplvl1term = new stdClass();
+        $toplvl1term->name = "Top Banner";
+        $toplvl1term->vid = $vocab;
+        $toplvl1term->parent = array($parent_term_id);
+        taxonomy_term_save($toplvl1term);
+
+    }
+    ELSE {
+        $toplvl1term= taxonomy_term_load($top_lvl1);
+    }
+
+    $btm_lvl1=_get_term_id($vocab, 'Bottom 1', $parent_term_id);
+    if ($btm_lvl1 == FALSE) {
+
+        $btmlvl1term = new stdClass();
+        $btmlvl1term->name = "Bottom 1";
+        $btmlvl1term->vid = $vocab;
+        $btmlvl1term->parent = array($parent_term_id);
+        taxonomy_term_save($btmlvl1term);
+
+    }
+    ELSE {
+        $btmlvl1term= taxonomy_term_load($btm_lvl1);
+    }
+
+    $btm_lvl2=_get_term_id($vocab, 'Bottom 2', $parent_term_id);
+    if ($btm_lvl2 == FALSE) {
+
+        $btmlvl2term = new stdClass();
+        $btmlvl2term->name = "Bottom 2";
+        $btmlvl2term->vid = $vocab;
+        $btmlvl2term->parent = array($parent_term_id);
+        taxonomy_term_save($btmlvl2term);
+
+    }
+    ELSE {
+        $btmlvl2term= taxonomy_term_load($btm_lvl2);
+    }
+
+    $text_format = 'filtered_html';
+    $html_format = 'full_html';
+
+    // SIDE BAR MAPPING
+    $side_bars = array(1602, 1603, 2130,2169,2156,1599,1619,1569,1638,2171,1617,1601,1572,1664,2158,2145,2164,2151,2172,2132,2133, 1582, 1584, 1673,
+        2159,1660,1647, 3023, 3024, 2998,1643,1656,1639,1652,1596,1609, 1649,1636,4273, 2124,2150,2137, 3214,
+        1580, 1579, 1611, 2998, 2999, 1612, 1614, 1596, 3141,3132,3125, 3055, 3012, 3631);
+
+    $email_bars = array(3896,3890,3094,4314,4317,4301,3897,3904, 3889, 4305, 4322,4229);
+
+    $raw_text_dups = array(3631, 1306);
+
+    //$ret = ' <a href="?limit=' . (isset($_REQUEST["limit"])? ($_REQUEST["limit"] +1) : 2) . '">NEXT</a> <br />';
+    $ret = ' <a href="?limit=' . (isset($_REQUEST["limit"])? ($_REQUEST["limit"] +20) : 0) . '">NEXT</a> <br />';
+    //$cond = (isset($_REQUEST["limit"])? " LIMIT ".$_REQUEST["limit"] . ",1"  : " LIMIT 1");
+
+    //$ret = ' <a href="?limit=' . (isset($_REQUEST["limit"])? ($_REQUEST["limit"] + 50) : 0) . '">NEXT</a> <br />';
+    $cond = (isset($_REQUEST["limit"])? " LIMIT ".$_REQUEST["limit"] . ", 20"  : " LIMIT 0");
+
+    $sql = "SELECT * FROM sites_taxonomy s WHERE location NOT LIKE '/transcripts/test.shtml'
+           OR location NOT LIKE '/grown-ups/history/saveindex.shtml'
+           OR location NOT LIKE '/watch-videos/videos/index.shtml-copy'
+           OR location NOT LIKE '/error.shtml' " . $cond;
+    $result = db_query($sql);
+
+    foreach ($result as $row) {
+
+        $tmp_titles = explode("|", $row->page_title);
+        // $row->page_title = $tmp_titles[0];
+        $row->page_title = $row->resource_link_title;
+        $row->page_title = str_replace("for Teens", "", $row->page_title);
+        $row->page_title = str_replace("for Kids", "", $row->page_title);
+        $row->page_title = str_replace("for Teachers", "", $row->page_title);
+        $row->page_title = str_replace("for Parents", "", $row->page_title);
+
+        $ret .= '<a target="_blank" href="http://kids.usa.gov'.$row->location.'">' . $row->location ."</a>   -->>>". $row->templateid . ",". $row->contentid  . "<hr />";
+        $ret .= "<h2>" . $row->page_title . "</h2>";
+
+        $current_tid = db_query("SELECT source_tid FROM migration_site_structure_full_term_log WHERE legacy_path LIKE'" . $row->location . "'")->fetchField();
+
+        IF ( $current_tid > 0 ) {
+
+            // template_id, page_id
+            $exc_contents = array();
+            $exc_contents = array(578, 579, 767, 750,751, 752, 753, 754, 396, 662, 331, 1618, 660, 786,753, 751,750, 754, 783, 1143, 3016, 784, 782, 2994,
+                755, 785,4292, 4282, 1306, 1280, 1281, 797, 1142,802, 3384, 2648, 1282,1283, 3386, 2652, 2699,2121, 2122, 2123, 2124, 2125, 2852, 2863, 2710, 2718, 2862, 2715,
+                2126, 2127, 2128,2129, 2130, 2131, 2132, 2133, 2134, 3467, 2161, 2898, 2903, 2720, 2717, 2716, 2864,2713, 2165, 3471, 2711,2719, 2714, 2166, 2167, 3472, 2168, 2169,2170,2172,2702,3387,2660,1286,3645,3618,
+                3633, 3634,3631,3216,2666,3390, 3217,3218,3392,3498,3501,3689, 2769, 2768,812, 813, 3505, 3506,3507, 3508,3509, 3714,4008,3512,3219, 1569,1570, 2673, 3394,3755, 3393, 3395, 2223,1307,2079,2696,2697,3454,3473, 1185,1652,1665, 2847,2848,2849, 2093, 2095,
+                2096, 2817,2818,2819,3488, 3487, 3489,3490, 3491, 3493,3494, 3495, 3497, 3499, 3500, 3125,3012, 3004, 3141,3132, 3055, 1576,1574, 4145, 3496, 3020);
+
+            $icon_ids =_get_all_icon_ids();
+            $exc_contents = array_merge($exc_contents, $icon_ids);
+
+            $sub_sql = "SELECT DISTINCT DEPENDENT_ID FROM legacy_objectrelationship WHERE OWNER_ID IN(" . $row->templateid . ",". $row->contentid  . ") AND DEPENDENT_ID NOT IN (" . implode(',', $exc_contents) . ") ORDER BY SORT_RANK";
+            //$sub_sql = "SELECT DISTINCT DEPENDENT_ID FROM legacy_objectrelationship WHERE OWNER_ID IN(" . $row->templateid . ") AND DEPENDENT_ID NOT IN (" . implode(',', $exc_contents) . ") ORDER BY SORT_RANK";
+
+            $sub_result = db_query($sub_sql);
+
+            $nodes = array();
+
+            // Assuming always have richtext
+            $node = new stdClass();
+            $node->type = 'html_content_type';
+            node_object_prepare($node);
+            $node->comment = 0;
+            $node->status = 1;
+            $node->promote = 0;
+            $node->language = 'en';
+            /*$node->body['und'][0]['format'] = $html_format;
+            $node->body['und'][0]['summary'] = '';
+            $node->body['und'][0]['value'] = '';*/
+
+            $node->field_html['und'][0] = array('value' => '', 'format' => $html_format);
+
+            $node->title = $row->page_title ;
+            $node->field_priority['und'][0]['value'] = 'normal';
+
+            // for use by
+            $node->field_for_use_by_text['und'][0] = array('value'=>'Kids.USA.gov');
+            $node->field_language['und'][0] = array('value'=>'English');
+
+            // Date Last Reviewed
+            $node->field_date_last_reviewed['und'][0] = array('value'=> date('Y-m-d H:i:s',time()),
+                'timezone'=>'America/New_York',
+                'timezone_db'=>'UTC',
+                'date_type'=>'datetime');
+
+            // Owner
+            $node->field_owner['und'][0]['target_id'] = 1;
+
+            $tmp_body = array();
+            $contents = array();
+
+            foreach($sub_result AS $sub_row) {
+                $ret .= $sub_row->DEPENDENT_ID . "<BR />";
+
+                /*
+                 * 578, 579, footer
+                 * 767 breadcrumb
+                 * 752 breadcrumb path
+                 * 396 im looking for search header
+                 * 662 menu
+                 * 331 header logo
+                 * 753, 751,750, 754, 783, 784 MIDDLE MENU
+                 * 1618,2128, empty
+                 * 1143 testing
+                 * 3833 DOWNLOAD READER
+                 * 3094,4317,4301 EMAIL
+                 * 786,782,785, 3016,4292,4282 - IMAGE
+                 *
+                 * 660 -IMAGE
+                 *
+                 * 2562 - SLIDER
+                 *
+                 *
+                 * */
+
+
+                /*
+                 * // TITLE
+    <p><img alt="Money Videos" height="55" inlinetype="rximage" rxinlineslot="104" src="http://cm1.usa.gov:9992/Rhythmyx/assembler/render?sys_contentid=3555&amp;sys_revision=3&amp;sys_folderid=2224&amp;sys_context=0&amp;sys_siteid=0&amp;sys_variantid=371&amp;sys_authtype=0" sys_contentid="3555" sys_dependentid="3555" sys_dependentvariantid="371" sys_relationshipid="17945" sys_variantid="371" title="Header_Icon_Videos_Money.png" width="511"></p>
+
+                 * */
+
+                // get richtext
+                $dpl_sql = "SELECT * FROM legacy_richtextasset WHERE CONTENTID = " . $sub_row->DEPENDENT_ID;
+                $dpl_res = db_query($dpl_sql);
+
+                foreach ($dpl_res AS $dpl_cck) {
+
+                    preg_match('/class="feeds/', $dpl_cck->TEXT, $top_lvl_1);
+                    if (!empty($top_lvl_1)) {
+                        $node_raw = new stdClass();
+                        $node_raw->title = str_replace("&nbsp;", "", $row->page_title . ' | Top Reader Banner'); // what should be the title
+                        $node_raw->type = 'html_content_type';
+                        node_object_prepare($node_raw);
+                        $node_raw->comment = 0;
+                        $node_raw->status = 1;
+                        $node_raw->promote = 0;
+                        $node_raw->language = 'en';
+                        $node_raw->field_html['und'][0] = array('value' => $dpl_cck->TEXT, 'format' => $text_format);
+
+                        $node_raw->field_priority['und'][0]['value'] = 'normal';
+
+                        // for use by
+                        $node_raw->field_for_use_by['und'][0] = array('value' => 'Kids.USA.gov');
+                        $node_raw->field_language['und'][0] = array('value' => 'English');
+
+                        // Date Last Reviewed
+                        $node_raw->field_date_last_reviewed['und'][0] = array('value' => date('Y-m-d H:i:s', time()),
+                            'timezone' => 'America/New_York',
+                            'timezone_db' => 'UTC',
+                            'date_type' => 'datetime');
+
+                        // Owner
+                        $node_raw->field_owner['und'][0]['target_id'] = 1;
+                        // flag top banner
+
+                        $node->field_asset_topic_taxonomy['und'][] = array('tid' => $toplvl1term->tid);
+                        $node_raw->top = true;
+                        $node_raw->contentid = $sub_row->DEPENDENT_ID;
+                        $nodes[] = $node_raw;
+                    } else {
+                        $contents[] = $sub_row->DEPENDENT_ID;
+                        $tmp_body[] = $dpl_cck->TEXT;
+                    }
+                    //$tmp_body[] = $dpl_cck->TEXT;
+                    $ret .= $dpl_cck->TEXT;
+                }
+
+                // get RAW
+                $dpl_sql = "SELECT * FROM legacy_rawhtmlasset WHERE CONTENTID = " . $sub_row->DEPENDENT_ID;
+                $dpl_res = db_query($dpl_sql);
+
+                foreach ($dpl_res AS $dpl_cck) {
+
+                    $ret .= $dpl_cck->HTML;
+                    $ret .= "RAW";
+                    preg_match('/class="rght-hdr/', $dpl_cck->HTML, $match);
+                    preg_match('/hdr-email/', $dpl_cck->HTML, $email_match);
+                    preg_match('/bx-cntnr/', $dpl_cck->HTML, $carousel_match); // very sad logic
+                    preg_match('/id="mddl-mlcntnr"/', $dpl_cck->HTML, $btm_lvl_1); //
+                    preg_match('/class="bttmbrdr"/', $dpl_cck->HTML, $btm_lvl_2);
+                    preg_match('/class="feeds/', $dpl_cck->HTML, $top_lvl_1);
+
+
+                    if (in_array($sub_row->DEPENDENT_ID, $side_bars) || in_array($sub_row->DEPENDENT_ID, $email_bars) || !empty($match) || !empty($email_match)) {
+                        if (empty($email_match)) { // skipping email node creation
+                            $node_raw = new stdClass();
+                            $node_raw->title = str_replace("&nbsp;", "", $row->page_title . ' | ' . ((!empty($email_match) || in_array($sub_row->DEPENDENT_ID, $email_bars)) ? " Email" : strip_tags($dpl_cck->HTML))); // what should be the title
+                            $node_raw->type = 'html_content_type';
+                            node_object_prepare($node_raw);
+                            $node_raw->comment = 0;
+                            $node_raw->status = 1;
+                            $node_raw->promote = 0;
+                            $node_raw->language = 'en';
+                            $node_raw->field_html['und'][0] = array('value' => $dpl_cck->HTML, 'format' => $html_format);
+
+                            $node_raw->field_priority['und'][0]['value'] = 'normal';
+
+                            // for use by
+                            $node_raw->field_for_use_by['und'][0] = array('value' => 'Kids.USA.gov');
+                            $node_raw->field_language['und'][0] = array('value' => 'English');
+
+                            // Date Last Reviewed
+                            $node_raw->field_date_last_reviewed['und'][0] = array('value' => date('Y-m-d H:i:s', time()),
+                                'timezone' => 'America/New_York',
+                                'timezone_db' => 'UTC',
+                                'date_type' => 'datetime');
+
+                            // Owner
+                            $node_raw->field_owner['und'][0]['target_id'] = 1;
+
+                            // flag rightsidebar
+                            $node_raw->field_asset_topic_taxonomy['und'][] = array('tid' => $rightterm->tid);
+                            $node_raw->contentid = $sub_row->DEPENDENT_ID;
+                            $nodes[] = $node_raw;
+                        }
+
+                    } elseif (!empty($carousel_match)) {
+                        $node_raw = new stdClass();
+                        $node_raw->carousel = 1;
+                        $node_raw->title = str_replace("&nbsp;", "", $row->page_title . ' | Carousel'); // what should be the title
+                        $node_raw->type = 'html_content_type';
+                        node_object_prepare($node_raw);
+                        $node_raw->comment = 0;
+                        $node_raw->status = 1;
+                        $node_raw->promote = 0;
+                        $node_raw->language = 'en';
+                        $node_raw->field_html['und'][0] = array('value' => $dpl_cck->HTML, 'format' => $text_format);
+
+                        $node_raw->field_priority['und'][0]['value'] = 'normal';
+
+                        // for use by
+                        $node_raw->field_for_use_by['und'][0] = array('value' => 'Kids.USA.gov');
+                        $node_raw->field_language['und'][0] = array('value' => 'English');
+
+                        // Date Last Reviewed
+                        $node_raw->field_date_last_reviewed['und'][0] = array('value' => date('Y-m-d H:i:s', time()),
+                            'timezone' => 'America/New_York',
+                            'timezone_db' => 'UTC',
+                            'date_type' => 'datetime');
+
+                        // Owner
+                        $node_raw->field_owner['und'][0]['target_id'] = 1;
+                        // flag carousel
+                        $node_raw->field_asset_topic_taxonomy['und'][] = array('tid' => $crslterm->tid);
+                        $node_raw->contentid = $sub_row->DEPENDENT_ID;
+                        $nodes[] = $node_raw;
+                    } elseif (!empty($btm_lvl_1)) {
+                        $node_raw = new stdClass();
+                        $node_raw->title = str_replace("&nbsp;", "", $row->page_title . ' | Landing Bottom Level 1'); // what should be the title
+                        $node_raw->type = 'html_content_type';
+                        node_object_prepare($node_raw);
+                        $node_raw->comment = 0;
+                        $node_raw->status = 1;
+                        $node_raw->promote = 0;
+                        $node_raw->language = 'en';
+                        $node_raw->field_html['und'][0] = array('value' => $dpl_cck->HTML, 'format' => $html_format);
+
+                        $node_raw->field_priority['und'][0]['value'] = 'normal';
+
+                        // for use by
+                        $node_raw->field_for_use_by['und'][0] = array('value' => 'Kids.USA.gov');
+                        $node_raw->field_language['und'][0] = array('value' => 'English');
+
+                        // Date Last Reviewed
+                        $node_raw->field_date_last_reviewed['und'][0] = array('value' => date('Y-m-d H:i:s', time()),
+                            'timezone' => 'America/New_York',
+                            'timezone_db' => 'UTC',
+                            'date_type' => 'datetime');
+
+                        // Owner
+                        $node_raw->field_owner['und'][0]['target_id'] = 1;
+                        $node_raw->contentid = $sub_row->DEPENDENT_ID;
+                        // flag carousel
+                        $node_raw->field_asset_topic_taxonomy['und'][] = array('tid' => $btmlvl1term->tid);
+                        $nodes[] = $node_raw;
+                    } elseif (!empty($btm_lvl_2)) {
+                        $node_raw = new stdClass();
+                        $node_raw->title = str_replace("&nbsp;", "", $row->page_title . ' | Landing Bottom Level 2'); // what should be the title
+                        $node_raw->type = 'html_content_type';
+                        node_object_prepare($node_raw);
+                        $node_raw->comment = 0;
+                        $node_raw->status = 1;
+                        $node_raw->promote = 0;
+                        $node_raw->language = 'en';
+                        $node_raw->field_html['und'][0] = array('value' => $dpl_cck->HTML, 'format' => $html_format);
+
+                        $node_raw->field_priority['und'][0]['value'] = 'normal';
+
+                        // for use by
+                        $node_raw->field_for_use_by['und'][0] = array('value' => 'Kids.USA.gov');
+                        $node_raw->field_language['und'][0] = array('value' => 'English');
+                        $node_raw->contentid = $sub_row->DEPENDENT_ID;
+                        // Date Last Reviewed
+                        $node_raw->field_date_last_reviewed['und'][0] = array('value' => date('Y-m-d H:i:s', time()),
+                            'timezone' => 'America/New_York',
+                            'timezone_db' => 'UTC',
+                            'date_type' => 'datetime');
+
+                        // Owner
+                        $node_raw->field_owner['und'][0]['target_id'] = 1;
+
+                        // flag bottom2
+                        $node_raw->field_asset_topic_taxonomy['und'][] = array('tid' => $btmlvl2term->tid);
+                        $nodes[] = $node_raw;
+                    } elseif (!empty($top_lvl_1)) {
+                        $node_raw = new stdClass();
+                        $node_raw->title = str_replace("&nbsp;", "", $row->page_title . ' | Top Reader Banner'); // what should be the title
+                        $node_raw->type = 'html_content_type';
+                        node_object_prepare($node_raw);
+                        $node_raw->comment = 0;
+                        $node_raw->status = 1;
+                        $node_raw->promote = 0;
+                        $node_raw->language = 'en';
+                        $node_raw->field_html['und'][0] = array('value' => $dpl_cck->HTML, 'format' => $text_format);
+
+                        $node_raw->field_priority['und'][0]['value'] = 'normal';
+
+                        // for use by
+                        $node_raw->field_for_use_by['und'][0] = array('value' => 'Kids.USA.gov');
+                        $node_raw->field_language['und'][0] = array('value' => 'English');
+                        $node_raw->contentid = $sub_row->DEPENDENT_ID;
+                        // Date Last Reviewed
+                        $node_raw->field_date_last_reviewed['und'][0] = array('value' => date('Y-m-d H:i:s', time()),
+                            'timezone' => 'America/New_York',
+                            'timezone_db' => 'UTC',
+                            'date_type' => 'datetime');
+
+                        // Owner
+                        $node_raw->field_owner['und'][0]['target_id'] = 1;
+                        $node_raw->top = TRUE;
+
+                        // flag carousel$current_term->tid
+                        $node_raw->field_asset_topic_taxonomy['und'][] = array('tid' => $toplvl1term->tid);
+                        $nodes[] = $node_raw;
+                    } else {
+                        // there is some dups don't know how to differentiate
+                        $plain = strip_tags($dpl_cck->HTML);
+                        $rich_plain = strip_tags($node->body['und'][0]['value']);
+                        preg_match('/' . $plain . '/', $rich_plain, $txt_match);
+
+                        if (empty($txt_match)) {
+                            $contents[] = $sub_row->DEPENDENT_ID;
+                            $tmp_body[] = $dpl_cck->HTML;
+                        }
+                    }
+                }
+                // add title logic here
+                $title_images = array(3495, 3394, 3755);
+            }
+
+            $node->field_html['und'][0]['value'] = _correct_body_field($tmp_body);
+            $nodes[] = $node;
+            $top = NULL;
+            $node_counter = 0;
+            // generate nodes
+            foreach($nodes as $tmpnode) {
+                $node_counter++;
+                $tmpnode->field_asset_topic_taxonomy['und'][] = array('tid' => $current_tid);
+
+                /*if (isset($tmpnode->body['und'][0]['value'])) {
+                    preg_match("/<h2>Find on This Page/", $tmpnode->body['und'][0]['value'], $findpage_match);
+                }*/
+
+                if (isset($tmpnode->carousel) && $tmpnode->carousel) {            // check image, path
+                    _create_carousel_multimedia_ccks($tmpnode, $row->location, $current_tid);
+                }
+                elseif(isset($tmpnode->top) && $tmpnode->top){
+                    // concat top and main
+                    $top =$tmpnode;
+                }
+                else {
+                    // concat main and top;
+                    if (count($nodes) == $node_counter && $top != NULL) {
+                        // last one
+                        $tmpnode->field_html['und'][0]['value'] = (($top->type == "html_content_type") ? $top->field_html['und'][0]['value'] : $top->body['und'][0]['value'])
+                            . $tmpnode->field_html['und'][0]['value'];
+
+                        if (isset($top->contentid)) {
+                            $leg_id[] = $top->contentid;
+                        }
+                    }
+
+                    if ($tmpnode->type == "html_content_type") {
+                        $tmpnode->field_html['und'][0]['value'] = _link_to_flat_file($tmpnode->field_html['und'][0]['value']);
+
+
+                    } else { // text_content_type
+                        $tmpnode->body['und'][0]['value'] = _link_to_flat_file($tmpnode->body['und'][0]['value']);
+                    }
+
+                    $tmpnode->field_description['und'][0]['value'] = $tmpnode->title;
+
+                    if (isset($tmpnode->contentid)) {
+                        $leg_id[] = $tmpnode->contentid;
+
+                        unset($tmpnode->contenid);
+                    }
+
+                    node_save($tmpnode);
+
+                    if (isset($leg_id)) {
+
+                        foreach ($leg_id as $lid) {
+                            if ($lid > 0) {
+
+                                // migration_perc_term_log (legacy_path varchar(255), legacy_id INT, source_nid INT, source_tid INT);
+                                db_query("INSERT INTO migration_perc_term_log (legacy_path, legacy_id, source_nid, source_tid) VALUES('" . $row->location . "'," . $lid . ", " . $tmpnode->nid . ", " . $current_tid . ")");
+                            }
+
+                        }
+                        unset($leg_id);
+                    }
+                }
+
+                // write to log
+            }
+        }
+        else {
+            $ret .= " <b style='color:red'> TAXONOMY NOT EXISTED </b> " . $row->location . " <br />";
+        }
+
+        $node = nULL;
+    }
+    $ret .= "<hr />";
+    //$ret .= $node->body[$node->language][0]['value'];
     return $ret;
+}
+
+// need to handle image and files
+function _link_to_flat_file($text) {
+    $kids_path="http://kids.usa.gov";
+    $s3_path='s3://';
+    $file_location = "/appdata/tmp/kids_asset/";
+
+    $ret = $text;
+    $new_path = 'http://cms-s3-prod.s3.amazonaws.com/'; /// DON'T FORGET
+    $src_path_end[] = "sys_context=0";
+    $src_path_end[] = "sys_authtype=0";
+
+    $matchs=array();
+    preg_match('/http:\/\/cm1.usa.gov:/', $text, $match_init);
+    preg_match_all('/sys_contentid=(\d+)/',$text,$matchs);
+    //dpm($matchs);
+    if (!empty($matchs) && count($matchs[1]) > 0) {
+        foreach($matchs[1] as $match) {
+            preg_match('/src=("http:\/\/cm1.usa.gov:9992(.*?)sys_contentid=' . $match . '(.*?)")/', $ret, $img_source_match);
+            $file_name = db_query('SELECT FILENAME FROM legacy_imageasset WHERE CONTENTID = ' . $match)->fetchField();
+
+            if (!empty($img_source_match)
+                && isset($img_source_match[1])
+                && strlen($img_source_match[1]) > 0
+                && strlen($file_name) > 0
+            ) {
+                $image = file_get_contents($file_location.$match . '_' . $file_name);
+                $file = file_save_data($image, $s3_path . $match . '_' . $file_name, FILE_EXISTS_REPLACE);
+
+                // change image path name
+                $file_name = '"' . $new_path . $match . '_' . $file_name . '"';
+                $ret = str_replace($img_source_match[1], $file_name, $ret);
+                //dpm($img_source_match);
+                //dpm($file_name);
+
+            }
+
+            // check file asset also
+            $file_name = db_query('SELECT FILENAME FROM legacy_fileasset WHERE CONTENTID = ' . $match)->fetchField();
+
+            if (!empty($img_source_match)
+                && isset($img_source_match[1])
+                && strlen($img_source_match[1]) > 0
+                && strlen($file_name) > 0
+            ) {
+                $image = file_get_contents($file_location.$match . '_' . $file_name);
+                $file = file_save_data($image, $s3_path . $match . '_' . $file_name, FILE_EXISTS_REPLACE);
+
+                // change file path name
+                $file_name = '"' . $new_path . $match . '_' . $file_name . '"';
+                $ret = str_replace($img_source_match[1], $file_name, $ret);
+
+            }
+
+            preg_match('/src=("http:\/\/172.22.73.89:9992(.*?)sys_contentid=' . $match . '(.*?)")/', $ret, $img_source_match);
+            $file_name = db_query('SELECT FILENAME FROM legacy_imageasset WHERE CONTENTID = ' . $match)->fetchField();
+
+            if (!empty($img_source_match)
+                && isset($img_source_match[1])
+                && strlen($img_source_match[1]) > 0
+                && strlen($file_name) > 0
+            ) {
+                $image = file_get_contents($file_location.$match . '_' . $file_name);
+                $file = file_save_data($image, $s3_path . $match . '_' . $file_name, FILE_EXISTS_REPLACE);
+
+                // change image path name
+                $file_name = '"' . $new_path . $match . '_' . $file_name . '"';
+                $ret = str_replace($img_source_match[1], $file_name, $ret);
+                //dpm($img_source_match);
+                //dpm($file_name);
+
+            }
+
+            // check file asset also
+            $file_name = db_query('SELECT FILENAME FROM legacy_fileasset WHERE CONTENTID = ' . $match)->fetchField();
+
+            if (!empty($img_source_match)
+                && isset($img_source_match[1])
+                && strlen($img_source_match[1]) > 0
+                && strlen($file_name) > 0
+            ) {
+                $image = file_get_contents($file_location.$match . '_' . $file_name);
+                $file = file_save_data($image, $s3_path . $match . '_' . $file_name, FILE_EXISTS_REPLACE);
+
+                // change file path name
+                $file_name = '"' . $new_path . $match . '_' . $file_name . '"';
+                $ret = str_replace($img_source_match[1], $file_name, $ret);
+            }
+        }
+    }
+
+    // dpm($ret);
+    // checks "Assets/kids.gov"
+    preg_match_all('/"\/Assets\/kids.gov.*?"/', $ret, $asseturl_match);
+    foreach($asseturl_match[0] as $asset_file_url) {
+
+        $asset_file_url = trim($asset_file_url);
+        $asset_file_url = str_replace(array('"', ''),"",$asset_file_url);
+        $url = $kids_path . str_replace(array('"', ''),"",$asset_file_url);
+        $image = file_get_contents($url);
+        $paths = explode("/", $asset_file_url);
+
+        $file = file_save_data($image, $s3_path . $paths[count($paths) - 1], FILE_EXISTS_REPLACE);
+        $ret = str_replace($asset_file_url, $new_path.$paths[count($paths) - 1], $ret);
+        // dpm($file->uri);
+    }
+
+    // //Assets/uploads
+    preg_match_all('/"\/Assets\/uploads.*?"/', $ret, $asseturl_match);
+    foreach($asseturl_match[0] as $asset_file_url) {
+
+        $asset_file_url = trim($asset_file_url);
+        $asset_file_url = str_replace(array('"', ''),"",$asset_file_url);
+        $url = $kids_path . str_replace(array('"', ''),"",$asset_file_url);
+        $image = file_get_contents($url);
+        $paths = explode("/", $asset_file_url);
+
+        $file = file_save_data($image, $s3_path . $paths[count($paths) - 1], FILE_EXISTS_REPLACE);
+        $ret = str_replace($asset_file_url, $new_path.$paths[count($paths) - 1], $ret);
+        // dpm($file->uri);
+    }
+
+    return $ret;
+}
+
+// need to organize body field correctly
+function _correct_body_field($contents){
+
+    $exc_pattern[] = "/sys_contentid=3382/";
+    // "cm1.usa.gov:9992";
+    $priority_map[] = "/<h1>/";
+    $priority_map[] = "/<h2>Watch/";
+    $priority_map[] = "/<h2>Find on This Page/";
+    $priority_map[] = '/class="feeds/';
+    $priority_map[] = '/<strong>Date:/';
+    $priority_map[] = '/<iframe width="560" height="315" src="http:\/\/www.youtube.com\/embed/';
+
+    $final_body = array();
+    $no_rule_apply = array();
+    foreach($contents as $content) {
+
+
+        $rule_applied = TRUE;
+        $i=0;
+        foreach ($priority_map as $rule) {
+            preg_match($rule, $content, $match);
+            if (!empty($match)) {
+                $rule_applied = FALSE;
+                $final_body[$i] = $content;
+            }
+            $i++;
+        }
+
+        $match_exclusion_case = TRUE;
+
+        /*foreach ($exc_pattern as $ex_rule) {
+            preg_match($ex_rule, $content, $ex_match);
+            if (!empty($ex_match)) {
+                $match_exclusion_case = FALSE;
+            }
+        }*/
+
+        if ( $match_exclusion_case && $rule_applied) {
+            $no_rule_apply[] = $content;
+        }
+
+    }
+
+
+    return join(' ', array_merge($final_body, $no_rule_apply));
+}
+
+function _get_all_icon_ids() {
+    $ret = array();
+
+    $res = db_query("SELECT CONTENTID FROM legacy_imageasset WHERE FILENAME LIKE '%Header_Icon_%' ");
+    foreach($res as $row) {
+        $ret[] = $row->CONTENTID;
+    }
+
+    $res = db_query("SELECT CONTENTID FROM legacy_fileasset WHERE FILENAME LIKE '%Header_Icon_%' ");
+    foreach($res as $row) {
+        $ret[] = $row->CONTENTID;
+    }
+
+    return $ret;
+}
+
+function _create_carousel_multimedia_ccks($html_node, $location,$current_tid) {
+
+    $kids_path="http://kids.usa.gov";
+    $s3_path='s3://';
+    //dpm($html_node);
+    $txt = $html_node->field_html['und'][0]['value'];
+
+    $slides = explode('<div class="tp-ftur', $txt);
+
+    foreach($slides as $crsl) {
+
+        preg_match("#<h2[^>]*>(.*?)</h2>#i", $crsl, $title_match);
+        preg_match("#<div[^>]*>(.*?)</div>#i", $crsl, $summary_match);
+        preg_match('#<img src="(.*?)"#i', $crsl, $asseturl_match);
+        preg_match('#<a href="(.*?)"#i', $crsl, $url_match);
+
+        if (isset($title_match[1])
+            && isset($summary_match[1])
+            && isset($asseturl_match[1])
+            && isset($url_match[1])) {
+
+            $node_raw = new stdClass();
+            $node_raw->title = $title_match[1]; // what should be the title
+            $node_raw->type = 'multimedia_content_type';
+            node_object_prepare($node_raw);
+            $node_raw->comment = 0;
+            $node_raw->status = 1;
+            $node_raw->promote = 0;
+            $node_raw->language = 'en';
+
+            $node_raw->field_priority['und'][0]['value'] = 'normal';
+
+            // for use by
+            $node_raw->field_for_use_by['und'][0] = array('value' => 'Kids.USA.gov');
+            $node_raw->field_language['und'][0] = array('value' => 'English');
+
+            // Date Last Reviewed
+            $node_raw->field_date_last_reviewed['und'][0] = array('value' => date('Y-m-d H:i:s', time()),
+                'timezone' => 'America/New_York',
+                'timezone_db' => 'UTC',
+                'date_type' => 'datetime');
+
+            // Owner
+            $node_raw->field_owner['und'][0]['target_id'] = 1;
+
+            // summary
+            $node_raw->field_description['und'][0]['value'] = $summary_match[1];
+
+            // url
+            $node_raw->field_url['und'][0]['value'] = $url_match[1];
+
+            $node_raw->field_media_type['und'][0] = array("value" => "Image");
+
+            // flag carousel
+            $node_raw->field_asset_topic_taxonomy = $html_node->field_asset_topic_taxonomy;
+
+            $paths = explode("/", $asseturl_match[1]);
+            $asseturl_match[1] = trim($asseturl_match[1]);
+
+            $url = $kids_path . $asseturl_match[1];
+
+            $image = file_get_contents($url);
+            $file = file_save_data($image, $s3_path . $paths[count($paths) - 1], FILE_EXISTS_REPLACE);
+            $node_raw->field_file_media['und'][0]['fid'] = $file->fid;
+
+            node_save($node_raw);
+            if($html_node->contentid) {
+                db_query("INSERT INTO migration_perc_term_log (legacy_path, legacy_id, source_nid, source_tid) VALUES('" . $location . "'," . $html_node->contentid . ", " . $node_raw->nid . ", " . $current_tid . ")");
+            }
+        }
+
+    }
+}
+
+
+// find on page extraction
+function _create_find_on_pages($node) {
+//dpm($node);
+    $txt = $node->body['und'][0]['value'];
+    preg_match_all('#href="\#(.*?)"#i', $txt, $innerurl_match);
+    //  dpm($innerurl_match);
+}
+
+function _import_kids_real_site_structure_tax()
+{
+    $return = '';
+
+    if (isset($_REQUEST["parent"]) && isset($_REQUEST["vocab"])) {
+
+        db_query("DELETE FROM migration_ss_log");
+
+        $sql = "SELECT * FROM sites_taxonomy WHERE ((location NOT LIKE '/teens-home/%') AND (location NOT LIKE '/grown-ups/%')) ORDER BY length(location)";
+        $result = db_query($sql);
+        $parent_term_id = $_REQUEST["parent"];
+        $vocab = $_REQUEST["vocab"];
+
+
+        $kd = _get_term_id($vocab, 'Kids Grade K-5', $parent_term_id);
+        if ($kd == FALSE) {
+
+            $kidterm = new stdClass();
+            $kidterm->name = "Kids Grade K-5";
+            $kidterm->vid = $vocab;
+            $kidterm->parent = array($parent_term_id);
+            $kidterm->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov/";
+            $kidterm->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
+            $kidterm->field_browser_title['und'][0]['value'] = "Kids Grade K-5";
+            $kidterm->field_meta_description['und'][0]['value'] = "Kids.gov: The U.S. Government's Official Web Portal for Kids";
+            $kidterm->field_type_of_page_to_generate['und'][0]['value'] = 'home';
+            taxonomy_term_save($kidterm);
+
+        } ELSE {
+            $kidterm = taxonomy_term_load($kd);
+        }
+
+        // Kids Grade K-5
+        foreach ($result as $row) {
+            $loc = $row->location;
+            $return .= $loc . ' <hr />';
+            $tmp = explode("/", $loc);
+
+            $prev_term_name = NULL;
+            $prev_term = taxonomy_term_load($kidterm->tid);
+            $lvl = 0;
+
+            $nothing_inserted = TRUE;
+            foreach ($tmp as $str) {
+                $str = strtolower($str);
+                if (!in_array($str, array('index.shtml', 'saveindex.shtml', 'test.shtml', 'saveindex.shtml', 'error.shtml', 'index.shtml-copy', 'index-delete'))
+                    && strlen($str) > 0
+                ) {
+                    // check whether is exist
+                    $name = ucfirst(str_replace("-", " ", $str));
+                    $name = ucwords(strtolower($name));
+                    if ($lvl == 0) {
+                        // under kids
+                        $term = _get_term_id($vocab, $name, $kidterm->tid);
+                    } else {
+                        // something else
+                        $term = _get_term_id($vocab, $name, $prev_term->tid);
+                    }
+
+                    if ($term === FALSE) {
+
+                        //create term
+                        $new_term = new stdClass();
+                        $new_term->name = $name;
+                        $new_term->vid = $vocab;
+                        $new_term->parent = $prev_term->tid;
+
+                        $new_term->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov" . $row->location;
+                        $new_term->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
+                        $new_term->field_browser_title['und'][0]['value'] = $row->page_title;
+                        $new_term->field_meta_description['und'][0]['value'] = $row->page_description;
+                        $new_term->field_type_of_page_to_generate['und'][0]['value'] = 'generic-content-page';
+                        $new_term->field_page_intro['und'][0]['value'] = strip_tags($row->page_summary);
+
+                        taxonomy_term_save($new_term);
+                        $prev_term = $new_term;
+
+                        db_insert('migration_ss_log')
+                            ->fields(array(
+                                'legacy_path' => $row->location,
+                                'source_tid' => $new_term->tid
+                            ))
+                            ->execute();
+                        $nothing_inserted = false;
+                    } else {
+                        $prev_term = taxonomy_term_load($term);
+                    }
+                }
+                $lvl++;
+            }
+            if ($nothing_inserted) {
+                $current_tid = db_query("SELECT source_tid FROM migration_ss_log WHERE legacy_path LIKE'" . $row->location . "'")->fetchField();
+                if ($current_tid == 0) {
+                    db_insert('migration_ss_log')
+                        ->fields(array(
+                            'legacy_path' => $row->location,
+                            'source_tid' => $prev_term->tid
+                        ))
+                        ->execute();
+                }
+            }
+        }
+
+        $return .= "<b>KIDS ENDED</b><hr/>";
+
+        // TEENS
+        $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/teens-home/%'  ORDER BY length(location);";
+        $result = db_query($sql);
+        $te = _get_term_id($vocab, 'Teens Grades 6-8', $parent_term_id);
+
+        if ($te == FALSE) {
+
+            $kidterm = new stdClass();
+            $kidterm->name = "Teens Grades 6-8";
+            $kidterm->vid = $vocab;
+            $kidterm->parent = array($parent_term_id);
+            $kidterm->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov/teens/index.html";
+            $kidterm->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
+            $kidterm->field_browser_title['und'][0]['value'] = "Teens Grades 6-8 | Kids.gov";
+            $kidterm->field_meta_description['und'][0]['value'] = "Kids.gov: The U.S. Government's Official Web Portal for Kids";
+            $kidterm->field_type_of_page_to_generate['und'][0]['value'] = 'generic-content-page';
+
+            taxonomy_term_save($kidterm);
+
+        } ELSE {
+            $kidterm = taxonomy_term_load($te);
+        }
+        foreach ($result as $row) {
+            $loc = str_replace("/teens-home/", "/", $row->location);
+            $return .= $loc . ' <hr />';
+            $tmp = explode("/", $loc);
+
+            $prev_term_name = NULL;
+            $prev_term = taxonomy_term_load($kidterm->tid);
+            $lvl = 0;
+            $nothing_inserted = TRUE;
+            foreach ($tmp as $str) {
+                $str = strtolower($str);
+                if (!in_array($str, array('index.shtml', 'saveindex.shtml', 'test.shtml', 'saveindex.shtml', 'error.shtml', 'index.shtml-copy', 'index-delete'))
+                    && strlen($str) > 0
+                ) {
+                    // check whether is exist
+                    $name = ucfirst(str_replace("-", " ", $str));
+                    $name = ucwords(strtolower($name));
+                    if ($lvl == 0) {
+                        // under kids
+                        $term = _get_term_id($vocab, $name, $kidterm->tid);
+                    } else {
+                        // something else
+                        $term = _get_term_id($vocab, $name, $prev_term->tid);
+                    }
+
+                    if ($term === FALSE) {
+
+                        //create term
+                        $new_term = new stdClass();
+                        $new_term->name = $name;
+                        $new_term->vid = $vocab;
+                        $new_term->parent = $prev_term->tid;
+
+                        $new_term->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov" . $row->location;
+                        $new_term->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
+                        $new_term->field_browser_title['und'][0]['value'] = $row->page_title;
+                        $new_term->field_meta_description['und'][0]['value'] = $row->page_description;
+                        $new_term->field_type_of_page_to_generate['und'][0]['value'] = 'generic-content-page';
+                        $new_term->field_page_intro['und'][0]['value'] = strip_tags($row->page_summary);
+
+                        taxonomy_term_save($new_term);
+                        $prev_term = $new_term;
+                        db_insert('migration_ss_log')
+                            ->fields(array(
+                                'legacy_path' => $row->location,
+                                'source_tid' => $new_term->tid
+                            ))
+                            ->execute();
+                        $nothing_inserted = FALSE;
+                    } else {
+                        $prev_term = taxonomy_term_load($term);
+                    }
+                }
+                $lvl++;
+            }
+            if ($nothing_inserted) {
+                $current_tid = db_query("SELECT source_tid FROM migration_ss_log WHERE legacy_path LIKE'" . $row->location . "'")->fetchField();
+                if ($current_tid == 0) {
+                    db_insert('migration_ss_log')
+                        ->fields(array(
+                            'legacy_path' => $row->location,
+                            'source_tid' => $prev_term->tid
+                        ))
+                        ->execute();
+                }
+            }
+        }
+
+        $return .= "<b>TEENS ENDED</b><hr/>";
+
+        // TEACHERS
+        $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/grown-ups/%' AND location NOT LIKE '/grown-ups/for-parents/%'  ORDER BY length(location);";
+        $result = db_query($sql);
+        $tc = _get_term_id($vocab, 'Teachers', $parent_term_id);
+
+        if ($tc == FALSE) {
+
+            $kidterm = new stdClass();
+            $kidterm->name = "Teachers";
+            $kidterm->vid = $vocab;
+            $kidterm->parent = array($parent_term_id);
+            $kidterm->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov/teachers/index.shtml";
+            $kidterm->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
+            $kidterm->field_browser_title['und'][0]['value'] = "Teachers | Kids.gov";
+            $kidterm->field_meta_description['und'][0]['value'] = "Kids.gov: The U.S. Government's Official Web Portal for Kids";
+            $kidterm->field_type_of_page_to_generate['und'][0]['value'] = 'generic-content-page';
+
+            taxonomy_term_save($kidterm);
+
+        } ELSE {
+            $kidterm = taxonomy_term_load($tc);
+        }
+        foreach ($result as $row) {
+            $loc = str_replace("/grown-ups/", "/", $row->location);
+            $return .= $loc . ' <hr />';
+            $tmp = explode("/", $loc);
+
+            $prev_term_name = NULL;
+            $prev_term = taxonomy_term_load($kidterm->tid);
+            $lvl = 0;
+            $nothing_inserted = TRUE;
+            foreach ($tmp as $str) {
+                $str = strtolower($str);
+                if (!in_array($str, array('index.shtml', 'saveindex.shtml', 'test.shtml', 'saveindex.shtml', 'error.shtml', 'index.shtml-copy', 'index-delete'))
+                    && strlen($str) > 0
+                ) {
+                    // check whether is exist
+                    $name = ucfirst(str_replace("-", " ", $str));
+                    $name = ucwords(strtolower($name));
+                    if ($lvl == 0) {
+                        // under kids
+                        $term = _get_term_id($vocab, $name, $kidterm->tid);
+                    } else {
+                        // something else
+                        $term = _get_term_id($vocab, $name, $prev_term->tid);
+                    }
+
+                    if ($term === FALSE) {
+
+                        //create term
+                        $new_term = new stdClass();
+                        $new_term->name = $name;
+                        $new_term->vid = $vocab;
+                        $new_term->parent = $prev_term->tid;
+
+                        $new_term->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov" . $row->location;
+                        $new_term->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
+                        $new_term->field_browser_title['und'][0]['value'] = $row->page_title;
+                        $new_term->field_meta_description['und'][0]['value'] = $row->page_description;
+                        $new_term->field_type_of_page_to_generate['und'][0]['value'] = 'generic-content-page';
+                        $new_term->field_page_intro['und'][0]['value'] = strip_tags($row->page_summary);
+
+                        taxonomy_term_save($new_term);
+                        $prev_term = $new_term;
+                        db_insert('migration_ss_log')
+                            ->fields(array(
+                                'legacy_path' => $row->location,
+                                'source_tid' => $new_term->tid
+                            ))
+                            ->execute();
+                        $nothing_inserted = FALSE;
+                    } else {
+                        $prev_term = taxonomy_term_load($term);
+                    }
+                }
+                $lvl++;
+            }
+            if ($nothing_inserted) {
+                $current_tid = db_query("SELECT source_tid FROM migration_ss_log WHERE legacy_path LIKE'" . $row->location . "'")->fetchField();
+                if ($current_tid == 0) {
+                    db_insert('migration_ss_log')
+                        ->fields(array(
+                            'legacy_path' => $row->location,
+                            'source_tid' => $prev_term->tid
+                        ))
+                        ->execute();
+                }
+            }
+        }
+        $return .= "<b>TEACHERS ENDED</b> <hr/>";
+
+        // PARENTS
+        $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/grown-ups/for-parents/%'  ORDER BY length(location);";
+        $result = db_query($sql);
+        $pa = _get_term_id($vocab, 'Parents', $parent_term_id);
+
+        if ($pa == FALSE) {
+
+            $kidterm = new stdClass();
+            $kidterm->name = "Parents";
+            $kidterm->vid = $vocab;
+            $kidterm->parent = array($parent_term_id);
+            $kidterm->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov/parents/index.shtml";
+            $kidterm->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
+            $kidterm->field_browser_title['und'][0]['value'] = "Parents | Kids.gov";
+            $kidterm->field_meta_description['und'][0]['value'] = "Kids.gov: The U.S. Government's Official Web Portal for Kids";
+            $kidterm->field_type_of_page_to_generate['und'][0]['value'] = 'generic-content-page';
+
+            taxonomy_term_save($kidterm);
+
+        } ELSE {
+            $kidterm = taxonomy_term_load($pa);
+        }
+        foreach ($result as $row) {
+            $loc = str_replace("/grown-ups/for-parents/", "/", $row->location);
+            $return .= $loc . ' <hr />';
+            $tmp = explode("/", $loc);
+
+            $prev_term_name = NULL;
+            $prev_term = taxonomy_term_load($kidterm->tid);
+            $lvl = 0;
+            $nothing_inserted = TRUE;
+            foreach ($tmp as $str) {
+                $str = strtolower($str);
+                if (!in_array($str, array('index.shtml', 'saveindex.shtml', 'test.shtml', 'saveindex.shtml', 'error.shtml', 'index.shtml-copy', 'index-delete'))
+                    && strlen($str) > 0
+                ) {
+                    // check whether is exist
+                    $name = ucfirst(str_replace("-", " ", $str));
+                    $name = ucwords(strtolower($name));
+                    if ($lvl == 0) {
+                        // under kids
+                        $term = _get_term_id($vocab, $name, $kidterm->tid);
+                    } else {
+                        // something else
+                        $term = _get_term_id($vocab, $name, $prev_term->tid);
+                    }
+
+                    if ($term === FALSE) {
+
+                        //create term
+                        $new_term = new stdClass();
+                        $new_term->name = $name;
+                        $new_term->vid = $vocab;
+                        $new_term->parent = $prev_term->tid;
+
+                        $new_term->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov" . $row->location;
+                        $new_term->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
+                        $new_term->field_browser_title['und'][0]['value'] = $row->page_title;
+                        $new_term->field_meta_description['und'][0]['value'] = $row->page_description;
+                        $new_term->field_type_of_page_to_generate['und'][0]['value'] = 'generic-content-page';
+                        $new_term->field_page_intro['und'][0]['value'] = strip_tags($row->page_summary);
+
+                        taxonomy_term_save($new_term);
+                        $prev_term = $new_term;
+                        db_insert('migration_ss_log')
+                            ->fields(array(
+                                'legacy_path' => $row->location,
+                                'source_tid' => $new_term->tid
+                            ))
+                            ->execute();
+                        $nothing_inserted = FALSE;
+                    } else {
+                        $prev_term = taxonomy_term_load($term);
+                    }
+                }
+                $lvl++;
+            }
+            if ($nothing_inserted) {
+                $current_tid = db_query("SELECT source_tid FROM migration_ss_log WHERE legacy_path LIKE'" . $row->location . "'")->fetchField();
+                if ($current_tid == 0) {
+                    db_insert('migration_ss_log')
+                        ->fields(array(
+                            'legacy_path' => $row->location,
+                            'source_tid' => $prev_term->tid
+                        ))
+                        ->execute();
+                }
+            }
+        }
+        $return .= "<b>PARENTS ENDED</b><hr/>";
+
+    }
+    else {
+        $return .="parent and vocab is missing";
+    }
+    return $return;
+}
+
+/*
+function _builk_update() {
+
+    //and nid = 14694
+    $res = '';
+    $sql = "SELECT * FROM migration_log WHERE res_type LIKE 'RICHTEXT_ASSET' ";
+
+    $result = db_query($sql);
+
+    foreach ($result as $row) {
+
+        $node = node_load($row->sourceid);
+        $match = null;
+        if (isset($node) && isset($node->body['en'][0]['value'])) {
+            preg_match('#<h1[^>]*>(.*?)</h1>#i', $node->body['en'][0]['value'], $match);
+            if (empty($match)) {
+                preg_match('#<h2[^>]*>(.*?)</h2>#i', $node->body['en'][0]['value'], $match);
+            }
+            if (empty($match)) {
+                preg_match('#<h3[^>]*>(.*?)</h3>#i', $node->body['en'][0]['value'], $match);
+            }
+            if (empty($match)) {
+                preg_match('#<h4[^>]*>(.*?)</h4>#i', $node->body['en'][0]['value'], $match);
+            }
+            if (empty($match)) {
+                preg_match('#<h5[^>]*>(.*?)</h5>#i', $node->body['en'][0]['value'], $match);
+            }
+            if (empty($match)) {
+                preg_match('#<h6[^>]*>(.*?)</h6>#i', $node->body['en'][0]['value'], $match);
+            }
+            $res .= $row->legacyid . '- ' . $row->sourceid ;
+
+            if (!empty($match[1])) {
+                $res .= '--' . $match[1] . "<hr />";
+                // check whether it is image or not
+                $title = $match[1];
+                $title_len = strip_tags($title);
+                $title_len = str_replace('&nbsp;', '', $title_len);
+                $title_len = str_replace('&#39;', ",", $title_len);
+
+                if (strlen($title_len) > 0) {
+                    $node->title = $title_len;
+                    node_save($node);
+                }
+            }
+
+        }
+    }
+    return $res;
 }
 
 function _find_for_use_by($asset_topic_tid) {
     $ret = array();
+
     /*
      USA.gov|USA.gov
 GobiernoUSA.gov|GobiernoUSA.gov
@@ -85,33 +2138,29 @@ Pint CAH|Pint CAH
 Print Guia|Print Guia
      */
 
-    $top_parent_terms = array();
-    $top_parent_names = array();	
-    for($i = 0; $i < count($asset_topic_tid); $i++) {	
-    	$term_tid = $asset_topic_tid[$i]['tid'];
-    	$top_parent_term = null;
-    	$parent_terms = taxonomy_get_parents_all($term_tid);
-    	//top parent term has no parents so find it out by checking if it has parents
-    	foreach($parent_terms as $parent) {
-        	$parent_parents = taxonomy_get_parents_all($parent->tid);
-        	if ($parent_parents != false) {
-            	//this is top parent term
-            	$top_parent_terms[] = $parent->tid;
-		$top_parent_names[] = $parent->name;
-       	 	}
-   	 }
+/*$term_tid = $asset_topic_tid[0]['tid'];
+$top_parent_term = null;
+$parent_terms = taxonomy_get_parents_all($term_tid);
+//top parent term has no parents so find it out by checking if it has parents
+foreach($parent_terms as $parent) {
+    $parent_parents = taxonomy_get_parents_all($parent->tid);
+    if ($parent_parents != false) {
+        //this is top parent term
+        $top_parent_term = $parent;
     }
-    if(in_array(126, $top_parent_terms) || in_array('ONLY for Call Center Usage', $top_parent_names)) {
-        $ret[]=array('value'=>'NCC Knowledge Base');
-    }
-
-    if(in_array(381, $top_parent_terms) || in_array('USA.gov', $top_parent_names)) { //'USA.gov'
-        $ret[]=array('value'=>'USA.gov');
-        $ret[]=array('value'=>'NCC Knowledge Base');
-    }
-    if(in_array(125, $top_parent_terms) || in_array('GobiernoUSA.gov', $top_parent_names)) {
-        $ret[]=array('value'=>'GobiernoUSA.gov');
-        $ret[]=array('value'=>'NCC Knowledge Base');
-    }
-    return $ret;
 }
+
+if($top_parent_term->tid == 381 || $top_parent_term->name =='USA.gov') { //'USA.gov'
+    $ret[]=array('value'=>'USA.gov');
+    $ret[]=array('value'=>'NCC Knowledge Base');
+}
+if($top_parent_term->tid == 125 || $top_parent_term->name =='GobiernoUSA.gov') {
+    $ret[]=array('value'=>'GobiernoUSA.gov');
+    $ret[]=array('value'=>'NCC Knowledge Base');
+}
+if($top_parent_term->tid == 126 || $top_parent_term->name =='ONLY for Call Center Usage') {
+    $ret[]=array('value'=>'NCC Knowledge Base');
+}
+
+return $ret;
+}*/
