@@ -188,12 +188,12 @@ function _list_old_path_not_in_taxonomy() {
 
         $path = $row->legacy_path;
 
-        $path = str_replace("/art/", "/art-and-music/", $path);
+        /*$path = str_replace("/art/", "/art-and-music/", $path);
         $path = str_replace("/watch-videos/art/", "/watch-videos/art-and-music-videos/",$path);
         //$path = str_replace("/watch-videos/videos/online-safety/index.shtml", "/watch-videos/online-safety/index.shtml", $path);
         $path = str_replace("/teens-home/", "/teens/",  $path);
         $path = str_replace("/grown-ups/for-parents/", "/parents/",  $path);
-        $path = str_replace( "/grown-ups/", "/teachers/", $path);
+        $path = str_replace( "/grown-ups/", "/teachers/", $path);*/
 
         if (_is_path_exist($path) == false) {
             $i++;
@@ -252,13 +252,13 @@ function _update_site_structure_taxonomy(){
             if (isset($term->field_friendly_url['und'][0]['value'])) {
 
                 $path = str_replace("http://kids.usa.gov", "", $term->field_friendly_url['und'][0]['value']);
-                $path = str_replace("/art-and-music/", "/art/", $path);
+                /*$path = str_replace("/art-and-music/", "/art/", $path);
                 $path = str_replace("/watch-videos/art-and-music-videos/", "/watch-videos/art/", $path);
                 $path = str_replace("/watch-videos/online-safety/index.shtml", "watch-videos/videos/online-safety/index.shtml", $path);
                 $path = str_replace("/teens/", "/teens-home/", $path);
                 $path = str_replace("/parents/", "/grown-ups/for-parents/", $path);
                 $path = str_replace("/teachers/", "/grown-ups/", $path);
-
+*/
 
                 $sub_sql = "SELECT * FROM migration_site_structure_full_term_log WHERE legacy_path LIKE '" . $path . "'";
                 $sub_result = db_query($sub_sql);
@@ -317,7 +317,7 @@ function _import_kids_site_structure()
 
     db_query("DELETE FROM migration_site_structure_full_term_log");
 
-    $sql = "SELECT * FROM sites_taxonomy WHERE ((location NOT LIKE '/teens-home/%') AND (location NOT LIKE '/grown-ups/%')) ORDER BY length(location)";
+    $sql = "SELECT * FROM sites_taxonomy WHERE ((location NOT LIKE '/teens/%') AND (location NOT LIKE '/parents/%') AND (location NOT LIKE '/teachers/%') ) ORDER BY length(location)";
     $result = db_query($sql);
     $parent_term_id = 3897;
     $vocab = 57;
@@ -472,7 +472,7 @@ function _import_kids_site_structure()
     $return .= "<b>KIDS ENDED</b><hr/>";
 
     // TEENS
-    $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/teens-home/%'  ORDER BY length(location);";
+    $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/teens/%'  ORDER BY length(location);";
     $result = db_query($sql);
     $te=_get_term_id($vocab, 'Teens', $parent_term_id);
 
@@ -489,7 +489,7 @@ function _import_kids_site_structure()
         $kidterm= taxonomy_term_load($te);
     }
     foreach ($result as $row) {
-        $loc = str_replace("/teens-home/", "/", $row->location);
+        $loc = str_replace("/teens/", "/", $row->location);
         $return .= $loc . ' <hr />';
         $tmp = explode("/", $loc);
 
@@ -551,7 +551,7 @@ function _import_kids_site_structure()
     $return .= "<b>TEENS ENDED</b><hr/>";
 
     // TEACHERS
-    $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/grown-ups/%' AND location NOT LIKE '/grown-ups/for-parents/%'  ORDER BY length(location);";
+    $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/teachers/%' ORDER BY length(location);";
     $result = db_query($sql);
     $tc=_get_term_id($vocab, 'Teachers', $parent_term_id);
 
@@ -568,7 +568,7 @@ function _import_kids_site_structure()
         $kidterm= taxonomy_term_load($tc);
     }
     foreach ($result as $row) {
-        $loc = str_replace("/grown-ups/", "/", $row->location);
+        $loc = str_replace("/teachers/", "/", $row->location);
         $return .= $loc . ' <hr />';
         $tmp = explode("/", $loc);
 
@@ -629,7 +629,7 @@ function _import_kids_site_structure()
     $return .= "<b>TEACHERS ENDED</b> <hr/>";
 
     // PARENTS
-    $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/grown-ups/for-parents/%'  ORDER BY length(location);";
+    $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/parents/%'  ORDER BY length(location);";
     $result = db_query($sql);
     $pa=_get_term_id($vocab, 'Parents', $parent_term_id);
 
@@ -646,7 +646,7 @@ function _import_kids_site_structure()
         $kidterm= taxonomy_term_load($pa);
     }
     foreach ($result as $row) {
-        $loc = str_replace("/grown-ups/for-parents/", "/", $row->location);
+        $loc = str_replace("/parents/", "/", $row->location);
         $return .= $loc . ' <hr />';
         $tmp = explode("/", $loc);
 
@@ -1018,7 +1018,7 @@ function _bulk_term_update() {
                 2096, 2817,2818,2819,3488, 3487, 3489,3490, 3491, 3493,3494, 3495, 3497, 3499, 3500, 3125,3012, 3004, 3141,3132, 3055, 1576,1574, 4145, 3496, 3020,
                 1235,1236,1237,1238,1240,1242,1243,1244,1230,1246,4502,1247,1249,4535,4536,4537,2532,2538,2542,4666,3056,1250,4514,1251,1252,1253,1254,1255,1256,4520,
                 1257,1259,4522,1260,1261,1262,4324,4350,4326,4327,4328,4352,4524,1231,4353,4354,4397,1264,1265,1266,1232,4505,4506,1267,1268,1269,4508,4507,1234,1270,4509,
-            4511,1273,4512,1274,1275,1276,1225,1226,1227,1228,3900,4677,4489,3901,3902,3884,3899,3863,4209,1230);
+            4511,1273,4512,1274,1275,1276,1225,1226,1227,1228,3900,4677,4489,3901,3902,3884,3899,3863,4209,1230,4724);
 
             $icon_ids =_get_all_icon_ids();
             //dpm($icon_ids);
@@ -1685,7 +1685,7 @@ function _import_kids_real_site_structure_tax()
 
         db_query("DELETE FROM migration_ss_log");
 
-        $sql = "SELECT * FROM sites_taxonomy WHERE ((location NOT LIKE '/teens-home/%') AND (location NOT LIKE '/grown-ups/%')) ORDER BY length(location)";
+        $sql = "SELECT * FROM sites_taxonomy WHERE ((location NOT LIKE '/teens/%') AND (location NOT LIKE '/teachers/%') AND (location NOT LIKE '/parents/%')) ORDER BY length(location)";
         $result = db_query($sql);
         $parent_term_id = $_REQUEST["parent"];
         $vocab = $_REQUEST["vocab"];
@@ -1742,7 +1742,7 @@ function _import_kids_real_site_structure_tax()
                         $new_term = new stdClass();
                         $new_term->name = $name;
                         $new_term->vid = $vocab;
-                        $new_term->parent = $prev_term->tid;
+                        $new_term->parent = array($prev_term->tid);
 
                         $new_term->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov" . $row->location;
                         $new_term->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
@@ -1783,7 +1783,7 @@ function _import_kids_real_site_structure_tax()
         $return .= "<b>KIDS ENDED</b><hr/>";
 
         // TEENS
-        $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/teens-home/%'  ORDER BY length(location);";
+        $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/teens/%'  ORDER BY length(location);";
         $result = db_query($sql);
         $te = _get_term_id($vocab, 'Teens Grades 6-8', $parent_term_id);
 
@@ -1805,7 +1805,7 @@ function _import_kids_real_site_structure_tax()
             $kidterm = taxonomy_term_load($te);
         }
         foreach ($result as $row) {
-            $loc = str_replace("/teens-home/", "/", $row->location);
+            $loc = str_replace("/teens/", "/", $row->location);
             $return .= $loc . ' <hr />';
             $tmp = explode("/", $loc);
 
@@ -1835,7 +1835,7 @@ function _import_kids_real_site_structure_tax()
                         $new_term = new stdClass();
                         $new_term->name = $name;
                         $new_term->vid = $vocab;
-                        $new_term->parent = $prev_term->tid;
+                        $new_term->parent = array($prev_term->tid);
 
                         $new_term->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov" . $row->location;
                         $new_term->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
@@ -1875,7 +1875,7 @@ function _import_kids_real_site_structure_tax()
         $return .= "<b>TEENS ENDED</b><hr/>";
 
         // TEACHERS
-        $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/grown-ups/%' AND location NOT LIKE '/grown-ups/for-parents/%'  ORDER BY length(location);";
+        $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/teachers/%'  ORDER BY length(location);";
         $result = db_query($sql);
         $tc = _get_term_id($vocab, 'Teachers', $parent_term_id);
 
@@ -1897,7 +1897,7 @@ function _import_kids_real_site_structure_tax()
             $kidterm = taxonomy_term_load($tc);
         }
         foreach ($result as $row) {
-            $loc = str_replace("/grown-ups/", "/", $row->location);
+            $loc = str_replace("/teachers/", "/", $row->location);
             $return .= $loc . ' <hr />';
             $tmp = explode("/", $loc);
 
@@ -1927,7 +1927,7 @@ function _import_kids_real_site_structure_tax()
                         $new_term = new stdClass();
                         $new_term->name = $name;
                         $new_term->vid = $vocab;
-                        $new_term->parent = $prev_term->tid;
+                        $new_term->parent = ($prev_term->tid);
 
                         $new_term->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov" . $row->location;
                         $new_term->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
@@ -1966,7 +1966,7 @@ function _import_kids_real_site_structure_tax()
         $return .= "<b>TEACHERS ENDED</b> <hr/>";
 
         // PARENTS
-        $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/grown-ups/for-parents/%'  ORDER BY length(location);";
+        $sql = "SELECT * FROM sites_taxonomy WHERE location LIKE '/parents/%'  ORDER BY length(location);";
         $result = db_query($sql);
         $pa = _get_term_id($vocab, 'Parents', $parent_term_id);
 
@@ -1988,7 +1988,7 @@ function _import_kids_real_site_structure_tax()
             $kidterm = taxonomy_term_load($pa);
         }
         foreach ($result as $row) {
-            $loc = str_replace("/grown-ups/for-parents/", "/", $row->location);
+            $loc = str_replace("/parents/", "/", $row->location);
             $return .= $loc . ' <hr />';
             $tmp = explode("/", $loc);
 
@@ -2018,7 +2018,7 @@ function _import_kids_real_site_structure_tax()
                         $new_term = new stdClass();
                         $new_term->name = $name;
                         $new_term->vid = $vocab;
-                        $new_term->parent = $prev_term->tid;
+                        $new_term->parent = ($prev_term->tid);
 
                         $new_term->field_friendly_url['und'][0]['value'] = "http://kids.usa.gov" . $row->location;
                         $new_term->field_govdelivery_id['und'][0]['value'] = "https://public.govdelivery.com/accounts/USFCIC/subscribers/qualify";
