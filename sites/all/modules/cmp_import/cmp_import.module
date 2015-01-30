@@ -979,12 +979,12 @@ function _bulk_term_update() {
 
     $raw_text_dups = array(3631, 1306);
 
-    //$ret = ' <a href="?limit=' . (isset($_REQUEST["limit"])? ($_REQUEST["limit"] +1) : 2) . '">NEXT</a> <br />';
-    $ret = ' <a href="?limit=' . (isset($_REQUEST["limit"])? ($_REQUEST["limit"] +20) : 0) . '">NEXT</a> <br />';
+    $ret = ' <a href="?limit=' . (isset($_REQUEST["limit"])? ($_REQUEST["limit"] +1) : 2) . '">NEXT</a> <br />';
+    //$ret = ' <a href="?limit=' . (isset($_REQUEST["limit"])? ($_REQUEST["limit"] +15) : 0) . '">NEXT</a> <br />';
     //$cond = (isset($_REQUEST["limit"])? " LIMIT ".$_REQUEST["limit"] . ",1"  : " LIMIT 1");
 
     //$ret = ' <a href="?limit=' . (isset($_REQUEST["limit"])? ($_REQUEST["limit"] + 50) : 0) . '">NEXT</a> <br />';
-    $cond = (isset($_REQUEST["limit"])? " LIMIT ".$_REQUEST["limit"] . ", 20"  : " LIMIT 0");
+    $cond = (isset($_REQUEST["limit"])? " LIMIT ".$_REQUEST["limit"] . ", 1"  : " LIMIT 0");
 
     $sql = "SELECT * FROM sites_taxonomy s WHERE location NOT LIKE '/transcripts/test.shtml'
            OR location NOT LIKE '/grown-ups/history/saveindex.shtml'
@@ -1015,12 +1015,17 @@ function _bulk_term_update() {
                 755, 785,4292, 4282, 1306, 1280, 1281, 797, 1142,802, 3384, 2648, 1282,1283, 3386, 2652, 2699,2121, 2122, 2123, 2124, 2125, 2852, 2863, 2710, 2718, 2862, 2715,
                 2126, 2127, 2128,2129, 2130, 2131, 2132, 2133, 2134, 3467, 2161, 2898, 2903, 2720, 2717, 2716, 2864,2713, 2165, 3471, 2711,2719, 2714, 2166, 2167, 3472, 2168, 2169,2170,2172,2702,3387,2660,1286,3645,3618,
                 3633, 3634,3631,3216,2666,3390, 3217,3218,3392,3498,3501,3689, 2769, 2768,812, 813, 3505, 3506,3507, 3508,3509, 3714,4008,3512,3219, 1569,1570, 2673, 3394,3755, 3393, 3395, 2223,1307,2079,2696,2697,3454,3473, 1185,1652,1665, 2847,2848,2849, 2093, 2095,
-                2096, 2817,2818,2819,3488, 3487, 3489,3490, 3491, 3493,3494, 3495, 3497, 3499, 3500, 3125,3012, 3004, 3141,3132, 3055, 1576,1574, 4145, 3496, 3020);
+                2096, 2817,2818,2819,3488, 3487, 3489,3490, 3491, 3493,3494, 3495, 3497, 3499, 3500, 3125,3012, 3004, 3141,3132, 3055, 1576,1574, 4145, 3496, 3020,
+                1235,1236,1237,1238,1240,1242,1243,1244,1230,1246,4502,1247,1249,4535,4536,4537,2532,2538,2542,4666,3056,1250,4514,1251,1252,1253,1254,1255,1256,4520,
+                1257,1259,4522,1260,1261,1262,4324,4350,4326,4327,4328,4352,4524,1231,4353,4354,4397,1264,1265,1266,1232,4505,4506,1267,1268,1269,4508,4507,1234,1270,4509,
+            4511,1273,4512,1274,1275,1276,1225,1226,1227,1228,3900,4677,4489,3901,3902,3884,3899,3863,4209,1230);
 
             $icon_ids =_get_all_icon_ids();
-            $exc_contents = array_merge($exc_contents, $icon_ids);
+            //dpm($icon_ids);
+           // $exc_contents = array_merge($exc_contents, $icon_ids);
+            //dpm($exc_contents);
 
-            $sub_sql = "SELECT DISTINCT DEPENDENT_ID FROM legacy_objectrelationship WHERE OWNER_ID IN(" . $row->templateid . ",". $row->contentid  . ") AND DEPENDENT_ID NOT IN (" . implode(',', $exc_contents) . ") ORDER BY SORT_RANK";
+            $sub_sql = "SELECT DISTINCT DEPENDENT_ID FROM legacy_objectrelationship WHERE OWNER_ID IN(" . $row->templateid . ",". $row->contentid  . ") AND DEPENDENT_ID     NOT IN (" . implode(',', $exc_contents) . ") ORDER BY SORT_RANK";
             //$sub_sql = "SELECT DISTINCT DEPENDENT_ID FROM legacy_objectrelationship WHERE OWNER_ID IN(" . $row->templateid . ") AND DEPENDENT_ID NOT IN (" . implode(',', $exc_contents) . ") ORDER BY SORT_RANK";
 
             $sub_result = db_query($sub_sql);
@@ -1307,14 +1312,14 @@ function _bulk_term_update() {
                         $nodes[] = $node_raw;
                     } else {
                         // there is some dups don't know how to differentiate
-                        $plain = strip_tags($dpl_cck->HTML);
+                        /*$plain = strip_tags($dpl_cck->HTML);
                         $rich_plain = strip_tags($node->body['und'][0]['value']);
-                        preg_match('/' . $plain . '/', $rich_plain, $txt_match);
+                        preg_match('/' . $plain . '/', $rich_plain, $txt_match);*/
 
-                        if (empty($txt_match)) {
+                        //if (empty($txt_match)) {
                             $contents[] = $sub_row->DEPENDENT_ID;
                             $tmp_body[] = $dpl_cck->HTML;
-                        }
+                        //}
                     }
                 }
                 // add title logic here
@@ -1414,6 +1419,8 @@ function _link_to_flat_file($text) {
     preg_match('/http:\/\/cm1.usa.gov:/', $text, $match_init);
     preg_match_all('/sys_contentid=(\d+)/',$text,$matchs);
     //dpm($matchs);
+    $icon_ids =_get_all_icon_ids();
+
     if (!empty($matchs) && count($matchs[1]) > 0) {
         foreach($matchs[1] as $match) {
             preg_match('/src=("http:\/\/cm1.usa.gov:9992(.*?)sys_contentid=' . $match . '(.*?)")/', $ret, $img_source_match);
@@ -1533,6 +1540,7 @@ function _correct_body_field($contents){
     $priority_map[] = "/<h2>Find on This Page/";
     $priority_map[] = '/class="feeds/';
     $priority_map[] = '/<strong>Date:/';
+    $priority_map[] = '/<strong>Prof/';
     $priority_map[] = '/<iframe width="560" height="315" src="http:\/\/www.youtube.com\/embed/';
 
     $final_body = array();
