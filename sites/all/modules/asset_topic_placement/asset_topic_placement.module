@@ -10,6 +10,7 @@ function asset_topic_placement_init() {
     ) {
 
         // Include asset_topic_placement.js
+        drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/jquery.waituntilexists.js', 'file');
         drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement.js', 'file');
         drupal_add_css(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement.css', 'file');
 
@@ -18,11 +19,13 @@ function asset_topic_placement_init() {
 
 function asset_topic_placement_entityreference_view_widget_views_arguments_alter(&$arguments, $form_state) {
 
-    $selectedAssetTopics = asset_topic_placement_findSelectedTopicsInForm($form_state);
+    $selectedAssetTopics = asset_topic_placement_findSelectedTopicsInForm(null, $form_state['values']['field_asset_topic_taxonomy']['und'][0]);
+    $selectedIncNavPages = asset_topic_placement_findSelectedTopicsInForm(null, $form_state['values']['field_also_include_on_nav_page']['und'][0]);
     $arguments = array(
-        0 => implode('+', $selectedAssetTopics)
+        0 => implode('+', array_merge($selectedAssetTopics, $selectedIncNavPages))
     );
 
+    //error_log(__FUNCTION__ . ' is sending the following arguments to the View: ' . $arguments[0]);
 }
 
 function asset_topic_placement_findSelectedTopicsInForm($form_state, $recursiveUse = null) {
