@@ -2,6 +2,11 @@
 // On document ready, we may need to initialize this helper script
 jQuery(document).ready( function () {
 
+	if ( typeof jQuery.fn.waitUntilExists != 'function' ) {
+		alert('Error - Missing waitUntilExists jQuery library!');
+		return;
+	}
+
 	/*Every so often, check if we need to initialize this helper script [again]
 	This is necessary because a single term's edit form can be loaded on a 
 	single page multiple times in the "Taxonomy Manager" */
@@ -58,6 +63,42 @@ function initAssetTopicPlacementHelperScript() {
 
 		}, 10, this);
 
+	});
+
+	// When the user touches a checkbox under the "Also include on Nav Pages" field... 
+	jQuery('.field-name-field-also-include-on-nav-page input').bind('click', function () {
+
+		// I'm using setTimeout() to make [very] sure that this event fires AFTER the browser has handled the checkbox ticked-value alteration...
+		setTimeout( function (tThis) {
+
+			if ( tThis.checked ) {
+				if ( jQuery('.group-asset-topic-placement').queue('fx').length < 3 ) {
+					jQuery('.group-asset-topic-placement').queue( function () {
+
+						jQuery('.group-asset-topic-placement').fadeIn();
+
+						var addTids = [];
+						jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
+							addTids.push(this.value);
+						});
+
+						jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
+						alterTermsOnAssetTopicPlacementField('.field-name-field-asset-order-menu', function () {
+							updateAssetTopicPlacementCountClasses();
+							jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+							jQuery('.group-asset-topic-placement').dequeue();
+						});
+					});
+				}
+			} else {
+				jQuery('.group-asset-topic-placement').queue( function () {
+					jQuery('.field-name-field-asset-order-menu input[value=' + tThis.value + ']').parents('tr').remove();
+					updateAssetTopicPlacementCountClasses();
+					jQuery('.group-asset-topic-placement').dequeue();
+				});
+			}
+
+		}, 10, this);
 	});
 
 	// When the user clicks an "Inherit" checkbox...
@@ -161,7 +202,7 @@ function alterTermsOnAssetTopicPlacementField(fieldSelector, callback) {
 
 	// Wait for the modal entity-reference-view-widget to show...
 	console.log('Waiting for the modal entity-reference-view-widget to show...');
-	jQuery('.view-entity-reference-asset-nodes').waitUntilExists( function () {
+	jQuery('.view-display-id-entityreference_view_widget_1').waitUntilExists( function () {
 
 		// Tick every checkbox in the modal form
 		jQuery('a#entityreference-view-widget-select-all').click();

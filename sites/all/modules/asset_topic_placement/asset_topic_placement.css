@@ -4,7 +4,8 @@
   display: none !important;
 }
 .group-asset-topic-placement.term-count-0 {
-  display: none !important;
+  /*display: none !important;*/
+
 }
 .group-asset-topic-placement.term-processing {
   background: url('/misc/spinner.gif') no-repeat 50% 51%;
