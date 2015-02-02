@@ -197,7 +197,7 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 				<div class="handle">&nbsp;</div>\
 			</a>\
 		</td>\
-		<td>\
+		<td colspan=1>\
 			<div class="form-item form-type-checkbox form-item-field-asset-order-content-und-VALUE_ID_HERE-target-id">\
 	 			<input id="edit-field-asset-order-content-und-VALUE_ID_HERE" data-delta="VALUE_ID_HERE" type="checkbox" name="field_asset_order_content[und][VALUE_ID_HERE][target_id]" value="NODE_ID_HERE" class="form-checkbox">\
 	 			<span class="field-suffix">\
@@ -205,7 +205,7 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 	 			</span>\
 			</div>\
 		</td>\
-		<td class="delta-order tabledrag-hide" style="display: none;">\
+		<td colspan=1 class="delta-order tabledrag-hide" style="display: none;">\
 			<div class="form-item form-type-select form-item-field-asset-order-content-und-VALUE_ID_HERE--weight">\
 	  			<label class="element-invisible">Weight </label>\
 			 	<select id="edit-field-asset-order-content-und-VALUE_ID_HERE-weight" class="field-asset-order-content-delta-order form-select" name="field_asset_order_content[und][VALUE_ID_HERE][_weight]">\
@@ -226,21 +226,29 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 
 	jQuery(fieldSelector+' tbody').append(newRowHTML);
 
-	// Break bindings
-	jQuery(fieldSelector).html( jQuery(fieldSelector).html() )
-
-	// Remove all drag-handles in the table
-	jQuery(fieldSelector+' a.tabledrag-handle .handle').remove();
-
-	// Remove the "Show row weights" link in this table
-	jQuery(fieldSelector).parent().find('a.tabledrag-toggle-weight').remove();
-
 	// Remove any "No items" message in this table
-	jQuery(fieldSelector+' td:contains("No items have been added yet")').remove();
+	jQuery('td:contains("No items have been added yet")').remove();
 
 	// Re-initialize the Drupal.tableDrag[~]
-	var base = fieldSelector;
-	base = base.replace('#edit-', '') + '-values';
-	Drupal.tableDrag[base] = new Drupal.tableDrag(jQuery('#'+base).get(0), Drupal.settings.tableDrag[base]);
+	setTimeout( function () {
+		var base = fieldSelector;
+		base = base.replace('#edit-', '') + '-values';
+
+		// Break bindings
+		jQuery(fieldSelector).html( jQuery(fieldSelector).html() )
+
+		// Remove all drag-handles in the table
+		jQuery(fieldSelector+' a.tabledrag-handle .handle').remove();
+
+		// Remove the "Show row weights" link in this table
+		jQuery(fieldSelector).parent().find('a.tabledrag-toggle-weight').remove();
+
+		Drupal.tableDrag[base] = new Drupal.tableDrag(jQuery('#'+base).get(0), Drupal.settings.tableDrag[base]);
+	}, 1000);
+}
+
+function updateWeightOptionsInAssetPlacementField(fieldSelector) {
+
+
 
 }
