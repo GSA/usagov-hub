@@ -17,37 +17,60 @@ function asset_topic_placement_init() {
     }
 }
 
-function asset_topic_placement_entityreference_view_widget_views_arguments_alter(&$arguments, $form_state) {
-
-    $selectedAssetTopics = asset_topic_placement_findSelectedTopicsInForm(null, $form_state['values']['field_asset_topic_taxonomy']['und'][0]);
-    $selectedIncNavPages = asset_topic_placement_findSelectedTopicsInForm(null, $form_state['values']['field_also_include_on_nav_page']['und'][0]);
-    $arguments = array(
-        0 => implode('+', array_merge($selectedAssetTopics, $selectedIncNavPages))
+/*
+ * Implements HOOK_menu()
+ */
+function asset_topic_placement_menu() {
+    $items = array();
+    
+    // Configuration page
+    $items['atm/get-nodes-under-topics'] = array(
+        'title' => 'Get Nodes Under Topics',
+        'description' => 'AJAX return for nodes under given Asset-Topics',
+        'page callback' => 'asset_topic_placement_ajaxReturnNodesUnderTopics',
+        'access arguments' => array(true),
+        'type' => MENU_CALLBACK
     );
 
-    //error_log(__FUNCTION__ . ' is sending the following arguments to the View: ' . $arguments[0]);
+    return $items;
 }
 
-function asset_topic_placement_findSelectedTopicsInForm($form_state, $recursiveUse = null) {
+function asset_topic_placement_ajaxReturnNodesUnderTopics() {
 
-    if ( is_null($recursiveUse) ) {
-        return asset_topic_placement_findSelectedTopicsInForm(null, $form_state['values']['field_asset_topic_taxonomy']['und'][0]);
+    @ob_end_clean();
+    while (@ob_end_clean());
+    header('Content-Type: application/json');
+
+    // Obtain terms argument
+    if ( empty($_REQUEST['terms']) ) {
+        exit('Error - no terms argument supplied');
     }
 
-    $ret = array();
-
-    foreach ( $recursiveUse as $eid => $data ) {
-        if ( is_array($data) ) {
-            $ret = array_merge(
-                $ret, 
-                asset_topic_placement_findSelectedTopicsInForm(null, $data)
-            );
-        } elseif ( is_string($data) || is_numeric($data) ) {
-            if ( intval($data) != 0 ) {
-                $ret[] = intval($data);
-            }
-        }
+    // MySQL string sanitization 
+    $terms = explode(',', $_REQUEST['terms']);
+    $msqlTerms = array();
+    foreach ( $terms as $term ) {
+        $msqlTerms[] = intval($term);
     }
+    $msqlTerms = implode(',', $msqlTerms);
 
-    return $ret;
+    /* Get all node-ids that are associated with the given Asset-Topic terms, based
+     on the information in the field_data_field_asset_topic_taxonomy table */
+    $nids = db_query("
+        SELECT entity_id 
+        FROM field_data_field_asset_topic_taxonomy 
+        WHERE field_asset_topic_taxonomy_tid IN ({$msqlTerms})
+    ")->fetchCol();
+    $nids = implode(',', $nids);
+
+    // Get information on these nodes
+    $nodes = db_query("
+        SELECT nid, title, type
+        FROM node n 
+        WHERE n.nid IN ($nids)
+    ")->fetchAll();
+
+    print json_encode($nodes);
+
+    exit();
 }

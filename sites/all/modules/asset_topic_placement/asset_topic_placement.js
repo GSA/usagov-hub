@@ -47,7 +47,7 @@ function initAssetTopicPlacementHelperScript() {
 							addTids.push(this.value);
 						});
 
-						alterTermsOnAssetTopicPlacementFields(function () {
+						alterTermsInAssetPlacementFields(function () {
 							updateAssetTopicPlacementCountClasses();
 							jQuery('.group-asset-topic-placement').dequeue();
 						});
@@ -72,30 +72,11 @@ function initAssetTopicPlacementHelperScript() {
 		setTimeout( function (tThis) {
 
 			if ( tThis.checked ) {
-				if ( jQuery('.group-asset-topic-placement').queue('fx').length < 3 ) {
-					jQuery('.group-asset-topic-placement').queue( function () {
-
-						jQuery('.group-asset-topic-placement').fadeIn();
-
-						var addTids = [];
-						jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
-							addTids.push(this.value);
-						});
-
-						jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
-						alterTermsOnAssetTopicPlacementField('.field-name-field-asset-order-menu', function () {
-							updateAssetTopicPlacementCountClasses();
-							jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
-							jQuery('.group-asset-topic-placement').dequeue();
-						});
-					});
-				}
+				jQuery('.group-asset-topic-placement').fadeIn();
+				injectRowIntoAssetPlacementField('#edit-field-asset-order-menu', tThis.value, jQuery(tThis).parent().find('label').text());
 			} else {
-				jQuery('.group-asset-topic-placement').queue( function () {
-					jQuery('.field-name-field-asset-order-menu input[value=' + tThis.value + ']').parents('tr').remove();
-					updateAssetTopicPlacementCountClasses();
-					jQuery('.group-asset-topic-placement').dequeue();
-				});
+				jQuery('.field-name-field-asset-order-menu input[value=' + tThis.value + ']').parents('tr').remove();
+				updateAssetTopicPlacementCountClasses();
 			}
 
 		}, 10, this);
@@ -118,7 +99,7 @@ function initAssetTopicPlacementHelperScript() {
 		tickedCheckboxes.each( function () {
 			selectedTermIDs.push( this.value );
 		});
-		alterTermsOnAssetTopicPlacementFields(function () {
+		alterTermsInAssetPlacementFields(function () {
 			updateAssetTopicPlacementCountClasses();
 		});
 	}
@@ -158,14 +139,14 @@ function updateAssetTopicPlacementCountClasses() {
 
 }
 
-function alterTermsOnAssetTopicPlacementFields(callback) {
+function alterTermsInAssetPlacementFields(callback) {
 
 	jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
 
-	alterTermsOnAssetTopicPlacementField('.field-name-field-asset-order-carousel', function () {
-		alterTermsOnAssetTopicPlacementField('.field-name-field-asset-order-content', function () {
-			alterTermsOnAssetTopicPlacementField('.field-name-field-asset-order-sidebar', function () {
-				alterTermsOnAssetTopicPlacementField('.field-name-field-asset-order-bottom', function () {
+	alterTermsInAssetPlacementField('#edit-field-asset-order-carousel', function () {
+		alterTermsInAssetPlacementField('#edit-field-asset-order-content', function () {
+			alterTermsInAssetPlacementField('#edit-field-asset-order-sidebar', function () {
+				alterTermsInAssetPlacementField('#edit-field-asset-order-bottom', function () {
 
 					jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
 
@@ -180,57 +161,86 @@ function alterTermsOnAssetTopicPlacementFields(callback) {
 	});
 }
 
-function alterTermsOnAssetTopicPlacementField(fieldSelector, callback) {
+function alterTermsInAssetPlacementField(fieldSelector, callback) {
 
 	console.log('Now applying changes to the Asset-Topic-Placement-Field: ' + fieldSelector);
 
-	// Remember what was and was not check in this field (we are about to change them)
-	var originalValues = [];
-	jQuery(fieldSelector + ' input[type="checkbox"]').each( function () {
-		originalValues.push({
-			tid: this.value,
-			checked: this.checked
-		});
+	// Get selected Asset-Topic Taxonomy terms
+	var terms = [];
+	jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
+		terms.push(this.value);
 	});
 
-	// Temporarily set all checkboxes in this field to ticked, so they do not get lost in the next form submission
-	jQuery(fieldSelector + ' input[type="checkbox"]').attr('checked', true);
+	// Get nodes associated to these Asset-Topic taxonomy terms...
+	jQuery.get('/atm/get-nodes-under-topics?terms='+terms.join(','), function (nodes) {
+		for ( var x = 0 ; x < nodes.length ; x++ ) {
+			injectRowIntoAssetPlacementField(fieldSelector, nodes[x].nid, nodes[x].title);
+		}
 
-	// Click the "Add items" button for this field
-	jQuery(fieldSelector + ' input[type="submit"]').focus();
-	jQuery(fieldSelector + ' input[type="submit"]').mousedown();
-
-	// Wait for the modal entity-reference-view-widget to show...
-	console.log('Waiting for the modal entity-reference-view-widget to show...');
-	jQuery('.view-display-id-entityreference_view_widget_1').waitUntilExists( function () {
-
-		// Tick every checkbox in the modal form
-		jQuery('a#entityreference-view-widget-select-all').click();
-
-		// Click the "Submit" button in the View
-		jQuery('#edit-ervw-submit').mousedown();
-
-		// Wait for the "Submit" button to process (waitr for the modal form to close)
-		console.log('Waiting for the "Submit" button to process...');
-		jQuery('#modalContent').waitUntilNotExists( function () {
-
-			// Set the checkbox(s) to be unticked by default
-			jQuery(fieldSelector + ' input[type="checkbox"]').attr('checked', false);
-
-			// Restore checkbox values
-			for ( var x = 0 ; x < originalValues.length ; x++ ) {
-				jQuery(fieldSelector + ' input[value="' + originalValues[x].tid + '"]').get(0).checked = originalValues[x].checked;
-			}
-
-			console.log('alterTermsOnAssetTopicPlacementField() functionality complete');
-
-			// Trigger callback
-			if ( typeof callback === 'function' ) {
-				callback();
-			}
-
-		});
-
+		if ( typeof callback == 'function' ) {
+			callback();
+		}
 	});
+
+}
+
+function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
+
+	// if this table already has this entity-reference, then bail
+	if ( jQuery(fieldSelector+' input[value='+nodeId+']').length > 0 ) {
+		return;
+	}
+
+	var newRowHTML = '<tr class="draggable ODD_OR_EVEN">\
+		<td class="field-multiple-drag">\
+			<a href="#" class="tabledrag-handle" title="Drag to re-order">\
+				<div class="handle">&nbsp;</div>\
+			</a>\
+		</td>\
+		<td>\
+			<div class="form-item form-type-checkbox form-item-field-asset-order-content-und-VALUE_ID_HERE-target-id">\
+	 			<input id="edit-field-asset-order-content-und-VALUE_ID_HERE" data-delta="VALUE_ID_HERE" type="checkbox" name="field_asset_order_content[und][VALUE_ID_HERE][target_id]" value="NODE_ID_HERE" class="form-checkbox">\
+	 			<span class="field-suffix">\
+	 				<label class="option" for="edit-field-asset-order-content-und-VALUE_ID_HERE">NODE_TITLE_HERE</label>\
+	 			</span>\
+			</div>\
+		</td>\
+		<td class="delta-order tabledrag-hide" style="display: none;">\
+			<div class="form-item form-type-select form-item-field-asset-order-content-und-VALUE_ID_HERE--weight">\
+	  			<label class="element-invisible">Weight </label>\
+			 	<select id="edit-field-asset-order-content-und-VALUE_ID_HERE-weight" class="field-asset-order-content-delta-order form-select" name="field_asset_order_content[und][VALUE_ID_HERE][_weight]">\
+			 		<option value="-1">-1</option>\
+			 		<option value="0">0</option>\
+			 		<option value="1">1</option>\
+			 	</select>\
+			</div>\
+		</td>\
+	</tr>';
+
+	var valId = jQuery(fieldSelector+' tr.draggable').length;
+	var oddOrEven = ( jQuery(fieldSelector+' tr').last().hasClass('even') ? 'odd' : 'even' );
+	newRowHTML = newRowHTML.replace(/VALUE_ID_HERE/g, valId);
+	newRowHTML = newRowHTML.replace(/NODE_ID_HERE/g, nodeId);
+	newRowHTML = newRowHTML.replace(/NODE_TITLE_HERE/g, nodeTitle);
+	newRowHTML = newRowHTML.replace(/ODD_OR_EVEN/g, oddOrEven);
+
+	jQuery(fieldSelector+' tbody').append(newRowHTML);
+
+	// Break bindings
+	jQuery(fieldSelector).html( jQuery(fieldSelector).html() )
+
+	// Remove all drag-handles in the table
+	jQuery(fieldSelector+' a.tabledrag-handle .handle').remove();
+
+	// Remove the "Show row weights" link in this table
+	jQuery(fieldSelector).parent().find('a.tabledrag-toggle-weight').remove();
+
+	// Remove any "No items" message in this table
+	jQuery(fieldSelector+' td:contains("No items have been added yet")').remove();
+
+	// Re-initialize the Drupal.tableDrag[~]
+	var base = fieldSelector;
+	base = base.replace('#edit-', '') + '-values';
+	Drupal.tableDrag[base] = new Drupal.tableDrag(jQuery('#'+base).get(0), Drupal.settings.tableDrag[base]);
 
 }
