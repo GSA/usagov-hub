@@ -225,9 +225,12 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 	newRowHTML = newRowHTML.replace(/ODD_OR_EVEN/g, oddOrEven);
 
 	jQuery(fieldSelector+' tbody').append(newRowHTML);
+	updateWeightOptionsInAssetPlacementField(fieldSelector);
+	jQuery(fieldSelector+' tbody tr').last().find('.field-asset-order-content-delta-order option').last().attr('selected', 'selected');
+	jQuery(fieldSelector+' tbody tr').last().find('.field-asset-order-content-delta-order option').val( jQuery(fieldSelector+' tbody tr').last().find('.field-asset-order-content-delta-order option').last().val() );
 
 	// Remove any "No items" message in this table
-	jQuery('td:contains("No items have been added yet")').remove();
+	jQuery('td:contains("No items have been added yet")').parent().remove();
 
 	// Re-initialize the Drupal.tableDrag[~]
 	setTimeout( function () {
@@ -249,6 +252,23 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 
 function updateWeightOptionsInAssetPlacementField(fieldSelector) {
 
+	var maxWeight = jQuery(fieldSelector+' tr.draggable').length;
+	jQuery(fieldSelector+' tr.draggable').each( function () {
 
+		var weightSelect = jQuery(this).find('.field-asset-order-content-delta-order');
+
+		for ( var w = 1 ; w < maxWeight+1 ; w++ ) {
+			if ( weightSelect.find('option[value='+w+']').length == 0 ) {
+				weightSelect.append('<option value="'+w+'">'+w+'</option>');
+			}
+		}
+
+		for ( var w = 1 ; w < maxWeight+1 ; w++ ) {
+			if ( weightSelect.find('option[value=-'+w+']').length == 0 ) {
+				weightSelect.prepend('<option value="-'+w+'">-'+w+'</option>');
+			}
+		}
+
+	});
 
 }
