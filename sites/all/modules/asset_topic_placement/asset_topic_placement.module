@@ -62,6 +62,10 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
         WHERE field_asset_topic_taxonomy_tid IN ({$msqlTerms})
     ")->fetchCol();
     $nids = implode(',', $nids);
+    if ( trim($nids) === '' ) {
+        print '[]';
+        exit();
+    }
 
     // Get information on these nodes
     $nodes = db_query("
