@@ -252,7 +252,7 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 	var newWeights = jQuery(fieldSelector+' .must-set-val');
 	var track = 0;
 	for ( var w = newWeights.length ; w > 0 ; w-- ) {
-		alert( jQuery(fieldSelector+' tr').length - track );
+		//alert( jQuery(fieldSelector+' tr').length - track );
 		jQuery(newWeights[w]).val( jQuery(fieldSelector+' tr').length - track );
 		jQuery(newWeights[w]).removeClass('must-set-val');
 		track++;
