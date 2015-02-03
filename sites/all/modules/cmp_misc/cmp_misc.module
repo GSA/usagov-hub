@@ -8,11 +8,18 @@ if ( empty($GLOBALS['base_url']) && !empty($_SERVER['HTTP_HOST']) )
     header('XXX: BASE_URL ALREADY SET');
 }
 
-if ( empty(variable_get('s3fs_bucket')) )
+variable_set( 's3fs_bucket',     getenv('CMP_AWS_S3_BUCKET') );
+variable_set( 'amazons3_bucket', getenv('CMP_AWS_S3_BUCKET') );
+if ( isset($_POST['s3fs_bucket']) && empty($_POST['s3fs_bucket']) )
 {
-    variable_set( 's3fs_bucket',     getenv('CMP_AWS_S3_BUCKET') );
-    variable_set( 'amazons3_bucket', getenv('CMP_AWS_S3_BUCKET') );
+    $_POST['s3fs_bucket']    = getenv('CMP_AWS_S3_BUCKET');
+    $_REQUEST['s3fs_bucket'] = getenv('CMP_AWS_S3_BUCKET');
 }
+if ( isset($GLOBALS['conf']) && isset($GLOBALS['conf']['s3fs_bucket']) )
+{
+    $GLOBALS['conf']['s3fs_bucket'] = getenv('CMP_AWS_S3_BUCKET');
+}
+
 
 function cmp_misc_init() 
 {
