@@ -198,17 +198,17 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 			</a>\
 		</td>\
 		<td colspan=1>\
-			<div class="form-item form-type-checkbox form-item-field-asset-order-content-und-VALUE_ID_HERE-target-id">\
-	 			<input id="edit-field-asset-order-content-und-VALUE_ID_HERE" data-delta="VALUE_ID_HERE" type="checkbox" name="field_asset_order_content[und][VALUE_ID_HERE][target_id]" value="NODE_ID_HERE" class="form-checkbox">\
+			<div class="form-item form-type-checkbox form-item-FIELD_HERE-und-VALUE_ID_HERE-target-id">\
+	 			<input id="edit-FIELD_HERE-und-VALUE_ID_HERE" data-delta="VALUE_ID_HERE" type="checkbox" name="FIELD_UNDER_NAME[und][VALUE_ID_HERE][target_id]" value="NODE_ID_HERE" class="form-checkbox">\
 	 			<span class="field-suffix">\
-	 				<label class="option" for="edit-field-asset-order-content-und-VALUE_ID_HERE">NODE_TITLE_HERE</label>\
+	 				<label class="option" for="edit-FIELD_HERE-und-VALUE_ID_HERE">NODE_TITLE_HERE</label>\
 	 			</span>\
 			</div>\
 		</td>\
 		<td colspan=1 class="delta-order tabledrag-hide" style="display: none;">\
-			<div class="form-item form-type-select form-item-field-asset-order-content-und-VALUE_ID_HERE--weight">\
+			<div class="form-item form-type-select form-item-FIELD_HERE-und-VALUE_ID_HERE--weight">\
 	  			<label class="element-invisible">Weight </label>\
-			 	<select id="edit-field-asset-order-content-und-VALUE_ID_HERE-weight" class="must-set-val field-asset-order-content-delta-order form-select" name="field_asset_order_content[und][VALUE_ID_HERE][_weight]">\
+			 	<select id="edit-FIELD_HERE-und-VALUE_ID_HERE-weight" class="must-set-val weight-select FIELD_HERE-delta-order form-select" name="FIELD_UNDER_NAME[und][VALUE_ID_HERE][_weight]">\
 			 		<option value="-1">-1</option>\
 			 		<option value="0">0</option>\
 			 		<option value="1">1</option>\
@@ -219,6 +219,10 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 
 	var valId = jQuery(fieldSelector+' tr.draggable').length;
 	var oddOrEven = ( jQuery(fieldSelector+' tr').last().hasClass('even') ? 'odd' : 'even' );
+	var fieldName = String(fieldSelector).replace('#edit-', '');
+	var fieldUnderName = String(fieldName).replace(/-/g, '_');
+	newRowHTML = newRowHTML.replace(/FIELD_UNDER_NAME/g, fieldUnderName);
+	newRowHTML = newRowHTML.replace(/FIELD_HERE/g, fieldName);
 	newRowHTML = newRowHTML.replace(/VALUE_ID_HERE/g, valId);
 	newRowHTML = newRowHTML.replace(/NODE_ID_HERE/g, nodeId);
 	newRowHTML = newRowHTML.replace(/NODE_TITLE_HERE/g, nodeTitle);
@@ -226,8 +230,10 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 
 	jQuery(fieldSelector+' tbody').append(newRowHTML);
 	updateWeightOptionsInAssetPlacementField(fieldSelector);
-	jQuery(fieldSelector+' tbody tr').last().find('.field-asset-order-content-delta-order option').last().attr('selected', 'selected');
-	jQuery(fieldSelector+' tbody tr').last().find('.field-asset-order-content-delta-order option').val( jQuery(fieldSelector+' tbody tr').last().find('.field-asset-order-content-delta-order option').last().val() );
+	jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().attr('selected', 'selected');
+	var setWeight = jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().val();
+	jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').val(setWeight);
+	jQuery(fieldSelector+' tbody tr .weight-select').last().attr('setValTo', setWeight);
 
 	// Remove any "No items" message in this table
 	jQuery('td:contains("No items have been added yet")').parent().remove();
@@ -247,24 +253,26 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 
 	Drupal.tableDrag[base] = new Drupal.tableDrag(jQuery('#'+base).get(0), Drupal.settings.tableDrag[base]);
 
-	var dragTblObj = Drupal.tableDrag['field-asset-order-content-values']
+	var dragTblObj = Drupal.tableDrag[base];
 	dragTblObj.showColumns();
-	var newWeights = jQuery(fieldSelector+' .must-set-val');
-	var track = 0;
-	for ( var w = newWeights.length ; w > 0 ; w-- ) {
+	jQuery(fieldSelector+' .must-set-val').each( function () {
 		//alert( jQuery(fieldSelector+' tr').length - track );
-		jQuery(newWeights[w]).val( jQuery(fieldSelector+' tr').length - track );
-		jQuery(newWeights[w]).removeClass('must-set-val');
-		track++;
-	}
+		var jqThis = jQuery(this)
+		jqThis.val( jqThis.attr('setValTo') );
+		setTimeout( function () {
+			jqThis.removeClass('must-set-val');
+			dragTblObj.hideColumns();
+		}, 150);
+	});
 }
 
 function updateWeightOptionsInAssetPlacementField(fieldSelector) {
 
+	var fieldName = String(fieldSelector).replace('#edit-', '');
 	var maxWeight = jQuery(fieldSelector+' tr.draggable').length;
 	jQuery(fieldSelector+' tr.draggable').each( function () {
 
-		var weightSelect = jQuery(this).find('.field-asset-order-content-delta-order');
+		var weightSelect = jQuery(this).find('.'+fieldName+'-delta-order');
 
 		for ( var w = 1 ; w < maxWeight+1 ; w++ ) {
 			if ( weightSelect.find('option[value='+w+']').length == 0 ) {
