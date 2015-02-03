@@ -83,7 +83,8 @@ function initAssetTopicPlacementHelperScript() {
 
 			if ( tThis.checked ) {
 				jQuery('.group-asset-topic-placement').fadeIn();
-				injectRowIntoAssetPlacementField('#edit-field-asset-order-menu', tThis.value, jQuery(tThis).parent().find('label').text());
+				var targId = jQuery('.field-name-field-asset-order-menu').attr('id');
+				injectRowIntoAssetPlacementField('#'+targId, tThis.value, jQuery(tThis).parent().find('label').text());
 			} else {
 				jQuery('.field-name-field-asset-order-menu input[value=' + tThis.value + ']').parents('tr').remove();
 				updateAssetTopicPlacementCountClasses();
@@ -113,6 +114,18 @@ function initAssetTopicPlacementHelperScript() {
 			updateAssetTopicPlacementCountClasses();
 		});
 	}
+
+	/* When the page first loads, we want to make sure any [currently] selected term under 
+	"Also include on Nav Pages" shows under the lists in "Menu Region" (this is necessary 
+	on taxonomy edit-pages) */
+	var tickedCheckboxes = jQuery('.field-name-field-also-include-on-nav-page input:checked');
+	if ( tickedCheckboxes.length > 0 ) {
+		tickedCheckboxes.each( function () {
+			var targId = jQuery('.field-name-field-asset-order-menu').attr('id');
+			injectRowIntoAssetPlacementField('#'+targId, this.value, jQuery(this).parent().find('label').text());
+		});
+	}	
+
 }
 
 /* Shows or hides each "Asset Topic Order" field based on weather to not 
@@ -255,9 +268,13 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 	// Remove any "No items" message in this table
 	jQuery('td:contains("No items have been added yet")').parent().remove();
 
-	// Re-initialize the Drupal.tableDrag[~]
+	// Determin where the drag-table information is stored in the Drupal js-variable
 	var base = fieldSelector;
 	base = base.replace('#edit-', '') + '-values';
+	// Bug killer for the taxonomy_manager page which may change DOM-ids of the entity-reference fields
+	for ( var x = 2 ; x < 30 ; x++ ) {
+		base = base.replace('--'+x+'-', '-');
+	}
 
 	// Break bindings
 	jQuery(fieldSelector).html( jQuery(fieldSelector).html() )
@@ -270,6 +287,7 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 
 	Drupal.tableDrag[base] = new Drupal.tableDrag(jQuery('#'+base).get(0), Drupal.settings.tableDrag[base]);
 
+	// Re-initialize the Drupal.tableDrag[~]
 	var dragTblObj = Drupal.tableDrag[base];
 	dragTblObj.showColumns();
 	jQuery(fieldSelector+' .must-set-val').each( function () {
