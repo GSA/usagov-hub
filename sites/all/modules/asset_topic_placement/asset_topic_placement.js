@@ -22,6 +22,16 @@ jQuery(document).ready( function () {
 			jQuery('.group-asset-topic-placement').addClass('helper-script-applied');
 		}
 
+		// Bug killer - Sometimes multiple "Show/Hide row weights" links show...
+		jQuery('.field-type-entityreference').each( function () {
+			var jqThis = jQuery(this);
+			var toggleWeights = jqThis.find('a.tabledrag-toggle-weight');
+			if ( toggleWeights.length > 1 ) {
+				toggleWeights.hide();
+				toggleWeights.last().show();
+			}
+		});
+
 	}, 100);
 
 });
@@ -143,10 +153,17 @@ function alterTermsInAssetPlacementFields(callback) {
 
 	jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
 
-	alterTermsInAssetPlacementField('#edit-field-asset-order-carousel', function () {
-		alterTermsInAssetPlacementField('#edit-field-asset-order-content', function () {
-			alterTermsInAssetPlacementField('#edit-field-asset-order-sidebar', function () {
-				alterTermsInAssetPlacementField('#edit-field-asset-order-bottom', function () {
+	var targId = jQuery('.field-name-field-asset-order-carousel').attr('id');
+	alterTermsInAssetPlacementField('#'+targId, function () {
+
+		var targId = jQuery('.field-name-field-asset-order-content').attr('id');
+		alterTermsInAssetPlacementField('#'+targId, function () {
+
+			var targId = jQuery('.field-name-field-asset-order-sidebar').attr('id');
+			alterTermsInAssetPlacementField('#'+targId, function () {
+
+				var targId = jQuery('.field-name-field-asset-order-bottom').attr('id');
+				alterTermsInAssetPlacementField('#'+targId, function () {
 
 					jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
 
