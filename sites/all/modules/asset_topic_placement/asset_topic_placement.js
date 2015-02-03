@@ -208,7 +208,7 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 		<td colspan=1 class="delta-order tabledrag-hide" style="display: none;">\
 			<div class="form-item form-type-select form-item-field-asset-order-content-und-VALUE_ID_HERE--weight">\
 	  			<label class="element-invisible">Weight </label>\
-			 	<select id="edit-field-asset-order-content-und-VALUE_ID_HERE-weight" class="field-asset-order-content-delta-order form-select" name="field_asset_order_content[und][VALUE_ID_HERE][_weight]">\
+			 	<select id="edit-field-asset-order-content-und-VALUE_ID_HERE-weight" class="must-set-val field-asset-order-content-delta-order form-select" name="field_asset_order_content[und][VALUE_ID_HERE][_weight]">\
 			 		<option value="-1">-1</option>\
 			 		<option value="0">0</option>\
 			 		<option value="1">1</option>\
@@ -233,21 +233,30 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 	jQuery('td:contains("No items have been added yet")').parent().remove();
 
 	// Re-initialize the Drupal.tableDrag[~]
-	setTimeout( function () {
-		var base = fieldSelector;
-		base = base.replace('#edit-', '') + '-values';
+	var base = fieldSelector;
+	base = base.replace('#edit-', '') + '-values';
 
-		// Break bindings
-		jQuery(fieldSelector).html( jQuery(fieldSelector).html() )
+	// Break bindings
+	jQuery(fieldSelector).html( jQuery(fieldSelector).html() )
 
-		// Remove all drag-handles in the table
-		jQuery(fieldSelector+' a.tabledrag-handle .handle').remove();
+	// Remove all drag-handles in the table
+	jQuery(fieldSelector+' a.tabledrag-handle .handle').remove();
 
-		// Remove the "Show row weights" link in this table
-		jQuery(fieldSelector).parent().find('a.tabledrag-toggle-weight').remove();
+	// Remove the "Show row weights" link in this table
+	jQuery(fieldSelector).parent().find('a.tabledrag-toggle-weight').remove();
 
-		Drupal.tableDrag[base] = new Drupal.tableDrag(jQuery('#'+base).get(0), Drupal.settings.tableDrag[base]);
-	}, 1000);
+	Drupal.tableDrag[base] = new Drupal.tableDrag(jQuery('#'+base).get(0), Drupal.settings.tableDrag[base]);
+
+	var dragTblObj = Drupal.tableDrag['field-asset-order-content-values']
+	dragTblObj.showColumns();
+	var newWeights = jQuery(fieldSelector+' .must-set-val');
+	var track = 0;
+	for ( var w = newWeights.length ; w > 0 ; w-- ) {
+		alert( jQuery(fieldSelector+' tr').length - track );
+		jQuery(newWeights[w]).val( jQuery(fieldSelector+' tr').length - track );
+		jQuery(newWeights[w]).removeClass('must-set-val');
+		track++;
+	}
 }
 
 function updateWeightOptionsInAssetPlacementField(fieldSelector) {
