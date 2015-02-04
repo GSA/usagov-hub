@@ -1473,7 +1473,7 @@ function usa_data_migration_action_log_location() {
 
 function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
 
-    if ( $form_id === 'taxonomy_manager_form' ) {
+    if ( $form_id === 'taxonomy_manager_form' && strpos(request_uri(), 'voc/site_strucutre_taxonomy') !== false ) {
 
         // Handel form submission here
         if ( isset($_REQUEST['op']) ) {
@@ -1533,6 +1533,10 @@ function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
         $form['toolbar']['batchoptsform'] = array(
             '#type' => 'fieldset',
             '#title' => 'Batch Operations',
+            '#description' => 'Note: The following operations will be applied onto taxonomy-terms whos checkboxes are '
+                .'ticked/checked (<small>in the form below</small>).<br/>Mind that <b>only</b> terms which are ticked '
+                .'will be effected - unticked child-terms to a ticked-term do <i>not</i> automatically get updated in '
+                .'a bulk-operation.<br/><br/>',
             '#attributes' => array(
                 'style' => 'display: none;',
                 'id' => 'edit-bulk'
