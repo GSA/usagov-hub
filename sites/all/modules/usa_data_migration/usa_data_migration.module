@@ -1497,6 +1497,12 @@ function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
                     $changeField = 'field_generate_menu';
                     $setValue = 'no';
                     break;
+                case 'Set "Page Type" fields':
+                    if ( !empty($_REQUEST['pagetypevalue']) ) {
+                        $changeField = 'field_type_of_page_to_generate';
+                        $setValue = trim($_REQUEST['pagetypevalue']);
+                    }
+                    break;
                 default:
                     // do nothing 
                     break;
@@ -1558,6 +1564,27 @@ function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
         $form['toolbar']['batchoptsform']['genmenuno'] = array(
             '#type' => 'button',
             '#value' => 'Set "Generate Menu Item" field to "No"',
+        );
+
+        $form['toolbar']['batchoptsform']['batchoptsformpagetype'] = array(
+            '#type' => 'fieldset',
+            '#title' => 'Page-Type Batch-Operation',
+        );
+        $form['toolbar']['batchoptsform']['batchoptsformpagetype']['pagetypevalue'] = array(
+            '#type' => 'select',
+            '#field_prefix' => 'For all ticked/checked terms, set the "Type of page to generate" field to: ',
+            '#options' => array(
+                'generic-navigation-page' => 'Generic navigation page',
+                'generic-content-page' => 'Generic content page',
+                '50-state-page' => '50-state page',
+                'a-z-page' => 'A-Z page',
+                'more' => '“More topics” navigation page',
+                'home' => 'Home page',
+            ),
+        );
+        $form['toolbar']['batchoptsform']['batchoptsformpagetype']['pagetypeset'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Page Type" fields',
         );
 
     }
