@@ -1432,56 +1432,6 @@ function usa_data_migration_DeleteTermAndMaintainChildren($termName = '') {
 }
 
 
-/* HACKS FOLLOW */
-
-
-function usa_data_migration_menu_link_insert($menu) {
-    global $udm_menuFix_registered;
-    if ( !empty($udm_menuFix_registered) ) {
-        return;
-    }
-    $udm_menuFix_registered = true;
-    register_shutdown_function('usa_data_migration_menuFix');
-    usa_data_migration_error_log("Registered usa_data_migration_menuFix()");
-}
-
-function usa_data_migration_menuFix() {
-
-    usa_data_migration_error_log(__FUNCTION__.' is now executing');
-
-    $menuLinks = menu_load_links('main-menu');
-    foreach ( $menuLinks as $menuLink ) {
-        
-        set_time_limit(500);
-
-        if ( !empty($menuLink['link_path']) ) {
-            $menuItem = menu_get_item($menuLink['link_path']);
-            if ( !empty($menuItem['page_arguments'][0]) ) {
-                $term = taxonomy_term_load($menuItem['page_arguments'][0]->tid);
-                if ( !empty($term->field_generate_page['und']) ) {
-                    if ( $term->field_generate_page['und'][0]['value'] === 'no' ) {
-                        $setLinkTo = $term->field_friendly_url['und'][0]['value'];
-                        $setLinkTo = str_replace('http://kids.usa.gov/', '', $setLinkTo);
-                        if ( trim($setLinkTo) === '' ) {
-                            $setLinkTo = '<front>';
-                        } else {
-                            $setLinkTo = 'http://' . $_SERVER['HTTP_HOST'] . '/' . $setLinkTo;
-                        }
-                        
-                        //usa_data_migration_error_log( 'Set a menu link to: ' . $setLinkTo );
-
-                        //dsm("UPDATE menu_links SET link_path='{$setLinkTo}' WHERE mlid = {$menuLink['mlid']}");
-                        db_query("UPDATE menu_links SET link_path='{$setLinkTo}', external=1 WHERE mlid = {$menuLink['mlid']}");
-                    }
-                }
-            }
-        }
-
-    }
-
-    usa_data_migration_error_log(__FUNCTION__.' has completed');
-}
-
 /*
  * A wrapper function to usa_data_migration_error_log() for this module
  */
@@ -1519,4 +1469,118 @@ function usa_data_migration_action_log_location() {
 
     return variable_get('udm_action_log_location', '/tmp/udm-action.log');
 
+}
+
+function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
+
+    if ( $form_id === 'taxonomy_manager_form' ) {
+
+        // Handel form submission here
+        if ( isset($_REQUEST['op']) ) {
+
+            $changeField = false;
+            $setValue = false;
+            switch ( $_REQUEST['op'] ) {
+                case 'Set "Generate Page" field to "Yes"':
+                    $changeField = 'field_generate_page';
+                    $setValue = 'yes';
+                    break;
+                case 'Set "Generate Page" field to "No"':
+                    $changeField = 'field_generate_page';
+                    $setValue = 'no';
+                    break;
+                case 'Set "Generate Menu Item" field to "Yes"':
+                    $changeField = 'field_generate_menu';
+                    $setValue = 'yes';
+                    break;
+                case 'Set "Generate Menu Item" field to "No"':
+                    $changeField = 'field_generate_menu';
+                    $setValue = 'no';
+                    break;
+                default:
+                    // do nothing 
+                    break;
+            }
+
+            if ( $changeField !== false && $setValue !== false ) {
+
+                $selectedTids = usa_data_migration_form_getTaxonomyMangerTickedItems($_REQUEST['taxonomy']['manager']['tree']);
+                foreach ($selectedTids as $tid) {
+                    $term = taxonomy_term_load($tid);
+                    $term->$changeField = array(
+                        'und' => array(
+                            0 => array(
+                                'value' => $setValue
+                            )
+                        )
+                    );
+                    taxonomy_term_save($term);
+                    dsm("Set the {$changeField} field in term-{$term->tid} (\"{$term->name}\") to value; {$term->{$changeField}['und'][0]['value']}");
+                }
+            }
+
+        }
+        
+        $form['toolbar']['showbatchopts'] = array(
+            '#value' => 'Batch Operations',
+            '#theme' => 'no_submit_button',
+            '#attributes' => array(
+                'class' => 'taxonomy-manager-buttons bulk',
+                'onclick' => "jQuery('#edit-bulk').slideToggle()"
+            )
+        );
+
+        $form['toolbar']['batchoptsform'] = array(
+            '#type' => 'fieldset',
+            '#title' => 'Batch Operations',
+            '#attributes' => array(
+                'style' => 'display: none;',
+                'id' => 'edit-bulk'
+            )
+        );
+
+        $form['toolbar']['batchoptsform']['genpageyes'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Page" field to "Yes"',
+        );
+        $form['toolbar']['batchoptsform']['genpageno'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Page" field to "No"',
+        );
+        $form['toolbar']['batchoptsform']['genmenuyes'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Menu Item" field to "Yes"',
+        );
+        $form['toolbar']['batchoptsform']['genmenuno'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Menu Item" field to "No"',
+        );
+
+    }
+
+}
+
+function usa_data_migration_form_getTaxonomyMangerTickedItems($recusiveSearch = array()) {
+
+    $ret = array();
+
+    // We expect to be given arrays only
+    if ( !is_array($recusiveSearch) ) {
+        return array();
+    }
+
+    foreach ($recusiveSearch as $key => $data) {
+
+        // If this is a leaf
+        if ( isset($data['tid']) ) {
+            if ( !empty($data['checkbox']) ) {
+                $ret[] = intval($data['checkbox']);
+            }
+        } else {
+            $ret = array_merge($ret, usa_data_migration_form_getTaxonomyMangerTickedItems($data));
+        }
+
+    }
+
+    return $ret;
 }
