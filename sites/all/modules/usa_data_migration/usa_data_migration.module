@@ -1071,6 +1071,11 @@ function usa_data_migration_printNodeDump() {
     }
     $returnData['nodeEntities'] = node_load_multiple($nids);
 
+    // Obtain S3 configuration
+    if ( function_exists('_s3fs_get_config') ) {
+       $returnData['s3Config'] = _s3fs_get_config();
+    }
+
     // Debug
     usa_data_migration_log("A foreign host requested a node dump ({$size} nodes, batch {$batch})");
 
