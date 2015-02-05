@@ -143,7 +143,7 @@ function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
 
         $element['checkbox']['#field_suffix'] = '<span  class="exta-info"> - '
             .( $genMenu ? 'Generates Menu Item. ' : '' )
-            .( $genPage ? 'Generates '.$pageType.' page. ' : 'Points to '.$friendlyURL )
+            .( $genPage ? 'Generates '.$pageType.' page. ' : ( $genMenu ? 'Points to '.$friendlyURL : '' ) )
             .'</span>';
     }
 
