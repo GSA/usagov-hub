@@ -65,6 +65,93 @@ function usa_data_migration_menu() {
     return $items;
 }
 
+function usa_data_migration_menu_alter(&$items) {
+
+    $items['admin/structure/taxonomy_manager/childform']['page callback'] = 'taxonomy_manager_tree_build_child_form_HACK';
+}
+
+function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
+
+  $params = $_GET;
+  $form_state = form_state_defaults();
+  $form_state['method'] = 'get';
+  $form_state['values'] = array();
+  $form_state['process_input'] = TRUE;
+  $form_state['input'] = array();
+  $form_state['complete form'] = array();
+
+  $tids = array();
+  if (isset($params['#terms_to_expand']) && $params['#terms_to_expand'] != 0) {
+    // convert to array
+    $tids = explode(',', $params['#terms_to_expand']);
+  }
+
+  if (count($tids) == 1) {
+    $language = _taxonomy_manager_term_get_lang($tids[0]);
+  }
+  else {
+    $language = $params['language'];
+  }
+
+  $child_form = array(
+    '#type' => 'taxonomy_manager_tree',
+    '#vid' => $vid,
+    '#parent' => $parent,
+    '#pager' => TRUE,
+    '#language' => $language,
+    '#terms_to_expand' => $tids,
+    '#siblings_page' => 1,
+  );
+
+  $opertions_callback = 'taxonomy_manager_' . str_replace('-', '_', $tree_id) . '_operations';
+  if (function_exists($opertions_callback)) {
+    $child_form['#operations_callback'] = $opertions_callback;
+  }
+
+  $link_callback = 'taxonomy_manager_' . str_replace('-', '_', $tree_id) . '_link';
+  if (function_exists($link_callback)) {
+    $child_form['#link_callback'] = $link_callback;
+  }
+
+  _taxonomy_manager_tree_sub_forms_set_parents($params['form_parents'], $parent, $child_form);
+
+  $child_form = form_builder('taxonomy_manager_form', $child_form, $form_state);
+
+    foreach ( $child_form['#elements'] as &$element ) {
+        $tid = array_pop(explode('/', $element['checkbox']['#link']));
+        $term = taxonomy_term_load($tid);
+
+        $genMenu = false;
+        if ( !empty($term->field_generate_menu['und'][0]['value']) && $term->field_generate_menu['und'][0]['value'] === 'yes' ) {
+            $genMenu = true;
+        }
+
+        $genPage = false;
+        if ( !empty($term->field_generate_page['und'][0]['value']) && $term->field_generate_page['und'][0]['value'] === 'yes' ) {
+            $genPage = true;
+        }
+
+        $friendlyURL = '-!UNSET-SETTING!-';
+        if ( isset($term->field_friendly_url['und'][0]['value']) ) {
+            $friendlyURL = $term->field_friendly_url['und'][0]['value'];
+        }
+
+        $pageType = '-!UNSET-SETTING!-';
+        if ( !empty($term->field_type_of_page_to_generate['und'][0]['value']) ) {
+            $pageType = $term->field_type_of_page_to_generate['und'][0]['value'];
+        }
+
+        $element['checkbox']['#field_suffix'] = '<span  class="exta-info"> - '
+            .( $genMenu ? 'Generates Menu Item. ' : '' )
+            .( $genPage ? 'Generates '.$pageType.' page. ' : 'Points to '.$friendlyURL )
+            .'</span>';
+    }
+
+  print drupal_json_output(array('data' => drupal_render($child_form)));
+  ajax_footer();
+
+}
+
 /*
  * Implements HOOK_cron()
  */
