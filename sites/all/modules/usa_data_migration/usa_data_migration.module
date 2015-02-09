@@ -839,6 +839,11 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     global $utm_norun;
     $utm_norun = true;
 
+    // Delete any generated menu items (from the usa_tax_man mod)
+    if ( function_exists('usa_tax_man_deleteAllGeneratedMenuItems') ) {
+        usa_tax_man_deleteAllGeneratedMenuItems();
+    }
+
     // Pull data
     $taxonomyDataSource .= ( strpos($taxonomyDataSource, '?') === false ? '?' : '&' ) . 'machineReadable=1';
     $pullString = file_get_contents($taxonomyDataSource);
@@ -1243,6 +1248,11 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         // Remove all data from node-fields in this environment (this is a required action if the field-structure has changed)
         // @TODO
         
+        // If S3 settings information was given, save them into a Drupal-var
+        if ( !empty($pullData['s3Config']) ) {
+            variable_set('cmp_s3_config', $pullData['s3Config']);
+        }
+
         // Synch node [field] structure into this environment 
         if ( !empty($pullData['nodeFieldStructure_BundleImportCode']) ) {
             usa_data_migration_importStructureWithCode( $pullData['nodeFieldStructure_BundleImportCode'] );
@@ -1533,7 +1543,7 @@ function usa_data_migration_error_log($msg) {
     $logs[time()] = $msg;
     variable_set('udm_error_logs', array_slice($logs, -100));
 
-    file_put_contents(usa_data_migration_action_log_location() . "\n", $msg, FILE_APPEND);
+    file_put_contents(usa_data_migration_action_log_location(), $msg, FILE_APPEND);
 
     error_log($msg);
 }
@@ -1564,6 +1574,12 @@ function usa_data_migration_action_log_location() {
 }
 
 function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
+
+    // These alterations should only be done for user:1 (THE admin user)
+    global $user;
+    if ( empty($user->uid) || intval($user->uid) !== 1 ) {
+        return;
+    }
 
     if ( $form_id === 'taxonomy_manager_form' && strpos(request_uri(), 'voc/site_strucutre_taxonomy') !== false ) {
 
