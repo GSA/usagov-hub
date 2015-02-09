@@ -13,6 +13,12 @@ class AssetFixer
     {
         $this->allowed_tags = ['a','strong','ul','ol','li','p','h3','h4','br'];
         $this->map          = [];
+        /*
+            $this->map[uuid] = [
+                'html' => asdfasdfa
+                'text' => [ asdklfjasd;flja ]
+            ]
+        */
     }
 
     function loadExistingAssets()
@@ -21,7 +27,7 @@ class AssetFixer
         $efq = new EntityFieldQuery();
         $efq->entityCondition('entity_type', 'node')
             ->entityCondition('bundle', 'html_content_type')
-            ->entityCondition('entity_id','186583')
+->entityCondition('entity_id','186583')
             ///->propertyCondition( 'status', NODE_PUBLISHED)
             ->range(0, 1);
         $result = $efq->execute();
@@ -34,9 +40,12 @@ class AssetFixer
                 $meta = entity_metadata_wrapper('node', $entity);
                 if ( empty($map[$meta->uuid->value()]) ) 
                 { 
-                    $this->map[$meta->uuid->value()] = ['html'=>['entity'=>null,'meta'=>null], 'text'=>['entity'=>null,'meta'=>null] ]; 
+                    $this->map[$meta->uuid->value()] = [
+                        'html' => ['entity'=>null,'meta'=>null], 
+                        'text' => [] // ['entity'=>null,'meta'=>null] 
+                    ]; 
                 }
-                $this->map[$meta->uuid->value()]['html'] = [ 'entity'=>clone $entity, 'meta'=>clone $meta ]; 
+                $this->map[ $meta->uuid->value() ]['html'] = [ 'entity'=>clone $entity, 'meta'=>clone $meta ]; 
             }
         }
     }
@@ -67,7 +76,7 @@ class AssetFixer
             return false;
         }
 
-/*{{{*/
+/*{{{* /
 $html['value'] = <<<END
   <div class="rxbodyfield">
     <h1>Wars</h1>
@@ -169,9 +178,9 @@ die();
         }
         */
 
-        $html_value = $dom->saveHTML();
+        //$html_value = $dom->saveHTML();
 
-        /// translate h2 tags
+        /// translate h2 tags - ? or are they just titles?
         $html_value = str_replace( '<h2',  '<h3',  $html_value );
         $html_value = str_replace( '</h2', '</h3', $html_value );
         /// remove all divs - keep content
@@ -198,26 +207,11 @@ die();
 
         $html_value = preg_replace('/^\s*\<p\>\s*', '', $html_value);
         $html_value = preg_replace('/\<\/p\>\s*$/', '', $html_value);
-        
+
+        /// generate the text asset here and replace the original html asset
+
         return $html_value;
 
-        /*
-        /// if it has a .frth_columnbox_container it might be more than one asset on this page
-        $assets_on_page = 0;
-        $box_links = $xml->xpath('//div[contains(@class,"frth_columnbox_container_content")]//a/@href');
-        foreach( $box_links as $a )
-        {
-            $a = (string)$a;
-            if ( $a{0} == '#' )
-            {
-                $id  = substr($a,1);
-                $ref = $xml->xpath('//h2/a[@id="'.$id.'"]/..');
-                $asset_title = (string)$ref[0]; 
-                
-            }
-            
-        }
-        */
     }
 
     function splitHtmlAsset( &$asset )
@@ -250,6 +244,7 @@ die();
                         'dom'  => $dom->createDocumentFragment(),
                         'topic' => $asset['html']['meta']->field_asset_topic_taxonomy->value()
                     ];
+                    /// all nextSibling elements should be in textAsset version ( until we hit start of new textAsset or end of document) 
                     $s = $ref->item(0);
                     while( $s = $s->nextSibling )
                     {
@@ -311,7 +306,5 @@ die();
         //$wrap->save();
         
      }
-
-
     
 }
