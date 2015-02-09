@@ -1577,7 +1577,7 @@ function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
 
     // These alterations should only be done for user:1 (THE admin user)
     global $user;
-    if ( empty($user->uid) || $user->uid !== 1 ) {
+    if ( empty($user->uid) || intval($user->uid) !== 1 ) {
         return;
     }
 
