@@ -10,7 +10,7 @@ if ( empty($GLOBALS['base_url']) && !empty($_SERVER['HTTP_HOST']) )
 
 if ( !empty(getenv('CMP_AWS_S3_BUCKET')) ) 
 {
-    if ( empty(variable_get('s3fs_bucket') ) 
+    if ( empty(variable_get('s3fs_bucket')) ) 
     {
         variable_set( 's3fs_bucket',     getenv('CMP_AWS_S3_BUCKET') );
         variable_set( 'amazons3_bucket', getenv('CMP_AWS_S3_BUCKET') );
