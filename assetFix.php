@@ -27,8 +27,8 @@ class AssetFixer
         $efq = new EntityFieldQuery();
         $efq->entityCondition('entity_type', 'node')
             ->entityCondition('bundle', 'html_content_type')
-->entityCondition('entity_id','186583')
-            ///->propertyCondition( 'status', NODE_PUBLISHED)
+//->entityCondition('entity_id','186583')
+            ->propertyCondition( 'status', NODE_PUBLISHED)
             ->range(0, 1);
         $result = $efq->execute();
         if (isset($result['node'])) 
@@ -51,13 +51,15 @@ class AssetFixer
     }
 
     function transmogrify()
-    {
+    { 
+        $convertable = 0;
         foreach ( $this->map as &$asset )
         {
-            $this->fixForUseBy($asset);
-            $this->textify($asset);
+            //$this->fixForUseBy($asset);
+            $convertable += $this->textify($asset);
             //$text_asset = $this->html2text( $asset );
         }
+        echo $convertable ." of ". count($this->map) ." are text-asset-able\n";
     }
     function fixForUseBy(&$asset)
     {
@@ -165,9 +167,9 @@ END;
         $box_links = $xpath->query('//div[contains(@class,"frth_columnbox_container_content")]//a/@href');
         if ( $box_links->length>0 )
         {
-            $this->splitHtmlAsset( $asset ); 
+            //$this->splitHtmlAsset( $asset ); 
         }
-die();
+
         /*
         foreach ( $dom->getElementsByTagName('div') as $div )
         {
@@ -204,7 +206,7 @@ die();
         {
             return false;
         }
-
+return true;
         $html_value = preg_replace('/^\s*\<p\>\s*', '', $html_value);
         $html_value = preg_replace('/\<\/p\>\s*$/', '', $html_value);
 
