@@ -1,0 +1,1725 @@
+<?php
+
+/*
+ * Implements HOOK_menu()
+ */
+function usa_data_migration_menu() {
+    
+    $items = array();
+    
+    // Configuration page
+    $items['admin/content/usa-data-migration'] = array(
+        'title' => 'USA Content Migration',
+        'description' => 'Configure the USA Data Migration',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('usa_data_migration_config_form'),
+        'access arguments' => array('access administration pages'),
+        'type' => MENU_NORMAL_ITEM
+    );
+
+    // Menu item to server taxonomy data from this environment to a requester
+    $items['get-taxonomy-dump'] = array(
+        'title' => 'Taxonomy dump',
+        'description' => 'Returns a MySQL Taxonomy dump',
+        'page callback' => 'usa_data_migration_printTaxonomyDump',
+        'access callback' => true,
+        'type' => MENU_CALLBACK
+    );
+
+    // Menu item to server taxonomy data from this environment to a requester
+    $items['get-node-dump'] = array(
+        'title' => 'Node dump',
+        'description' => 'Returns a node dump',
+        'page callback' => 'usa_data_migration_printNodeDump',
+        'access callback' => true,
+        'type' => MENU_CALLBACK
+    );
+
+	// Menu item to server taxonomy data from this environment to a requester
+    $items['usa-data-migration/udm-cron-task'] = array(
+        'title' => 'Content Pull',
+        'description' => 'Returns a MySQL Taxonomy dump',
+        'page callback' => 'usa_data_migration_menu_cron',
+        'access callback' => true,
+        'type' => MENU_CALLBACK
+    );
+
+    // Menu item to receive push requests
+    $items['set-entity-data'] = array(
+        'title' => 'Push Request Receiver',
+        'description' => 'This page receives a push-request',
+        'page callback' => 'usa_data_migration_rec_push_request',
+        'access callback' => true,
+        'type' => MENU_CALLBACK
+    );
+
+    // Menu item to obtain action-log information
+    $items['udm-action-log'] = array(
+        'title' => 'Print error_log from actions',
+        'description' => 'Print error_log messages from actions',
+        'page callback' => 'usa_data_migration_print_action_log',
+        'access callback' => true,
+        'type' => MENU_CALLBACK
+    );
+
+    return $items;
+}
+
+function usa_data_migration_menu_alter(&$items) {
+
+    $items['admin/structure/taxonomy_manager/childform']['page callback'] = 'taxonomy_manager_tree_build_child_form_HACK';
+}
+
+function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
+
+  $params = $_GET;
+  $form_state = form_state_defaults();
+  $form_state['method'] = 'get';
+  $form_state['values'] = array();
+  $form_state['process_input'] = TRUE;
+  $form_state['input'] = array();
+  $form_state['complete form'] = array();
+
+  $tids = array();
+  if (isset($params['#terms_to_expand']) && $params['#terms_to_expand'] != 0) {
+    // convert to array
+    $tids = explode(',', $params['#terms_to_expand']);
+  }
+
+  if (count($tids) == 1) {
+    $language = _taxonomy_manager_term_get_lang($tids[0]);
+  }
+  else {
+    $language = $params['language'];
+  }
+
+  $child_form = array(
+    '#type' => 'taxonomy_manager_tree',
+    '#vid' => $vid,
+    '#parent' => $parent,
+    '#pager' => TRUE,
+    '#language' => $language,
+    '#terms_to_expand' => $tids,
+    '#siblings_page' => 1,
+  );
+
+  $opertions_callback = 'taxonomy_manager_' . str_replace('-', '_', $tree_id) . '_operations';
+  if (function_exists($opertions_callback)) {
+    $child_form['#operations_callback'] = $opertions_callback;
+  }
+
+  $link_callback = 'taxonomy_manager_' . str_replace('-', '_', $tree_id) . '_link';
+  if (function_exists($link_callback)) {
+    $child_form['#link_callback'] = $link_callback;
+  }
+
+  _taxonomy_manager_tree_sub_forms_set_parents($params['form_parents'], $parent, $child_form);
+
+  $child_form = form_builder('taxonomy_manager_form', $child_form, $form_state);
+
+    foreach ( $child_form['#elements'] as &$element ) {
+        $tid = array_pop(explode('/', $element['checkbox']['#link']));
+        $term = taxonomy_term_load($tid);
+
+        $genMenu = false;
+        if ( !empty($term->field_generate_menu['und'][0]['value']) && $term->field_generate_menu['und'][0]['value'] === 'yes' ) {
+            $genMenu = true;
+        }
+
+        $genPage = false;
+        if ( !empty($term->field_generate_page['und'][0]['value']) && $term->field_generate_page['und'][0]['value'] === 'yes' ) {
+            $genPage = true;
+        }
+
+        $friendlyURL = '-!UNSET-SETTING!-';
+        if ( isset($term->field_friendly_url['und'][0]['value']) ) {
+            $friendlyURL = $term->field_friendly_url['und'][0]['value'];
+        }
+
+        $pageType = '-!UNSET-SETTING!-';
+        if ( !empty($term->field_type_of_page_to_generate['und'][0]['value']) ) {
+            $pageType = $term->field_type_of_page_to_generate['und'][0]['value'];
+        }
+
+        $element['checkbox']['#field_suffix'] = '<span  class="exta-info"> - '
+            .( $genMenu ? 'Generates <b>Menu Item</b>. ' : '' )
+            .( $genPage ? 'Generates <b>'.$pageType.'</b> page. ' : ( $genMenu ? 'Points to '.$friendlyURL : '' ) )
+            .'</span>';
+    }
+
+  print drupal_json_output(array('data' => drupal_render($child_form)));
+  ajax_footer();
+
+}
+
+/*
+ * Implements HOOK_cron()
+ */
+function usa_data_migration_cron() {
+
+    $doTaxonomyPull = abs((time() - variable_get('udm_last_pull', 0))) / 60 > variable_get('udm_pull_frequency', 5);
+    if ( !empty($_REQUEST['udm_force']) && intval($_REQUEST['udm_force']) === 1 ) {
+        $doTaxonomyPull = 1;
+    }
+
+    usa_data_migration_error_log("Notice: ".__FUNCTION__." has fiered, and ".($doTaxonomyPull?'WILL':'will NOT')." trigger usa_data_migration_execute()");
+    if ( $doTaxonomyPull ) {
+        return usa_data_migration_execute();
+    }
+
+    variable_set('udm_last_pull', time());
+
+}
+
+/* This is used as a menu-callback */
+function usa_data_migration_menu_cron() {
+
+    if ( intval(variable_get('udm_do_pull', false)) === 0 ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Service not enabled";
+        exit();
+    }
+
+    usa_data_migration_cron();
+}
+
+function usa_data_migration_execute() {
+
+    $target = variable_get('udm_pull_from_taxtarget');
+    return usa_data_migration_synchTaxonomyFromTarget($target, false);
+
+}
+
+/*
+ * Implements HOOK_taxonomy_term_update
+ */
+function usa_data_migration_taxonomy_term_update($term) {
+    usa_data_migration_pushEntity($term);
+}
+
+/*
+ * Implements HOOK_taxonomy_term_update
+ */
+function usa_data_migration_taxonomy_term_insert($term) {
+    usa_data_migration_pushEntity($term);
+}
+
+/*
+ * Implements HOOK_node_update
+ */
+function usa_data_migration_node_update($node) {
+    usa_data_migration_pushEntity($node);
+}
+
+/*
+ * Implements HOOK_node_insert
+ */
+function usa_data_migration_node_insert($node) {
+    usa_data_migration_pushEntity($node);
+}
+
+/*
+ * void usa_data_migration_pushEntity(object $entity)
+ *
+ * Pushes a node or taxonomy-term out to child sites when nessesary
+ */
+function usa_data_migration_pushEntity($entity) {
+
+    $thisFunct = __FUNCTION__;
+
+    // Bail if we are not setup as the content-server
+    if ( intval(variable_get('udm_do_push', false)) === 0 ) {
+        return;
+    }
+
+    // This entity needs to be saved (we need a tid or nid) for referencing purposes
+    if ( isset($entity->nid) ) {
+        $entityType = 'node';
+        $entityId = $entity->nid;
+        $entityTitle = $entity->title;
+    } elseif ( isset($entity->tid) ) {
+        $entityType = 'taxonomy term';
+        $entityId = $entity->tid;
+        $entityTitle = $entity->name;
+    } else {
+        usa_data_migration_error_log("Error - {$thisFunct} was given an entity of an unknown entity-type "
+            ."(the entity does not have a nid nor a tid).");
+        return;
+    }
+    
+    // Are we supposed to server this bundle-type?
+    if ( $entityType === 'taxonomy term' && intval(variable_get('udm_serv_taxonomy', 0)) === 0 ) {
+        usa_data_migration_error_log("Not pushing this taxonomy-term - we are not configured to push this bundle-type");
+        return;
+    }
+    if ( $entityType === 'node' ) {
+        if ( intval(variable_get('udm_serv_nodes', 0)) === 0 ) {
+            usa_data_migration_error_log("Not pushing this node - we are not configured to push this bundle-type");
+            return;
+        } else {
+            if ( !isset($entity->type) ) {
+                usa_data_migration_error_log("Error - {thisFunct}() cannot push this node because its type is undetermined!");
+                return;
+            }
+            if ( !in_array($entity->type, variable_get('udm_conttypes', array())) ) {
+                usa_data_migration_error_log("Not pushing this node - we are not configured to push nodes under this content-type");
+                return;
+            }
+        }
+    }           
+
+    // If this is a node we are pushing, push all node-revisions as well
+    $pushSql = '';
+    if ( $entityType === 'node' ) {
+        $pushSql = usa_data_migration_getMySQLDump('node_revision', false, 'node_revision.nid='.$entity->nid);
+        // And make sure that MySQL ignores INSERT errors arising from duplicate [primary] keys
+        $pushSql = str_replace('INSERT INTO ', 'INSERT IGNORE INTO ', $pushSql);
+    }
+
+    $targets = explode("\n", variable_get('udm_push_targets', ''));
+    $data = http_build_query(
+        array(
+            'data' => @serialize($entity),
+            'sql' => $pushSql,
+        ), 
+        '', 
+        '&'
+    );
+    foreach ( $targets as $target ) { // For each child site (target)...
+
+        usa_data_migration_error_log("Notice: {$thisFunct}() is pushing {$entityType} {$entityId} to {$target}");
+        $result = drupal_http_request(
+            $target,
+            array(
+                'method' => 'POST',
+                'data' => $data,
+                'timeout' => 15,
+                'headers' => array('Content-Type' => 'application/x-www-form-urlencoded'),
+            )
+        );
+        
+        if ( empty($result->data) || trim($result->data) !== 'success' ) {
+            $msg = "WARNING: {$thisFunct}() failed to push {$entityType} {$entityId} to {$target} - ";
+            $msg .= "The remote site responded with: " . $result->data;
+            usa_data_migration_error_log($msg);
+            usa_data_migration_log(
+                "{$entityType} {$entityId} (\"$entityTitle\") was updated on this environment, but "
+                    ."this entity failed to be pushed to {$target}"
+            );
+        } else {
+            usa_data_migration_log(
+                "{$entityType} (\"$entity->name\") was updated on this environment, and "
+                    ."was pushed to {$target}"
+            );
+        }
+    }
+}
+
+function usa_data_migration_config_form() {
+
+	// Handel form submission here
+	if ( !empty($_REQUEST['op']) ) {
+        switch ($_REQUEST['op']) {
+            case 'Save':
+
+                if ( empty($_REQUEST['udm_allow_pull']) ) { $_REQUEST['udm_allow_pull'] = 0; }
+                if ( empty($_REQUEST['udm_do_pull']) ) { $_REQUEST['udm_do_pull'] = 0; }
+                if ( empty($_REQUEST['udm_do_push']) ) { $_REQUEST['udm_do_push'] = 0; }
+                if ( empty($_REQUEST['udm_serv_taxonomy']) ) { $_REQUEST['udm_serv_taxonomy'] = 0; }
+                if ( empty($_REQUEST['udm_serv_nodes']) ) { $_REQUEST['udm_serv_nodes'] = 0; }
+                if ( empty($_REQUEST['udm_alter_entities']) ) { $_REQUEST['udm_alter_entities'] = 0; }
+                if ( empty($_REQUEST['udm_tax_dofilter']) ) { $_REQUEST['udm_tax_dofilter'] = 0; }
+                if ( empty($_REQUEST['udm_tax_del']) ) { $_REQUEST['udm_tax_del'] = 0; }
+
+                variable_set('udm_allow_pull', $_REQUEST['udm_allow_pull']);
+                variable_set('udm_pull_security_key', $_REQUEST['udm_pull_security_key']);
+                variable_set('udm_do_pull', $_REQUEST['udm_do_pull']);
+                variable_set('udm_pull_from_taxtarget', $_REQUEST['udm_pull_from_taxtarget']);
+                variable_set('udm_pull_frequency', $_REQUEST['udm_pull_frequency']);
+                variable_set('udm_do_push', $_REQUEST['udm_do_push']);
+                variable_set('udm_push_targets', $_REQUEST['udm_push_targets']);
+                variable_set('udm_push_security_key', $_REQUEST['udm_push_security_key']);
+                variable_set('udm_pull_from_nodetarget', $_REQUEST['udm_pull_from_nodetarget']);
+                variable_set('udm_serv_taxonomy', $_REQUEST['udm_serv_taxonomy']);
+                variable_set('udm_serv_nodes', $_REQUEST['udm_serv_nodes']);
+                variable_set('udm_alter_entities', $_REQUEST['udm_alter_entities']);
+                variable_set('udm_alter_entity_code', $_REQUEST['udm_alter_entity_code']);
+                variable_set('udm_tax_dofilter', $_REQUEST['udm_tax_dofilter']);
+                variable_set('udm_tax_filter_names', $_REQUEST['udm_tax_filter_names']);
+                variable_set('udm_tax_del', $_REQUEST['udm_tax_del']);
+                variable_set('udm_tax_del_term', $_REQUEST['udm_tax_del_term']);
+
+                if ( isset($_REQUEST['udm_conttypes']) ) {
+                    $opts = array();
+                    foreach ( $_REQUEST['udm_conttypes'] as $cType ) {
+                        $opts[$cType] = $cType;
+                    }
+                    variable_set('udm_conttypes', $opts);
+                }
+
+                break;
+
+            case 'Pull Taxonomy Now':
+                ini_set('error_reporting', E_ALL);
+                $target = variable_get('udm_pull_from_taxtarget');
+                $ret = usa_data_migration_synchTaxonomyFromTarget($target, false);
+                drupal_set_message(
+                    'usa_data_migration_synchTaxonomyFromTarget() returned: ' . $ret,
+                    'status'
+                );
+                break;
+
+            case 'Pull Nodes Now':
+                ini_set('error_reporting', E_ALL);
+                $target = variable_get('udm_pull_from_nodetarget');
+                $ret = usa_data_migration_synchNodesFromTarget($target, false);
+                drupal_set_message(
+                    'usa_data_migration_synchNodesFromTarget() returned: ' . $ret,
+                    'status'
+                );
+                break;
+
+            case 'Clear Log':
+                variable_set('udm_log', array());
+                drupal_set_message('Log cleared', 'status');
+                break;
+
+            default:
+                @ob_end_clean(); @ob_end_clean(); @ob_end_clean();
+                exit('Error - Unknown operation');
+                break;
+        }
+	}
+
+    // When we are the taxonomy-server, inform the admin of the taxonomy-server-URL
+    if ( variable_get('udm_allow_pull', false) ) {
+
+        $serverURL = 'http://' . $_SERVER['HTTP_HOST'] . '/get-taxonomy-dump';
+        if ( variable_get('udm_pull_security_key', '') !== '' ) {
+            $serverURL .= '?key=' . variable_get('udm_pull_security_key');
+        }
+        drupal_set_message(
+            "<b>Note:</b> This site is setup to server its taxonomy information from the URL: "
+                ."<a target=\"_blank\" href=\"{$serverURL}\">{$serverURL}</a>",
+            "status",
+            false
+        );
+
+        $serverURL = 'http://' . $_SERVER['HTTP_HOST'] . '/get-node-dump';
+        if ( variable_get('udm_pull_security_key', '') !== '' ) {
+            $serverURL .= '?key=' . variable_get('udm_pull_security_key');
+        }
+        drupal_set_message(
+            "<b>Note:</b> This site is setup to server its node information from the URL: "
+                ."<a target=\"_blank\" href=\"{$serverURL}\">{$serverURL}</a>",
+            "status",
+            false
+        );
+    }
+
+    // When we are pulling taxonomy-data, inform the admin of the taxonomy-pull-URL
+    if ( variable_get('udm_do_pull', false) ) {
+
+        $pushURL = 'http://' . $_SERVER['HTTP_HOST'] . '/set-entity-data';
+        if ( variable_get('udm_push_security_key', '') !== '' ) {
+            $pushURL .= '?key=' . variable_get('udm_push_security_key');
+        }
+        drupal_set_message(
+            "<b>FYI:</b> This site is setup to recieve push-requests for taxonomy and node changes, the push-request-URL is: "
+                ."<a target=\"_blank\" href=\"{$pushURL}\">{$pushURL}</a>",
+            "status",
+            false
+        );
+    }
+
+    $form = array();
+
+    $form['udmmode'] = array(
+        '#type' => 'fieldset', 
+        '#title' => 'Mode', 
+        '#collapsible' => false, 
+        '#collapsed' => false,
+    );
+
+    $form['udmmode']['udm_allow_pull'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Allow another site to pull taxonomy and content from this environment',
+        '#default_value' => variable_get('udm_allow_pull', 0)
+    );
+
+    $form['udmmode']['udm_do_pull'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'This site shall pull and receive taxonomy information from another site [<small>that is using this module</small>]',
+        '#default_value' => variable_get('udm_do_pull', 0)
+    );
+
+    $form['actions'] = array(
+        '#type' => 'fieldset', 
+        '#title' => 'Actions', 
+        '#collapsible' => true, 
+        '#collapsed' => true,
+        '#states' => array(
+            'invisible' => array(
+                ':input[name="udm_do_pull"]' => array('checked' => false),
+            ),
+        ),
+    );
+
+    $form['actions']['dopulltax'] = array(
+        '#type' => 'submit',
+        '#value' => 'Pull Taxonomy Now',
+    );
+
+    $form['actions']['dopullnodes'] = array(
+        '#type' => 'submit',
+        '#value' => 'Pull Nodes Now',
+    );
+
+    $form['actions']['log'] = array(
+        '#type' => 'textarea',
+        '#title' => 'Log:',
+        '#default_value' => 'To be populated by AJAX/JavaScript, please wait...',
+        '#size' => '75',
+    );
+    $actionLogSize = ( file_exists(usa_data_migration_action_log_location()) ? filesize(usa_data_migration_action_log_location()) : 0 );
+    drupal_add_js(
+        "
+            jQuery(document).ready( function () {
+                setInterval( function () {
+
+                    // Pull the [action] error log into the UI
+                    jQuery.get('/udm-action-log?offset={$actionLogSize}', function (data) {
+                        var jqLogUi = jQuery('#edit-log');
+                        var logUi = jQuery('#edit-log').get(0);
+                        jqLogUi.val( jQuery.trim(data) );
+                        logUi.scrollTop = logUi.scrollHeight;
+                    });
+
+                }, 1500);
+            });
+        ", 
+        'inline'
+    );
+
+    $form['serversettings'] = array(
+        '#type' => 'fieldset', 
+        '#title' => 'Taxonomy/Content Server Settings', 
+        '#collapsible' => true, 
+        '#collapsed' => false,
+        '#states' => array(
+            'invisible' => array(
+                ':input[name="udm_allow_pull"]' => array('checked' => false),
+            ),
+        ),
+    );
+
+    $form['serversettings']['udm_pull_security_key'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Require the foreign site to use this key for pull-requests',
+        '#default_value' => variable_get('udm_pull_security_key', ''),
+        '#size' => '75',
+        '#description' => 'The URL used to pull the taxonomy information will be http://' . $_SERVER['HTTP_HOST']
+        	.'/get-taxonomy-dump?key=<b>[your-key-here]</b>',
+    );
+
+    $form['serversettings']['bundlesset'] = array(
+        '#type' => 'fieldset', 
+        '#title' => 'Serve bundles', 
+        '#collapsible' => true, 
+        '#collapsed' => false,
+    );
+
+    $form['serversettings']['bundlesset']['udm_serv_taxonomy'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Taxonomy terms',
+        '#default_value' => variable_get('udm_serv_taxonomy', 0)
+    );
+
+    $form['serversettings']['bundlesset']['udm_serv_nodes'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Nodes',
+        '#default_value' => variable_get('udm_serv_nodes', 0)
+    );
+
+    $opts = array();
+    foreach ( _bundle_copy_bundle_info('node', TRUE) as $contentType => $data ) {
+        $opts[$contentType] = $contentType;
+    }
+    $form['serversettings']['bundlesset']['udm_conttypes'] = array(
+        '#type' => 'select',
+        '#title' => 'Content Types',
+        '#options' => $opts,
+        '#size' => 10,
+        '#multiple' => true,
+        '#default_value' => variable_get('udm_conttypes', ''),
+        '#states' => array(
+            'invisible' => array(
+                ':input[name="udm_serv_nodes"]' => array('checked' => false),
+            ),
+        ),
+   );
+
+    $form['serversettings']['udm_do_push'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'When an entity is changed in this environment, push it to [the] other site(s)',
+        '#default_value' => variable_get('udm_do_push', 0)
+    );
+
+    $form['serversettings']['udm_push_targets'] = array(
+        '#type' => 'textarea',
+        '#title' => 'When an entity is changed in this environment, push to the following environments:',
+        '#default_value' => variable_get('udm_push_targets', ''),
+        '#states' => array(
+            'invisible' => array(
+                ':input[name="udm_do_push"]' => array('checked' => false),
+            ),
+        ),
+        '#description' => 'Go to the "<i>USA Taxonomy Migration</i>" module on the foreign site in order to get the '
+            .'<b>push-request-URL</b> to paste here.<br/>Seperate each site-URL with a new-line.',
+    );
+
+    $form['pullsettings'] = array(
+        '#type' => 'fieldset', 
+        '#title' => 'Pull Settings', 
+        '#collapsible' => true, 
+        '#collapsed' => false,
+        '#states' => array(
+            'invisible' => array(
+                ':input[name="udm_do_pull"]' => array('checked' => false),
+            ),
+        ),
+    );
+
+    $form['pullsettings']['udm_pull_from_taxtarget'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Pull taxonomy information from the following URL:',
+        '#default_value' => variable_get('udm_pull_from_taxtarget', ''),
+        '#size' => '75',
+        '#description' => 'Use the "<i>USA Data Migration</i>" module on the foreign site to botain the URL to pull taxonomy-'
+            .'data from.<br/>Be sure to <b>include the security-key</b> in the value pasted here!',
+    );
+
+    $form['pullsettings']['udm_pull_from_nodetarget'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Pull node-content from the following URL:',
+        '#default_value' => variable_get('udm_pull_from_nodetarget', ''),
+        '#size' => '75',
+        '#description' => 'Use the "<i>USA Data Migration</i>" module on the foreign site to botain the URL to pull node-'
+            .'data from.<br/>Be sure to <b>include the security-key</b> in the value pasted here!',
+    );
+
+    $form['pullsettings']['udm_pull_frequency'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Pull taxonomy information every # minutes',
+        '#default_value' => variable_get('udm_pull_frequency', '5'),
+        '#size' => '5',
+        '#field_suffix' => 'minutes',
+        '#description' => '<b>Warning:</b> For this functionality to work, either; Drupal-Cron must fire at least this frequently, '
+            .'<b>- OR -</b> Linux-Cron needs to touch (<small>i.e. curl or wget</small>) the URL: http://' . $_SERVER['HTTP_HOST'] 
+            .'/usa-data-migration/udm-cron-task<br/>'
+            .'Notice: Setting this value also means that this module will never pull <i>more frequently</i> than the given input '
+            .'(<small>even if Drupal-cron were to fire every 30 seconds</small>).',
+    );
+
+    $form['pullsettings']['udm_push_security_key'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Require a foreign site to use this key when pushing data into this environment:',
+        '#default_value' => variable_get('udm_push_security_key', ''),
+        '#size' => '75',
+        '#description' => 'This will set the push-request-URL to http://' . $_SERVER['HTTP_HOST'] . '/set-entity-data?'
+            .'key=<b>[your-key-here]</b>',
+    );
+
+    $form['pullsettings']['udm_alter_entities'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Alter entities as they are consumed into this site',
+        '#default_value' => variable_get('udm_alter_entities', 0)
+    );
+
+    $form['pullsettings']['udm_alter_entities_settings'] = array(
+        '#type' => 'fieldset',
+        '#title' => 'Entity Alteration Code', 
+        '#collapsible' => true, 
+        '#collapsed' => false,
+        '#states' => array(
+            'invisible' => array(
+                ':input[name="udm_alter_entities"]' => array('checked' => false),
+            ),
+        ),
+    );
+
+    $form['pullsettings']['udm_alter_entities_settings']['udm_alter_entity_code'] = array(
+        '#type' => 'textarea',
+        '#title' => 'Entity Alteration Code',
+        '#default_value' => variable_get('udm_alter_entity_code', '// there is an $entity variable defined, you can change it here'),
+        '#description' => "Place PHP code into this text-area, do NOT use the opening/closing &lt;?php ?&gt; tags.<br/>"
+            ."This script will be give a \$entity variable (defined before script-execution)<br/>"
+            ."This script will execute both for taxonomy-terms and nodes, and will have a chance to alter the \$entity "
+            ."variable before it is run through taxonomy_term_save() or node_save()<br/>Note that this script may only run against "
+            ."<i>new</i> or <i>changed</i> taxonomies/nodes being consumed into this system."
+    );
+
+    $form['pullsettings']['udm_tax_dofilter'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Filter taxonomy terms after consumption',
+        '#default_value' => variable_get('udm_tax_dofilter', 0)
+    );
+
+    $form['pullsettings']['udm_tax_filter_settings'] = array(
+        '#type' => 'fieldset',
+        '#title' => 'Taxonomy filtration settings', 
+        '#collapsible' => true, 
+        '#collapsed' => false,
+        '#states' => array(
+            'invisible' => array(
+                ':input[name="udm_tax_dofilter"]' => array('checked' => false),
+            ),
+        ),
+    );
+
+    $form['pullsettings']['udm_tax_filter_settings']['udm_tax_filter_names'] = array(
+        '#type' => 'textarea',
+        '#title' => 'Filter out taxonomy terms which do not have any parent with the name of:',
+        '#default_value' => variable_get('udm_tax_filter_names', ''),
+        '#description' => 'After taxonomy consumption, this module will loop through all taxonomy-terms, and check '
+            .'what parents exist - If none of the parents are <i>named</i> any of the given lines of input '
+            .'[<small>in this field</small>], then the term is deleted.<br/>Seperate each filter-pattern/name with '
+            .'a new-line.'
+    );
+
+    $form['pullsettings']['udm_tax_del'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Delete a particular taxonomy term, while maintaining its children after consumption',
+        '#default_value' => variable_get('udm_tax_del', 0)
+    );
+
+    $form['pullsettings']['udm_tax_del_settings'] = array(
+        '#type' => 'fieldset',
+        '#title' => 'Term deletion settings', 
+        '#collapsible' => true, 
+        '#collapsed' => false,
+        '#states' => array(
+            'invisible' => array(
+                ':input[name="udm_tax_del"]' => array('checked' => false),
+            ),
+        ),
+    );
+
+    $form['pullsettings']['udm_tax_del_settings']['udm_tax_del_term'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Term name to delete',
+        '#default_value' => variable_get('udm_tax_del_term', '')
+    );
+
+    $logHtml = '';
+    foreach ( array_reverse( variable_get('udm_log', array()) ) as $index => $logItem ) {
+        if ( $index !== 0 ) { $logHtml .= "\n"; }
+        $logHtml .= date('Y-m-d g:ia', $logItem['time']) . ' - ' . $logItem['msg'];
+    }
+    $form['log'] = array(
+        '#type' => 'fieldset', 
+        '#title' => 'Log', 
+        '#collapsible' => true, 
+        '#collapsed' => true,
+    );
+    $form['log']['clearlog'] = array(
+        '#type' => 'submit',
+        '#value' => 'Clear Log',
+    );
+    $form['log']['logdata'] = array(
+        '#type' => 'item', 
+        '#title' => 'Log Data:', 
+        '#markup' => '<pre>' . $logHtml . '</pre>',
+    );
+
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#value' => t('Save'),
+    );
+
+    return $form;
+}
+
+/**
+ *  void usa_data_migration_printTaxonomyDump()
+ *
+ *  Print a MySqlDump of the taxonomy tables on this system, and then 
+ *  terminates the PHP thread.
+ */
+function usa_data_migration_printTaxonomyDump() {
+
+    if ( intval(variable_get('udm_allow_pull', false)) === 0 ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Service not enabled";
+        exit();
+    }
+
+    if ( intval(variable_get('udm_serv_taxonomy', false)) === 0 ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Taxonomy-server not enabled";
+        exit();
+    }
+
+    $returnData = array();
+
+    // Security validation
+	if ( variable_get('udm_pull_security_key', '') !== '' ) { // If we expect a security key...
+
+        // If no key provided, or the key is not matching what we expect...
+		if ( empty($_REQUEST['key']) || trim($_REQUEST['key']) !== trim(variable_get('udm_pull_security_key', '')) ) {
+            usa_data_migration_log(
+                "A request was made to pull a taxonomy-dump from a foreign host, which was REJECTED due to "
+                    ."a missing or invalid security-key."
+            );
+            @ob_end_clean();
+            while (@ob_end_clean());
+            header('Content-Type: text');
+			exit('Access Denied: Invalid security key');
+		}
+	}
+
+    // Obtain code used with the "Bundle Copy" module, to export/import taxonomy fields STRUCTURE (struct only, no field data)
+    $returnData['taxonomyFieldStructure_BundleImportCode'] = usa_data_migration_getExportTaxonomyStructureCode();
+
+    // Obtain a MySQL dump of all [base] terms and their hierarchy - THIS DOES NOT INCLUDE FIELD DATA!
+    global $databases;
+    $dbHost = $databases['default']['default']['host'];
+    $dbUser = $databases['default']['default']['username'];
+    $dbPass = $databases['default']['default']['password'];
+    $dbDatabase = $databases['default']['default']['database'];
+    $cmd = "mysqldump -v --host={$dbHost} '--user={$dbUser}' '--password={$dbPass}' {$dbDatabase} taxonomy_vocabulary taxonomy_term_hierarchy taxonomy_term_data taxonomy_index";
+    $returnData['taxonomyTermsAndHierarchyDump_sqlDump'] = shell_exec($cmd);
+
+    // Obtain all field values across all all taxonomy terms
+    $returnData['taxonomyEntities'] = entity_load('taxonomy_term', FALSE);
+
+    // Debug
+    usa_data_migration_log('A foreign host requested a [full] taxonomy dump.');
+
+    // Return data
+    if ( empty($_REQUEST['machineReadable']) || intval($_REQUEST['machineReadable']) !== 1 ) {
+
+        $html = "You are seeing this message because you did not include [?/&]machineReadable=1 in the URL-request.<br/>";
+        $html .= "The following is a Krumo/kprint_r() render of what this page outputs with the machineReadable=1 flag.<br/>";
+        $html .= "(<small>Note: If you see nothing here, then either the Devel module is not on, or you do not have "
+            ."permissions to see Krumo ouput</small>)";
+
+        if ( function_exists('kprint_r') ) {
+            $html .= kprint_r($returnData, true);
+        }
+        return $html;
+
+    } else {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        header('Content-Type: text');
+        print serialize($returnData);
+        exit();
+    }
+    
+}
+
+/**
+ *  bool/string usa_data_migration_synchTaxonomyFromTarget()
+ *
+ * This function will attempt to pull a dump of taxonomy-related tables from the target
+ * and synch it into this environment. This function returns TRUE on success, and a 
+ * string on failure (depending on the $retTrueOnSuccess argument).
+ */
+function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTrueOnSuccess = true) {
+
+    // Debug for devs who tail the PHP error_log
+    $thisFunct = __FUNCTION__;
+    usa_data_migration_error_log("Notice: {$thisFunct} is pulling taxonomy information from {$taxonomyDataSource}");
+
+    // Tell the USA Taxonomy Man module to not execute on term-hook for this batch process
+    global $utm_norun;
+    $utm_norun = true;
+
+    // Delete any generated menu items (from the usa_tax_man mod)
+    if ( function_exists('usa_tax_man_deleteAllGeneratedMenuItems') ) {
+        usa_tax_man_deleteAllGeneratedMenuItems();
+    }
+
+    // Pull data
+    $taxonomyDataSource .= ( strpos($taxonomyDataSource, '?') === false ? '?' : '&' ) . 'machineReadable=1';
+    $pullString = file_get_contents($taxonomyDataSource);
+
+    // Validate data
+    if ( $pullString === false ) {
+        $msg = "Error - {$thisFunct} could not obtain data from {$taxonomyDataSource}";
+        usa_data_migration_log($msg);
+        usa_data_migration_error_log($msg);
+        return $msg;
+    }
+
+    // Typecast and validate data
+    $pullData = @unserialize($pullString);
+    unset($pullString); // free memory
+    if ( $pullData === false ) {
+        $msg = "Error - {$thisFunct} pull malformed data from {$taxonomyDataSource}";
+        usa_data_migration_log($msg);
+        usa_data_migration_error_log($msg);
+        return $msg;
+    }
+
+    // Validate MySQL dump data
+    if ( strpos($pullData['taxonomyTermsAndHierarchyDump_sqlDump'], 'MySQL dump') === false ) {
+        $msg = "Error - The data obtained from {$taxonomyDataSource} does not appear to contain a valid MySQL-Dump";
+        usa_data_migration_log($msg);
+        usa_data_migration_error_log($msg);
+        return $msg;
+    }
+
+    // Delete all terms field-values in this environment (this is a required action if the field-structure has changed)
+    db_query('TRUNCATE taxonomy_index');
+    db_query('TRUNCATE taxonomy_term_data');
+    db_query('TRUNCATE taxonomy_term_hierarchy');
+    db_query('TRUNCATE taxonomy_vocabulary');
+    taxonomy_vocabulary_static_reset();
+    taxonomy_terms_static_reset();
+    
+    // Synch taxonomy [field] structure into this environment 
+    usa_data_migration_importStructureWithCode( $pullData['taxonomyFieldStructure_BundleImportCode'] );
+    taxonomy_vocabulary_static_reset();
+    taxonomy_terms_static_reset();
+
+    // Synch taxonomy Vocabularies and hierarchy into this environment
+    db_query( $pullData['taxonomyTermsAndHierarchyDump_sqlDump'] );
+    taxonomy_vocabulary_static_reset();
+    taxonomy_terms_static_reset();
+
+    // Synch taxonomy terms (and their FIELD DATA) into this environment
+    $taxCount = 0 ;
+    $taxUpdateCount = 0;
+    $taxSkipCount = 0;
+    foreach ( $pullData['taxonomyEntities'] as $incomingTaxEntity ) {
+
+        $taxCount++;
+        $currentTaxTerm = taxonomy_term_load( $incomingTaxEntity->tid );
+
+        if ( $currentTaxTerm == $incomingTaxEntity ) {
+            $taxSkipCount++;
+        } else {
+            $taxUpdateCount++;
+
+            // Run entity-alteration code against this entity if we are configured to
+            $entity = $incomingTaxEntity;
+            if ( intval(variable_get('udm_alter_entities', 0)) === 1 ) {
+                //usa_data_migration_error_log('Running entity-alteration code in '.__FUNCTION__);
+                eval( variable_get('udm_alter_entity_code') );
+            }
+            $incomingTaxEntity = $entity;
+
+            taxonomy_term_save($incomingTaxEntity);
+        }
+    }
+    taxonomy_terms_static_reset();
+
+    $msg = "{$thisFunct}() has finished importing {$taxCount} taxonomy terms, At least {$taxUpdateCount} terms "
+        ." were new or updated, and at most {$taxSkipCount} terms were unchanged.";
+    usa_data_migration_log($msg);
+    usa_data_migration_error_log("Notice: " . $msg);
+
+    usa_data_migration_filterTaxonomy();
+    usa_data_migration_DeleteTermAndMaintainChildren();
+
+    $utm_norun = false;
+
+    if ( $retTrueOnSuccess ) {
+        return true;
+    } else {
+        return "Notice: {$thisFunct}() has finished importing {$taxCount} taxonomy terms, At least {$taxUpdateCount} terms "
+        ." were new or updated, and at most {$taxSkipCount} terms were unchanged.";
+    }
+}
+
+
+/*
+ * string usa_data_migration_getExportTaxonomyStructureCode()
+ *
+ * Obtains the same code you would see when going to ~/admin/structure/taxonomy/export and 
+ * ticking all checkboxes on that form.
+ *
+ * This essentially is a wrapper function to _bundle_copy_export_data(), which expects to be given 
+ * Drupal-form data. This function creates/emulates the Drupal-form data and triggers that 
+ * function with "all checkboxes ticked".
+ *
+ * This function returns a string to be given to importTaxonomyStructureWithCode(), either on 
+ * this site, or another.
+ */
+function usa_data_migration_getExportTaxonomyStructureCode() {
+
+    $selected_bundles = array();
+    foreach ( _bundle_copy_bundle_info('taxonomy_term', TRUE) as $machineName => $label ) {
+        $selected_bundles[$machineName] = $machineName;
+    }
+
+    $instances = array();
+    foreach ($selected_bundles as $key => $bundle) {
+        if ($key === $bundle) {
+          $instances += field_info_instances('taxonomy_term', $bundle);
+        }
+    }
+    ksort($instances);
+
+    $selectedFields = array();
+    foreach ( $instances as $machineName => $fieldInfo ) {
+        $selectedFields[$machineName] = $machineName;
+    }
+
+    $fieldGroupIds = array();
+    $fieldGroupData = array();
+    $all_groups = function_exists('field_group_info_groups') ? field_group_info_groups() : array();
+    if ( !empty($all_groups) && !empty($all_groups['taxonomy_term']) ) {
+        foreach ($all_groups['taxonomy_term'] as $vocabName => $formData) {
+            foreach ($formData['form'] as $groupName => $data) {
+                $fieldGroupIds[$data->id] = $data->id;
+                $fieldGroupData[$data->id] = $data;
+            }
+        }
+    }
+
+    $selected_data = array(
+        1 => array(
+            'bundles' => $selected_bundles
+        ),
+        2 => array(
+            'fields' => $selectedFields,
+            'fieldgroups' => $fieldGroupIds,
+            'fieldgroups-full' => $fieldGroupData,
+        ),
+    );
+
+    return _bundle_copy_export_data('taxonomy_term', $selected_data);
+}
+
+/**
+ *  void usa_data_migration_printNodeDump()
+ *
+ *  Prints a dump of information descirinb nodes in this system and terminates the PHP thread.
+ */
+function usa_data_migration_printNodeDump() {
+
+    if ( intval(variable_get('udm_allow_pull', false)) === 0 ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Server not enabled";
+        exit();
+    }
+
+    if ( intval(variable_get('udm_serv_nodes', false)) === 0 ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Node-server not enabled";
+        exit();
+    }
+
+    if ( empty($_REQUEST['batch']) || intval($_REQUEST['batch']) === 0 ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Missing or bad batch argument in request - this argument must be an integer greater than 0";
+        exit();
+    }
+    $batch = intval($_REQUEST['batch']);
+
+    if ( empty($_REQUEST['size']) || intval($_REQUEST['size']) === 0 ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Missing or bad size argument in request - this argument must be an integer greater than 0";
+        exit();
+    }
+    $size = intval($_REQUEST['size']);
+
+    $returnData = array();
+
+    // Security validation
+    if ( variable_get('udm_pull_security_key', '') !== '' ) { // If we expect a security key...
+
+        // If no key provided, or the key is not matching what we expect...
+        if ( empty($_REQUEST['key']) || trim($_REQUEST['key']) !== trim(variable_get('udm_pull_security_key', '')) ) {
+            usa_data_migration_log(
+                "A request was made to pull a taxonomy-dump from a foreign host, which was REJECTED due to "
+                    ."a missing or invalid security-key."
+            );
+            @ob_end_clean();
+            while (@ob_end_clean());
+            header('Content-Type: text');
+            exit('Access Denied: Invalid security key');
+        }
+    }
+
+    // Obtain code used with the "Bundle Copy" module, to export/import taxonomy fields STRUCTURE (struct only, no field data)
+    $returnData['nodeFieldStructure_BundleImportCode'] = usa_data_migration_getExportNodeStructureCode();
+
+    // Obtain a MySQL dump of all node information - THIS DOES NOT INCLUDE FIELD DATA!
+    if ( $batch === 1 ) {
+        global $databases;
+        $dbHost = $databases['default']['default']['host'];
+        $dbUser = $databases['default']['default']['username'];
+        $dbPass = $databases['default']['default']['password'];
+        $dbDatabase = $databases['default']['default']['database'];
+        $cmd = "mysqldump -v --host={$dbHost} '--user={$dbUser}' '--password={$dbPass}' {$dbDatabase} node node_revision ";
+        $returnData['NodeDump_sqlDump'] = shell_exec($cmd);
+    }
+
+    // Obtain all node entities
+    $nids = db_query("
+        SELECT nid FROM node n 
+        WHERE n.type IN ('" . implode("', '", variable_get('udm_conttypes', array())) . "') 
+    ")->fetchCol();
+    if ( $batch > 0 ) {
+        $nids = array_slice($nids, ($size * ($batch-1)), $size);
+    }
+    $returnData['nodeEntities'] = node_load_multiple($nids);
+
+    // Obtain S3 configuration
+    if ( function_exists('_s3fs_get_config') ) {
+       $returnData['s3Config'] = _s3fs_get_config();
+    }
+
+    // Debug
+    usa_data_migration_log("A foreign host requested a node dump ({$size} nodes, batch {$batch})");
+
+    // Return data
+    if ( empty($_REQUEST['machineReadable']) || intval($_REQUEST['machineReadable']) !== 1 ) {
+
+        $html = "You are seeing this message because you did not include [?/&]machineReadable=1 in the URL-request.<br/>";
+        $html .= "The following is a Krumo/kprint_r() render of what this page outputs with the machineReadable=1 flag.<br/>";
+        $html .= "(<small>Note: If you see nothing here, then either the Devel module is not on, or you do not have "
+            ."permissions to see Krumo ouput</small>)";
+
+        if ( function_exists('kprint_r') ) {
+            $html .= kprint_r($returnData, true);
+        }
+        return $html;
+
+    } else {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        header('Content-Type: text');
+        print serialize($returnData);
+        exit();
+    }
+    
+}
+
+/*
+ * string usa_data_migration_getExportNodeStructureCode()
+ *
+ * Obtains the same code you would see when going to ~/admin/structure/types/export and 
+ * ticking desiered checkboxes on that form.
+ *
+ * This essentially is a wrapper function to _bundle_copy_export_data(), which expects to be given 
+ * Drupal-form data. This function creates/emulates the Drupal-form data and triggers that 
+ * function with the "nessesary checkboxes ticked".
+ *
+ * This function returns a string to be given to importNodeStructureWithCode(), either on 
+ * this site, or another.
+ */
+function usa_data_migration_getExportNodeStructureCode() {
+
+    $selected_bundles = variable_get('udm_conttypes', array());
+
+    $instances = array();
+    foreach ($selected_bundles as $key => $bundle) {
+        if ($key === $bundle) {
+          $instances += field_info_instances('node', $bundle);
+        }
+    }
+    ksort($instances);
+
+    $selectedFields = array();
+    foreach ( $instances as $machineName => $fieldInfo ) {
+        $selectedFields[$machineName] = $machineName;
+    }
+
+    $selected_data = array(
+        1 => array(
+            'bundles' => $selected_bundles
+        ),
+        2 => array(
+            'fields' => $selectedFields
+        ),
+    );
+
+    return _bundle_copy_export_data('node', $selected_data);
+}
+
+/*
+ * void usa_data_migration_importStructureWithCode(string $code)
+ *
+ * Submits the given code into the same form you see at ~/admin/structure/taxonomy/import
+ * ticking all checkboxes on that form.
+ *
+ * This essentially is a wrapper function to bundle_copy_import_submit(), which expects to be given 
+ * Drupal-form data. This function creates/emulates the Drupal-form data and triggers that 
+ * function.
+ */
+function usa_data_migration_importStructureWithCode($code) {
+    
+    if ( empty($_SESSION['messages']['status']) ) {
+        $restoSession = false;
+    } else {
+        $restoSession = $_SESSION['messages']['status'];
+    }
+
+    $emulatedFormState = array(
+        'values' => array(
+            'macro' => $code
+        )
+    );
+    bundle_copy_import_submit(array(), $emulatedFormState);
+
+    if ( $restoSession === false ) {
+        if ( isset($_SESSION['messages']['status']) ) {
+            unset($_SESSION['messages']['status']);
+        }
+    } else {
+        $_SESSION['messages']['status'] = $restoSession;
+    }
+}
+
+
+/**
+ *  bool/string usa_data_migration_synchNodesFromTarget()
+ *
+ * This function will attempt to pull a dump of node from the target
+ * and synch it into this environment. This function returns TRUE on success, and a 
+ * string on failure (depending on the $retTrueOnSuccess argument)
+ */
+function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSuccess = true, $batchSize = 50) {
+
+    // Debug for devs who tail the PHP error_log
+    $thisFunct = __FUNCTION__;
+    usa_data_migration_error_log("Notice: {$thisFunct} is pulling node information from {$nodeDataSource}");
+
+    $batch = 1;
+    $size = $batchSize;
+
+    // Pull data
+    $nodeDataSource .= ( strpos($nodeDataSource, '?') === false ? '?' : '&' ) . 'machineReadable=1';
+
+    // Track node changes
+    $nodeCount = 0 ;
+    $nodeUpdateCount = 0;
+    $nodeSkipCount = 0;
+
+    while ( true ) {
+
+        // Ensure we dont time out
+        set_time_limit(500);
+
+        $batchURL = $nodeDataSource . "&batch={$batch}&size={$size}";
+        $pullString = file_get_contents($batchURL);
+        $batch++; // The next run of the loop shall pull the next $size nodes
+
+        // Validate data
+        if ( $pullString === false ) {
+            $msg = "Error - {$thisFunct} could not obtain data from {$batchURL}";
+            usa_data_migration_log($msg);
+            usa_data_migration_error_log($msg);
+            return $msg;
+        }
+
+        // Typecast and validate data
+        $pullData = @unserialize($pullString);
+        unset($pullString); // free memory
+        if ( $pullData === false ) {
+            $msg = "Error - {$thisFunct} pull malformed data from {$batchURL}";
+            usa_data_migration_log($msg);
+            usa_data_migration_error_log($msg);
+            return $msg;
+        }
+
+        // Validate MySQL dump data
+        if ( isset($pullData['NodeDump_sqlDump']) ) {
+            if ( strpos($pullData['NodeDump_sqlDump'], 'MySQL dump') === false ) {
+                $msg = "Error - The data obtained from {$taxonomyDataSource} contains an invalid MySQL-Dump";
+                usa_data_migration_log($msg);
+                usa_data_migration_error_log($msg);
+                return $msg;
+            }
+        }
+
+        // Remove all data from node-fields in this environment (this is a required action if the field-structure has changed)
+        // @TODO
+        
+        // If S3 settings information was given, save them into a Drupal-var
+        if ( !empty($pullData['s3Config']) ) {
+            variable_set('cmp_s3_config', $pullData['s3Config']);
+        }
+
+        // Synch node [field] structure into this environment 
+        if ( !empty($pullData['nodeFieldStructure_BundleImportCode']) ) {
+            usa_data_migration_importStructureWithCode( $pullData['nodeFieldStructure_BundleImportCode'] );
+            taxonomy_vocabulary_static_reset();
+            taxonomy_terms_static_reset();
+        }
+
+        // Synch nodes into this environment
+        if ( isset($pullData['NodeDump_sqlDump']) ) {
+            db_query( $pullData['NodeDump_sqlDump'] );
+            db_query('UPDATE node SET uid = 1; ');
+            db_query('UPDATE node_revision SET uid = 1; ');
+            entity_get_controller('node')->resetCache();
+        }
+
+        // If there are no more nodes to synch, then break out of this loop
+        if ( !isset($pullData['nodeEntities']) || !is_array($pullData['nodeEntities']) || count($pullData['nodeEntities']) === 0 ) {
+            usa_data_migration_error_log(__FUNCTION__." broke loop on URL ".$batchURL);
+            break;
+        }
+
+        // Synch nodes (and their FIELD DATA) into this environment
+        foreach ( $pullData['nodeEntities'] as $incomingNode ) {
+
+            $nodeCount++;
+            $currentNode = node_load( $incomingNode->nid );
+
+            if ( $currentNode !== false ) {
+
+                $currentNode->uid = 1;
+                $incomingNode->uid = 1;
+
+                if ( $currentNode != $incomingNode ) {
+                    $nodeUpdateCount++;
+
+                    // Run entity-alteration code against this entity if we are configured to
+                    $entity = $incomingNode;
+                    if ( intval(variable_get('udm_alter_entities', 0)) === 1 ) {
+                        usa_data_migration_error_log('Running entity-alteration code in '.__FUNCTION__);
+                        eval( variable_get('udm_alter_entity_code') );
+                    }
+                    $incomingNode = $entity;
+
+                    node_save($incomingNode);
+                    usa_data_migration_error_log("Saved node {$incomingNode->nid}");
+                } else {
+                    $nodeSkipCount++;
+                    usa_data_migration_error_log("Skipped saving node {$incomingNode->nid}");
+                }
+
+            } else {
+                $nodeSkipCount++;
+                usa_data_migration_error_log("Skipped saving node {$incomingNode->nid}");
+            }
+        }
+        entity_get_controller('node')->resetCache(array($incomingNode->nid));
+
+    }
+
+    $msg = "{$thisFunct}() has finished importing {$nodeCount} nodes, At least {$nodeUpdateCount} nodes "
+        ." were new or updated, and at most {$nodeSkipCount} nodes were unchanged.";
+    usa_data_migration_log($msg);
+    usa_data_migration_error_log("Notice: " . $msg);
+
+    if ( $retTrueOnSuccess ) {
+        return true;
+    } else {
+        return "Notice: {$thisFunct}() has finished importing {$nodeCount} taxonomy terms, At least {$nodeUpdateCount} terms "
+        ." were new or updated, and at most {$nodeSkipCount} terms were unchanged.";
+    }
+}
+
+function usa_data_migration_rec_push_request() {
+
+    $thisFunct = __FUNCTION__;
+
+    if ( intval(variable_get('udm_do_pull', false)) === 0 ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Service not enabled";
+        exit();
+    }
+
+    // Security validation
+    if ( variable_get('udm_push_security_key', '') !== '' ) { // If we expect a security key...
+
+        // If no key provided, or the key is not matching what we expect...
+        if ( empty($_REQUEST['key']) || trim($_REQUEST['key']) !== trim(variable_get('udm_push_security_key', '')) ) {
+            usa_data_migration_log(
+                "A request was made to push a taxonomy entity into this environment, which was REJECTED due to "
+                    ."a missing or invalid security-key."
+            );
+            @ob_end_clean();
+            while (@ob_end_clean());
+            header('Content-Type: text');
+            exit('Access Denied: Invalid security key');
+        }
+    }
+
+    // Argument validation
+    if ( empty($_REQUEST['data']) ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Error - No data argument was supplied in this request";
+        exit();
+    }
+
+    // Unload content
+    $data = @unserialize($_REQUEST['data']);
+
+    // Data validation - Object given?
+    if ( $data === false || !is_object($data) ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Error - In formation supplied in the data argument appears to be malformed";
+        usa_data_migration_log("A push request was submitted with bad/malformed data - it was rejected.");
+        exit();
+    }
+
+    // Data validation - Entity type
+    if ( isset($data->tid) ^! isset($data->nid) ) { // That's a [!]("NOT") Exclusive-OR btw
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Error - I cant tell if this is a node or a taxonomy, entity...";
+        usa_data_migration_log(
+            "A push request was submitted with entity-data that " . ( isset($data->nid) ? 'had' : 'did not have' )
+                ." a nid, and " . ( isset($data->tid) ? 'had' : 'did not have' ) . " a tid. Since the entity-type "
+                ."could not be determined, this push request was rejected."
+        );
+        exit();
+    }
+
+    // If a MySQL dump was given, assimilate it
+    if ( !empty($_REQUEST['sql']) ) {
+        db_query( $_REQUEST['sql'] );
+    }
+
+    // Save entity and log
+    if ( isset($data->tid) && !isset($data->nid) ) {
+
+        // Run entity-alteration code against this entity if we are configured to
+        $entity = $data;
+        if ( intval(variable_get('udm_alter_entities', 0)) === 1 ) {
+            usa_data_migration_error_log('Running entity-alteration code in '.__FUNCTION__);
+            eval( variable_get('udm_alter_entity_code') );
+        }
+        $data = $entity;
+
+        taxonomy_term_save($data);
+        usa_data_migration_error_log("Notice: {$thisFunct}() has recieved taxonomy term {$data->tid} (\"{$data->name}\")");
+        usa_data_migration_log(
+            "A push-request was made from a foreign host and pushed term {$data->tid} (\"{$data->name}\") into "
+            ."this environment."
+        );
+        usa_data_migration_filterTaxonomy();
+        usa_data_migration_DeleteTermAndMaintainChildren();
+    } else {
+        
+        $data->uid = 1;
+
+        // Run entity-alteration code against this entity if we are configured to
+        $entity = $data;
+        if ( intval(variable_get('udm_alter_entities', 0)) === 1 ) {
+            usa_data_migration_error_log('Running entity-alteration code in '.__FUNCTION__);
+            eval( variable_get('udm_alter_entity_code') );
+        }
+        $data = $entity;
+
+        node_save($data);
+
+        usa_data_migration_error_log("Notice: {$thisFunct}() has recieved node {$data->nid} (\"{$data->title}\")");
+        usa_data_migration_log(
+            "A push-request was made from a foreign host and pushed node {$data->nid} (\"{$data->title}\") into "
+            ."this environment."
+        );
+    }
+
+    // Return success message
+    @ob_end_clean();
+    while (@ob_end_clean());
+    header('Content-Type: text');
+    exit('success');
+}
+
+function usa_data_migration_log($msg) {
+    $log = variable_get('udm_log', array());
+    $log[] = array(
+        'time' => time(),
+        'msg' => $msg
+    );
+    variable_set('udm_log', array_slice($log, -25));
+    usa_data_migration_error_log($msg);
+}
+
+function usa_data_migration_getMySQLDump($tables, $addDropTable = true, $where = '') {
+
+    global $databases;
+    $dbHost = $databases['default']['default']['host'];
+    $dbUser = $databases['default']['default']['username'];
+    $dbPass = $databases['default']['default']['password'];
+    $dbDatabase = $databases['default']['default']['database'];
+
+    $cmd = "mysqldump -v --skip-extended-insert --complete-insert ";
+    if ( !$addDropTable ) {
+        $cmd .= " --skip-add-drop-table --no-create-info ";
+    }
+    $cmd .= " --host={$dbHost} '--user={$dbUser}' '--password={$dbPass}' {$dbDatabase} {$tables}";
+    if ( $where !== '' ) {
+        $cmd .= " --where \"{$where}\" ";
+    }
+
+    return shell_exec($cmd);
+}
+
+function usa_data_migration_filterTaxonomy() {
+
+    $delCount = 0;
+    $keepTermsUnderNames = explode("\n", variable_get('udm_tax_filter_names', '') );
+    $tids = db_query("SELECT tid FROM taxonomy_term_data")->fetchCol();
+
+    foreach ($tids as $tid) {
+
+        $doKillTerm = true;
+
+        foreach ( taxonomy_get_parents_all($tid) as $termParent ) { // For each parent
+            foreach ($keepTermsUnderNames as $keepTermsUnderName) { // For each demanding term/name
+                if ( strtolower(trim($termParent->name)) === strtolower(trim($keepTermsUnderName)) ) {
+                    $doKillTerm = false;
+                    break;
+                }
+            }
+            if ( $doKillTerm === false ) {
+                break;
+            }
+        }
+
+        if ( $doKillTerm === true ) {
+            taxonomy_term_delete($tid);
+            $delCount++;
+        }
+
+    }
+
+    usa_data_migration_error_log(__FUNCTION__." has delete {$delCount} terms.");
+}
+
+function usa_data_migration_DeleteTermAndMaintainChildren($termName = '') {
+
+    // We will not run this function when this process is turned off from the module configuration 
+    if ( intval(variable_get('udm_tax_del', 0)) == 0 ) {
+        return;
+    }
+
+    // If no $termName was given, assume the term-name given from the settings of this module
+    if ( $termName === '' ) {
+        $termName = variable_get('udm_tax_del_term', '');
+    }
+
+    // We can't continue if no term-name is supplied
+    if ( $termName === '' ) {
+        usa_data_migration_error_log(__FUNCTION__." cant not function because no term was given (not even in the settings form).");
+        return;
+    }
+
+    // Lookup the term [object] based on the given name
+    $terms = array_values( taxonomy_get_term_by_name($termName) );
+    $term = $terms[0];
+
+    // Bump up each of the term's [direct] children in the hierarchy
+    foreach ( taxonomy_get_children($term->tid) as $tid => $termChild) {
+        $termChild->parent = 0; // Well just make it a root element for now
+        taxonomy_term_save($termChild);
+    }
+
+    // Delete the target term
+    taxonomy_term_delete($term->tid);
+
+    usa_data_migration_error_log(__FUNCTION__.' has completed its functionality.');
+}
+
+
+/*
+ * A wrapper function to usa_data_migration_error_log() for this module
+ */
+function usa_data_migration_error_log($msg) {
+
+    $logs = variable_get('udm_error_logs', array());
+    $logs[time()] = $msg;
+    variable_set('udm_error_logs', array_slice($logs, -100));
+
+    file_put_contents(usa_data_migration_action_log_location(), $msg, FILE_APPEND);
+
+    error_log($msg);
+}
+
+function usa_data_migration_print_action_log() {
+
+    $offset = -1;
+    if ( !empty($_REQUEST['offset']) ) {
+        $offset = intval($_REQUEST['offset']);
+    }
+
+    @ob_end_clean();
+    while (@ob_end_clean());
+
+    header('Content-Type: text');
+
+    if ( file_exists(usa_data_migration_action_log_location()) ) {
+        print file_get_contents(usa_data_migration_action_log_location(), false, null, $offset);
+    }
+
+    exit();
+}
+
+function usa_data_migration_action_log_location() {
+
+    return variable_get('udm_action_log_location', '/tmp/udm-action.log');
+
+}
+
+function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
+
+    // These alterations should only be done for user:1 (THE admin user)
+    global $user;
+    if ( empty($user->uid) || intval($user->uid) !== 1 ) {
+        return;
+    }
+
+    if ( $form_id === 'taxonomy_manager_form' && strpos(request_uri(), 'voc/site_strucutre_taxonomy') !== false ) {
+
+        // Handel form submission here
+        if ( isset($_REQUEST['op']) ) {
+
+            $changeField = false;
+            $setValue = false;
+            switch ( $_REQUEST['op'] ) {
+                case 'Set "Generate Page" field to "Yes"':
+                    $changeField = 'field_generate_page';
+                    $setValue = 'yes';
+                    break;
+                case 'Set "Generate Page" field to "No"':
+                    $changeField = 'field_generate_page';
+                    $setValue = 'no';
+                    break;
+                case 'Set "Generate Menu Item" field to "Yes"':
+                    $changeField = 'field_generate_menu';
+                    $setValue = 'yes';
+                    break;
+                case 'Set "Generate Menu Item" field to "No"':
+                    $changeField = 'field_generate_menu';
+                    $setValue = 'no';
+                    break;
+                case 'Set "Page Type" fields':
+                    if ( !empty($_REQUEST['pagetypevalue']) ) {
+                        $changeField = 'field_type_of_page_to_generate';
+                        $setValue = trim($_REQUEST['pagetypevalue']);
+                    }
+                    break;
+                default:
+                    // do nothing 
+                    break;
+            }
+
+            if ( $changeField !== false && $setValue !== false ) {
+
+                $selectedTids = usa_data_migration_form_getTaxonomyMangerTickedItems($_REQUEST['taxonomy']['manager']['tree']);
+                foreach ($selectedTids as $tid) {
+                    $term = taxonomy_term_load($tid);
+                    $term->$changeField = array(
+                        'und' => array(
+                            0 => array(
+                                'value' => $setValue
+                            )
+                        )
+                    );
+                    taxonomy_term_save($term);
+                    dsm("Set the {$changeField} field in term-{$term->tid} (\"{$term->name}\") to value; {$term->{$changeField}['und'][0]['value']}");
+                }
+            }
+
+        }
+        
+        $form['toolbar']['showbatchopts'] = array(
+            '#value' => 'Batch Operations',
+            '#theme' => 'no_submit_button',
+            '#attributes' => array(
+                'class' => 'taxonomy-manager-buttons bulk',
+                'onclick' => "jQuery('#edit-bulk').slideToggle()"
+            )
+        );
+
+        $form['toolbar']['batchoptsform'] = array(
+            '#type' => 'fieldset',
+            '#title' => 'Batch Operations',
+            '#description' => 'Note: The following operations will be applied onto taxonomy-terms whos checkboxes are '
+                .'ticked/checked (<small>in the form below</small>).<br/>Mind that <b>only</b> terms which are ticked '
+                .'will be effected - unticked child-terms to a ticked-term do <i>not</i> automatically get updated in '
+                .'a bulk-operation.<br/><br/>',
+            '#attributes' => array(
+                'style' => 'display: none;',
+                'id' => 'edit-bulk'
+            )
+        );
+
+        $form['toolbar']['batchoptsform']['genpageyes'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Page" field to "Yes"',
+        );
+        $form['toolbar']['batchoptsform']['genpageno'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Page" field to "No"',
+        );
+        $form['toolbar']['batchoptsform']['genmenuyes'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Menu Item" field to "Yes"',
+        );
+        $form['toolbar']['batchoptsform']['genmenuno'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Menu Item" field to "No"',
+        );
+
+        $form['toolbar']['batchoptsform']['batchoptsformpagetype'] = array(
+            '#type' => 'fieldset',
+            '#title' => 'Page-Type Batch-Operation',
+        );
+        $form['toolbar']['batchoptsform']['batchoptsformpagetype']['pagetypevalue'] = array(
+            '#type' => 'select',
+            '#field_prefix' => 'For all ticked/checked terms, set the "Type of page to generate" field to: ',
+            '#options' => array(
+                'generic-navigation-page' => 'Generic navigation page',
+                'generic-content-page' => 'Generic content page',
+                '50-state-page' => '50-state page',
+                'a-z-page' => 'A-Z page',
+                'more' => '“More topics” navigation page',
+                'home' => 'Home page',
+            ),
+        );
+        $form['toolbar']['batchoptsform']['batchoptsformpagetype']['pagetypeset'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Page Type" fields',
+        );
+
+    }
+
+}
+
+function usa_data_migration_form_getTaxonomyMangerTickedItems($recusiveSearch = array()) {
+
+    $ret = array();
+
+    // We expect to be given arrays only
+    if ( !is_array($recusiveSearch) ) {
+        return array();
+    }
+
+    foreach ($recusiveSearch as $key => $data) {
+
+        // If this is a leaf
+        if ( isset($data['tid']) ) {
+            if ( !empty($data['checkbox']) ) {
+                $ret[] = intval($data['checkbox']);
+            }
+        } else {
+            $ret = array_merge($ret, usa_data_migration_form_getTaxonomyMangerTickedItems($data));
+        }
+
+    }
+
+    return $ret;
+}
