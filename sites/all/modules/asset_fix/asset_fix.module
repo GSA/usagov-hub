@@ -1,0 +1,248 @@
+<?php
+
+
+
+/*
+ * array replaceHtmlRefWithTextAssetRef(int $htmlTextAssetNID, array $textAssetsNIDs)
+ *
+ * Finds all Site-Structure taxonomy terms that reference a $htmlTextAssetNID, removes that
+ * reference, and injects the given text-asset textAssetsNIDs in its place.
+ * Returns an array of term-ids that were touched.
+ */
+function replaceHtmlRefWithTextAssetRef($htmlTextAssetNID, $textAssetsNIDs) {
+
+    $ret = array();
+
+    $termIds = findSiteStructTermsThatReferenceAsset($htmlTextAssetNID);
+
+    foreach ( $termIds as $tid ) {
+
+        // Dont time out the script
+        set_time_limit(500);
+        error_log($tid);
+
+        // Load this Site-Structure term
+        $term = taxonomy_term_load($tid);
+
+        // This is a list of fields that can reference an HTML-Asset within a Site-Structure taxonomy-term
+        $htmlRefFields = array(
+            'field_asset_order_carousel',
+            'field_asset_order_content',
+            'field_asset_order_sidebar',
+            'field_asset_order_bottom',
+        );
+
+        // Search and replace any reference to the $htmlTextAssetNID node with $textAssetsNIDs
+        foreach ($htmlRefFields as $field) {
+
+            // If this field is not empty...
+            if ( empty($term->{$field}) ) {
+                continue;
+            }
+            if ( !is_array($term->{$field}) ) {
+                continue;
+            }
+            if ( count($term->{$field}) === 0 ) {
+                continue;
+            }
+            if ( !isset($term->{$field}['und']) ) {
+                continue;
+            }
+            if ( !is_array($term->{$field}['und']) ) {
+                continue;
+            }
+            if ( count($term->{$field}['und']) === 0 ) {
+                continue;
+            }
+
+            // Convert the reference array into a comma-seperated string
+            $strRefs = '';
+            foreach ($term->{$field}['und'] as $valueContainer) {
+                $strRefs .= ',' . $valueContainer['target_id'];
+            }
+
+            // Now we'll use string-replace to replace any $htmlTextAssetNID-ref to the $textAssetsNIDs-ref(s)
+            $strTextAssetsNIDs = ',' . implode(',', $textAssetsNIDs);
+            $strNewRefList = str_replace(','.$htmlTextAssetNID, $strTextAssetsNIDs, $strRefs);
+
+            // Skip this loop-iteration if nothing was changed (if there is no reference to $htmlTextAssetNID in this field)
+            if ( $strNewRefList == $strRefs ) {
+                continue;
+            }
+
+            // Now place the [altered] references back into array form, and into the [Drupal] term-object
+            $strNewRefList = ltrim($strNewRefList, ',');
+            $arrRefs = array();
+            foreach ( explode(',', $strNewRefList) as $nidReference) {
+                $arrRefs[] = array(
+                    'target_id' => $nidReference
+                );
+            }
+            $term->{$field}['und'] = $arrRefs;
+
+            // When this function returns, report that this field was toched in this taxonomy-term
+            if ( !isset($ret[$term->tid]) ) {
+                $ret[$term->tid] = array();
+            }
+            $ret[$term->tid][$field] = array(
+                'term reference-list was' => ltrim($strRefs, ','),
+                'term reference-list is now' => ltrim($strNewRefList, ','),
+            );
+        }
+
+        // Save updates to this Site-Structure term
+        taxonomy_term_save($term);
+    }
+
+    return $ret;
+}
+
+/*
+ * array findSiteStructTermsThatReferenceAsset(int $htmlAssetNid)
+ *
+ * Searches MySQL to find all taxonomy terms that reference 
+ * $htmlAssetNid in any of the "Asset Placement" fields.
+ * Returns an array of term-ids.
+ */
+function findSiteStructTermsThatReferenceAsset($htmlAssetNid) {
+
+    $ret = array();
+
+    // Tables to search
+    $tables = array(
+        "field_data_field_asset_order_carousel",
+        "field_data_field_asset_order_content",
+        "field_data_field_asset_order_sidebar",
+        "field_data_field_asset_order_bottom",
+    );
+
+    foreach ( $tables as $table ) {
+        $valueColumn = str_replace('field_data_', '', $table);
+        $results = db_query("SELECT entity_id FROM {$table} WHERE {$valueColumn}_target_id={$htmlAssetNid}");
+        foreach ( $results as $result ) {
+            $nid = $result->entity_id;
+            $ret[$nid] = $nid;
+        }
+    }
+
+    return array_values($ret);
+}
+
+function createTextAssets($arrTextAssets) {
+
+    $ret = array();
+
+    // For each individual text asset
+    foreach ( $arrTextAssets as $textAssetData ) {
+
+        // Create this new text-asset, add the new node-id to the return buffer
+        $ret[] = createTextAsset($textAssetData);
+    }
+
+    // Return an array of nids (node-IDs) that were created
+    return $ret;
+}
+
+function createTextAsset($textAssetData) {
+
+    // Load the HTML-Asset this Text-Asset is based on - we will steal field [values] from it
+    $sourceHtmlAsset = node_load( $textAssetData['based-on-nid'] );
+
+    // Build a new Drupal node
+    $node = (object) array(
+        "title" => $textAssetData['text-title'],
+        "log" => "Created by HTML-Asset fix-script, generated based on HTML-Asset {$sourceHtmlAsset->nid}",
+        "status" => 1,
+        "promote" => 0,
+        "type" => "text_content_type",
+        "language" => "en",
+        "translate" => 0,
+        "body" => array(
+            "und" => array(
+                0 => array(
+                    "value" => $textAssetData['text-content'],
+                    "summary" => null,
+                    "format" => 'filtered_html',
+                    "safe_value" => $textAssetData['text-content'],
+                    "safe_summary" => '',
+                )
+            )
+        ),
+        "field_priority" => array(
+            "und" => array(
+                0 => array(
+                    "value" => "normal"
+                )
+            )
+        ),
+        "field_language" => array(
+            "und" => array(
+                0 => array(
+                    "value" => "English"
+                )
+            )
+        ),
+        "field_asset_topic_taxonomy" => $sourceHtmlAsset->field_asset_topic_taxonomy,
+        "field_owner" => $sourceHtmlAsset->field_owner,
+        "field_notify_marketing_team" => $sourceHtmlAsset->field_notify_marketing_team,
+        "field_for_use_by" => $sourceHtmlAsset->field_for_use_by,
+    );
+
+    // Save the node
+    node_save($node);
+
+    // Triggering node_save should have added a nid field onto $node... unless there was a filure.
+    if ( empty($node->nid) ) {
+        @ob_end_clean(); @ob_end_clean(); @ob_end_clean(); 
+        print 'Criticall Error - '.__FUNCTION__.' failed to create a text-asset: ';
+        print_r($textAssetData);
+        exit();
+    }
+
+    // Return the node-id of the new save entity
+    return $node->nid;
+}
+
+function parseHtmlAsset_singleUlExclusive($nid) {
+
+    $ret = array();
+
+    // Load the HTML asset
+    $n = node_load($nid);
+    if ( $n === false ) {
+        return false;
+    }
+
+    // Get the HTML within this HTML-asset
+    if ( !isset($n->field_html['und'][0]['value']) ) {
+        return false;
+    }
+    $html = $n->field_html['und'][0]['value'];
+    //print("<textarea>{$html}</textarea>");
+
+    // Prepare to parse HTML and run XPath queries
+    $doc = new DOMDocument();
+    $doc->loadHTML($html);
+    $xpath = new DOMXPath($doc);
+
+    // Verify our expectations - only 1 UL, and 1 div.rxbodyfield, and no images
+    if ( $xpath->query('//img')->length !== 0 ) {
+        error_log('img');
+        return false;
+    }   
+    if ( $xpath->query('//ul')->length !== 1 ) {
+        error_log('ul, ' . $xpath->query('//ul')->length);
+        return false;
+    }
+    if ( $xpath->query('//div[@class="rxbodyfield"]')->length !== 1 ) {
+        error_log('div');
+        return false;
+    }
+
+    // Grab the HTML within the [first] div
+    $ret['text-title'] = $n->title;
+    $ret['text-content'] = $doc->saveHTML( $xpath->query('//ul')->item(0) );
+    $ret['based-on-nid'] = $nid;
+
+    return array($ret);
+}
