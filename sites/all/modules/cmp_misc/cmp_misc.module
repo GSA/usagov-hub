@@ -114,23 +114,26 @@ function cmp_misc_views_pre_render(&$view) {
             && is_array($view->exposed_data)
             && $view->exposed_data['machine_name'] == 'asset_topic_taxonomy')? TRUE : FALSE;
         $new_results = array();
-
+        $names=array();
+        $i=0;
         foreach($view->result as $row){
 
-                $array_tids[]=$row->tid;
-                $asset_count = _get_node_count_by_tid(array($row->tid));
+            $array_tids[]=$row->tid;
+            $asset_count = _get_node_count_by_tid(array($row->tid));
 
-                $child_topics = ($is_asset_topic) ? _get_child_terms_count_by_tid($row->tid) : 0;
+            $child_topics = ($is_asset_topic) ? _get_child_terms_count_by_tid($row->tid) : 0;
 
-                $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
-                    . $asset_count . ' Asset' . (($asset_count!=1)?'s':'')
-                    . ($is_asset_topic? (', ' . ($child_topics . ' Subtopic' . (($child_topics!=1)?'s':''))) : '')
-                    . ' )';
+            $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
+                . $asset_count . ' Asset' . (($asset_count!=1)?'s':'')
+                . ($is_asset_topic? (', ' . ($child_topics . ' Subtopic' . (($child_topics!=1)?'s':''))) : '')
+                . ' )';
 
-                $view->result[$i]->taxonomy_term_data_name = $new_title;
-                if(!in_array($new_title, $new_results)){
-                    $new_results[]=$new_title;
-                }
+            $view->result[$i]->taxonomy_term_data_name = $new_title;
+            if(!in_array($new_title, $names)){
+                $new_results[] = $view->result[$i];
+                $names[]=$new_title;
+            }
+            $i++;
         }
         $view->result=$new_results;
     }
