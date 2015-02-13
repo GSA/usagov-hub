@@ -117,7 +117,7 @@ function cmp_misc_views_pre_render(&$view) {
         foreach($view->result as $row){
 
             if (!in_array($row->tid, $array_tids)) {
-                $array_tids[]=$row->tid;
+                $array_tids[]=$row->tid;    
                 $asset_count = _get_node_count_by_tid(array($row->tid));
 
                 $child_topics = ($is_asset_topic) ? _get_child_terms_count_by_tid($row->tid) : 0;
