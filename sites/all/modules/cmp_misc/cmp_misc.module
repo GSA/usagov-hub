@@ -113,19 +113,24 @@ function cmp_misc_views_pre_render(&$view) {
         $is_asset_topic = (isset($view->exposed_data)
             && is_array($view->exposed_data)
             && $view->exposed_data['machine_name'] == 'asset_topic_taxonomy')? TRUE : FALSE;
-
+        $array_tids = array();
         foreach($view->result as $row){
-            $asset_count = _get_node_count_by_tid(array($row->tid));
 
-            $child_topics = ($is_asset_topic) ? _get_child_terms_count_by_tid($row->tid) : 0;
+            if (!in_array($row->tid, $array_tids)) {
+                $array_tids[]=$row->tid;
+                $asset_count = _get_node_count_by_tid(array($row->tid));
 
-            $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
-                . $asset_count . ' Asset' . (($asset_count!=1)?'s':'')
-                . ($is_asset_topic? (', ' . ($child_topics . ' Subtopic' . (($child_topics!=1)?'s':''))) : '')
-                . ' )';
+                $child_topics = ($is_asset_topic) ? _get_child_terms_count_by_tid($row->tid) : 0;
 
-            $view->result[$i]->taxonomy_term_data_name = $new_title;
-            $i++;
+                $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
+                    . $asset_count . ' Asset' . (($asset_count!=1)?'s':'')
+                    . ($is_asset_topic? (', ' . ($child_topics . ' Subtopic' . (($child_topics!=1)?'s':''))) : '')
+                    . ' )';
+
+                $view->result[$i]->taxonomy_term_data_name = $new_title;
+                $i++;
+            }
+
         }
     }
     elseif($view->name == 'overriden_content_report' && $view->current_display == 'overriden_content_report_page') {
