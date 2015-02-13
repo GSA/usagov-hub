@@ -129,13 +129,13 @@ function cmp_misc_views_pre_render(&$view) {
                 . ' )';
 
             $view->result[$i]->taxonomy_term_data_name = $new_title;
-            if(!in_array($new_title, $names)){
+          /*  if(!in_array($new_title, $names)){
                 $new_results[] = $view->result[$i];
                 $names[]=$new_title;
-            }
+            }*/
             $i++;
         }
-        $view->result=$new_results;
+        //$view->result=$new_results;
     }
     elseif($view->name == 'overriden_content_report' && $view->current_display == 'overriden_content_report_page') {
 
