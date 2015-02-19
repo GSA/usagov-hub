@@ -324,6 +324,7 @@ function createTextAsset($textAssetData) {
 
     // Make sure the body value does not contains disallowed tags
     $bodyValue = strip_tags($textAssetData['text-content'], '<a><strong><ul><ol><li><p><h3><h4><br>');
+    $bodyValue = str_replace('Â', '', $bodyValue);
 
     // Build a new Drupal node
     $node = (object) array(
