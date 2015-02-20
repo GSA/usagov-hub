@@ -297,6 +297,7 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 		setTimeout( function () {
 			jqThis.removeClass('must-set-val');
 			dragTblObj.hideColumns();
+			ensureEditAssetLinksExsist();
 		}, 150);
 	});
 }
@@ -323,4 +324,22 @@ function updateWeightOptionsInAssetPlacementField(fieldSelector) {
 
 	});
 
+}
+
+function ensureEditAssetLinksExsist() {
+
+	jQuery('.tabledrag-processed tr').each( function () {
+
+		var jqRow = jQuery(this);
+		if ( jqRow.find('input').length > 0 && jqRow.find('a.asset-edit-link').length == 0 ) {
+
+			var jqInput = jqRow.find('input');
+			var jqLabel = jqInput.parent().find('label');
+			
+			var linkHTML = '<a class="asset-edit-link" style="margin-left: 7px;" target="_blank" href="/node/-NODE-ID-/edit">Edit Asset</a>';
+			linkHTML = linkHTML.replace('-NODE-ID-', jqInput.attr('value'))
+
+			jQuery(linkHTML).insertAfter(jqLabel);
+		}
+	});
 }
