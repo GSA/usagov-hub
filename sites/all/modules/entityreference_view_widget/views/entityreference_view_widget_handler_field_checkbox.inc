@@ -3,7 +3,7 @@
 /**
  * Provides the checkbox field to tick the view rows and set them as field values.
  */
-class entityreference_view_widget_handler_field_checkbox extends views_handler_field {
+class entityreference_view_widget_handler_field_checkbox extends views_handler_field_entity {
   var $revision = FALSE;
 
   /**
@@ -21,11 +21,14 @@ class entityreference_view_widget_handler_field_checkbox extends views_handler_f
     // At this point, the query has already been run, so we can access the results
     // in order to get the base key value (for example, nid for nodes).
     foreach ($this->view->result as $row_index => $row) {
-      $entity_id = $this->get_value($row);
+      $entity = $this->entities[$row_index];
+      $entity_id = $entity->{$this->view->base_field};
 
       if ($this->options['ervw']['force_single']) {
         $form[$this->options['id']][$row_index] = array(
           '#type' => 'radio',
+          '#title' => check_plain(entity_label($this->entity_type, $entity)),
+          '#title_display' => $this->options['ervw']['label_display'],
           '#parents' => array($this->options['id']),
           '#return_value' => $entity_id,
         );
@@ -33,6 +36,8 @@ class entityreference_view_widget_handler_field_checkbox extends views_handler_f
       else {
         $form[$this->options['id']][$row_index] = array(
           '#type' => 'checkbox',
+          '#title' => check_plain(entity_label($this->entity_type, $entity)),
+          '#title_display' => $this->options['ervw']['label_display'],
           '#return_value' => $entity_id,
           '#default_value' => FALSE,
           '#attributes' => array('class' => array('entity-reference-view-widget-select')),
@@ -54,6 +59,7 @@ class entityreference_view_widget_handler_field_checkbox extends views_handler_f
     $options['ervw'] = array(
       'contains' => array(
         'force_single' => array('default' => FALSE),
+        'label_display' => array('default' => 'invisible'),
       ),
     );
     return $options;
@@ -74,6 +80,19 @@ class entityreference_view_widget_handler_field_checkbox extends views_handler_f
       '#title' => t('Force single'),
       '#default_value' => $this->options['ervw']['force_single'],
       '#description' => t('Check this box to restrict selection to a single value.'),
+    );
+
+    $form['ervw']['label_display'] = array(
+      '#type' => 'select',
+      '#title' => t('Label display'),
+      '#options' => array(
+        'before' => t('Before'),
+        'after' => t('After'),
+        'invisible' => t('Invisible'),
+        'attribute' => t('Attribute'),
+      ),
+      '#description' => t('Select the position of the label relative to the checkbox.'),
+      '#default_value' => $this->options['ervw']['label_display'],
     );
   }
 }

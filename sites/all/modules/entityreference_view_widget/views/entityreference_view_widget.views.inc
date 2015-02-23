@@ -16,6 +16,11 @@ function entityreference_view_widget_views_data_alter(&$data) {
           'click sortable' => FALSE,
         ),
       );
+      // Support for EFQ Views.
+      $efq = 'efq_' . $info['base table'];
+      if (isset($data[$efq]['table'])) {
+        $data[$efq]['entityreference_view_widget'] = $data[$info['base table']]['entityreference_view_widget'];
+      }
     }
   }
 }

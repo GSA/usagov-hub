@@ -8,9 +8,9 @@ stylesheets[all][] = relation_add.css
 
 files[] = tests/relation_add.test
 
-; Information added by Drupal.org packaging script on 2014-11-25
-version = "7.x-1.2+12-dev"
+; Information added by Drupal.org packaging script on 2015-01-20
+version = "7.x-1.4"
 core = "7.x"
 project = "relation_add"
-datestamp = "1416936857"
+datestamp = "1421760470"
 

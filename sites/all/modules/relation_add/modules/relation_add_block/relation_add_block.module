@@ -170,7 +170,7 @@ function relation_add_block_block_form($form, &$form_state) {
       $form['relation_options']['targets']['target_' . $i] = array(
         '#type' => 'textfield',
         '#title' => t('Endpoint @num', array('@num' => $i)),
-        '#autocomplete_path' => 'relation_add/autocomplete/' . $type . $direction . '/none',
+        '#autocomplete_path' => 'relation_add/autocomplete/' . $type . $direction . '/none' . '/all',
       );
     }
     field_attach_form('relation', $relation, $form['relation_options'], $form_state);
