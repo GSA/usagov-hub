@@ -1312,6 +1312,13 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
 
     }
 
+    // Run cleanup process
+    usa_data_migration_error_log("Cleaning up");
+    cleanup_killOrphanedNodeRevisions();
+    cleanup_killOrphanedFieldData();
+    usa_data_migration_error_log("Clean-up complete");
+
+
     $msg = "{$thisFunct}() has finished importing {$nodeCount} nodes, At least {$nodeUpdateCount} nodes "
         ." were new or updated, and at most {$nodeSkipCount} nodes were unchanged.";
     usa_data_migration_log($msg);
@@ -1575,12 +1582,6 @@ function usa_data_migration_action_log_location() {
 
 function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
 
-    // These alterations should only be done for user:1 (THE admin user)
-    global $user;
-    if ( empty($user->uid) || intval($user->uid) !== 1 ) {
-        return;
-    }
-
     if ( $form_id === 'taxonomy_manager_form' && strpos(request_uri(), 'voc/site_strucutre_taxonomy') !== false ) {
 
         // Handel form submission here
@@ -1721,5 +1722,186 @@ function usa_data_migration_form_getTaxonomyMangerTickedItems($recusiveSearch = 
 
     }
 
+    return $ret;
+}
+
+
+
+
+
+/**
+* string cssFriendlyString(string inputString[, string/array $charactersToRemove, bool forceLowerCase = true])
+*
+* alias to getEasyCompareString() since these 2 functions require the same functionality.
+* See tha function for documentation.
+*/
+if ( function_exists('cssFriendlyString') === false ) {
+   function cssFriendlyString($inputString, $charactersToRemove = ' -_/!?@#$%^&*()[]{}<>\'"', $forceLowerCase = true, $trimString = true) {
+       return getEasyCompareString($inputString, $charactersToRemove, $forceLowerCase, $trimString);
+   }
+}
+
+/**
+* string getEasyCompareString(string inputString[, string/array $charactersToRemove, bool forceLowerCase = true])
+*
+* Returns the given string with certain characters removed, and converted to lowercase if desiered.
+* This makes things easier to compare two strings in certain situations.
+*/
+if ( function_exists('getEasyCompareString') === false ) {
+   function getEasyCompareString($inputString, $charactersToRemove = " -_/\\!?@#$%^&*'\"()[]{}<>", $forceLowerCase = true, $trimString = true, $stripUnicodeCharacters = true, $replaceCharsWith = '-', $killRepeatingReplacements = true) {
+       
+       $ret = $inputString;
+       
+       if ( is_null($charactersToRemove) ) {
+           $charactersToRemove = " -_/\\!?@#$%^&*'\"()[]{}<>";
+       }
+       
+       if ( !is_array($charactersToRemove) ) {
+           $charactersToRemove = str_split($charactersToRemove);
+       }
+       $charactersToRemove[] = '%20';
+       
+       foreach ( $charactersToRemove as $charToRemove ) {
+           $ret = str_replace($charToRemove, $replaceCharsWith, $ret);
+       }
+       
+       if ( $forceLowerCase ) {
+           $ret = strtolower( $ret );
+       }
+       
+       if ( $trimString ) {
+           $ret = trim( $ret );
+       }
+       
+       if ( $stripUnicodeCharacters ) {
+           $ret = stripUnicode($ret, $replaceCharsWith);
+       }
+       
+       if ( $replaceCharsWith !== '' && $killRepeatingReplacements == true ) {
+           while ( strpos($ret, $replaceCharsWith . $replaceCharsWith) !== false ) {
+               $ret = str_replace($replaceCharsWith . $replaceCharsWith, $replaceCharsWith, $ret);
+           }
+       }
+       
+       return $ret;
+   }
+}
+
+/**
+* string stripUnicode(string $inputString)
+*
+* Returns $inputString with all Unicode characters stripped
+*/
+if ( function_exists('stripUnicode') === false ) {
+   function stripUnicode($inputString, $replaceUnicodeCharsWith = '') {
+       
+       $removeCharacters = array();
+       for ( $x = strlen($inputString) - 1 ; $x > -1 ; $x-- ) {
+           $thisChar = $inputString[$x];
+           $charCode = ord($thisChar);
+           if (
+               ( 96 < $charCode && $charCode < 123 )
+               || ( 64 < $charCode && $charCode < 91 )
+               || ( 47 < $charCode && $charCode < 58 )
+           ) {
+               // Then this is a character, a-z, A-Z, or 0-1
+           } else {
+               $removeCharacters[$thisChar] = $thisChar;
+           }
+       }
+       
+       $inputString = str_replace(array_values($removeCharacters), $replaceUnicodeCharsWith, $inputString);
+       
+       return $inputString;
+   }
+}
+
+/**
+ * void cleanup_killOrphanedNodeRevisions()
+ * 
+ * This function will remove rows from the node_revision and field_revision_body tables that 
+ * contain information about nodes that don't exist anymore. Essentially deleting needless 
+*  information that got left over from from an improper/interrupted node_delete() process. 
+ */
+function cleanup_killOrphanedNodeRevisions() {
+
+    $sql = "DELETE FROM node_revision WHERE nid NOT IN ( SELECT n.nid FROM node n )";
+    set_time_limit(800);
+    error_log($sql);
+    db_query($sql);
+    
+    $sql = "DELETE FROM field_data_body WHERE entity_id NOT IN ( SELECT n.nid FROM node n )";
+    set_time_limit(800);
+    error_log($sql);
+    db_query($sql);
+    
+    $sql = "DELETE FROM field_revision_body WHERE entity_id NOT IN ( SELECT n.nid FROM node n )";
+    set_time_limit(800);
+    error_log($sql);
+    db_query($sql);
+    
+    if ( db_table_exists('node_comment_statistics') ) {
+        $sql = "DELETE FROM node_comment_statistics WHERE nid NOT IN ( SELECT n.nid FROM node n )";
+        set_time_limit(800);
+        error_log($sql);
+        db_query($sql);
+    }
+
+}
+
+/**
+ * array cleanup_killOrphanedFieldData()
+ * 
+ * This function will remove rows from all field_revision_field_* and field_data_field_* tables 
+ * that contain information about nodes that don't exist anymore. Essentially deleting 
+ * needless information that got left over from from an improper/interrupted node_delete() 
+ * process. 
+ *
+ * This process can be very time-consuming, so you can specify how long (in seconds) this 
+ * function should continue running at maximum in the first argument passed. You can 
+ * tail -f the PHP-error-log to watch what table this process is currently working on.
+ *
+ * Returns an array of TableName => Number of rows deleted
+ */
+function cleanup_killOrphanedFieldData($maxSecondsForProcessing = 180) {
+
+    $ret = array();
+    $startTime = time();
+    
+    $sql = "DELETE FROM node_access WHERE nid NOT IN ( SELECT n.nid FROM node n )";
+    set_time_limit(800);
+    error_log($sql);
+    db_query($sql);
+    
+    // For each table in this database...
+    foreach ( db_query("SHOW TABLES") as $tbl ) { 
+        
+        set_time_limit(800);
+        $tblInfo = array_values( (array) $tbl );
+        $tbl = $tblInfo[0];
+        
+        // If this one of the field_revision_field_* or field_data_field_* tables...
+        if ( strpos($tbl, 'field_revision_field_') !== false || strpos($tbl, 'field_data_field_') !== false ) {
+        
+            // If this table has an entity_id field...
+            if ( db_field_exists($tbl, 'entity_id') ) {
+                
+                // Break out of loop if we have taken too much time processing
+                $timeTaken = time() - $startTime;
+                if ( $timeTaken > $maxSecondsForProcessing ) {
+                    break;
+                }
+                
+                // Delete orphaned field data from this table
+                $sql = "DELETE FROM {$tbl} WHERE entity_type = 'node' AND entity_id NOT IN ( SELECT nid FROM node )";
+                error_log("Running SQL Query: {$sql}");
+                set_time_limit(800);
+                $rowDeleteCount = db_query($sql)->rowCount();
+                $ret[$tbl] = $rowDeleteCount;
+                error_log("Deleted {$rowDeleteCount} rows from the {$tbl} table.");
+            }
+        }
+    }
+    
     return $ret;
 }
