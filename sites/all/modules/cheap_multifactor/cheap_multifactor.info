@@ -1,0 +1,5 @@
+name = Cheap Multifactor Solution
+description = A [temporary] cheap multifactor authentication solution 
+package = CTAC
+core = 7.x
+files[] = cheap_multifactor.module
