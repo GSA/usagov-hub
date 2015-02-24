@@ -1,0 +1,196 @@
+<?php
+
+function cheap_multifactor_form_user_login_alter( &$form, $form_state ) {
+
+    $form['emailkey'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Security key from email:',
+        '#description' => 'Please copy and paste the security-key from the email in your inbox, into this field.'
+    );
+
+    // Keep the emailkey-field hidden, the cheap_multifactor_doAuth() will force-show it when nessesary
+    drupal_add_css('.form-item-emailkey{display: none;}', 'inline');
+
+    // Call the cheap_multifactor_doAuth() function as an authentication process
+    $form['#validate'][] = 'cheap_multifactor_doAuth';
+
+}
+
+function cheap_multifactor_doAuth() {
+
+    global $keySent;
+
+    // If a previous validation function failed this form (if the user put in their user/pass wrong), bail
+    if ( count(form_get_errors()) > 0 ) {
+        return;
+    }
+
+    // Dont require email-validation with the Drupal-admin account
+    if ( !empty($_REQUEST['name']) && $_REQUEST['name'] === 'admin' ) {
+        return;
+    }
+
+    if ( empty($_REQUEST['emailkey']) ) {
+
+        // Reject the authentication this time, and for the user back onto the form
+        form_set_error(
+            'emailAuthRequiered', 
+            'A security-key has been sent to your email-address, you should recieve this mesage shortly.<br/>Once this message '
+                .'arrives in your inbox, please copy and paste the security-key into this form to complete authentication.'
+        );
+
+        // This time, we will show the "Security key from email" field in the form
+        drupal_add_css('.form-item-emailkey{display: block !important;}', 'inline');
+
+        // We shouldnt be dicks - lets preserve the value in the password field
+        drupal_add_js("jQuery(document).ready( function () { jQuery('#edit-pass').val('{$_REQUEST['pass']}') } );", 'inline');
+
+        // Generate a random key for this user
+        $authKey = cheap_multifactor_randString(24);
+        error_log($authKey);
+
+        // Send this key to the user via email
+        $emailAddress = db_query("SELECT mail FROM users WHERE name='{$_REQUEST['name']}' ")->fetchColumn();
+        cheap_multifactor_dispatchEmail(
+            $emailAddress,
+            'no-reply@usagov.platform.gsa.gov',
+            'Authentication Key',
+            "You are recieving this message as you are requesting to authenticate into {$_SERVER['HTTP_HOST']}. On "
+                ."the log-in form, please use the following key for authentication:<br/>\n<br/>\n{$authKey}"
+        );
+
+        // Remember that this is the key to expect when this user signs in
+        $userId = db_query("SELECT uid FROM users WHERE name='{$_REQUEST['name']}' ")->fetchColumn();
+        variable_set('CheapMultFacKey_'.$userId, $authKey);
+
+        return;
+    }
+
+    // If an [email] authentication key was provided...
+    if ( !empty($_REQUEST['emailkey']) ) {
+
+        $userId = db_query("SELECT uid FROM users WHERE name='{$_REQUEST['name']}' ")->fetchColumn();
+        $expectKey = trim(variable_get('CheapMultFacKey_'.$userId));
+        $givenKey = trim($_REQUEST['emailkey']);
+
+        if ( $expectKey == $givenKey ) {
+
+            // Then we are good - let the user sign in
+            return;
+
+        } else {
+
+            // Reject the authentication, sending the user back onto the form
+            form_set_error(
+                'emailAuthRequieredAgain', 
+                'Invalid EMail key provided - please make sure you supplied the <i>most recent</i> security-key '
+                    .'send to your email address.'
+            );
+
+            // We will show the "Security key from email" field in the form
+            drupal_add_css('.form-item-emailkey{display: block !important;}', 'inline');
+
+            // We shouldnt be dicks - lets preserve the value in the password field
+            drupal_add_js("jQuery(document).ready( function () { jQuery('#edit-pass').val('{$_REQUEST['pass']}') } );", 'inline');
+
+        }
+
+    }
+    
+}
+
+function cheap_multifactor_randString($length, $charset='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789')
+{
+    $str = '';
+    $count = strlen($charset);
+    while ($length--) {
+        $str .= $charset[mt_rand(0, $count-1)];
+    }
+    return $str;
+}
+
+/* I copied this from the BusinessUSA Project - This function seems to work in the CMP as well */
+function cheap_multifactor_dispatchEmail($to, $sendermail, $subject, $message, $files = array()) {
+     
+     // Debugging verbosity
+     if ( strpos($_SERVER['REQUEST_URI'], '-DEBUG-DISPATCHEMAIL-STARTFIN-WATCH-') !== false ) {
+         dsm("dispatchEmail triggered");
+     }
+     
+     // State if this message is comming from an REI environment or not
+     if ( function_exists('version_awareness_environment_isproduction') && version_awareness_environment_isproduction() !== true ) {
+         $message = 
+             '<span style="color: red;">NOTICE: The following message was dispatched from the ' . version_awareness_env() . ' environment.<br/>' . 
+             'This notice will not be prepended when the message comes from the production/staging environment</span>' . 
+             '<br/><hr/><br/>' . 
+             $message;
+     }
+     
+     ini_set('sendmail_from', $sendermail);
+     
+     // email fields: to, from, subject, and so on
+     $from = "BusinessUSA <".$sendermail.">"; 
+     $headers = "From: $sendermail";
+     if ( !function_exists('version_awareness_environment_isproduction') || version_awareness_environment_isproduction() === true ) {
+         if ( strpos(request_uri(), '-DEBUG-EMAIL-NOADDITIONALHEADERS-') === false ) {
+             $headers .= "\r\nReply-To: $sendermail";
+             $headers .= "\r\nX-Mailer: PHP/" . phpversion();
+             $headers .= "\r\nReturn-Path: $sendermail";
+         }
+     }
+  
+     // boundary 
+     $semi_rand = md5(time()); 
+     $mime_boundary = "==Multipart_Boundary_x{$semi_rand}x"; 
+  
+     // headers for attachment 
+     $headers .= "\nMIME-Version: 1.0\n" . "Content-Type: multipart/mixed;\n" . " boundary=\"{$mime_boundary}\""; 
+  
+     // multipart boundary 
+     $message = "--{$mime_boundary}\n" . "Content-Type: text/html; charset=\"iso-8859-1\"\n" .
+     "Content-Transfer-Encoding: 7bit\n\n" . $message . "\n\n"; 
+  
+     // preparing attachments
+     for ( $i = 0 ; $i < count($files) ; $i++ ) {
+         if ( is_file($files[$i]) ) {
+             $message .= "--{$mime_boundary}\n";
+             $fp =    @fopen($files[$i], "rb");
+             $data =    @fread( $fp, filesize($files[$i]) );
+             @fclose($fp);
+             $data = chunk_split( base64_encode($data) );
+             $message .= "Content-Type: application/octet-stream; name=\"".basename($files[$i])."\"\n" . 
+             "Content-Description: ".basename($files[$i])."\n" .
+             "Content-Disposition: attachment;\n" . " filename=\"".basename($files[$i])."\"; size=".filesize($files[$i]).";\n" . 
+             "Content-Transfer-Encoding: base64\n\n" . $data . "\n\n";
+         }
+     }
+     $message .= "--{$mime_boundary}--";
+     
+     if ( !function_exists('version_awareness_environment_isproduction') || version_awareness_environment_isproduction() !== true ) {
+         $returnpath = "-f" . $sendermail;
+     }
+     
+     // Dispatch email - debugging and verbosity
+     $debug['mail-arguments'] = array(
+         'to' => $to, 
+         'subject' => $subject, 
+         'message' => $message, 
+         'headers' => $headers, 
+         'returnpath' => $returnpath
+     );
+     
+     // Dispatch email - trigger the native PHP function: mail() 
+     $ok = @mail($to, $subject, $message, $headers, $returnpath);
+     $debug['mail-return'] = $ok;
+
+     // Further debug and verbosity
+     if ( strpos($_SERVER['REQUEST_URI'], '-DEBUG-DISPATCHEMAIL-VERBOSE-') !== false ) {
+         dsm($debug);
+     }
+     
+     if ( strpos($_SERVER['REQUEST_URI'], '-DEBUG-DISPATCHEMAIL-STARTFIN-WATCH-') !== false ) {
+         dsm("dispatchEmail will return $ok");
+     }
+     
+     return $debug;
+}
