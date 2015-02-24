@@ -35,7 +35,7 @@ function usa_data_migration_menu() {
         'type' => MENU_CALLBACK
     );
 
-	// Menu item to server taxonomy data from this environment to a requester
+    // Menu item to server taxonomy data from this environment to a requester
     $items['usa-data-migration/udm-cron-task'] = array(
         'title' => 'Content Pull',
         'description' => 'Returns a MySQL Taxonomy dump',
@@ -290,6 +290,10 @@ function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
  */
 function usa_data_migration_cron() {
 
+    if ( intval(variable_get('udm_do_pull', false)) === 0 ) {
+        return;
+    }
+
     $doTaxonomyPull = abs((time() - variable_get('udm_last_pull', 0))) / 60 > variable_get('udm_pull_frequency', 5);
     if ( !empty($_REQUEST['udm_force']) && intval($_REQUEST['udm_force']) === 1 ) {
         $doTaxonomyPull = 1;
@@ -455,8 +459,8 @@ function usa_data_migration_config_form() {
         drupal_set_message('Error - The self-connect test failed.', 'error');
     }
 
-	// Handel form submission here
-	if ( !empty($_REQUEST['op']) ) {
+    // Handel form submission here
+    if ( !empty($_REQUEST['op']) ) {
         switch ($_REQUEST['op']) {
             case 'Save':
 
@@ -529,7 +533,7 @@ function usa_data_migration_config_form() {
                 exit('Error - Unknown operation');
                 break;
         }
-	}
+    }
 
     // When we are the taxonomy-server, inform the admin of the taxonomy-server-URL
     if ( variable_get('udm_allow_pull', false) ) {
@@ -659,7 +663,7 @@ function usa_data_migration_config_form() {
         '#default_value' => variable_get('udm_pull_security_key', ''),
         '#size' => '75',
         '#description' => 'The URL used to pull the taxonomy information will be http://' . $_SERVER['HTTP_HOST']
-        	.'/get-taxonomy-dump?key=<b>[your-key-here]</b>',
+            .'/get-taxonomy-dump?key=<b>[your-key-here]</b>',
     );
 
     $form['serversettings']['bundlesset'] = array(
@@ -914,10 +918,10 @@ function usa_data_migration_printTaxonomyDump() {
     $returnData = array();
 
     // Security validation
-	if ( variable_get('udm_pull_security_key', '') !== '' ) { // If we expect a security key...
+    if ( variable_get('udm_pull_security_key', '') !== '' ) { // If we expect a security key...
 
         // If no key provided, or the key is not matching what we expect...
-		if ( empty($_REQUEST['key']) || trim($_REQUEST['key']) !== trim(variable_get('udm_pull_security_key', '')) ) {
+        if ( empty($_REQUEST['key']) || trim($_REQUEST['key']) !== trim(variable_get('udm_pull_security_key', '')) ) {
             usa_data_migration_log(
                 "A request was made to pull a taxonomy-dump from a foreign host, which was REJECTED due to "
                     ."a missing or invalid security-key."
@@ -925,9 +929,9 @@ function usa_data_migration_printTaxonomyDump() {
             @ob_end_clean();
             while (@ob_end_clean());
             header('Content-Type: text');
-			exit('Access Denied: Invalid security key');
-		}
-	}
+            exit('Access Denied: Invalid security key');
+        }
+    }
 
     // Obtain code used with the "Bundle Copy" module, to export/import taxonomy fields STRUCTURE (struct only, no field data)
     $returnData['taxonomyFieldStructure_BundleImportCode'] = usa_data_migration_getExportTaxonomyStructureCode();
