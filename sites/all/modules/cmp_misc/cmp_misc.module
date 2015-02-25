@@ -1,7 +1,35 @@
 <?php
 
-function cmp_misc_init() {
+/** update base_url to be https **/
+if ( empty($GLOBALS['base_url']) && !empty($_SERVER['HTTP_HOST']) )
+{
+    $GLOBALS['base_url'] = ( (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS']=='on') ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'];
+} else {
+    //header('XXX: BASE_URL ALREADY SET');
+}
 
+if ( !empty(getenv('CMP_AWS_S3_BUCKET')) ) 
+{
+    if ( empty(variable_get('s3fs_bucket')) ) 
+    {
+        variable_set( 's3fs_bucket',     getenv('CMP_AWS_S3_BUCKET') );
+        variable_set( 'amazons3_bucket', getenv('CMP_AWS_S3_BUCKET') );
+        if ( isset($GLOBALS['conf']) && isset($GLOBALS['conf']['s3fs_bucket']) )
+        {
+            $GLOBALS['conf']['s3fs_bucket'] = getenv('CMP_AWS_S3_BUCKET');
+        }
+    }
+   
+    if ( isset($_POST['s3fs_bucket']) && empty($_POST['s3fs_bucket']) )
+    {
+        $_POST['s3fs_bucket']    = getenv('CMP_AWS_S3_BUCKET');
+        $_REQUEST['s3fs_bucket'] = getenv('CMP_AWS_S3_BUCKET');
+    }
+}
+
+
+function cmp_misc_init() 
+{
     drupal_add_js(drupal_get_path('module', 'cmp_misc') .'/js/global.js');
     drupal_add_css(drupal_get_path('module', 'cmp_misc') .'/global_fix.css');
 }
@@ -9,6 +37,54 @@ function cmp_misc_init() {
 function cmp_misc_menu() {
     $items = array();
     return $items;
+}
+
+/* Implements HOOK_user_login
+ *
+ * When a user successfully logs into the CMP/Data-Entry site, set a 
+ * top-domain cookie. This cookie will be used to inform a child-site 
+ * (when the user navigates to it), that this is an authenticated user
+ * [with the CMP site]
+ */
+function cmp_misc_user_login($edit, $account) {
+
+    error_log(
+        "User {$account->name} has logged into the CMP, setting a cookie in this"
+            ."user's browser to state they should be admin-links on child-sites."
+    );
+
+    /* I'll programtically detect the top-devel-domain here so this works on our 
+    Stage environments */
+    $hostnameParts = explode('.', $_SERVER['HTTP_HOST']);
+    $topLevelDomainName = '.' . array_pop($hostnameParts); // .gov
+    $topLevelDomainName = array_pop($hostnameParts) . $topLevelDomainName; // usa.gov
+
+    // Set cookie saying this user is autheticate with the CMP
+    $secondsInOneDay = 86400;
+    setcookie (
+        'cmp-authenticated', /* cookie name */
+        'yes', /* cookie value */
+        time()+$secondsInOneDay, /* cookie-expiry time */
+        '/', /* cookie shall be available on all pages */
+        $topLevelDomainName /* cookie shall be available on all usa.gov subdomains */
+    );
+
+    // Collect which roles this user has 
+    $roles = array();
+    if ( !empty($account->roles) && is_array($account->roles) && count($account->roles) > 0 ) {
+        $roles = $account->roles;
+    }
+
+    // Set a cookie stating what roles this user has on the CMP
+    $secondsInOneDay = 86400;
+    setcookie (
+        'cmp-roles', /* cookie name */
+        implode(',', $roles), /* cookie value */
+        time()+$secondsInOneDay, /* cookie-expiry time */
+        '/', /* cookie shall be available on all pages */
+        $topLevelDomainName /* cookie shall be available on all usa.gov subdomains */
+    );
+
 }
 
 function _get_node_count_by_tid($tids){
@@ -85,8 +161,12 @@ function cmp_misc_views_pre_render(&$view) {
         $is_asset_topic = (isset($view->exposed_data)
             && is_array($view->exposed_data)
             && $view->exposed_data['machine_name'] == 'asset_topic_taxonomy')? TRUE : FALSE;
-
+        $new_results = array();
+        $names=array();
+        $i=0;
         foreach($view->result as $row){
+
+            $array_tids[]=$row->tid;
             $asset_count = _get_node_count_by_tid(array($row->tid));
 
             $child_topics = ($is_asset_topic) ? _get_child_terms_count_by_tid($row->tid) : 0;
@@ -97,8 +177,13 @@ function cmp_misc_views_pre_render(&$view) {
                 . ' )';
 
             $view->result[$i]->taxonomy_term_data_name = $new_title;
+          /*  if(!in_array($new_title, $names)){
+                $new_results[] = $view->result[$i];
+                $names[]=$new_title;
+            }*/
             $i++;
         }
+        //$view->result=$new_results;
     }
     elseif($view->name == 'overriden_content_report' && $view->current_display == 'overriden_content_report_page') {
 

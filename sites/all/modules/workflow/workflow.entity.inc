@@ -169,12 +169,18 @@ function workflow_entity_property_info_alter(&$info) {
     'getter callback' => '_workflow_metadata_workflow_get_properties',
   );
   unset($info['Workflow']['properties']['tab_roles']['description']);
+    /*
   $info['Workflow']['properties']['tab_roles'] += array(
     'type' => 'list<integer>',
     'label' => t("User roles"),
     'description' => t("The roles that can access the Workflow History tab."),
     'getter callback' => '_workflow_metadata_workflow_get_properties',
   );
+    */
+  $info['Workflow']['properties']['tab_roles']['type'] = 'list<integer>';
+  $info['Workflow']['properties']['tab_roles']['label'] = t("User roles");
+  $info['Workflow']['properties']['tab_roles']['description'] = t("The roles that can access the Workflow History tab.");
+  $info['Workflow']['properties']['tab_roles']['getter callback'] = '_workflow_metadata_workflow_get_properties';
 
   // Properties for WorkflowState.
   $info['WorkflowState']['properties']['wid']['type'] = 'Workflow';
