@@ -80,15 +80,18 @@ function usasearch_field_field_is_empty($item, $field) {
 function usasearch_field_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
 
   $element = array();
+  list($id, $vid, $bundle) = entity_extract_ids($entity_type, $entity);
+  $field_name = $field['field_name'];
+
   switch ($display['type']) {
     case 'usasearch_field_affiliate_formatter':
       foreach ($items as $delta => $item) {
 
         module_load_include('inc', 'search', 'search.pages');
         // We pass the string 'usasearch_field' as a build argument so that
-        // subsequent form_alter() implementation can recognize that this form
-        // was built by the usasearch_field module.
-        $form = drupal_get_form('search_block_form', NULL, NULL, NULL, NULL, 'usasearch_field', $item['usasearch_field_affiliate']);
+        // subsequent form_alter() implementation can utilize it.
+        $form_id = 'usasearch_field_search_box_' . $id . '_' . $field_name . '_' . $delta;
+        $form = drupal_get_form($form_id, NULL, NULL, NULL, NULL, 'usasearch_field', $item['usasearch_field_affiliate']);
         $element[$delta] = $form;
       }
       break;
@@ -103,13 +106,32 @@ function usasearch_field_field_formatter_view($entity_type, $entity, $field, $in
  */
 function usasearch_field_form_alter(&$form, &$form_state, $form_id) {
   // Search block and search box have similar form structure.
-  if ($form_id == 'search_block_form' || $form_id == 'search_theme_form' || $form_id == 'search_form') {
+  if (strpos($form_id, 'usasearch_field_search_box_') !== FALSE) {
     if (!empty($form_state['build_info']['args'][4]) && $form_state['build_info']['args'][4] == 'usasearch_field') {
-      $form['affiliate']['#value'] = $form_state['build_info']['args'][5];
-      $form['search_block_form']['#attributes']['placeholder'] = t('Search');
-      unset($form['search_block_form']['#title']);
+      $form['affiliate'] = array(
+        '#type' => 'hidden',
+        '#value' => $form_state['build_info']['args'][5],
+      );
+      $form[$form_id]['#attributes']['placeholder'] = t('Search');
+      unset($form[$form_id]['#title']);
+
+      // Add our own validation callback to tbe beginning of #validate array.
+      array_unshift($form['#validate'], 'usasearch_field_form_validate');
+
+      // Add our own submit handler.
+      $form['#submit'][] = 'usasearch_field_form_submit';
     }
   }
+}
+
+/**
+ * Validation callback for usasearch_field_form_alter() forms.
+ */
+function usasearch_field_form_validate($form, &$form_state) {
+  // This is done to prevent search_box_form_submit()'s validation from
+  // breaking.
+  $form_id = $form['#form_id'];
+  $form_state['values']['search_block_form'] = $form_state['values'][$form_id];
 }
 
 /**
@@ -120,10 +142,27 @@ function usasearch_field_form_submit($form, &$form_state) {
   if (module_exists('usasearch_api') && !empty($form['affiliate']['#value'])) {
     $form_state['redirect'] = array(
       $form_state['redirect'],
-      array('query' => array(
-        'affiliate' => $form['affiliate']['#value'],
+      array(
+        'query' => array(
+          'affiliate' => $form['affiliate']['#value'],
         ),
       ),
     );
   }
+}
+
+/**
+ * Implements hook_forms().
+ */
+function usasearch_field_forms($form_id, $args) {
+  $forms = array();
+
+  if (strpos($form_id, 'usasearch_field_search_box_') !== FALSE) {
+    $forms[$form_id] = array(
+      'callback' => 'search_box',
+      'callback arguments' => array($form_id),
+    );
+  }
+
+  return $forms;
 }
