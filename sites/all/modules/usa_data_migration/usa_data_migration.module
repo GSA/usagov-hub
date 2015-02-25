@@ -75,7 +75,7 @@ function usa_data_migration_menu() {
     $items['udm-spawn-push-thread'] = array(
         'title' => 'udm-spawn-push-thread',
         'description' => 'udm-spawn-push-thread',
-        'page callback' => 'usa_data_migration_spawnPushThread_callback',
+        'page callback' => 'usa_data_migration_schedualEntityPush_callback',
         'access callback' => true,
         'type' => MENU_CALLBACK
     );
@@ -83,78 +83,63 @@ function usa_data_migration_menu() {
     return $items;
 }
 
-function usa_data_migration_spawnPushThread($entity) {
+function usa_data_migration_init() {
 
-    // Bail if we are not setup as the content-server
-    if ( intval(variable_get('udm_do_push', false)) === 0 ) {
-        return;
-    }
+    if ( !empty($_SESSION['udm_push_eid']) && !empty($_SESSION['udm_push_type']) ) {
 
-    global $pushEntity;
-    $pushEntity = $entity;
-
-    register_shutdown_function( function () {
-
-        global $pushEntity;
-
-        $eid = false;
-        if ( !empty($pushEntity->nid) ) {
-            $eid = $pushEntity->nid;
-            $etype = 'node';
-        }
-        if ( !empty($pushEntity->tid) ) {
-            $eid = $pushEntity->tid;
-            $etype = 'node';
-        }
-
-        // Data validation
-        if ( $eid === false ) {
-            error_log("Error in ".__FUNCTION__."(), bad data supplied.");
-            return;
-        }
-
-        // Spawn thread
-        $threadSpwningURL = "http://{$_SERVER['HTTP_HOST']}/udm-spawn-push-thread?eid={$eid}&etype={$etype}";
-        $descriptorspec = array(
-           0 => array("pipe", "r"),  // stdin is a pipe that the child will read from
-           1 => array("pipe", "w"),  // stdout is a pipe that the child will write to
-           2 => array("pipe", "r") // stderr is a file to write to
+        $eid = $_SESSION['udm_push_eid'];
+        $etype = $_SESSION['udm_push_type'];
+        drupal_add_js(
+            "
+                jQuery(document).ready( function () {
+                    jQuery.get('/udm-spawn-push-thread?eid={$eid}&etype={$etype}');
+                })
+            ",
+            "inline"
         );
-        $pipes = array();
-        error_log('curl "'.$threadSpwningURL.'"');
-        proc_open('curl "'.$threadSpwningURL.'"', $descriptorspec, $pipes);
-
-    });
+        unset($_SESSION['udm_push_eid']);
+        unset($_SESSION['udm_push_type']);
+    }
 
 }
 
-/* void usa_data_migration_spawnPushThread_callback()
+function usa_data_migration_schedualEntityPush($entity) {
+
+    $eid = false;
+    if ( !empty($entity->nid) ) {
+        $eid = $entity->nid;
+        $etype = 'node';
+    }
+    if ( !empty($entity->tid) ) {
+        $eid = $entity->tid;
+        $etype = 'node';
+    }
+
+    // Data validation
+    if ( $eid === false ) {
+        error_log("Error in ".__FUNCTION__."(), bad data supplied.");
+        return;
+    }
+
+    $_SESSION['udm_push_eid'] = $eid;
+    $_SESSION['udm_push_type'] = $etype;
+
+}
+
+/* void usa_data_migration_schedualEntityPush_callback()
  *
  * Called by menu-router, ON THE CMP
  */
-function usa_data_migration_spawnPushThread_callback() {
+function usa_data_migration_schedualEntityPush_callback() {
 
     // Destroy any previously rendered/prepared response
     @ob_end_clean(); @ob_end_clean();
     while (@ob_end_flush());
 
-    $msg = 'thread spawned';
-
     // Validation
     if ( empty($_GET['eid']) || intval($_GET['eid']) === 0 || empty($_GET['etype']) ) {
         exit('Error - missing or invalid; eid or etype, parameters in HTTP-GET query');
     }
-
-    // Setup-connection death
-    ignore_user_abort();
-    header("Connection: close");
-    header("Content-Length: ".strlen($msg));
-
-    // Print and flush
-    print $msg."..........";
-    @ob_end_flush(); @ob_end_flush();
-    while (@ob_end_flush());
-    flush();
 
     // Load the target entity (node or tax-term)
     $edi = intval($_GET['eid']);
@@ -167,8 +152,6 @@ function usa_data_migration_spawnPushThread_callback() {
 
     // Push the entity to child site(s)
     usa_data_migration_pushEntity($entity);
-
-    sleep(10);
 
 }
 
@@ -341,28 +324,28 @@ function usa_data_migration_execute() {
  * Implements HOOK_taxonomy_term_update
  */
 function usa_data_migration_taxonomy_term_update($term) {
-    usa_data_migration_spawnPushThread($term);
+    usa_data_migration_schedualEntityPush($term);
 }
 
 /*
  * Implements HOOK_taxonomy_term_update
  */
 function usa_data_migration_taxonomy_term_insert($term) {
-    usa_data_migration_spawnPushThread($term);
+    usa_data_migration_schedualEntityPush($term);
 }
 
 /*
  * Implements HOOK_node_update
  */
 function usa_data_migration_node_update($node) {
-    usa_data_migration_spawnPushThread($node);
+    usa_data_migration_schedualEntityPush($node);
 }
 
 /*
  * Implements HOOK_node_insert
  */
 function usa_data_migration_node_insert($node) {
-    usa_data_migration_spawnPushThread($node);
+    usa_data_migration_schedualEntityPush($node);
 }
 
 /*
@@ -376,6 +359,7 @@ function usa_data_migration_pushEntity($entity) {
 
     // Bail if we are not setup as the content-server
     if ( intval(variable_get('udm_do_push', false)) === 0 ) {
+        error_log('no push');
         return;
     }
 
