@@ -87,7 +87,14 @@ function cmp_misc_views_api() {
         'template path' => drupal_get_path('module', 'cmp_misc') . '/templates',
     );
 }
-function cmp_misc_views_pre_execute(&$view){
+function cmp_misc_views_pre_execute(&$view)
+{
+    /* needed for possible complex drafts check: if is_owner OR is_draft_creator OR is_author
+    if ( $view->name == 'workbench_moderation' && $view->dispaly_name=='drafts_page' )
+    {
+        $view->query->where[0]['type'] = 'OR';
+    }
+    */
 }
 function cmp_misc_views_pre_render(&$view) {
     $i = 0;
