@@ -1,0 +1,80 @@
+<?php
+
+function asset_topic_placement_init() {
+
+    // On any taxonomy edit-page or site_strucutre_taxonomy adding-page...
+    if ( 
+        strpos(request_uri(), 'taxonomy/term/') !== false && strpos(request_uri(), '/edit') !== false 
+        || strpos(request_uri(), '/admin/structure/taxonomy/site_strucutre_taxonomy/add') !== false
+        || strpos(request_uri(), '/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy') !== false
+    ) {
+
+        // Include asset_topic_placement.js
+        drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/jquery.waituntilexists.js', 'file');
+        drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement.js', 'file');
+        drupal_add_css(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement.css', 'file');
+
+    }
+}
+
+/*
+ * Implements HOOK_menu()
+ */
+function asset_topic_placement_menu() {
+    $items = array();
+    
+    // Configuration page
+    $items['atm/get-nodes-under-topics'] = array(
+        'title' => 'Get Nodes Under Topics',
+        'description' => 'AJAX return for nodes under given Asset-Topics',
+        'page callback' => 'asset_topic_placement_ajaxReturnNodesUnderTopics',
+        'access arguments' => array(true),
+        'type' => MENU_CALLBACK
+    );
+
+    return $items;
+}
+
+function asset_topic_placement_ajaxReturnNodesUnderTopics() {
+
+    @ob_end_clean();
+    while (@ob_end_clean());
+    header('Content-Type: application/json');
+
+    // Obtain terms argument
+    if ( empty($_REQUEST['terms']) ) {
+        exit('Error - no terms argument supplied');
+    }
+
+    // MySQL string sanitization 
+    $terms = explode(',', $_REQUEST['terms']);
+    $msqlTerms = array();
+    foreach ( $terms as $term ) {
+        $msqlTerms[] = intval($term);
+    }
+    $msqlTerms = implode(',', $msqlTerms);
+
+    /* Get all node-ids that are associated with the given Asset-Topic terms, based
+     on the information in the field_data_field_asset_topic_taxonomy table */
+    $nids = db_query("
+        SELECT entity_id 
+        FROM field_data_field_asset_topic_taxonomy 
+        WHERE field_asset_topic_taxonomy_tid IN ({$msqlTerms})
+    ")->fetchCol();
+    $nids = implode(',', $nids);
+    if ( trim($nids) === '' ) {
+        print '[]';
+        exit();
+    }
+
+    // Get information on these nodes
+    $nodes = db_query("
+        SELECT nid, title, type
+        FROM node n 
+        WHERE n.nid IN ($nids)
+    ")->fetchAll();
+
+    print json_encode($nodes);
+
+    exit();
+}
