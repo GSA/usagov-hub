@@ -85,6 +85,11 @@ function usa_data_migration_menu() {
 
 function usa_data_migration_spawnPushThread($entity) {
 
+    // Bail if we are not setup as the content-server
+    if ( intval(variable_get('udm_do_push', false)) === 0 ) {
+        return;
+    }
+
     global $pushEntity;
     $pushEntity = $entity;
 
@@ -1219,7 +1224,8 @@ function usa_data_migration_printNodeDump() {
         $dbUser = $databases['default']['default']['username'];
         $dbPass = $databases['default']['default']['password'];
         $dbDatabase = $databases['default']['default']['database'];
-        $cmd = "mysqldump -v --host={$dbHost} '--user={$dbUser}' '--password={$dbPass}' {$dbDatabase} node node_revision ";
+        $noDrpCmd = ( empty($_GET['nodrop']) || intval($_GET['nodrop']) === 0 ? '' : '--no-create-info --insert-ignore --skip-add-locks' );
+        $cmd = "mysqldump -v {$noDrpCmd} --host={$dbHost} '--user={$dbUser}' '--password={$dbPass}' {$dbDatabase} node node_revision workbench_moderation_node_history file_managed s3fs_file ";
         $returnData['NodeDump_sqlDump'] = shell_exec($cmd);
     }
 
