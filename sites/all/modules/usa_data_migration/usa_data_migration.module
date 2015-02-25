@@ -279,10 +279,14 @@ function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
             $pageType = $term->field_type_of_page_to_generate['und'][0]['value'];
         }
 
-        $element['checkbox']['#field_suffix'] = '<span  class="exta-info"> - '
-            .( $genMenu ? 'Generates <b>Menu Item</b>. ' : '' )
-            .( $genPage ? 'Generates <b>'.$pageType.'</b> page. ' : ( $genMenu ? 'Points to '.$friendlyURL : '' ) )
-            .'</span>';
+        /*$element['checkbox']['#field_suffix'] = '<span  class="exta-info"> - '
+            .( $genmenu ? 'generates <b>menu item</b>. ' : '' )
+            .( $genpage ? 'generates <b>'.$pagetype.'</b> page. ' : ( $genmenu ? 'points to '.$friendlyurl : '' ) )
+            .'</span>';*/
+        $element['checkbox']['#field_suffix'] = ($genMenu||$genPage?'<span  class="exta-info" style="font-size:90%;opacity:0.6;">':'')
+            .( $genMenu ? 'm' : '' )
+            .( $genPage ? 'p' : '' )
+            .($genMenu||$genPage?'</span>':'');
     }
 
   print drupal_json_output(array('data' => drupal_render($child_form)));
