@@ -97,8 +97,6 @@ function usa_data_migration_init() {
             ",
             "inline"
         );
-        unset($_SESSION['udm_push_eid']);
-        unset($_SESSION['udm_push_type']);
     }
 
 }
@@ -135,6 +133,10 @@ function usa_data_migration_schedualEntityPush_callback() {
     // Destroy any previously rendered/prepared response
     @ob_end_clean(); @ob_end_clean();
     while (@ob_end_flush());
+
+    // Clear
+    unset($_SESSION['udm_push_eid']);
+    unset($_SESSION['udm_push_type']);
 
     // Validation
     if ( empty($_GET['eid']) || intval($_GET['eid']) === 0 || empty($_GET['etype']) ) {
@@ -346,6 +348,13 @@ function usa_data_migration_node_update($node) {
  */
 function usa_data_migration_node_insert($node) {
     usa_data_migration_schedualEntityPush($node);
+}
+
+/*
+ * Implements HOOK_workbench_moderation_transition
+ */
+function usa_data_migration_workbench_moderation_transition($entity, $fromState, $toState) {
+    usa_data_migration_schedualEntityPush($entity);
 }
 
 /*
