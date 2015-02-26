@@ -35,7 +35,7 @@ function usa_data_migration_menu() {
         'type' => MENU_CALLBACK
     );
 
-	// Menu item to server taxonomy data from this environment to a requester
+    // Menu item to server taxonomy data from this environment to a requester
     $items['usa-data-migration/udm-cron-task'] = array(
         'title' => 'Content Pull',
         'description' => 'Returns a MySQL Taxonomy dump',
@@ -62,7 +62,130 @@ function usa_data_migration_menu() {
         'type' => MENU_CALLBACK
     );
 
+    // Menu item for a mini unit-tets
+    $items['udm-self-connection-test'] = array(
+        'title' => 'udm-self-connection-test',
+        'description' => 'udm-self-connection-test',
+        'page callback' => 'usa_data_migration_self_connection_test_callback',
+        'access callback' => true,
+        'type' => MENU_CALLBACK
+    );
+
+    // Menu item for a mini unit-tets
+    $items['udm-spawn-push-thread'] = array(
+        'title' => 'udm-spawn-push-thread',
+        'description' => 'udm-spawn-push-thread',
+        'page callback' => 'usa_data_migration_schedualEntityPush_callback',
+        'access callback' => true,
+        'type' => MENU_CALLBACK
+    );
+
     return $items;
+}
+
+function usa_data_migration_init() {
+
+    if ( !empty($_SESSION['udm_push_eid']) && !empty($_SESSION['udm_push_type']) ) {
+
+        $eid = $_SESSION['udm_push_eid'];
+        $etype = $_SESSION['udm_push_type'];
+        drupal_add_js(
+            "
+                jQuery(document).ready( function () {
+                    jQuery.get('/udm-spawn-push-thread?eid={$eid}&etype={$etype}');
+                })
+            ",
+            "inline"
+        );
+    }
+
+}
+
+function usa_data_migration_schedualEntityPush($entity) {
+
+    $eid = false;
+    if ( !empty($entity->nid) ) {
+        $eid = $entity->nid;
+        $etype = 'node';
+    }
+    if ( !empty($entity->tid) ) {
+        $eid = $entity->tid;
+        $etype = 'term';
+    }
+
+    // Data validation
+    if ( $eid === false ) {
+        error_log("Error in ".__FUNCTION__."(), bad data supplied.");
+        return;
+    }
+
+    $_SESSION['udm_push_eid'] = $eid;
+    $_SESSION['udm_push_type'] = $etype;
+
+}
+
+/* void usa_data_migration_schedualEntityPush_callback()
+ *
+ * Called by menu-router, ON THE CMP
+ */
+function usa_data_migration_schedualEntityPush_callback() {
+
+    // Destroy any previously rendered/prepared response
+    @ob_end_clean(); @ob_end_clean();
+    while (@ob_end_flush());
+
+    // Clear
+    unset($_SESSION['udm_push_eid']);
+    unset($_SESSION['udm_push_type']);
+
+    // Validation
+    if ( empty($_GET['eid']) || intval($_GET['eid']) === 0 || empty($_GET['etype']) ) {
+        exit('Error - missing or invalid; eid or etype, parameters in HTTP-GET query');
+    }
+
+    // Load the target entity (node or tax-term)
+    $edi = intval($_GET['eid']);
+    if ( $_GET['etype'] === 'node' ) {
+        $entity = node_load($edi);
+    }
+    if ( $_GET['etype'] === 'term' ) {
+        $entity = taxonomy_term_load($edi);
+    }
+
+    // Push the entity to child site(s)
+    usa_data_migration_pushEntity($entity);
+
+}
+
+function usa_data_migration_self_connection_test_callback() {
+    while (@ob_end_clean());
+    print variable_get('udm_conn_selftest', '-NO-VALUE-');
+    exit();
+}
+
+/* bool usa_data_migration_doSelfConnectionTest()
+ * 
+ * Tests to see if this environment can connec to itself [for the sake of spawning PHP threads]
+ */
+function usa_data_migration_doSelfConnectionTest() {
+
+    // Create new token (random string)
+    $token = uniqid();
+    variable_set('udm_conn_selftest', $token);
+    
+    // How can I connect to myself?
+    $selfConnectURL = "http://{$_SERVER['HTTP_HOST']}/udm-self-connection-test";
+    //error_log($selfConnectURL);
+
+    // Try self-connecting
+    $retrievedToken = file_get_contents($selfConnectURL);
+    if ( trim($retrievedToken) != trim($token) ) {
+        return false;
+    } else {
+        error_log('Self-connect test succeeded');
+        return true;
+    }
+
 }
 
 function usa_data_migration_menu_alter(&$items) {
@@ -141,10 +264,14 @@ function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
             $pageType = $term->field_type_of_page_to_generate['und'][0]['value'];
         }
 
-        $element['checkbox']['#field_suffix'] = '<span  class="exta-info"> - '
-            .( $genMenu ? 'Generates <b>Menu Item</b>. ' : '' )
-            .( $genPage ? 'Generates <b>'.$pageType.'</b> page. ' : ( $genMenu ? 'Points to '.$friendlyURL : '' ) )
-            .'</span>';
+        /*$element['checkbox']['#field_suffix'] = '<span  class="exta-info"> - '
+            .( $genmenu ? 'generates <b>menu item</b>. ' : '' )
+            .( $genpage ? 'generates <b>'.$pagetype.'</b> page. ' : ( $genmenu ? 'points to '.$friendlyurl : '' ) )
+            .'</span>';*/
+        $element['checkbox']['#field_suffix'] = ($genMenu||$genPage?'<span  class="exta-info" style="font-size:90%;opacity:0.6;">':'')
+            .( $genMenu ? 'm' : '' )
+            .( $genPage ? 'p' : '' )
+            .($genMenu||$genPage?'</span>':'');
     }
 
   print drupal_json_output(array('data' => drupal_render($child_form)));
@@ -156,6 +283,10 @@ function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
  * Implements HOOK_cron()
  */
 function usa_data_migration_cron() {
+
+    if ( intval(variable_get('udm_do_pull', false)) === 0 ) {
+        return;
+    }
 
     $doTaxonomyPull = abs((time() - variable_get('udm_last_pull', 0))) / 60 > variable_get('udm_pull_frequency', 5);
     if ( !empty($_REQUEST['udm_force']) && intval($_REQUEST['udm_force']) === 1 ) {
@@ -195,28 +326,35 @@ function usa_data_migration_execute() {
  * Implements HOOK_taxonomy_term_update
  */
 function usa_data_migration_taxonomy_term_update($term) {
-    usa_data_migration_pushEntity($term);
+    usa_data_migration_schedualEntityPush($term);
 }
 
 /*
  * Implements HOOK_taxonomy_term_update
  */
 function usa_data_migration_taxonomy_term_insert($term) {
-    usa_data_migration_pushEntity($term);
+    usa_data_migration_schedualEntityPush($term);
 }
 
 /*
  * Implements HOOK_node_update
  */
 function usa_data_migration_node_update($node) {
-    usa_data_migration_pushEntity($node);
+    usa_data_migration_schedualEntityPush($node);
 }
 
 /*
  * Implements HOOK_node_insert
  */
 function usa_data_migration_node_insert($node) {
-    usa_data_migration_pushEntity($node);
+    usa_data_migration_schedualEntityPush($node);
+}
+
+/*
+ * Implements HOOK_workbench_moderation_transition
+ */
+function usa_data_migration_workbench_moderation_transition($entity, $fromState, $toState) {
+    usa_data_migration_schedualEntityPush($entity);
 }
 
 /*
@@ -230,6 +368,7 @@ function usa_data_migration_pushEntity($entity) {
 
     // Bail if we are not setup as the content-server
     if ( intval(variable_get('udm_do_push', false)) === 0 ) {
+        error_log('no push');
         return;
     }
 
@@ -309,7 +448,7 @@ function usa_data_migration_pushEntity($entity) {
             );
         } else {
             usa_data_migration_log(
-                "{$entityType} (\"$entity->name\") was updated on this environment, and "
+                "{$entityType} (\"$entityTitle\") was updated on this environment, and "
                     ."was pushed to {$target}"
             );
         }
@@ -318,8 +457,12 @@ function usa_data_migration_pushEntity($entity) {
 
 function usa_data_migration_config_form() {
 
-	// Handel form submission here
-	if ( !empty($_REQUEST['op']) ) {
+    if ( !usa_data_migration_doSelfConnectionTest() ) {
+        drupal_set_message('Error - The self-connect test failed.', 'error');
+    }
+
+    // Handel form submission here
+    if ( !empty($_REQUEST['op']) ) {
         switch ($_REQUEST['op']) {
             case 'Save':
 
@@ -331,6 +474,7 @@ function usa_data_migration_config_form() {
                 if ( empty($_REQUEST['udm_alter_entities']) ) { $_REQUEST['udm_alter_entities'] = 0; }
                 if ( empty($_REQUEST['udm_tax_dofilter']) ) { $_REQUEST['udm_tax_dofilter'] = 0; }
                 if ( empty($_REQUEST['udm_tax_del']) ) { $_REQUEST['udm_tax_del'] = 0; }
+                if ( empty($_REQUEST['udm_destroy_b4consume']) ) { $_REQUEST['udm_destroy_b4consume'] = 0; }
 
                 variable_set('udm_allow_pull', $_REQUEST['udm_allow_pull']);
                 variable_set('udm_pull_security_key', $_REQUEST['udm_pull_security_key']);
@@ -349,6 +493,7 @@ function usa_data_migration_config_form() {
                 variable_set('udm_tax_filter_names', $_REQUEST['udm_tax_filter_names']);
                 variable_set('udm_tax_del', $_REQUEST['udm_tax_del']);
                 variable_set('udm_tax_del_term', $_REQUEST['udm_tax_del_term']);
+                variable_set('udm_destroy_b4consume', $_REQUEST['udm_destroy_b4consume']);
 
                 if ( isset($_REQUEST['udm_conttypes']) ) {
                     $opts = array();
@@ -373,7 +518,7 @@ function usa_data_migration_config_form() {
             case 'Pull Nodes Now':
                 ini_set('error_reporting', E_ALL);
                 $target = variable_get('udm_pull_from_nodetarget');
-                $ret = usa_data_migration_synchNodesFromTarget($target, false);
+                $ret = usa_data_migration_synchNodesFromTarget($target, false, 50);
                 drupal_set_message(
                     'usa_data_migration_synchNodesFromTarget() returned: ' . $ret,
                     'status'
@@ -390,7 +535,7 @@ function usa_data_migration_config_form() {
                 exit('Error - Unknown operation');
                 break;
         }
-	}
+    }
 
     // When we are the taxonomy-server, inform the admin of the taxonomy-server-URL
     if ( variable_get('udm_allow_pull', false) ) {
@@ -520,7 +665,7 @@ function usa_data_migration_config_form() {
         '#default_value' => variable_get('udm_pull_security_key', ''),
         '#size' => '75',
         '#description' => 'The URL used to pull the taxonomy information will be http://' . $_SERVER['HTTP_HOST']
-        	.'/get-taxonomy-dump?key=<b>[your-key-here]</b>',
+            .'/get-taxonomy-dump?key=<b>[your-key-here]</b>',
     );
 
     $form['serversettings']['bundlesset'] = array(
@@ -629,6 +774,15 @@ function usa_data_migration_config_form() {
         '#size' => '75',
         '#description' => 'This will set the push-request-URL to http://' . $_SERVER['HTTP_HOST'] . '/set-entity-data?'
             .'key=<b>[your-key-here]</b>',
+    );
+
+    $form['pullsettings']['udm_destroy_b4consume'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Destroy all node/term data in this system before node/term consumption',
+        '#default_value' => variable_get('udm_destroy_b4consume', 0),
+        '#size' => '75',
+        '#description' => 'When this optioned is ticked, the base table (<small>node or taxonomy_term_data</small>) will '
+            .' be cleared, as well as the associated field-data [<small>in all field tables</small>], before consumption.'
     );
 
     $form['pullsettings']['udm_alter_entities'] = array(
@@ -766,10 +920,10 @@ function usa_data_migration_printTaxonomyDump() {
     $returnData = array();
 
     // Security validation
-	if ( variable_get('udm_pull_security_key', '') !== '' ) { // If we expect a security key...
+    if ( variable_get('udm_pull_security_key', '') !== '' ) { // If we expect a security key...
 
         // If no key provided, or the key is not matching what we expect...
-		if ( empty($_REQUEST['key']) || trim($_REQUEST['key']) !== trim(variable_get('udm_pull_security_key', '')) ) {
+        if ( empty($_REQUEST['key']) || trim($_REQUEST['key']) !== trim(variable_get('udm_pull_security_key', '')) ) {
             usa_data_migration_log(
                 "A request was made to pull a taxonomy-dump from a foreign host, which was REJECTED due to "
                     ."a missing or invalid security-key."
@@ -777,9 +931,9 @@ function usa_data_migration_printTaxonomyDump() {
             @ob_end_clean();
             while (@ob_end_clean());
             header('Content-Type: text');
-			exit('Access Denied: Invalid security key');
-		}
-	}
+            exit('Access Denied: Invalid security key');
+        }
+    }
 
     // Obtain code used with the "Bundle Copy" module, to export/import taxonomy fields STRUCTURE (struct only, no field data)
     $returnData['taxonomyFieldStructure_BundleImportCode'] = usa_data_migration_getExportTaxonomyStructureCode();
@@ -842,6 +996,11 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     // Delete any generated menu items (from the usa_tax_man mod)
     if ( function_exists('usa_tax_man_deleteAllGeneratedMenuItems') ) {
         usa_tax_man_deleteAllGeneratedMenuItems();
+    }
+
+    // Destroy all current data in this system start clean
+    if ( intval(variable_get('udm_destroy_b4consume', 0)) === 1 ) {
+        destroyAllEntityContentData('terms');
     }
 
     // Pull data
@@ -1062,7 +1221,8 @@ function usa_data_migration_printNodeDump() {
         $dbUser = $databases['default']['default']['username'];
         $dbPass = $databases['default']['default']['password'];
         $dbDatabase = $databases['default']['default']['database'];
-        $cmd = "mysqldump -v --host={$dbHost} '--user={$dbUser}' '--password={$dbPass}' {$dbDatabase} node node_revision ";
+        $noDrpCmd = ( empty($_GET['nodrop']) || intval($_GET['nodrop']) === 0 ? '' : '--no-create-info --insert-ignore --skip-add-locks' );
+        $cmd = "mysqldump -v {$noDrpCmd} --host={$dbHost} '--user={$dbUser}' '--password={$dbPass}' {$dbDatabase} node node_revision workbench_moderation_node_history file_managed s3fs_file ";
         $returnData['NodeDump_sqlDump'] = shell_exec($cmd);
     }
 
@@ -1191,14 +1351,20 @@ function usa_data_migration_importStructureWithCode($code) {
  * and synch it into this environment. This function returns TRUE on success, and a 
  * string on failure (depending on the $retTrueOnSuccess argument)
  */
-function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSuccess = true, $batchSize = 50) {
+function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSuccess = true, $batchSize = 50, $maxBatch = 0) {
 
     // Debug for devs who tail the PHP error_log
     $thisFunct = __FUNCTION__;
     usa_data_migration_error_log("Notice: {$thisFunct} is pulling node information from {$nodeDataSource}");
 
+    // Init
     $batch = 1;
     $size = $batchSize;
+
+    // Destroy all current data in this system start clean
+    if ( intval(variable_get('udm_destroy_b4consume', 0)) === 1 ) {
+        destroyAllEntityContentData('node');
+    }
 
     // Pull data
     $nodeDataSource .= ( strpos($nodeDataSource, '?') === false ? '?' : '&' ) . 'machineReadable=1';
@@ -1216,6 +1382,11 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         $batchURL = $nodeDataSource . "&batch={$batch}&size={$size}";
         $pullString = file_get_contents($batchURL);
         $batch++; // The next run of the loop shall pull the next $size nodes
+
+        if ( $maxBatch > 0 && ($batch+1) > $maxBatch ) {
+            usa_data_migration_error_log(__FUNCTION__." broke loop on maxBatch - not processing batch ".$batch);
+            break;
+        }
 
         // Validate data
         if ( $pullString === false ) {
@@ -1428,7 +1599,16 @@ function usa_data_migration_rec_push_request() {
         }
         $data = $entity;
 
+        // Kill this node in this environment, completely...
+        db_query("DELETE FROM node WHERE nid={$data->nid}");
+        cleanup_killOrphanedNodeRevisions();
+        cleanup_killOrphanedFieldData();
+
+        // Save this node into this environment
+        unset($data->vid);
+        $data->is_new = true;
         node_save($data);
+        variable_set('test', $data);
 
         usa_data_migration_error_log("Notice: {$thisFunct}() has recieved node {$data->nid} (\"{$data->title}\")");
         usa_data_migration_log(
@@ -1550,7 +1730,7 @@ function usa_data_migration_error_log($msg) {
     $logs[time()] = $msg;
     variable_set('udm_error_logs', array_slice($logs, -100));
 
-    file_put_contents(usa_data_migration_action_log_location(), $msg, FILE_APPEND);
+    file_put_contents(usa_data_migration_action_log_location(), trim($msg)."\n", FILE_APPEND);
 
     error_log($msg);
 }
@@ -1725,8 +1905,45 @@ function usa_data_migration_form_getTaxonomyMangerTickedItems($recusiveSearch = 
     return $ret;
 }
 
+/*
+ * void destroyAllEntityContentData(string $entityType)
+ *
+ * USE WITH CAUTION 
+ */
+function destroyAllEntityContentData($entityType) {
 
+    switch ( strtolower($entityType) ) {
+        case 'node':
 
+            // Delete all nodes from base table
+            db_query("TRUNCATE TABLE node");
+
+            // Use the clean-up scripts to remove the deleted node's [left-over] field data
+            cleanup_killOrphanedFieldData(800);
+            cleanup_killOrphanedNodeRevisions();
+
+            entity_get_controller('node')->resetCache();
+
+            break;
+        case 'terms':
+
+            // Delete all terms from base table
+            db_query("TRUNCATE TABLE taxonomy_term_data");
+
+            // Use the clean-up script to remove the deleted terms's [left-over] field data
+            cleanup_killOrphanedFieldData(800);
+
+            // Cache clear
+            entity_get_controller('taxonomy_term')->resetCache();
+            taxonomy_terms_static_reset();
+
+            break;
+        default:
+            exit('Error - Unknown entityType givent to destroyAllEntityContentData()');
+            break;
+    }
+
+}
 
 
 /**
@@ -1839,13 +2056,6 @@ function cleanup_killOrphanedNodeRevisions() {
     set_time_limit(800);
     error_log($sql);
     db_query($sql);
-    
-    if ( db_table_exists('node_comment_statistics') ) {
-        $sql = "DELETE FROM node_comment_statistics WHERE nid NOT IN ( SELECT n.nid FROM node n )";
-        set_time_limit(800);
-        error_log($sql);
-        db_query($sql);
-    }
 
 }
 
@@ -1868,13 +2078,22 @@ function cleanup_killOrphanedFieldData($maxSecondsForProcessing = 180) {
     $ret = array();
     $startTime = time();
     
+    // node_access
     $sql = "DELETE FROM node_access WHERE nid NOT IN ( SELECT n.nid FROM node n )";
     set_time_limit(800);
     error_log($sql);
     db_query($sql);
     
+    // node_comment_statistics
+    if ( db_table_exists('node_comment_statistics') ) {
+        $sql = "DELETE FROM node_comment_statistics WHERE nid NOT IN ( SELECT n.nid FROM node n )";
+        set_time_limit(800);
+        error_log($sql);
+        db_query($sql);
+    }
+
     // For each table in this database...
-    foreach ( db_query("SHOW TABLES") as $tbl ) { 
+    foreach ( db_query("SHOW TABLES") as $tbl ) {
         
         set_time_limit(800);
         $tblInfo = array_values( (array) $tbl );
@@ -1892,16 +2111,47 @@ function cleanup_killOrphanedFieldData($maxSecondsForProcessing = 180) {
                     break;
                 }
                 
-                // Delete orphaned field data from this table
+                // Delete orphaned field data for nodes from this table
                 $sql = "DELETE FROM {$tbl} WHERE entity_type = 'node' AND entity_id NOT IN ( SELECT nid FROM node )";
                 error_log("Running SQL Query: {$sql}");
                 set_time_limit(800);
                 $rowDeleteCount = db_query($sql)->rowCount();
                 $ret[$tbl] = $rowDeleteCount;
                 error_log("Deleted {$rowDeleteCount} rows from the {$tbl} table.");
+
+                
+                // Delete orphaned field data for taxonomy-terms from this table
+                $sql = "
+                    DELETE FROM {$tbl} 
+                    WHERE 
+                        entity_type = 'taxonomy_term' 
+                        AND entity_id NOT IN ( SELECT tid FROM taxonomy_term_data )
+                ";
+                error_log("Running SQL Query: {$sql}");
+                set_time_limit(800);
+                $rowDeleteCount = db_query($sql)->rowCount();
+                $ret[$tbl] = $rowDeleteCount;
+                error_log("Deleted {$rowDeleteCount} rows from the {$tbl} table.");
+
             }
         }
     }
+
+    // Remove left-over node alias-paths
+    db_query("
+        DELETE FROM url_alias 
+        WHERE 
+            InStr(source, 'node/') = 1
+            AND CONVERT(SUBSTRING_INDEX(source, '/', -1), UNSIGNED INTEGER) NOT IN ( SELECT nid FROM node )
+    ");
+
+    // Remove left-over taxonomy alias-paths
+    db_query("
+        DELETE FROM url_alias
+        WHERE 
+            InStr(source, 'taxonomy/term/') = 1
+            AND CONVERT(SUBSTRING_INDEX(source, '/', -1), UNSIGNED INTEGER) NOT IN ( SELECT tid FROM taxonomy_term_data )
+    ");
     
     return $ret;
 }
