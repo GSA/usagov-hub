@@ -15,12 +15,13 @@
         return false;
       });
 
-      if (settings.ervw_settings) {
-        if (settings.ervw_settings.cardinality != -1 || $(checkboxes).length === 0) {
+      if (settings.entityReferenceViewWidget) {
+        var ervwSetttings = settings.entityReferenceViewWidget.settings;
+        if (ervwSetttings.cardinality != -1 || $(checkboxes).length === 0) {
           $(selectAllSelector).remove();
         }
 
-        var selector = '#' + settings.ervw_settings.table_id + ' input[type=checkbox]:checked';
+        var selector = '#' + ervwSetttings.table_id + ' input[type=checkbox]:checked';
         var selected_ids = '';
         $(selector).each(function() {
           selected_ids += $(this).val() + ';';
@@ -28,12 +29,12 @@
         if (selected_ids.length > 0) {
           $('input[name="selected_entity_ids"]').val(selected_ids.substring(0, selected_ids.length - 1)).trigger('change');
         }
-      }
 
-      // We need to pass the settings via an hidden field because Views doesn't
-      // allow us to pass data between ajax requests.
-      if (settings.ervw_settings_string) {
-        $('input[name="ervw_settings"]').val(settings.ervw_settings_string);
+        // We need to pass the settings via an hidden field because Views doesn't
+        // allow us to pass data between ajax requests.
+        if (settings.entityReferenceViewWidget.serialized) {
+          $('input[name="ervw_settings"]').val(settings.entityReferenceViewWidget.serialized);
+        }
       }
     }
   }
