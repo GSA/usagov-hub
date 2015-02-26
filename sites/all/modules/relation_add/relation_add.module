@@ -26,38 +26,11 @@ function relation_add_menu() {
   $items['relation_add/autocomplete/%'] = array(
     'access arguments' => array('relation add endpoint autocomplete access'),
     'page callback' => 'relation_add_autocomplete',
-    'page arguments' => array(2, 3, 4, 5),
+    'page arguments' => array(2, 3, 4, 5, 6),
     'type' => MENU_CALLBACK,
   );
 
-  $items['admin/config/content/relation_add'] = array(
-    'title' => 'Relation Add',
-    'description' => 'A block and a field to help create relations from the current page\'s entity to other entities',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('relation_add_admin_settings'),
-    'access arguments' => array('administer site configuration'),
-  );
-
   return $items;
-}
-
-/**
- * Implements admin_settings().
- */
-function relation_add_admin_settings() {
-  $iso = array(
-    'iso_choice' => t('Show language'),
-  );
-
-  $form['relation_add_iso_language_codes'] = array(
-    '#type' => 'checkboxes',
-    '#title' => t('Show ISO Language Codes for endpoints'),
-    '#options' => $iso,
-    '#default_value' => variable_get('relation_add_iso_language_codes', array('iso_choice' => 0)),
-    '#description' => t('Add ISO Language Codes for the endpoints'),
-  );
-
-  return system_settings_form($form);
 }
 
 /**
@@ -69,10 +42,12 @@ function relation_add_admin_settings() {
  *   The direction for which to allow endpoint bundles.
  * @param $field string
  *   Entity type, field and entity bundle data.
+ * @param $target_bundles string
+ *   The target bundles in which to search for endpoints.
  * @param $string string
  *   The string for which the search through entity labels will be run.
  */
-function relation_add_autocomplete($type = '', $direction = 'target', $field = 'none', $string = '') {
+function relation_add_autocomplete($type = '', $direction = 'target', $field = 'none', $target_bundles = 'all', $string = '') {
   if (empty($type) || empty($direction) || empty($string)) {
     exit();
   }
@@ -94,9 +69,18 @@ function relation_add_autocomplete($type = '', $direction = 'target', $field = '
   // Use source bundles unless relation type is directional and we're looking
   // in the forward direction.
   $direction = ($relation_type->directional && $direction == 'target') ? 'target_bundles' : 'source_bundles';
-  foreach ($relation_type->$direction as $entity_bundle) {
-    list($entity_type, $bundle) = explode(':', $entity_bundle, 2);
-    $entity_bundles[$entity_type][] = $bundle;
+  if ($direction == 'target_bundles' && $target_bundles !== 'all') {
+    $target_bundles_ar = explode('-', $target_bundles);
+    foreach ($target_bundles_ar as $entity_bundle) {
+      list($entity_type, $bundle) = explode(':', $entity_bundle, 2);
+      $entity_bundles[$entity_type][] = $bundle;
+    }
+  }
+  else {
+    foreach ($relation_type->$direction as $entity_bundle) {
+      list($entity_type, $bundle) = explode(':', $entity_bundle, 2);
+      $entity_bundles[$entity_type][] = $bundle;
+    }
   }
 
   // Get about 12, rounded up.
@@ -166,13 +150,19 @@ function relation_add_autocomplete($type = '', $direction = 'target', $field = '
         $entities = entity_load($entity_type, array($id));
         $entity = reset($entities);
         $label = entity_label($entity_type, $entity);
+        $bundle = '';
+        if ($instance['widget']['settings']['relation_endpoint_bundle_display']) {
+          list(, , $bundle) = entity_extract_ids($entity_type, $entity);
+          if (!empty($bundle)) {
+            $bundle = ' - (' . $bundle . ')';
+          }
+        }
 
-        $iso_choice = variable_get('relation_add_iso_language_codes', array('iso_choice' => 0));
-        if ($iso_choice['iso_choice'] && isset($entity->language)) {
-          $suggestions[$label . ' [' . $entity_type . ':' . $id . ']'] = '[' . $entity->language . '] ' . $label . ' [' . $entity_type . ':' . $id . ']';
+        if ($instance['widget']['settings']['relation_endpoint_iso_language_codes'] && isset($entity->language)) {
+          $suggestions[$label . $bundle . ' [' . $entity_type . ':' . $id . ']'] = '[' . $entity->language . '] ' . $label  . $bundle . ' [' . $entity_type . ':' . $id . ']';
         }
         else {
-          $suggestions[$label . ' [' . $entity_type . ':' . $id . ']'] = $label . ' [' . $entity_type . ':' . $id . ']';
+          $suggestions[$label . $bundle . ' [' . $entity_type . ':' . $id . ']'] = $label  . $bundle . ' [' . $entity_type . ':' . $id . ']';
         }
       }
     }
@@ -253,37 +243,110 @@ function relation_add_item_is_empty($fields) {
  * Implements hook_field_load().
  */
 function relation_add_field_load($entity_type, $entities, $field, $instances, $langcode, &$items, $age) {
+  $cache = &drupal_static(__FUNCTION__);
+  $types = relation_get_types();
+
   foreach ($entities as $id => $entity) {
-    $types = relation_get_types();
-    if (!empty($instances[$id]['settings']['relation_type'])) {
-      foreach ($instances[$id]['settings']['relation_type'] as $type) {
-        $type_array = explode(':', $type);
-        $relation_types[$type_array[0]] = $type_array[0];
+    $cache[$entity_type][$instances[$id]['bundle']]['type_settings'] = array();
+    $cache[$entity_type][$instances[$id]['bundle']]['relation_types'] = array();
+
+    if (isset($cache[$entity_type][$instances[$id]['bundle']]) && !empty($cache[$entity_type][$instances[$id]['bundle']]['type_settings'])) {
+      $type_settings = $cache[$entity_type][$instances[$id]['bundle']]['type_settings'];
+    }
+    else {
+      if (!empty($instances[$id]['settings']['relation_type'])) {
+        $type_settings = $instances[$id]['settings']['relation_type'];
+        $cache[$entity_type][$instances[$id]['bundle']]['type_settings'] = $type_settings;
+      }
+      else {
+        $type_settings = array();
+
+        $source_types = relation_get_available_types($entity_type, $instances[$id]['bundle']);
+        foreach ($source_types as $r_type_id => $r_type) {
+          $type_settings[] = $r_type_id;
+        }
+
+        $reverse_types = relation_get_available_types($entity_type, $instances[$id]['bundle'], 'target');
+        foreach ($reverse_types as $r_type_id => $r_type) {
+          $type_settings[] = $r_type_id . ':reverse';
+        }
+
+        $cache[$entity_type][$instances[$id]['bundle']]['type_settings'] = $type_settings;
+      }
+    }
+
+    $target_bundles = array();
+    if (isset($instances[$id]['settings']['relation_target_bundles']) && !empty($instances[$id]['settings']['relation_target_bundles'])) {
+      foreach ($instances[$id]['settings']['relation_target_bundles'] as $target_bundle) {
+        $target_bundle_array = explode(':', $target_bundle);
+        $target_bundles[$target_bundle_array[0]][$target_bundle_array[1]] = $target_bundle_array[1];
       }
     }
     else {
-      $relation_types = array_keys($types);
+      $target_bundles = 'all';
     }
 
-    $query = relation_query($entity_type, $id);
-    if ($relation_types) {
-      $query->entityCondition('bundle', $relation_types, 'IN');
-    }
-    $relation_ids = array_keys($query->execute());
-    // Who knows why but field does not like if the delta does not start at 0...
-    $items[$id] = array();
-    foreach (entity_load('relation', $relation_ids) as $relation) {
-      // Only add items when they are either not directional,
-      // or have their relation type in the field settings.
-      $directional = $types[$relation->relation_type]->directional;
-      $relation_reverse = ($relation->endpoints[LANGUAGE_NONE][0]['entity_id'] == $id ? FALSE : TRUE);
-      if (!$directional
-        || ($relation_reverse && in_array($relation->relation_type . ':reverse', $instances[$id]['settings']['relation_type']))
-        || (!$relation_reverse && in_array($relation->relation_type, $instances[$id]['settings']['relation_type']))) {
 
-        $item = (array) $relation;
-        $item['my_entity_id'] = $id;
-        $items[$id][] = $item;
+    if (!empty($type_settings)) {
+      if (isset($cache[$entity_type][$instances[$id]['bundle']]) && !empty($cache[$entity_type][$instances[$id]['bundle']]['relation_types'])) {
+        $relation_types = $cache[$entity_type][$instances[$id]['bundle']]['relation_types'];
+      }
+      else {
+        foreach ($type_settings as $type) {
+          $type_array = explode(':', $type);
+          $relation_types[$type_array[0]] = $type_array[0];
+        }
+      }
+
+      $query = relation_query($entity_type, $id);
+      if ($relation_types) {
+        $query->entityCondition('bundle', $relation_types, 'IN');
+      }
+
+      $relation_ids = array_keys($query->execute());
+      // Who knows why but field does not like
+      // if the delta does not start at 0...
+      $items[$id] = array();
+      foreach (entity_load('relation', $relation_ids) as $relation) {
+        if (!(is_string($target_bundles) && 'all' == $target_bundles)) {
+          if ($relation) {
+            // Filter out relation items that contain
+            // unwanted endpoint bundle types.
+            foreach ($relation->endpoints[LANGUAGE_NONE] as $endpoint) {
+              if (!($endpoint['entity_type'] == $entity_type && $endpoint['entity_id'] == $id)) {
+                if (isset($target_bundles[$endpoint['entity_type']]) && is_array($target_bundles[$endpoint['entity_type']])) {
+                  $query = new EntityFieldQuery();
+                  $query->entityCondition('entity_type', $endpoint['entity_type'])
+                    ->entityCondition('bundle', $target_bundles[$endpoint['entity_type']], 'IN')
+                    ->entityCondition('entity_id', $endpoint['entity_id']);
+                  $result = $query->execute();
+
+                  if (empty($result)) {
+                    unset($relation);
+                  }
+                }
+                else {
+                  unset($relation);
+                }
+              }
+            }
+          }
+        }
+
+        // Only add items when they are either not directional,
+        // or have their relation type in the field settings.
+        if (isset($relation)) {
+          $directional = $types[$relation->relation_type]->directional;
+          $relation_reverse = ($relation->endpoints[LANGUAGE_NONE][0]['entity_id'] == $id ? FALSE : TRUE);
+          if (!$directional
+            || ($relation_reverse && in_array($relation->relation_type . ':reverse', $type_settings))
+            || (!$relation_reverse && in_array($relation->relation_type, $type_settings))) {
+
+            $item = (array) $relation;
+            $item['my_entity_id'] = $id;
+            $items[$id][] = $item;
+          }
+        }
       }
     }
   }
@@ -293,6 +356,29 @@ function relation_add_field_load($entity_type, $entities, $field, $instances, $l
  * Implements hook_field_instance_settings_form().
  */
 function relation_add_field_instance_settings_form($field, $instance) {
+  // The field settings infrastructure is not AJAX enabled by default,
+  // because it doesn't pass over the $form_state.
+  // Build the whole form into a #process in which we actually have access
+  // to the form state.
+  $form = array(
+    '#type' => 'container',
+    '#process' => array(
+      '_relation_add_field_instance_settings_form',
+    ),
+    '#element_validate' => array('_relation_add_field_instance_settings_validate'),
+    '#field' => $field,
+    '#instance' => $instance,
+  );
+  return $form;
+}
+
+/**
+ * Process callback for relation_add_field_instance_settings_form().
+ */
+function _relation_add_field_instance_settings_form($form, $form_state) {
+  $field = isset($form_state['relation_add']['field']) ? $form_state['relation_add']['field'] : $form['#field'];
+  $instance = isset($form_state['relation_add']['instance']) ? $form_state['relation_add']['instance'] : $form['#instance'];
+
   $relation_types = relation_get_types();
   $bundle_key = $instance['entity_type'] . ':' . $instance['bundle'];
   $bundle_wildcard_key = $instance['entity_type'] . ':*';
@@ -319,6 +405,59 @@ function relation_add_field_instance_settings_form($field, $instance) {
     '#default_value' => $instance['settings']['relation_type'],
     '#options' => $options,
     '#multiple' => TRUE,
+    '#ajax' => array(
+      'event' => 'change',
+      'callback' => 'relation_add_settings_ajax',
+      'wrapper' => 'relation_target_bundles',
+    ),
+  );
+
+  $relation_selected_types = $instance['settings']['relation_type'];
+  $relation_relevant_bundles = array();
+  foreach ($relation_selected_types as $rel_type) {
+    $type_array = explode(':', $rel_type);
+    $relation_type = relation_type_load($type_array[0]);
+    if (isset($type_array[1]) && $type_array[1] == 'reverse') {
+      foreach ($relation_type->source_bundles as $source_bundle) {
+        $relation_relevant_bundles[$source_bundle] = $source_bundle;
+      }
+    }
+    else {
+      foreach ($relation_type->target_bundles as $target_bundles) {
+        $relation_relevant_bundles[$target_bundles] = $target_bundles;
+      }
+    }
+  }
+
+  $entity_infos = entity_get_info();
+  $relation_bundles = array();
+  $counter = 0;
+  foreach ($relation_relevant_bundles as $relation_bundle) {
+    list($entity_type, $bundle) = explode(':', $relation_bundle);
+    if ('*' == $bundle) {
+      foreach ($entity_infos[$entity_type]['bundles'] as $bundle_name => $bundle) {
+        $relation_bundles[$entity_infos[$entity_type]['label']][$entity_type . ':' . $bundle_name] = $bundle['label'];
+        ++$counter;
+      }
+    }
+    else {
+      if (isset($entity_infos[$entity_type]['bundles'][$bundle])) {
+        $relation_bundles[$entity_infos[$entity_type]['label']][$entity_type . ':' . $bundle] = $entity_infos[$entity_type]['bundles'][$bundle]['label'];
+        ++$counter;
+      }
+    }
+  }
+
+  $form['relation_target_bundles'] = array(
+    '#type' => 'select',
+    '#title' => t('Target bundles'),
+    '#options' => $relation_bundles,
+    '#size' => max(5, $counter),
+    '#default_value' => isset($instance['settings']['relation_target_bundles']) ? $instance['settings']['relation_target_bundles'] : '',
+    '#multiple' => TRUE,
+    '#description' => t("Select the target bundle's type. Useful if you want to create separate fields for different possible target bundles."),
+    '#prefix' => '<div id="relation-add-target-bundles">',
+    '#suffix' => '</div>',
   );
 
   if (count($instance['settings']['relation_type']) > 1) {
@@ -353,6 +492,29 @@ function relation_add_field_instance_settings_form($field, $instance) {
   }
 
   return $form;
+}
+
+function _relation_add_field_instance_settings_validate($form, &$form_state) {
+  // Store the new values in the form state.
+  $instance = $form['#instance'];
+  if (isset($form_state['values']['instance'])) {
+    $instance = $form_state['values']['instance'];
+  }
+  $form_state['relation_add']['instance'] = $instance;
+}
+
+/**
+ * Ajax callback for the bundle type settings form.
+ *
+ * @see relation_add_field_instance_settings_form()
+ */
+function relation_add_settings_ajax($form, $form_state) {
+  return array(
+    '#type' => 'ajax',
+    '#commands' => array(
+      ajax_command_replace("#relation-add-target-bundles", drupal_render($form['instance']['settings']['relation_target_bundles'])),
+    ),
+  );
 }
 
 /**
@@ -400,7 +562,23 @@ function relation_add_field_widget_settings_form($field, $instance) {
     '#type' => 'checkbox',
     '#title' => t('Search endpoints by entity id if the input contains only numbers'),
     '#default_value' => isset($settings['relation_endpoint_search_by_id']) ? $settings['relation_endpoint_search_by_id'] : FALSE,
-    '#weight' => 5,
+    '#weight' => 6,
+  );
+
+  $form['relation_endpoint_bundle_display'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Display bundle'),
+    '#description' => t('Display bundle data in the ajax label.'),
+    '#default_value' => isset($settings['relation_endpoint_bundle_display']) ? $settings['relation_endpoint_bundle_display'] : FALSE,
+    '#weight' => 7,
+  );
+
+  $form['relation_endpoint_iso_language_codes'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show ISO Language Codes for endpoints'),
+    '#default_value' => isset($settings['relation_endpoint_iso_language_codes']) ? $settings['relation_endpoint_iso_language_codes'] : FALSE,
+    '#description' => t('Add ISO Language Codes for the endpoints'),
+    '#weight' => 8,
   );
 
   return $form;
@@ -558,15 +736,28 @@ function relation_add_field_widget_form(&$form, &$form_state, $field, $instance,
 
     if (isset($item) && !empty($item)) {
       $relation = (object) $item;
-      $relation_type = relation_type_load($relation->relation_type);
+
+      // $relation->relation_type can also have the :reverse suffix here so we
+      // have to remove it.
+      $type_array = explode(':', $relation->relation_type);
+      $relation_type = relation_type_load($type_array[0]);
       $default_targets = array();
       $i = 2;
-      if ($item['endpoints'][LANGUAGE_NONE]) {
+      if (!empty($item['endpoints'][LANGUAGE_NONE])) {
         foreach ($item['endpoints'][LANGUAGE_NONE] as $endpoint) {
           $entities = entity_load($endpoint['entity_type'], array($endpoint['entity_id']));
           $entity = reset($entities);
           $label = entity_label($endpoint['entity_type'], $entity);
-          $entity_label = $label . ' [' . $endpoint['entity_type'] . ':' . $endpoint['entity_id'] . ']';
+
+          $bundle = '';
+          if ($instance['widget']['settings']['relation_endpoint_bundle_display']) {
+            list(, , $bundle) = entity_extract_ids($endpoint['entity_type'], $entity);
+            if (!empty($bundle)) {
+              $bundle = ' - (' . $bundle . ')';
+            }
+          }
+
+          $entity_label = $label  . $bundle . ' [' . $endpoint['entity_type'] . ':' . $endpoint['entity_id'] . ']';
 
           if ($endpoint['entity_id'] == $item['my_entity_id'] && $endpoint['entity_type'] == $instance['entity_type']) {
             $default_targets[1] = $entity_label;
@@ -600,6 +791,11 @@ function relation_add_field_widget_form(&$form, &$form_state, $field, $instance,
         break;
     }
 
+    $target_bundles = '';
+    if (!empty($instance['settings']['relation_target_bundles'])) {
+      $target_bundles = implode('-', $instance['settings']['relation_target_bundles']);
+    }
+
     for ($i = 2; $i <= $relation_type->max_arity; $i++) {
       $endpoint_title .= $instance['widget']['settings']['relation_endpoint_label_delta'] ? ' ' . ($i - 1) : '';
       $form_element['relation_options']['targets']['target_' . $i] = array(
@@ -607,7 +803,7 @@ function relation_add_field_widget_form(&$form, &$form_state, $field, $instance,
         '#maxlength' => 320,
         '#title' => $endpoint_title,
         '#default_value' => isset($default_targets[$i]) ? $default_targets[$i] : '',
-        '#autocomplete_path' => 'relation_add/autocomplete/' . $type . $direction . '/' . $instance['entity_type'] . '-' . $instance['field_name'] . '-' . $instance['bundle'],
+        '#autocomplete_path' => 'relation_add/autocomplete/' . $type . $direction . '/' . $instance['entity_type'] . '-' . $instance['field_name'] . '-' . $instance['bundle'] . '/' . $target_bundles,
       );
     }
 
