@@ -110,7 +110,7 @@ function usa_data_migration_schedualEntityPush($entity) {
     }
     if ( !empty($entity->tid) ) {
         $eid = $entity->tid;
-        $etype = 'node';
+        $etype = 'term';
     }
 
     // Data validation
