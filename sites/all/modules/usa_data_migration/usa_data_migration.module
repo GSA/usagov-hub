@@ -351,6 +351,13 @@ function usa_data_migration_node_insert($node) {
 }
 
 /*
+ * Implements HOOK_workbench_moderation_transition
+ */
+function usa_data_migration_workbench_moderation_transition($entity, $fromState, $toState) {
+    usa_data_migration_schedualEntityPush($entity);
+}
+
+/*
  * void usa_data_migration_pushEntity(object $entity)
  *
  * Pushes a node or taxonomy-term out to child sites when nessesary
