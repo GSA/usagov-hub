@@ -279,6 +279,7 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         db_query( $pullData['NodeDump_sqlDump'] );
         db_query('UPDATE node SET uid = 1; ');
         db_query('UPDATE node_revision SET uid = 1; ');
+        db_query('UPDATE node SET uid = 1;');
         entity_get_controller('node')->resetCache();
         //usa_data_migration_log("Consumed MySQL batch dump: {$batch}");
 
