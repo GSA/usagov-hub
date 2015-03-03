@@ -175,18 +175,12 @@ function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
  */
 function usa_data_migration_cron() {
 
-    $doTaxonomyPull = abs((time() - variable_get('udm_last_pull', 0))) / 60 > variable_get('udm_pull_frequency', 5);
-    if ( !empty($_REQUEST['udm_force']) && intval($_REQUEST['udm_force']) === 1 ) {
-        $doTaxonomyPull = 1;
+    if ( intval(variable_get('udm_do_pull', false)) === 0 ) {
+        return;
     }
 
-    usa_data_migration_error_log("Notice: ".__FUNCTION__." has fiered, and ".($doTaxonomyPull?'WILL':'will NOT')." trigger usa_data_migration_execute()");
-    if ( $doTaxonomyPull ) {
-        return usa_data_migration_execute();
-    }
-
-    variable_set('udm_last_pull', time());
-
+    usa_data_migration_updatePull(false, false);
+    variable_set('udm_last_pull_time_cron', time());
 }
 
 /* This is used as a menu-callback */
@@ -200,12 +194,7 @@ function usa_data_migration_menu_cron() {
     }
 
     usa_data_migration_cron();
-}
-
-function usa_data_migration_execute() {
-
-    $target = variable_get('udm_pull_from_taxtarget');
-    return usa_data_migration_synchTaxonomyFromTarget($target, false);
+    return "Cron-task executed, and completed.";
 }
 
 function usa_data_migration_log($msg) {
