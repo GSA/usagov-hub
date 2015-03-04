@@ -362,6 +362,10 @@ function usa_data_migration_printNodeDump() {
     $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node_revision", "nid IN ({$nidList}) ", false, true, true, false);
     $returnData['NodeDump_sqlDump'] .= "\n";
 
+    // field_data_body
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("field_data_body", "entity_id IN ({$nidList}) ", false, true, true, false);
+    $returnData['NodeDump_sqlDump'] .= "\n";
+
     // file_managed
     if ( $batch === 1 ) {
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("file_managed", '', false, true, true, false);
