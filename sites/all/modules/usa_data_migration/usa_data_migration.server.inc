@@ -350,25 +350,27 @@ function usa_data_migration_printNodeDump() {
     // Obtain a MySQL dump of all node information
     $returnData['NodeDump_sqlDump'] = '';
 
+    // usa_data_migration_getMySQLDump($tables, $where, $addDropTable, $ignoreErrors, $fullInsert, $lockTables, $replace)
+
     // node
-    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node", "nid IN ({$nidList}) ", false, true, true, false);
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node", "nid IN ({$nidList}) ", false, true, true, false, true);
     $returnData['NodeDump_sqlDump'] .= "\n";
 
     // node_access
-    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node_access", "nid IN ({$nidList}) ", false, true, true, false);
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node_access", "nid IN ({$nidList}) ", false, true, true, false, true);
     $returnData['NodeDump_sqlDump'] .= "\n";
 
     // node_revision
-    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node_revision", "nid IN ({$nidList}) ", false, true, true, false);
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node_revision", "nid IN ({$nidList}) ", false, true, true, false, true);
     $returnData['NodeDump_sqlDump'] .= "\n";
 
     // field_data_body
-    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("field_data_body", "entity_id IN ({$nidList}) ", false, true, true, false);
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("field_data_body", "entity_id IN ({$nidList}) ", false, true, true, false, true);
     $returnData['NodeDump_sqlDump'] .= "\n";
 
     // file_managed
     if ( $batch === 1 ) {
-        $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("file_managed", '', false, true, true, false);
+        $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("file_managed", '', false, true, true, false, true);
         $returnData['NodeDump_sqlDump'] .= "\n";
     }
 
@@ -389,7 +391,7 @@ function usa_data_migration_printNodeDump() {
             $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
                 $fieldTable, 
                 "entity_id IN ({$nidList}) AND entity_type = 'node'  ", 
-                false, true, true, false
+                false, true, true, false, true
             );
             $returnData['NodeDump_sqlDump'] .= "\n";
 
@@ -528,7 +530,7 @@ function usa_data_migration_getExportNodeStructureCode() {
     return _bundle_copy_export_data('node', $selected_data);
 }
 
-function usa_data_migration_getMySQLDump($tables, $where = '', $addDropTable = true, $ignoreErrors = false, $fullInsert = false, $lockTables = true) {
+function usa_data_migration_getMySQLDump($tables, $where = '', $addDropTable = true, $ignoreErrors = false, $fullInsert = false, $lockTables = true, $replace = false) {
 
     global $databases;
     $dbHost = $databases['default']['default']['host'];
@@ -536,14 +538,19 @@ function usa_data_migration_getMySQLDump($tables, $where = '', $addDropTable = t
     $dbPass = $databases['default']['default']['password'];
     $dbDatabase = $databases['default']['default']['database'];
 
+    if ( $replace && $ignoreErrors ) {
+        $ignoreErrors = false; // replace and ignore cannot be used at the same time
+    }
+
     $addDropTable = ( $addDropTable ? '' : '--skip-add-drop-table --no-create-info' );
     $ignoreErrors = ( $ignoreErrors ? '--insert-ignore' : '' );
     $fullInsert = ( $fullInsert ? '--skip-extended-insert --complete-insert' : '' );
     $lockTables = ( $lockTables ? '' : '--skip-add-locks' );
+    $replace = ( $replace ? "--replace" : "" );
     $where = ( $where == '' ? '' : "--where \"{$where}\" " );
 
-    $cmd = "mysqldump --skip-comments {$addDropTable} {$ignoreErrors} {$fullInsert}  {$lockTables} --host={$dbHost}"
-        ." '--user={$dbUser}' '--password={$dbPass}' {$dbDatabase} {$tables} {$where} ";
+    $cmd = "mysqldump --skip-comments {$addDropTable} {$ignoreErrors} {$fullInsert}  {$lockTables} {$replace} "
+        ."--host={$dbHost} '--user={$dbUser}' '--password={$dbPass}' {$dbDatabase} {$tables} {$where} ";
 
     return shell_exec($cmd);
 }

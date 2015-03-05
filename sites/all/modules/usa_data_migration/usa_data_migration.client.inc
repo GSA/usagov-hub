@@ -80,7 +80,8 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
 
     // Debug for devs who tail the PHP error_log
     $thisFunct = __FUNCTION__;
-    usa_data_migration_error_log("Notice: {$thisFunct} is pulling taxonomy information from {$taxonomyDataSource}");
+    $strQuickMode = ( $quick ? ' (in quick mode) ' : '' );
+    usa_data_migration_error_log("Notice: {$thisFunct} is pulling taxonomy information {$strQuickMode} from {$taxonomyDataSource}");
 
     // Tell the USA Taxonomy Man module to not execute on term-hook for this batch process
     global $utm_norun;
@@ -182,12 +183,16 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     // Taxonomy-pull post-synch processes
     cleanup_killOrphanTaxonomyTerms(); // TO ONLY BE RUN AFTER A COMPLETE SYNCH!
     usa_data_migration_filterTaxonomy();
-    if ( $quick != true && function_exists('usa_tax_man_deleteAllGeneratedMenuItems') ) {
-        global $utm_norun;
-        $utm_norun = false;
+    if ( $quick != true ) {
+
         usa_data_migration_postSynch_taxonomyTermsFriendlyAliases();
-        usa_tax_man_deleteAllGeneratedMenuItems();
-        usa_tax_man_createMenusFromTaxonomy();
+
+        if ( function_exists('usa_tax_man_deleteAllGeneratedMenuItems') ) {
+            global $utm_norun;
+            $utm_norun = false;
+            usa_tax_man_deleteAllGeneratedMenuItems();
+            usa_tax_man_createMenusFromTaxonomy();
+        }
     } else {
         usa_data_migration_postSynch_taxonomyTermsFriendlyAliases( $tidsPulled );
     }
@@ -220,7 +225,10 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     // Pull data
     $nodeDataSource .= ( strpos($nodeDataSource, '?') === false ? '?' : '&' ) . 'machineReadable=1';
 
-    // Pass since argument
+    // Make sure our table structures match with the structures on CMP
+    usa_data_migration_ensureExpectedTableStructure();
+
+    // Pass since argument (if we are doing an update-pull)
     if ( intval($since) > 0 ) {
         $nodeDataSource .= '&since='.$since;
     }
@@ -267,11 +275,6 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
             usa_data_migration_error_log($msg);
             return $msg;
         }
-
-        // Remove all data nodes in this environment which are incoming (we dont want things to collide)
-        db_query("DELETE FROM node WHERE nid IN ({$pullData['NodeDump_nidList']}) ");
-        cleanup_killOrphanedNodeRevisions();
-        cleanup_killOrphanedFieldData();
         
         // If S3 settings information was given, save them into a Drupal-var
         if ( !empty($pullData['s3Config']) ) {
@@ -289,7 +292,6 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         db_query( $pullData['NodeDump_sqlDump'] );
         db_query('UPDATE node SET uid = 1; ');
         db_query('UPDATE node_revision SET uid = 1; ');
-        db_query('UPDATE node SET uid = 1;');
         entity_get_controller('node')->resetCache();
         //usa_data_migration_log("Consumed MySQL batch dump: {$batch}");
 
@@ -324,6 +326,28 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     } else {
         return $msg;
     }
+}
+
+/*
+ * void usa_data_migration_ensureExpectedTableStructure()
+ *
+ * Checks to make sure that certain tables have certain expected columns.
+ * This is done so we can consumes MySQL-dumps without [missing column] errors.
+ */
+function usa_data_migration_ensureExpectedTableStructure() {
+
+    if ( !db_field_exists('node', 'deleted') ) {
+        db_query("ALTER TABLE node ADD deleted INT(11) NULL DEFAULT NULL");
+    }
+
+    if ( !db_field_exists('node', 'deletion_uid') ) {
+        db_query("ALTER TABLE node ADD deletion_uid INT(11) NULL DEFAULT NULL");
+    }
+
+    if ( !db_field_exists('node', 'deletion_timestamp') ) {
+        db_query("ALTER TABLE node ADD deletion_timestamp INT(11) NULL DEFAULT NULL");
+    }
+
 }
 
 /*
@@ -657,18 +681,21 @@ function cleanup_killOrphanedFieldData($maxSecondsForProcessing = 180) {
  * 
  * Sets the alias paths of taxonomy-terms to the value in their "Friendly URL" field
  */
-function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases($tids = false) {
+function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases($tids = array()) {
 
     if ( intval(variable_get('udm_friendly_alias', 0)) == 0 ) {
         return;
     }
 
-    error_log(__FUNCTION__.'() started...');
+    if ( is_array($tids) ) {
 
-    if ( $tids !== false && is_array($tids) ) {
-        if ( count($tids) === 0 ) {
+        if ( count($tids) == 0 ) {
+            error_log(__FUNCTION__.'() is not running as an empy array was supplied.');
             return;
         }
+
+        error_log(__FUNCTION__.'() started, and will work on ' . count($tids) . ' terms.');
+
         $tids = implode(',', $tids);
         $friendlyTerms = db_query("
             SELECT 
@@ -681,6 +708,9 @@ function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases($tids = false
             WHERE t.tid IN ({$tids})
         ");
     } else {
+        
+        error_log(__FUNCTION__.'() started, and will work on ALL terms.');
+
         $friendlyTerms = db_query("
             SELECT 
                 t.tid AS 'tid',
@@ -720,11 +750,6 @@ function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases($tids = false
     error_log(__FUNCTION__.'() complete.');
 }
 
-/**
- * void usa_data_migration_postSynch_taxonomyTermsFriendlyAliases()
- * 
- * Sets the alias paths of taxonomy-terms to the value in their "Friendly URL" field
- */
 function usa_data_migration_postSynch_s3translate() {
 
     if ( intval(variable_get('udm_filemedia_s3translate', 0)) == 0 ) {
