@@ -53,6 +53,7 @@ function usa_data_migration_updatePull($security = true, $terminateThreadOnCompl
     // Execute node update/pull
     $target = variable_get('udm_pull_from_nodetarget');
     usa_data_migration_synchNodesFromTarget($target, true, 100, 0, $since, true);
+    error_log("\n");
 
     // Execute taxonomy update/pull
     $target = variable_get('udm_pull_from_taxtarget');
@@ -162,6 +163,12 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         entity_get_controller('taxonomy_term')->resetCache();
         //usa_data_migration_log("Consumed MySQL batch dump: {$batch}");
 
+        // Clear field cache for all synched taxonomy-terms
+        foreach ( explode(',', $pullData['TaxDump_tidList']) as $nid ) {
+            $sql = "DELETE FROM cache_field WHERE InStr(cid, '{$nid}')<>0";
+            db_query($sql);
+        }
+
         // Log
         $tidsPulled = array_merge($tidsPulled, explode(',', $pullData['TaxDump_tidList']));
         error_log('Pulled these terms from the host-site: '.$pullData['TaxDump_tidList']);
@@ -243,7 +250,7 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
 
         // Target location
         $batchURL = $nodeDataSource . "&batch={$batch}&size={$size}";
-        //error_log($batchURL);
+        //error_log('Pulling a batch of nodes from '.$batchURL);
         $pullString = file_get_contents($batchURL);
         $batch++; // The next run of the loop shall pull the next $size nodes
 
@@ -262,7 +269,7 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
 
         // Break if we are done 
         if ( strpos($pullString, 'NO MORE DATA') !== false ) {
-            usa_data_migration_error_log(__FUNCTION__." broke loop on completion ".$batch);
+            usa_data_migration_error_log(__FUNCTION__." broke loop on completion ".($batch-1));
             break;
         }
 
@@ -290,14 +297,12 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
 
         // Synch nodes into this environment
         db_query( $pullData['NodeDump_sqlDump'] );
-        db_query('UPDATE node SET uid = 1; ');
-        db_query('UPDATE node_revision SET uid = 1; ');
         entity_get_controller('node')->resetCache();
-        //usa_data_migration_log("Consumed MySQL batch dump: {$batch}");
 
         // Clear field cache for all synched nodes
         foreach ( explode(',', $pullData['NodeDump_nidList']) as $nid ) {
-            db_query("DELETE FROM cache_field WHERE InStr(cid, '{$nid}')<>0;");
+            $sql = "DELETE FROM cache_field WHERE InStr(cid, '{$nid}')<>0";
+            db_query($sql);
         }
 
         // Log

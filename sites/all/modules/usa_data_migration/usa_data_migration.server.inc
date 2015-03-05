@@ -9,7 +9,12 @@ function usa_data_migration_init() {
         drupal_add_js(
             "
                 jQuery(document).ready( function () {
-                    jQuery.get('/udm-trigger-pull-on-child-sites?eid={$eid}&etype={$etype}');
+                    console.log('Telling the CMP {$etype} {$eid} needs to be pushed to child-sites...');
+                    var pushURL = '/udm-trigger-pull-on-child-sites?eid={$eid}&etype={$etype}';
+                    jQuery.get(pushURL, function (data) {
+                        console.log('Push has completed, CMP end responded with:');
+                        console.log(data);
+                    });
                 })
             ",
             "inline"
@@ -54,13 +59,6 @@ function usa_data_migration_taxonomy_term_insert($term) {
         $nowTime = time();
         db_query("UPDATE taxonomy_dates SET created={$nowTime}, changed={$nowTime} WHERE tid = {$term->tid}");
     }
-}
-
-/*
- * Implements HOOK_node_update
- */
-function usa_data_migration_node_update($node) {
-    usa_data_migration_schedualTriggerChildPull($node);
 }
 
 /*
@@ -354,6 +352,12 @@ function usa_data_migration_printNodeDump() {
 
     // node
     $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node", "nid IN ({$nidList}) ", false, true, true, false, true);
+    $returnData['NodeDump_sqlDump'] .= "\n";
+
+    // Wipe the UID info from node on the child-site
+    $returnData['NodeDump_sqlDump'] .= "\n";
+    $returnData['NodeDump_sqlDump'] .= "UPDATE node SET uid = 1; \n";
+    $returnData['NodeDump_sqlDump'] .= "UPDATE node_revision SET uid = 1; ; \n";
     $returnData['NodeDump_sqlDump'] .= "\n";
 
     // node_access
