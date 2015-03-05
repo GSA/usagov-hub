@@ -52,11 +52,11 @@ function usa_data_migration_updatePull($security = true, $terminateThreadOnCompl
 
     // Execute node update/pull
     $target = variable_get('udm_pull_from_nodetarget');
-    usa_data_migration_synchNodesFromTarget($target, true, 100, 0, $since);
+    usa_data_migration_synchNodesFromTarget($target, true, 100, 0, $since, true);
 
     // Execute taxonomy update/pull
     $target = variable_get('udm_pull_from_taxtarget');
-    usa_data_migration_synchTaxonomyFromTarget($target, true, 100, $since);
+    usa_data_migration_synchTaxonomyFromTarget($target, true, 100, $since, true);
 
     // Return
     if ( $terminateThreadOnCompletion ) {
@@ -76,11 +76,12 @@ function usa_data_migration_updatePull($security = true, $terminateThreadOnCompl
  * and synch it into this environment. This function returns TRUE on success, and a 
  * string on failure (depending on the $retTrueOnSuccess argument).
  */
-function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTrueOnSuccess = true, $batchSize = 100, $since = 0, $maxBatch = 0) {
+function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTrueOnSuccess = true, $batchSize = 100, $since = 0, $quick = false, $maxBatch = 0) {
 
     // Debug for devs who tail the PHP error_log
     $thisFunct = __FUNCTION__;
-    usa_data_migration_error_log("Notice: {$thisFunct} is pulling taxonomy information from {$taxonomyDataSource}");
+    $strQuickMode = ( $quick ? ' (in quick mode) ' : '' );
+    usa_data_migration_error_log("Notice: {$thisFunct} is pulling taxonomy information {$strQuickMode} from {$taxonomyDataSource}");
 
     // Tell the USA Taxonomy Man module to not execute on term-hook for this batch process
     global $utm_norun;
@@ -98,6 +99,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         $taxonomyDataSource .= '&since='.$since;
     }
 
+    $tidsPulled = array();
     while ( true ) {
 
         // Ensure we dont time out
@@ -147,7 +149,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         cleanup_killOrphanedFieldData();
         
         // Synch node [field] structure into this environment 
-        if ( !empty($pullData['taxFieldStructure_BundleImportCode']) ) {
+        if ( $quick != true && !empty($pullData['taxFieldStructure_BundleImportCode']) ) {
             usa_data_migration_importStructureWithCode( $pullData['taxFieldStructure_BundleImportCode'] );
             taxonomy_vocabulary_static_reset();
             taxonomy_terms_static_reset();
@@ -161,6 +163,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         //usa_data_migration_log("Consumed MySQL batch dump: {$batch}");
 
         // Log
+        $tidsPulled = array_merge($tidsPulled, explode(',', $pullData['TaxDump_tidList']));
         error_log('Pulled these terms from the host-site: '.$pullData['TaxDump_tidList']);
 
     }
@@ -180,7 +183,19 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     // Taxonomy-pull post-synch processes
     cleanup_killOrphanTaxonomyTerms(); // TO ONLY BE RUN AFTER A COMPLETE SYNCH!
     usa_data_migration_filterTaxonomy();
-    usa_data_migration_postSynch_taxonomyTermsFriendlyAliases();
+    if ( $quick != true ) {
+
+        usa_data_migration_postSynch_taxonomyTermsFriendlyAliases();
+
+        if ( function_exists('usa_tax_man_deleteAllGeneratedMenuItems') ) {
+            global $utm_norun;
+            $utm_norun = false;
+            usa_tax_man_deleteAllGeneratedMenuItems();
+            usa_tax_man_createMenusFromTaxonomy();
+        }
+    } else {
+        usa_data_migration_postSynch_taxonomyTermsFriendlyAliases( $tidsPulled );
+    }
 
     // Return
     if ( $retTrueOnSuccess ) {
@@ -197,7 +212,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
  * and synch it into this environment. This function returns TRUE on success, and a 
  * string on failure (depending on the $retTrueOnSuccess argument)
  */
-function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSuccess = true, $batchSize = 100, $maxBatch = 0, $since = 0) {
+function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSuccess = true, $batchSize = 100, $maxBatch = 0, $since = 0, $quick = false) {
 
     // Debug for devs who tail the PHP error_log
     $thisFunct = __FUNCTION__;
@@ -210,7 +225,10 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     // Pull data
     $nodeDataSource .= ( strpos($nodeDataSource, '?') === false ? '?' : '&' ) . 'machineReadable=1';
 
-    // Pass since argument
+    // Make sure our table structures match with the structures on CMP
+    usa_data_migration_ensureExpectedTableStructure();
+
+    // Pass since argument (if we are doing an update-pull)
     if ( intval($since) > 0 ) {
         $nodeDataSource .= '&since='.$since;
     }
@@ -257,11 +275,6 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
             usa_data_migration_error_log($msg);
             return $msg;
         }
-
-        // Remove all data nodes in this environment which are incoming (we dont want things to collide)
-        db_query("DELETE FROM node WHERE nid IN ({$pullData['NodeDump_nidList']}) ");
-        cleanup_killOrphanedNodeRevisions();
-        cleanup_killOrphanedFieldData();
         
         // If S3 settings information was given, save them into a Drupal-var
         if ( !empty($pullData['s3Config']) ) {
@@ -269,7 +282,7 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         }
 
         // Synch node [field] structure into this environment 
-        if ( !empty($pullData['nodeFieldStructure_BundleImportCode']) ) {
+        if ( $quick != true && !empty($pullData['nodeFieldStructure_BundleImportCode']) ) {
             usa_data_migration_importStructureWithCode( $pullData['nodeFieldStructure_BundleImportCode'] );
             field_cache_clear();
             usa_data_migration_log("Imported node structure from remote host");
@@ -279,12 +292,16 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         db_query( $pullData['NodeDump_sqlDump'] );
         db_query('UPDATE node SET uid = 1; ');
         db_query('UPDATE node_revision SET uid = 1; ');
-        db_query('UPDATE node SET uid = 1;');
         entity_get_controller('node')->resetCache();
         //usa_data_migration_log("Consumed MySQL batch dump: {$batch}");
 
+        // Clear field cache for all synched nodes
+        foreach ( explode(',', $pullData['NodeDump_nidList']) as $nid ) {
+            db_query("DELETE FROM cache_field WHERE InStr(cid, '{$nid}')<>0;");
+        }
+
         // Log
-        error_log('Pulled these terms from the host-site: '.$pullData['NodeDump_nidList']);
+        error_log('Pulled these nodes from the host-site: '.$pullData['NodeDump_nidList']);
 
     }
 
@@ -295,7 +312,9 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     //usa_data_migration_error_log("Clean-up complete");
 
     // Prost run process for node-pulls
-    usa_data_migration_postSynch_s3translate();
+    if ( $quick != true ) {
+        usa_data_migration_postSynch_s3translate();
+    }
 
     // Exclaim finish message
     $msg = "{$thisFunct}() has finished importing nodes.";
@@ -307,6 +326,28 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     } else {
         return $msg;
     }
+}
+
+/*
+ * void usa_data_migration_ensureExpectedTableStructure()
+ *
+ * Checks to make sure that certain tables have certain expected columns.
+ * This is done so we can consumes MySQL-dumps without [missing column] errors.
+ */
+function usa_data_migration_ensureExpectedTableStructure() {
+
+    if ( !db_field_exists('node', 'deleted') ) {
+        db_query("ALTER TABLE node ADD deleted INT(11) NULL DEFAULT NULL");
+    }
+
+    if ( !db_field_exists('node', 'deletion_uid') ) {
+        db_query("ALTER TABLE node ADD deletion_uid INT(11) NULL DEFAULT NULL");
+    }
+
+    if ( !db_field_exists('node', 'deletion_timestamp') ) {
+        db_query("ALTER TABLE node ADD deletion_timestamp INT(11) NULL DEFAULT NULL");
+    }
+
 }
 
 /*
@@ -640,22 +681,50 @@ function cleanup_killOrphanedFieldData($maxSecondsForProcessing = 180) {
  * 
  * Sets the alias paths of taxonomy-terms to the value in their "Friendly URL" field
  */
-function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases() {
+function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases($tids = array()) {
 
     if ( intval(variable_get('udm_friendly_alias', 0)) == 0 ) {
         return;
     }
 
-    error_log(__FUNCTION__.'() started...');
+    if ( is_array($tids) ) {
 
-    $friendlyTerms = db_query("
-        SELECT 
-            t.tid AS 'tid',
-            f.field_friendly_url_value AS 'url'
-        FROM taxonomy_term_data t
-        LEFT JOIN field_data_field_friendly_url f ON ( t.tid = f.entity_id )
-        WHERE f.field_friendly_url_value IS NOT NULL
-    ");
+        if ( count($tids) == 0 ) {
+            error_log(__FUNCTION__.'() is not running as an empy array was supplied.');
+            return;
+        }
+
+        error_log(__FUNCTION__.'() started, and will work on ' . count($tids) . ' terms.');
+
+        $tids = implode(',', $tids);
+        $friendlyTerms = db_query("
+            SELECT 
+                t.tid AS 'tid',
+                f.field_friendly_url_value AS 'url',
+                g.field_generate_page_value AS 'genpage'
+            FROM taxonomy_term_data t
+            LEFT JOIN field_data_field_friendly_url f ON ( t.tid = f.entity_id )
+            LEFT JOIN field_data_field_generate_page g ON ( t.tid = g.entity_id )
+            WHERE t.tid IN ({$tids})
+        ");
+    } else {
+        
+        error_log(__FUNCTION__.'() started, and will work on ALL terms.');
+
+        $friendlyTerms = db_query("
+            SELECT 
+                t.tid AS 'tid',
+                f.field_friendly_url_value AS 'url',
+                g.field_generate_page_value AS 'genpage'
+            FROM taxonomy_term_data t
+            LEFT JOIN field_data_field_friendly_url f ON ( t.tid = f.entity_id )
+            LEFT JOIN field_data_field_generate_page g ON ( t.tid = g.entity_id )
+            WHERE
+                f.field_friendly_url_value IS NOT NULL
+                AND g.field_generate_page_value IS NOT NULL 
+                AND g.field_generate_page_value = 'yes'
+        ");
+    }
 
     foreach ( $friendlyTerms as $record ) {
 
@@ -681,11 +750,6 @@ function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases() {
     error_log(__FUNCTION__.'() complete.');
 }
 
-/**
- * void usa_data_migration_postSynch_taxonomyTermsFriendlyAliases()
- * 
- * Sets the alias paths of taxonomy-terms to the value in their "Friendly URL" field
- */
 function usa_data_migration_postSynch_s3translate() {
 
     if ( intval(variable_get('udm_filemedia_s3translate', 0)) == 0 ) {
@@ -733,8 +797,126 @@ function usa_data_migration_postSynch_s3translate() {
             );
         }
 
+        // look for abbr, if there is an abbr, replace
+        $entity = _usa_data_migration_alter_content($entity);
+
         node_save($entity);
     }
 
     error_log(__FUNCTION__.'() complete.');
+}
+
+
+/**
+ * _usa_data_migration_alter_content
+ *
+ * Alter some fields of nodes before node_save called
+ */
+function _usa_data_migration_alter_content($node) {
+
+    if ($node->type == "text_content_type" || $node->type == 'directory_record_content_type') {
+
+        $data_abbr = variable_get('data_abbr', "Apt.|Apartment\nAve.|Avenue\nBldg.|Building\nBlvd.|Boulevard\nCir.|Circle\nCt.|Court\nDr.|Drive"
+            . "\nExpy.|Expressway\nJct.|Junction\nLn.|Lane\nRte.|Route\nSt.|Street\nSte.|Suite\nTpke.|Turnpike");
+
+        $abbrs = explode("\n", $data_abbr);
+
+        if (isset($data_abbr) && count($abbrs) > 0) {
+            foreach ($abbrs as $abbr) {
+                $tmp_abbr = explode("|", $abbr);
+                if (count($tmp_abbr) == 2) {
+                    $find_str = $tmp_abbr[0];
+                    $replace_str = $tmp_abbr[1];
+                    // find and replace
+                    if ($node->type == "text_content_type" ) {
+                        if (isset($node->title)) {
+                            $node->title = str_replace($find_str, $replace_str, $node->title);
+                        }
+                        if (isset($node->field_description['und'][0]['value'])) {
+                            $node->field_description['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_description['und'][0]['value']);
+                            $node->field_description['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_description['und'][0]['safe_value']);
+                        }
+                        if (isset($node->body['und'][0]['value'])) {
+                            $node->body['und'][0]['value'] = str_replace($find_str, $replace_str, $node->body['und'][0]['value']);
+                            $node->body['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->body['und'][0]['safe_value']);
+                        }
+                        if (isset($node->field_contact_center_info['und'][0]['value'])) {
+                            $node->field_contact_center_info['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_contact_center_info['und'][0]['value']);
+                            $node->field_contact_center_info['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_contact_center_info['und'][0]['safe_value']);
+                        }
+                    }
+                    elseif($node->type == 'directory_record_content_type'){
+
+                        if (isset($node->title)) {
+                            $node->title = str_replace($find_str, $replace_str, $node->title);
+                        }
+                        // assuming it is directory_record_content_type
+                        if (isset($node->field_description['und'][0]['value'])) {
+                            $node->field_description['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_description['und'][0]['value']);
+                            $node->field_description['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_description['und'][0]['safe_value']);
+                        }
+
+                        if (isset($node->field_alpha_order_name['und'][0]['value'])) {
+                            $node->field_alpha_order_name['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_alpha_order_name['und'][0]['value']);
+                            $node->field_alpha_order_name['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_alpha_order_name['und'][0]['safe_value']);
+                        }
+
+                        if(isset($node->field_english_translation_name['und'][0]['value'])) {
+                            $node->field_english_translation_name['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_english_translation_name['und'][0]['value']);
+                            $node->field_english_translation_name['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_english_translation_name['und'][0]['safe_value']);
+                        }
+
+                        if (isset($node->field_see_also['und'][0]['value'])) {
+                            $node->field_see_also['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_see_also['und'][0]['value']);
+                            $node->field_see_also['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_see_also['und'][0]['safe_value']);
+                        }
+
+                        if (isset($node->field_subdivision['und'][0]['value'])) {
+                            $node->field_subdivision['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_subdivision['und'][0]['value']);
+                            $node->field_subdivision['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_subdivision['und'][0]['safe_value']);
+                        }
+
+                        if (isset($node->field_street_2['und'][0]['value'])) {
+                            $node->field_street_2['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_street_2['und'][0]['value']);
+                            $node->field_street_2['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_street_2['und'][0]['safe_value']);
+                        }
+
+                        if (isset($node->field_street_1['und'][0]['value'])) {
+                            $node->field_street_1['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_street_1['und'][0]['value']);
+                            $node->field_street_1['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_street_1['und'][0]['safe_value']);
+                        }
+
+                        if (isset($node->field_city['und'][0]['value'])) {
+                            $node->field_city['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_city['und'][0]['value']);
+                            $node->field_city['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_city['und'][0]['safe_value']);
+                        }
+
+                        if (isset($node->field_contact_links['und'][0]['value'])) {
+                            $node->field_contact_links['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_contact_links['und'][0]['value']);
+                            $node->field_contact_links['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_contact_links['und'][0]['safe_value']);
+                        }
+
+                        if (isset($node->field_in_person_links['und'][0]['value'])) {
+                            $node->field_in_person_links['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_in_person_links['und'][0]['value']);
+                            $node->field_in_person_links['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_in_person_links['und'][0]['safe_value']);
+                        }
+
+                        if (isset($node->field_website_links['und'][0]['value'])) {
+                            $node->field_website_links['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_website_links['und'][0]['value']);
+                            $node->field_website_links['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_website_links['und'][0]['safe_value']);
+                        }
+
+                        if (isset($node->field_info_for_contact_center['und'][0]['value'])) {
+                            $node->field_info_for_contact_center['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_info_for_contact_center['und'][0]['value']);
+                            $node->field_info_for_contact_center['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_info_for_contact_center['und'][0]['safe_value']);
+                        }
+
+                    }
+
+                }
+
+            }
+        }
+    }
+    return $node;
 }

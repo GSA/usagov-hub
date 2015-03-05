@@ -16,6 +16,9 @@ function usa_data_migration_config_form() {
                 if ( empty($_REQUEST['udm_tax_del']) ) { $_REQUEST['udm_tax_del'] = 0; }
                 if ( empty($_REQUEST['udm_friendly_alias']) ) { $_REQUEST['udm_friendly_alias'] = 0; }
                 if ( empty($_REQUEST['udm_filemedia_s3translate']) ) { $_REQUEST['udm_filemedia_s3translate'] = 0; }
+                if ( empty($_REQUEST['data_abbr'])) {$_REQUEST['data_abbr'] = "Apt.|Apartment\nAve.|Avenue\nBldg.|Building\nBlvd.|Boulevard\nCir.|Circle\nCt.|Court\nDr.|Drive"
+                    ."\nExpy.|Expressway\nJct.|Junction\nLn.|Lane\nRte.|Route\nSt.|Street\nSte.|Suite\nTpke.|Turnpike"; }
+
 
                 variable_set('udm_allow_pull', $_REQUEST['udm_allow_pull']);
                 variable_set('udm_pull_security_key', $_REQUEST['udm_pull_security_key']);
@@ -34,6 +37,8 @@ function usa_data_migration_config_form() {
                 variable_set('udm_tax_del_term', $_REQUEST['udm_tax_del_term']);
                 variable_set('udm_friendly_alias', $_REQUEST['udm_friendly_alias']);
                 variable_set('udm_filemedia_s3translate', $_REQUEST['udm_filemedia_s3translate']);
+                variable_set('data_abbr', $_REQUEST['data_abbr']);
+
 
                 if ( isset($_REQUEST['udm_conttypes']) ) {
                     $opts = array();
@@ -464,6 +469,21 @@ function usa_data_migration_config_form() {
         '#type' => 'item', 
         '#title' => 'Log Data:', 
         '#markup' => '<pre>' . $logHtml . '</pre>',
+    );
+
+    /* Adding Data alter setting */
+    $form['alterdatasetting'] = array(
+        '#type' => 'fieldset',
+        '#title' => 'Altering Data Setting',
+        '#collapsible' => true,
+        '#collapsed' => true,
+    );
+
+    $form['alterdatasetting']['data_abbr'] = array(
+        '#type' => 'textarea',
+        '#title' => 'Data Abbreviation:',
+        '#default_value' => variable_get('data_abbr', "Apt.|Apartment\nAve.|Avenue\nBldg.|Building\nBlvd.|Boulevard\nCir.|Circle\nCt.|Court\nDr.|Drive"
+            ."\nExpy.|Expressway\nJct.|Junction\nLn.|Lane\nRte.|Route\nSt.|Street\nSte.|Suite\nTpke.|Turnpike"),
     );
 
     $form['submit'] = array(
