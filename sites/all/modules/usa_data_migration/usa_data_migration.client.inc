@@ -204,6 +204,9 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         usa_data_migration_postSynch_taxonomyTermsFriendlyAliases( $tidsPulled );
     }
 
+    // Trigger post-process hooks
+    module_invoke_all('usa_data_migration_synched', 'terms', $tidsPulled);
+
     // Return
     if ( $retTrueOnSuccess ) {
         return true;
@@ -240,6 +243,7 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         $nodeDataSource .= '&since='.$since;
     }
 
+    $nidsPulled = array();
     while ( true ) {
 
         // Ensure we dont time out
@@ -305,6 +309,9 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
             db_query($sql);
         }
 
+        // Note that NIDs were synched
+        $nidsPulled = array_merge($nidsPulled, explode(',', $pullData['NodeDump_nidList']));
+
         // Log
         error_log('Pulled these nodes from the host-site: '.$pullData['NodeDump_nidList']);
 
@@ -320,6 +327,9 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     if ( $quick != true ) {
         usa_data_migration_postSynch_s3translate();
     }
+
+    // Trigger post-process hooks
+    module_invoke_all('usa_data_migration_synched', 'nodes', $nidsPulled);
 
     // Exclaim finish message
     $msg = "{$thisFunct}() has finished importing nodes.";
@@ -814,7 +824,7 @@ function usa_data_migration_postSynch_s3translate() {
 
 /**
  * _usa_data_migration_alter_content
- *
+ * http://ctac.myjetbrains.com/youtrack/issue/usagov-100098
  * Alter some fields of nodes before node_save called
  */
 function _usa_data_migration_alter_content($node) {
@@ -831,7 +841,7 @@ function _usa_data_migration_alter_content($node) {
                 $tmp_abbr = explode("|", $abbr);
                 if (count($tmp_abbr) == 2) {
                     $find_str = $tmp_abbr[0];
-                    $replace_str = $tmp_abbr[1];
+                    $replace_str = '<abbr title="' . $tmp_abbr[1].'">' . $tmp_abbr[0] . '</abbr>';
                     // find and replace
                     if ($node->type == "text_content_type" ) {
                         if (isset($node->title)) {
