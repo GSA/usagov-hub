@@ -341,6 +341,7 @@ function usa_data_migration_printNodeDump() {
         ORDER BY nid DESC 
         LIMIT {$offset},{$size} 
     ")->fetchCol();
+    $nidList = implode(',', $nids);
     $returnData['NodeDump_nidList'] = $nidList;
 
     // If there is no more nodes [in this batch], bail
@@ -350,7 +351,6 @@ function usa_data_migration_printNodeDump() {
     }
 
     // Get the vids of nodes to push out
-    $nidList = implode(',', $nids);
     $vids = db_query("SELECT vid FROM node n WHERE n.nid IN ({$nidList})")->fetchCol();
     $vidList = implode(',', $vids);
     
