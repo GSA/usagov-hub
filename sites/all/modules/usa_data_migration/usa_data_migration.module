@@ -4,6 +4,49 @@
 module_load_include('inc', 'usa_data_migration', 'usa_data_migration.client');
 module_load_include('inc', 'usa_data_migration', 'usa_data_migration.server');
 
+/* This is for the CLIENT - if the current requesting-page (URL) is locked [due to an ongoing 
+synch operation], lagg HERE, DURRING DRUPAL BOOTSTRAP, until the synch operation completes. 
+This need to be done here, NOT during HOOK_init() because this needs to execute before the menu-router
+fetches the target term from the database.
+*/
+if ( usa_data_migration_lagIfRequestingLockedPage() ) {
+    drupal_add_js(
+        "
+            jQuery(document).ready( function () {
+                console.log('DevNote: This page was lagged as your request for this page was made during a data-migration related to this content.');
+            })
+        ",
+        "inline"
+    );
+}
+
+/*
+ * Implements HOOK_init()
+ */
+function usa_data_migration_init() {
+
+    // This is for the SERVER - trigger content-push (really, trigger the childsites to pull)
+    if ( !empty($_SESSION['udm_push_eid']) && !empty($_SESSION['udm_push_type']) ) {
+
+        $eid = $_SESSION['udm_push_eid'];
+        $etype = $_SESSION['udm_push_type'];
+        drupal_add_js(
+            "
+                jQuery(document).ready( function () {
+                    console.log('Telling the CMP {$etype} {$eid} needs to be pushed to child-sites...');
+                    var pushURL = '/udm-trigger-pull-on-child-sites?eid={$eid}&etype={$etype}';
+                    jQuery.get(pushURL, function (data) {
+                        console.log('Push has completed, CMP end responded with:');
+                        console.log(data);
+                    });
+                })
+            ",
+            "inline"
+        );
+    }
+
+}
+
 /*
  * Implements HOOK_menu()
  */

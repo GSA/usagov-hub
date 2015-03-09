@@ -1,28 +1,5 @@
 <?php
 
-function usa_data_migration_init() {
-
-    if ( !empty($_SESSION['udm_push_eid']) && !empty($_SESSION['udm_push_type']) ) {
-
-        $eid = $_SESSION['udm_push_eid'];
-        $etype = $_SESSION['udm_push_type'];
-        drupal_add_js(
-            "
-                jQuery(document).ready( function () {
-                    console.log('Telling the CMP {$etype} {$eid} needs to be pushed to child-sites...');
-                    var pushURL = '/udm-trigger-pull-on-child-sites?eid={$eid}&etype={$etype}';
-                    jQuery.get(pushURL, function (data) {
-                        console.log('Push has completed, CMP end responded with:');
-                        console.log(data);
-                    });
-                })
-            ",
-            "inline"
-        );
-    }
-
-}
-
 function usa_data_migration_triggerUpdatePullOnAllChildSites() {
 
     unset($_SESSION['udm_push_eid']);
@@ -335,7 +312,12 @@ function usa_data_migration_printNodeDump() {
     $offset = ($batch - 1) * $size;
     $since = ( !empty($_GET['since']) && intval($_GET['since']) > 0 ? 'AND n.changed > '.intval($_GET['since']) : false );
     $cTypeList = '\'' . implode("', '", variable_get('udm_conttypes', array())) . '\'';
-    $nids = db_query("SELECT nid FROM node n WHERE n.type IN ({$cTypeList}) {$since} LIMIT {$offset},{$size} ")->fetchCol();
+    $nids = db_query("
+        SELECT nid FROM node n 
+        WHERE n.type IN ({$cTypeList}) {$since} 
+        ORDER BY nid DESC 
+        LIMIT {$offset},{$size} 
+    ")->fetchCol();
     $nidList = implode(',', $nids);
     $returnData['NodeDump_nidList'] = $nidList;
 
@@ -345,27 +327,31 @@ function usa_data_migration_printNodeDump() {
         exit('NO MORE DATA');
     }
 
+    // Get the vids of nodes to push out
+    $vids = db_query("SELECT vid FROM node n WHERE n.nid IN ({$nidList})")->fetchCol();
+    $vidList = implode(',', $vids);
+    
     // Obtain a MySQL dump of all node information
     $returnData['NodeDump_sqlDump'] = '';
 
     // usa_data_migration_getMySQLDump($tables, $where, $addDropTable, $ignoreErrors, $fullInsert, $lockTables, $replace)
 
     // node
-    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node", "nid IN ({$nidList}) ", false, true, true, false, true);
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node", "nid IN ({$nidList})", false, true, true, false, true);
     $returnData['NodeDump_sqlDump'] .= "\n";
 
     // Wipe the UID info from node on the child-site
     $returnData['NodeDump_sqlDump'] .= "\n";
     $returnData['NodeDump_sqlDump'] .= "UPDATE node SET uid = 1; \n";
-    $returnData['NodeDump_sqlDump'] .= "UPDATE node_revision SET uid = 1; ; \n";
+
+    // node_revision
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node_revision", "nid IN ({$nidList}) AND vid IN ({$vidList})", false, true, true, false, true);
+    $returnData['NodeDump_sqlDump'] .= "\n";
+    $returnData['NodeDump_sqlDump'] .= "UPDATE node_revision SET uid = 1;\n";
     $returnData['NodeDump_sqlDump'] .= "\n";
 
     // node_access
     $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node_access", "nid IN ({$nidList}) ", false, true, true, false, true);
-    $returnData['NodeDump_sqlDump'] .= "\n";
-
-    // node_revision
-    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node_revision", "nid IN ({$nidList}) ", false, true, true, false, true);
     $returnData['NodeDump_sqlDump'] .= "\n";
 
     // field_data_body
