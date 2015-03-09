@@ -1,28 +1,5 @@
 <?php
 
-function usa_data_migration_init() {
-
-    if ( !empty($_SESSION['udm_push_eid']) && !empty($_SESSION['udm_push_type']) ) {
-
-        $eid = $_SESSION['udm_push_eid'];
-        $etype = $_SESSION['udm_push_type'];
-        drupal_add_js(
-            "
-                jQuery(document).ready( function () {
-                    console.log('Telling the CMP {$etype} {$eid} needs to be pushed to child-sites...');
-                    var pushURL = '/udm-trigger-pull-on-child-sites?eid={$eid}&etype={$etype}';
-                    jQuery.get(pushURL, function (data) {
-                        console.log('Push has completed, CMP end responded with:');
-                        console.log(data);
-                    });
-                })
-            ",
-            "inline"
-        );
-    }
-
-}
-
 function usa_data_migration_triggerUpdatePullOnAllChildSites() {
 
     unset($_SESSION['udm_push_eid']);

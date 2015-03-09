@@ -144,6 +144,9 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
             return $msg;
         }
 
+        // Lock URL-paths that request term-pages being written to
+        usa_data_migration_lockUrlToTerms( explode(',', $pullData['TaxDump_tidList']) );
+
         // Remove all data terms in this environment which are incoming (we dont want things to collide)
         db_query("DELETE FROM taxonomy_term_data WHERE tid IN ({$pullData['TaxDump_tidList']}) ");
         cleanup_killOrphanedTaxonomyData();
@@ -159,7 +162,11 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         }
 
         // Synch terms into this environment
-        db_query( $pullData['TaxDump_sqlDump'] );
+        $linkMySql = usa_data_migration_connectMySQL();
+        $sqlLines = explode("\n", $pullData['TaxDump_sqlDump']);
+        foreach ( $sqlLines as $sqlLine ) {
+            mysql_query($sqlLine, $linkMySql);
+        }
         entity_get_controller('taxonomy_term')->resetCache();
         //usa_data_migration_log("Consumed MySQL batch dump: {$batch}");
 
@@ -168,6 +175,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
             $sql = "DELETE FROM cache_field WHERE InStr(cid, '{$nid}')<>0";
             db_query($sql);
         }
+
 
         // Log
         $tidsPulled = array_merge($tidsPulled, explode(',', $pullData['TaxDump_tidList']));
@@ -192,7 +200,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     usa_data_migration_filterTaxonomy();
     if ( $quick != true ) {
 
-        usa_data_migration_postSynch_taxonomyTermsFriendlyAliases();
+        usa_data_migration_postSynch_taxonomyTermsFriendlyAliases(false);
 
         if ( function_exists('usa_tax_man_deleteAllGeneratedMenuItems') ) {
             global $utm_norun;
@@ -203,6 +211,12 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     } else {
         usa_data_migration_postSynch_taxonomyTermsFriendlyAliases( $tidsPulled );
     }
+
+    // Unlock URL-paths that request term-pages that were being written to
+    usa_data_migration_unlockAllUrls();
+
+    // Trigger post-process hooks
+    module_invoke_all('usa_data_migration_synched', 'terms', $tidsPulled);
 
     // Return
     if ( $retTrueOnSuccess ) {
@@ -240,6 +254,7 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         $nodeDataSource .= '&since='.$since;
     }
 
+    $nidsPulled = array();
     while ( true ) {
 
         // Ensure we dont time out
@@ -305,6 +320,9 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
             db_query($sql);
         }
 
+        // Note that NIDs were synched
+        $nidsPulled = array_merge($nidsPulled, explode(',', $pullData['NodeDump_nidList']));
+
         // Log
         error_log('Pulled these nodes from the host-site: '.$pullData['NodeDump_nidList']);
 
@@ -320,6 +338,9 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     if ( $quick != true ) {
         usa_data_migration_postSynch_s3translate();
     }
+
+    // Trigger post-process hooks
+    module_invoke_all('usa_data_migration_synched', 'nodes', $nidsPulled);
 
     // Exclaim finish message
     $msg = "{$thisFunct}() has finished importing nodes.";
@@ -387,6 +408,124 @@ function usa_data_migration_importStructureWithCode($code) {
     } else {
         $_SESSION['messages']['status'] = $restoSession;
     }
+}
+
+/*
+ * bool usa_data_migration_lagIfRequestingLockedPage([int $maxLagSeconds = 10])
+ *
+ * If the requesting-page is locked [due to an ongoing data-migration], this function 
+ * will sleep() this thread untill the page is unlocked.
+ *
+ * Returns FALSE if no lag was taken. Returns TRUE if this function needed to sleep() 
+ */
+function usa_data_migration_lagIfRequestingLockedPage($maxLagSeconds = 30) {
+
+    $rurl = request_uri();
+
+    // If this URL is not locked, bail
+    if ( !usa_data_migration_urlIsLocked($rurl) ) {
+        return false;
+    }
+
+    // We shall sleep untill the page is no longer locked
+    $lagStart = time();
+    while ( usa_data_migration_urlIsLocked($rurl) ) {
+
+        sleep(1);
+        
+        // Watch the timeout
+        if ( time() - $lagStart > $maxLagSeconds ) {
+            error_log(__FUNCTION__."() timed out, and released the lag prematurely!");
+            return true;
+        }
+    }
+
+    // We have broken out of loop - lets wait 2 more seconds just to make sure its all in
+    sleep(2);
+
+    return true;
+}
+
+/*
+ * void usa_data_migration_lockUrlToTerms(array $tids)
+ * void usa_data_migration_lockUrlToTerms(int $tid)
+ *
+ * This functions "locks" the alias path associated with the given term [id].
+ */
+function usa_data_migration_lockUrlToTerms($tids) {
+
+    // This function accepts a number, or an array of numbers
+    if ( !is_array($tids) ) {
+        $tids = array($tids);
+    }
+
+    usa_data_migration_ensureLockedUrlsTblExsists();
+
+    foreach ( $tids as $tid ) {
+
+        $tid = intval($tid);
+
+        $url = drupal_lookup_path('alias', 'taxonomy/term/'.$tid);
+        error_log("Locking URL path: {$url}");
+
+        db_query("INSERT IGNORE INTO udm_locked_urls (tid, url) VALUES ({$tid}, '{$url}') ");
+    }
+}
+
+/*
+ * void usa_data_migration_unlockAllUrls()
+ *
+ * This functions "unlocks" all URLs locked from usa_data_migration_lockUrlToTerm()
+ * After a call to this function, usa_data_migration_urlIsLocked() shall always 
+ * return TRUE until another call to usa_data_migration_lockUrlToTerm() is made.
+ */
+function usa_data_migration_unlockAllUrls($tid) {
+    db_query("TRUNCATE TABLE udm_locked_urls");
+    error_log("All URL-paths unlocked in udm_locked_urls");
+}
+
+/*
+ * bool usa_data_migration_urlIsLocked(string $url)
+ *
+ * Returns weather or not a URL is locked (due to an ongoing data-migration)
+ */
+function usa_data_migration_urlIsLocked($url) {
+    
+    usa_data_migration_ensureLockedUrlsTblExsists();
+
+    $url = ltrim($url, '/');
+
+    $isLocked = db_query("
+        SELECT COUNT(*) AS 'count'
+        FROM udm_locked_urls u 
+        WHERE InStr(u.url, '{$url}') <> 0
+    ")->fetchColumn();
+
+    $isLocked = intval($isLocked);
+    return ( $isLocked > 0 );
+}
+
+/*
+ * void usa_data_migration_ensureLockedUrlsTblExsists()
+ *
+ * Ensures the database-table used for tacking what URLs are locked exsists
+ */
+function usa_data_migration_ensureLockedUrlsTblExsists() {
+
+    // No need to run this function more than once in a PHP thread
+    global $udm_ELUTE;
+    if ( isset($udm_ELUTE) && $udm_ELUTE === true ) {
+        reutrn;
+    }
+    $udm_ELUTE = true; // Setting this, we will bail in the future, in this funct, in this thread
+
+    // Create this table if it does not exist already
+    db_query("
+        CREATE TABLE IF NOT EXISTS udm_locked_urls (
+            tid INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'associated taxonomy-term id this lock is associated with. REMEMBER, this term-id may not exists while the tid is in here.',
+            url TEXT NOT NULL COMMENT 'the url path to lock.'
+        )
+    ");
 }
 
 /*
@@ -814,7 +953,7 @@ function usa_data_migration_postSynch_s3translate() {
 
 /**
  * _usa_data_migration_alter_content
- *
+ * http://ctac.myjetbrains.com/youtrack/issue/usagov-100098
  * Alter some fields of nodes before node_save called
  */
 function _usa_data_migration_alter_content($node) {
@@ -831,7 +970,7 @@ function _usa_data_migration_alter_content($node) {
                 $tmp_abbr = explode("|", $abbr);
                 if (count($tmp_abbr) == 2) {
                     $find_str = $tmp_abbr[0];
-                    $replace_str = $tmp_abbr[1];
+                    $replace_str = '<abbr title="' . $tmp_abbr[1].'">' . $tmp_abbr[0] . '</abbr>';
                     // find and replace
                     if ($node->type == "text_content_type" ) {
                         if (isset($node->title)) {
@@ -924,4 +1063,25 @@ function _usa_data_migration_alter_content($node) {
         }
     }
     return $node;
+}
+
+/**
+ * resource connectMySQL()
+ *
+ * Connects to the MySQL database that this Drupal instance is/will-be using
+ * This is meant to create a connection to the database that bypasses Drupal's db_query() and query alter hooks
+ */
+function usa_data_migration_connectMySQL() {
+    $dbAuth = $GLOBALS["databases"]["default"]["default"];
+    $host = $dbAuth["host"];
+    $user = $dbAuth["username"];
+    $pass = $dbAuth["password"];
+    $port = $dbAuth["port"];
+    $db = $dbAuth["database"];
+    if ( !empty($port) ) {
+        $host .= ":" . $port;
+    }
+    $link = mysql_connect($host, $user, $pass);
+    mysql_select_db($db, $link);
+    return $link;
 }
