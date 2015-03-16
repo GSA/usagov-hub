@@ -36,8 +36,7 @@ function usa_data_migration_init() {
                     console.log('Telling the CMP {$etype} {$eid} needs to be pushed to child-sites...');
                     var pushURL = '/udm-trigger-pull-on-child-sites?eid={$eid}&etype={$etype}';
                     jQuery.get(pushURL, function (data) {
-                        console.log('Push has completed, CMP end responded with:');
-                        console.log(data);
+                        console.log('Push has completed, CMP end responded with: '+data);
                     });
                 })
             ",
@@ -102,9 +101,18 @@ function usa_data_migration_menu() {
     );
 
     // Menu item to receive push requests
+    $items['dev/udm-debug-and-status'] = array(
+        'title' => 'Page-Lock Debug info',
+        'description' => 'Prints page-locking debug info',
+        'page callback' => 'usa_data_migration_debugShowPageLockingStatusPage',
+        'access callback' => true,
+        'type' => MENU_CALLBACK,
+    );
+
+    // Menu item to receive push requests
     $items['udm-trigger-pull-on-child-sites'] = array(
         'title' => 'Push Request Receiver',
-        'description' => 'This page receives a push-request',
+        'description' => 'Tells child-sites to do an update-pull',
         'page callback' => 'usa_data_migration_triggerUpdatePullOnAllChildSites',
         'access callback' => true,
         'type' => MENU_CALLBACK,
