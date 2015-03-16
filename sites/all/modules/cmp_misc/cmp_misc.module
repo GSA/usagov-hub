@@ -118,7 +118,7 @@ function cmp_misc_views_api() {
 
 function cmp_misc_views_pre_execute(&$view){
 
-    if ( $view->name === 'export_nodes' || $view->name === 'export_taxonomy' ) {
+    if ( $view->name === 'dump_nodes' || $view->name === 'dump_taxonomy' ) {
         $page = ( empty($_REQUEST['page']) ? 0 : intval($_REQUEST['page']) );
         $query = $view->build_info['query'];
         $query->range($page, 50);
