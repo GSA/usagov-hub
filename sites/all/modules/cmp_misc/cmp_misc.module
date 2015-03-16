@@ -115,8 +115,16 @@ function cmp_misc_views_api() {
         'template path' => drupal_get_path('module', 'cmp_misc') . '/templates',
     );
 }
+
 function cmp_misc_views_pre_execute(&$view){
+
+    if ( $view->name === 'export_nodes' ) {
+        $page = ( empty($_REQUEST['page']) ? 0 : intval($_REQUEST['page']) );
+        $query = $view->build_info['query'];
+        $query->range($page, 50);
+    }
 }
+
 function cmp_misc_views_pre_render(&$view) {
     $i = 0;
     if ($view->name == "sites_taxonomy_report" && $view->current_display == "summarized_report_page") {
