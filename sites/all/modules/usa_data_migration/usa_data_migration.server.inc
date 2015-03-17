@@ -29,7 +29,6 @@ function usa_data_migration_entity_delete($entity, $type) {
         $nidsDeleted = array_slice($nidsDeleted, -50);
         $nidsDeleted[] = $entity->nid;
         variable_set('udm_nidsDeleted', $nidsDeleted);
-        dsm( variable_get('udm_nidsDeleted', array()) );
     }
 
     // Track taxonomy deletions
@@ -40,6 +39,8 @@ function usa_data_migration_entity_delete($entity, $type) {
         $tidsDeleted[] = $entity->tid;
         variable_set('udm_tidsDeleted', $tidsDeleted);
     }
+
+    usa_data_migration_schedualTriggerChildPull($entity);
 }
 
 /*
@@ -250,8 +251,24 @@ function usa_data_migration_printTaxonomyDump() {
 
     // If there is no more nodes [in this batch], bail
     if ( count($tids) === 0 ) {
-        @ob_end_clean(); @ob_end_clean(); @ob_end_clean();
-        exit('NO MORE DATA');
+
+        /* Unless batch is == 1, in which case we'll return the last entitiy altered, this is because 
+        we want to push atleast 1 batch out, just incase nothing has been added/changed, but there are
+        deleted items to push. */
+        if ( $batch === 1 ) {
+            $tids = db_query("
+                SELECT t.tid FROM taxonomy_term_data t
+                LEFT JOIN taxonomy_dates d ON ( t.tid = d.tid )
+                WHERE d.changed IS NOT NULL
+                ORDER BY d.changed DESC
+                LIMIT 1;
+            ")->fetchCol();
+            $tidList = implode(',', $tids);
+            $returnData['TaxDump_tidList'] = $tidList;
+        } else {
+            @ob_end_clean(); @ob_end_clean(); @ob_end_clean();
+            exit('NO MORE DATA');
+        }
     }
 
     // A dump of MySQL commands
