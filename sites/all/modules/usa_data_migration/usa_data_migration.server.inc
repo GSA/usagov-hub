@@ -18,6 +18,23 @@ function usa_data_migration_triggerUpdatePullOnAllChildSites() {
 }
 
 /*
+ * Implements HOOK_taxonomy_term_delete
+ */
+function usa_data_migration_taxonomy_term_delete($term) {
+
+    $tidsDeleted = variable_get('udm_tidsDeleted', array());
+    // Limit tracking to the last 50 terms to save db space
+    $tidsDeleted = array_slice($tidsDeleted, -50);
+    $tidsDeleted[$term->tid] = $term->tid;
+    variable_set('udm_tidsDeleted', $tidsDeleted);
+
+    error_log(__FUNCTION__.'() triggered, udm_tidsDeleted is now: '.print_r($tidsDeleted, true));
+
+    usa_data_migration_schedualTriggerChildPull($term);
+
+}
+
+/*
  * Implements HOOK_entity_delete
  */
 function usa_data_migration_entity_delete($entity, $type) {
@@ -36,8 +53,9 @@ function usa_data_migration_entity_delete($entity, $type) {
         $tidsDeleted = variable_get('udm_tidsDeleted', array());
         // Limit tracking to the last 50 terms to save db space
         $tidsDeleted = array_slice($tidsDeleted, -50);
-        $tidsDeleted[] = $entity->tid;
+        $tidsDeleted[$entity->tid] = $entity->tid;
         variable_set('udm_tidsDeleted', $tidsDeleted);
+        error_log(__FUNCTION__.'() triggered, udm_tidsDeleted is now: '.print_r($tidsDeleted, true));
     }
 
     usa_data_migration_schedualTriggerChildPull($entity);
