@@ -2,13 +2,103 @@
 
 function usa_data_migration_triggerUpdatePullOnAllChildSites() {
 
+    @ob_end_clean();
+    @ob_end_clean();
+    @ob_end_clean();
+
     unset($_SESSION['udm_push_eid']);
     unset($_SESSION['udm_push_type']);
     $targets = explode("\n", variable_get('udm_push_targets', ''));
     foreach ($targets as $target) {
-        file_get_contents($target);
+        print "Pinging target: {$target}\n";
+        print "Responce was: ".file_get_contents($target) . "\n";
     }
 
+    exit();
+}
+
+/*
+ * Implements HOOK_taxonomy_term_delete
+ */
+function usa_data_migration_taxonomy_term_delete($term) {
+
+    $tidsDeleted = variable_get('udm_tidsDeleted', array());
+    // Limit tracking to the last 50 terms to save db space
+    $tidsDeleted = array_slice($tidsDeleted, -50);
+    $tidsDeleted[$term->tid] = $term->tid;
+    variable_set('udm_tidsDeleted', $tidsDeleted);
+
+    error_log(__FUNCTION__.'() triggered, udm_tidsDeleted is now: '.print_r($tidsDeleted, true));
+
+    usa_data_migration_schedualTriggerChildPull($term);
+
+}
+
+/*
+ * Implements HOOK_entity_delete
+ */
+function usa_data_migration_entity_delete($entity, $type) {
+
+    // Track node deletions
+    if ( !empty($entity->nid) ) {
+        $nidsDeleted = variable_get('udm_nidsDeleted', array());
+        // Limit tracking to the last 50 nodes to save db space
+        $nidsDeleted = array_slice($nidsDeleted, -50);
+        $nidsDeleted[] = $entity->nid;
+        variable_set('udm_nidsDeleted', $nidsDeleted);
+    }
+
+    // Track taxonomy deletions
+    if ( !empty($entity->tid) ) {
+        $tidsDeleted = variable_get('udm_tidsDeleted', array());
+        // Limit tracking to the last 50 terms to save db space
+        $tidsDeleted = array_slice($tidsDeleted, -50);
+        $tidsDeleted[$entity->tid] = $entity->tid;
+        variable_set('udm_tidsDeleted', $tidsDeleted);
+        error_log(__FUNCTION__.'() triggered, udm_tidsDeleted is now: '.print_r($tidsDeleted, true));
+    }
+
+    usa_data_migration_schedualTriggerChildPull($entity);
+}
+
+/*
+ * array usa_data_migration_getDeletedNodes()
+ *
+ * Returns an array of dead node-IDs
+ */
+function usa_data_migration_getDeletedNodes() {
+
+    $ret = array();
+
+    // To make sure we're not crazy, well check and make sure the given entity-id truley is dead
+    foreach ( variable_get('udm_nidsDeleted', array()) as $nid ) {
+        $nidExsists = db_query("SELECT COUNT(*) FROM node WHERE nid={$nid} ")->fetchColumn();
+        if ( intval($nidExsists) === 0 ) {
+            $ret[] = $nid;
+        }
+    }
+
+    return $ret;
+}
+
+/*
+ * array usa_data_migration_getDeletedTerms()
+ *
+ * Returns an array of dead term-IDs
+ */
+function usa_data_migration_getDeletedTerms() {
+
+    $ret = array();
+
+    // To make sure we're not crazy, well check and make sure the given entity-id truley is dead
+    foreach ( variable_get('udm_tidsDeleted', array()) as $tid ) {
+        $tidExsists = db_query("SELECT COUNT(*) FROM taxonomy_term_data WHERE tid={$tid} ")->fetchColumn();
+        if ( intval($tidExsists) === 0 ) {
+            $ret[] = $tid;
+        }
+    }
+
+    return $ret;
 }
 
 /*
@@ -179,12 +269,34 @@ function usa_data_migration_printTaxonomyDump() {
 
     // If there is no more nodes [in this batch], bail
     if ( count($tids) === 0 ) {
-        @ob_end_clean(); @ob_end_clean(); @ob_end_clean();
-        exit('NO MORE DATA');
+
+        /* Unless batch is == 1, in which case we'll return the last entitiy altered, this is because 
+        we want to push atleast 1 batch out, just incase nothing has been added/changed, but there are
+        deleted items to push. */
+        if ( $batch === 1 ) {
+            $tids = db_query("
+                SELECT t.tid FROM taxonomy_term_data t
+                LEFT JOIN taxonomy_dates d ON ( t.tid = d.tid )
+                WHERE d.changed IS NOT NULL
+                ORDER BY d.changed DESC
+                LIMIT 1;
+            ")->fetchCol();
+            $tidList = implode(',', $tids);
+            $returnData['TaxDump_tidList'] = $tidList;
+        } else {
+            @ob_end_clean(); @ob_end_clean(); @ob_end_clean();
+            exit('NO MORE DATA');
+        }
     }
 
-    // Obtain a MySQL dump of all node information
+    // A dump of MySQL commands
     $returnData['TaxDump_sqlDump'] = '';
+
+    // Dump SQL commands to remove entities deleted from the CMP
+    $tidsKilled = usa_data_migration_getDeletedTerms();
+    foreach ( $tidsKilled as $tid ) {
+        $returnData['TaxDump_sqlDump'] .= "DELETE from taxonomy_term_data WHERE tid={$tid};\n";
+    }
 
     // taxonomy_term_data
     $returnData['TaxDump_sqlDump'] .= usa_data_migration_getMySQLDump("taxonomy_term_data", "tid IN ({$tidList}) ", false, true, true, false);
@@ -316,7 +428,7 @@ function usa_data_migration_printNodeDump() {
         SELECT nid FROM node n 
         WHERE n.type IN ({$cTypeList}) {$since} 
         ORDER BY nid DESC 
-        LIMIT {$offset},{$size} 
+        LIMIT {$offset},{$size}
     ")->fetchCol();
     $nidList = implode(',', $nids);
     $returnData['NodeDump_nidList'] = $nidList;
@@ -334,7 +446,11 @@ function usa_data_migration_printNodeDump() {
     // Obtain a MySQL dump of all node information
     $returnData['NodeDump_sqlDump'] = '';
 
-    // usa_data_migration_getMySQLDump($tables, $where, $addDropTable, $ignoreErrors, $fullInsert, $lockTables, $replace)
+    // Dump SQL commands to remove entities deleted from the CMP
+    $nidsKilled = usa_data_migration_getDeletedNodes();
+    foreach ( $nidsKilled as $nid ) {
+        $returnData['NodeDump_sqlDump'] .= "DELETE from node WHERE nid={$nid};\n";
+    }
 
     // node
     $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node", "nid IN ({$nidList})", false, true, true, false, true);

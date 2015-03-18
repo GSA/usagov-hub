@@ -33,13 +33,13 @@ function usa_data_migration_updatePull($security = true, $terminateThreadOnCompl
             @ob_end_clean();
             while (@ob_end_clean());
             header('Content-Type: text');
-            exit('Access Denied: Invalid security key');
+            exit("Access Denied: Invalid security key ({$_REQUEST['key']})");
         }
     }
 
     // Dont pull if there may be another thread doing a pull right now
     $since = variable_get('udm_last_pull_time', 0);
-    if ( time() - $since > 8 || $since == 0 ) { 
+    if ( abs(time() - $since) > 25 || $since == 0 ) { 
         $since = intval($since) - 1800; // 1800 = 30 mins
         $since = ( $since < 0 ? 0 : $since );
         error_log('since is: ' . (time() - $since));
@@ -183,6 +183,9 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
 
     }
 
+    // Don't let another PHP thread run this same function simultaneously (this is going to be spammed a lot in this function)
+    variable_set('udm_last_pull_time', time() );
+
     // Run cleanup process
     //usa_data_migration_error_log("Cleaning up");
     cleanup_killOrphanedNodeRevisions();
@@ -190,33 +193,52 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     cleanup_killOrphanedFieldData();
     //usa_data_migration_error_log("Clean-up complete");
 
-    // Exclaim finish message
-    $msg = "{$thisFunct}() has finished importing terms.";
+    // Don't let another PHP thread run this same function simultaneously (this is going to be spammed a lot in this function)
+    variable_set('udm_last_pull_time', time() );
+
+    // Exclaim synch-finish message
+    $msg = "{$thisFunct}() has finished importing terms, now running post-synch processes...";
     usa_data_migration_log($msg);
     usa_data_migration_error_log("Notice: " . $msg);
 
     // Taxonomy-pull post-synch processes
     cleanup_killOrphanTaxonomyTerms(); // TO ONLY BE RUN AFTER A COMPLETE SYNCH!
     usa_data_migration_filterTaxonomy();
-    if ( $quick != true ) {
-
+    if ( $since == 0 ) {
         usa_data_migration_postSynch_taxonomyTermsFriendlyAliases(false);
-
-        if ( function_exists('usa_tax_man_deleteAllGeneratedMenuItems') ) {
-            global $utm_norun;
-            $utm_norun = false;
-            usa_tax_man_deleteAllGeneratedMenuItems();
-            usa_tax_man_createMenusFromTaxonomy();
-        }
     } else {
         usa_data_migration_postSynch_taxonomyTermsFriendlyAliases( $tidsPulled );
     }
 
-    // Unlock URL-paths that request term-pages that were being written to
+    // Don't let another PHP thread run this same function simultaneously (this is going to be spammed a lot in this function)
+    variable_set('udm_last_pull_time', time() );
+
+    // Updated associated menu-item titles with the pulled-term titles
+    if ( function_exists('usa_tax_man_createMenusFromTaxonomy') ) {
+        usa_data_migration_lockEntireSite();
+        global $utm_norun;
+        $utm_norun = false;
+        usa_tax_man_deleteAllGeneratedMenuItems();
+        usa_tax_man_createMenusFromTaxonomy();
+    }
+
+    // Unlock the previously locked pages
     usa_data_migration_unlockAllUrls();
 
+    /* Don't let another PHP thread run this same function simultaneously (this is going to be spammed a lot in this function)
+    additionally, the trigger of HOOK_udm_last_pull_time() may take a while, so we'll set udm_last_pull_time to the future. */
+    variable_set('udm_last_pull_time', time() + 24 );
+
     // Trigger post-process hooks
-    module_invoke_all('usa_data_migration_synched', 'terms', $tidsPulled);
+    $hookStartTime = microtime(true);
+    module_invoke_all('usa_data_migration_synched', 'terms', $tidsPulled, $since);
+    $timeTaken = round(microtime(true) - $hookStartTime, 2);
+    variable_set('udm_HookProcTime_tax', $timeTaken); // Note how long this hook took to execute (for debugging/logging purposes)
+
+    // Exclaim overall-finish message
+    $msg = "{$thisFunct}() has finished importing terms, post-synch processes complete...";
+    usa_data_migration_log($msg);
+    usa_data_migration_error_log("Notice: " . $msg);
 
     // Return
     if ( $retTrueOnSuccess ) {
@@ -335,12 +357,18 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     //usa_data_migration_error_log("Clean-up complete");
 
     // Prost run process for node-pulls
-    if ( $quick != true ) {
-        usa_data_migration_postSynch_s3translate();
+    if ( count($nidsPulled) == 0 ) {
+        error_log('Not running usa_data_migration_postSynch_s3translate(), as no nodes were synced.');
+    } else {
+        $nidList = implode(',', $nidsPulled);
+        usa_data_migration_postSynch_s3translate($nidList);
     }
 
     // Trigger post-process hooks
-    module_invoke_all('usa_data_migration_synched', 'nodes', $nidsPulled);
+    $hookStartTime = microtime(true);
+    module_invoke_all('usa_data_migration_synched', 'nodes', $nidsPulled, $since);
+    $timeTaken = round(microtime(true) - $hookStartTime, 2);
+    variable_set('udm_HookProcTime_node', $timeTaken); // Note how long this hook took to execute (for debugging/logging purposes)
 
     // Exclaim finish message
     $msg = "{$thisFunct}() has finished importing nodes.";
@@ -411,16 +439,72 @@ function usa_data_migration_importStructureWithCode($code) {
 }
 
 /*
+ * void usa_data_migration_debugShowPageLockingStatusPage()
+ *
+ * This is a menu-callback function.
+ *
+ * Prints debug info for what pages are currently locked, etc.
+ * Notice: This function will hijack and terminate the PHP-thread on call.
+ */
+function usa_data_migration_debugShowPageLockingStatusPage() {
+
+    @ob_end_clean();
+    while ( @ob_end_clean() );
+
+    print "<h1>Last-Pull and Timing Info:</h1>";
+
+    print "<b>udm_last_pull_time (unix time):</b> " . variable_get('udm_last_pull_time', '!NEVER!');
+    print "<br/>";
+    print "<b>udm_last_pull_time (seconds ago):</b> " . ( time() - variable_get('udm_last_pull_time', 0) );
+    print "<br/>";
+    print "<b>Pull-Request currently allowed:</b> " . ( abs(time() - variable_get('udm_last_pull_time', 0)) > 25 ? 'yes' : 'no' );
+    print "<br/>";
+
+    $timeReport = variable_get('udm_HookProcTime_node', '!UNKNOWN!');
+    print "The last call to HOOK_usa_data_migration_synched() [after a node synch] took <b>{$timeReport}</b> seconds to process.";
+    print "<br/>";
+
+    $timeReport = variable_get('udm_HookProcTime_tax', '!UNKNOWN!');
+    print "The last call to HOOK_usa_data_migration_synched() [after a tax-term synch] took <b>{$timeReport}</b> seconds to process.";
+    print "<br/>";
+
+    print "<h1>Currently Locked Page:</h1>";
+
+    print "<table border=1>";
+
+    print "<tr>";
+    print "<td>tid</td>";
+    print "<td>url</td>";
+    print "</tr>";
+
+    foreach (db_query("SELECT * FROM udm_locked_urls") as $record) {
+        print "<tr>";
+        print "<td>{$record->tid}</td>";
+        print "<td>{$record->url}</td>";
+        print "</tr>";
+    }
+    print "</table>";
+
+    exit();
+
+}
+
+/*
  * bool usa_data_migration_lagIfRequestingLockedPage([int $maxLagSeconds = 10])
  *
  * If the requesting-page is locked [due to an ongoing data-migration], this function 
- * will sleep() this thread untill the page is unlocked.
+ * will sleep() this thread until the page is unlocked.
  *
  * Returns FALSE if no lag was taken. Returns TRUE if this function needed to sleep() 
  */
-function usa_data_migration_lagIfRequestingLockedPage($maxLagSeconds = 30) {
+function usa_data_migration_lagIfRequestingLockedPage($maxLagSeconds = 45) {
 
     $rurl = request_uri();
+
+    // The following is a special page for debugging
+    if ( $rurl === '/dev/udm-debug-and-status' ) {
+        return false;
+    }
 
     // If this URL is not locked, bail
     if ( !usa_data_migration_urlIsLocked($rurl) ) {
@@ -473,13 +557,22 @@ function usa_data_migration_lockUrlToTerms($tids) {
 }
 
 /*
+ * void usa_data_migration_lockUrlToTerms()
+ *
+ * This functions "locks" the entire site, ONLY USE THIS WHEN NESSESARY!
+ */
+function usa_data_migration_lockEntireSite() {
+    db_query("INSERT IGNORE INTO udm_locked_urls (tid, url) VALUES (0, '*') ");
+}
+
+/*
  * void usa_data_migration_unlockAllUrls()
  *
  * This functions "unlocks" all URLs locked from usa_data_migration_lockUrlToTerm()
  * After a call to this function, usa_data_migration_urlIsLocked() shall always 
  * return TRUE until another call to usa_data_migration_lockUrlToTerm() is made.
  */
-function usa_data_migration_unlockAllUrls($tid) {
+function usa_data_migration_unlockAllUrls() {
     db_query("TRUNCATE TABLE udm_locked_urls");
     error_log("All URL-paths unlocked in udm_locked_urls");
 }
@@ -493,8 +586,12 @@ function usa_data_migration_urlIsLocked($url) {
     
     usa_data_migration_ensureLockedUrlsTblExsists();
 
-    $url = ltrim($url, '/');
+    $entireSiteIsLocked = db_query("SELECT COUNT(*) AS 'count' FROM udm_locked_urls u WHERE u.url = '*' ")->fetchColumn();
+    if ( intval($entireSiteIsLocked) > 0 ) {
+        return true;
+    }
 
+    $url = ltrim($url, '/');
     $isLocked = db_query("
         SELECT COUNT(*) AS 'count'
         FROM udm_locked_urls u 
@@ -515,7 +612,7 @@ function usa_data_migration_ensureLockedUrlsTblExsists() {
     // No need to run this function more than once in a PHP thread
     global $udm_ELUTE;
     if ( isset($udm_ELUTE) && $udm_ELUTE === true ) {
-        reutrn;
+        return;
     }
     $udm_ELUTE = true; // Setting this, we will bail in the future, in this funct, in this thread
 
@@ -849,7 +946,11 @@ function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases($tids = array
             FROM taxonomy_term_data t
             LEFT JOIN field_data_field_friendly_url f ON ( t.tid = f.entity_id )
             LEFT JOIN field_data_field_generate_page g ON ( t.tid = g.entity_id )
-            WHERE t.tid IN ({$tids})
+            WHERE
+                f.field_friendly_url_value IS NOT NULL
+                AND g.field_generate_page_value IS NOT NULL 
+                AND g.field_generate_page_value = 'yes'
+                AND t.tid IN ({$tids})
         ");
     } else {
         
@@ -883,7 +984,7 @@ function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases($tids = array
         $alias = str_replace('http://', '', $alias);
         $pathInfo = array(
             'source' => 'taxonomy/term/'.$record->tid,
-            'alias' => $alias,
+            'alias' => ltrim($alias, '/'),
         );
 
         path_save($pathInfo);
@@ -894,7 +995,7 @@ function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases($tids = array
     error_log(__FUNCTION__.'() complete.');
 }
 
-function usa_data_migration_postSynch_s3translate() {
+function usa_data_migration_postSynch_s3translate($strNids = '') {
 
     if ( intval(variable_get('udm_filemedia_s3translate', 0)) == 0 ) {
         return;
@@ -902,18 +1003,19 @@ function usa_data_migration_postSynch_s3translate() {
 
     error_log(__FUNCTION__.'() started...');
 
-    $nids = db_query("
+    $where = ( $strNids == '' ? '' : "WHERE m.entity_id IN ({$strNids})" );
+    $query = "
         SELECT m.entity_id AS 'nid'
         FROM field_data_field_file_media m
         LEFT JOIN file_managed f ON ( m.field_file_media_fid = f.fid )
-    ")->fetchCol();
+        $where
+    ";
+    $nids = db_query($query)->fetchCol();
 
     // Kill repeating nids
     $nids = array_flip($nids); // this kills the duplicates
     $nids = array_flip($nids); // this restores the array back into its original form
     $nids = array_values($nids); // this resets the array index
-
-    dsm($nids);
 
     foreach ( $nids as $nid ) {
 
@@ -927,7 +1029,7 @@ function usa_data_migration_postSynch_s3translate() {
         } else {
 
             $s3url = $entity->field_file_media['und'][0]['uri'];
-            $realURL = str_replace('s3://', 'http://gsa-cmp-fileupload-stage.s3.amazonaws.com/', $s3url);
+            $realURL = str_replace('s3://', 'http://gsa-cmp-fileupload.s3.amazonaws.com/', $s3url);
 
             // then plug the URL to the file into the "" field
             $entity->field_file_media_url = array(
@@ -941,129 +1043,12 @@ function usa_data_migration_postSynch_s3translate() {
             );
         }
 
-        // look for abbr, if there is an abbr, replace
-        $entity = _usa_data_migration_alter_content($entity);
-
         node_save($entity);
     }
 
     error_log(__FUNCTION__.'() complete.');
 }
 
-
-/**
- * _usa_data_migration_alter_content
- * http://ctac.myjetbrains.com/youtrack/issue/usagov-100098
- * Alter some fields of nodes before node_save called
- */
-function _usa_data_migration_alter_content($node) {
-
-    if ($node->type == "text_content_type" || $node->type == 'directory_record_content_type') {
-
-        $data_abbr = variable_get('data_abbr', "Apt.|Apartment\nAve.|Avenue\nBldg.|Building\nBlvd.|Boulevard\nCir.|Circle\nCt.|Court\nDr.|Drive"
-            . "\nExpy.|Expressway\nJct.|Junction\nLn.|Lane\nRte.|Route\nSt.|Street\nSte.|Suite\nTpke.|Turnpike");
-
-        $abbrs = explode("\n", $data_abbr);
-
-        if (isset($data_abbr) && count($abbrs) > 0) {
-            foreach ($abbrs as $abbr) {
-                $tmp_abbr = explode("|", $abbr);
-                if (count($tmp_abbr) == 2) {
-                    $find_str = $tmp_abbr[0];
-                    $replace_str = '<abbr title="' . $tmp_abbr[1].'">' . $tmp_abbr[0] . '</abbr>';
-                    // find and replace
-                    if ($node->type == "text_content_type" ) {
-                        if (isset($node->title)) {
-                            $node->title = str_replace($find_str, $replace_str, $node->title);
-                        }
-                        if (isset($node->field_description['und'][0]['value'])) {
-                            $node->field_description['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_description['und'][0]['value']);
-                            $node->field_description['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_description['und'][0]['safe_value']);
-                        }
-                        if (isset($node->body['und'][0]['value'])) {
-                            $node->body['und'][0]['value'] = str_replace($find_str, $replace_str, $node->body['und'][0]['value']);
-                            $node->body['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->body['und'][0]['safe_value']);
-                        }
-                        if (isset($node->field_contact_center_info['und'][0]['value'])) {
-                            $node->field_contact_center_info['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_contact_center_info['und'][0]['value']);
-                            $node->field_contact_center_info['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_contact_center_info['und'][0]['safe_value']);
-                        }
-                    }
-                    elseif($node->type == 'directory_record_content_type'){
-
-                        if (isset($node->title)) {
-                            $node->title = str_replace($find_str, $replace_str, $node->title);
-                        }
-                        // assuming it is directory_record_content_type
-                        if (isset($node->field_description['und'][0]['value'])) {
-                            $node->field_description['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_description['und'][0]['value']);
-                            $node->field_description['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_description['und'][0]['safe_value']);
-                        }
-
-                        if (isset($node->field_alpha_order_name['und'][0]['value'])) {
-                            $node->field_alpha_order_name['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_alpha_order_name['und'][0]['value']);
-                            $node->field_alpha_order_name['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_alpha_order_name['und'][0]['safe_value']);
-                        }
-
-                        if(isset($node->field_english_translation_name['und'][0]['value'])) {
-                            $node->field_english_translation_name['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_english_translation_name['und'][0]['value']);
-                            $node->field_english_translation_name['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_english_translation_name['und'][0]['safe_value']);
-                        }
-
-                        if (isset($node->field_see_also['und'][0]['value'])) {
-                            $node->field_see_also['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_see_also['und'][0]['value']);
-                            $node->field_see_also['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_see_also['und'][0]['safe_value']);
-                        }
-
-                        if (isset($node->field_subdivision['und'][0]['value'])) {
-                            $node->field_subdivision['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_subdivision['und'][0]['value']);
-                            $node->field_subdivision['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_subdivision['und'][0]['safe_value']);
-                        }
-
-                        if (isset($node->field_street_2['und'][0]['value'])) {
-                            $node->field_street_2['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_street_2['und'][0]['value']);
-                            $node->field_street_2['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_street_2['und'][0]['safe_value']);
-                        }
-
-                        if (isset($node->field_street_1['und'][0]['value'])) {
-                            $node->field_street_1['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_street_1['und'][0]['value']);
-                            $node->field_street_1['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_street_1['und'][0]['safe_value']);
-                        }
-
-                        if (isset($node->field_city['und'][0]['value'])) {
-                            $node->field_city['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_city['und'][0]['value']);
-                            $node->field_city['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_city['und'][0]['safe_value']);
-                        }
-
-                        if (isset($node->field_contact_links['und'][0]['value'])) {
-                            $node->field_contact_links['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_contact_links['und'][0]['value']);
-                            $node->field_contact_links['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_contact_links['und'][0]['safe_value']);
-                        }
-
-                        if (isset($node->field_in_person_links['und'][0]['value'])) {
-                            $node->field_in_person_links['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_in_person_links['und'][0]['value']);
-                            $node->field_in_person_links['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_in_person_links['und'][0]['safe_value']);
-                        }
-
-                        if (isset($node->field_website_links['und'][0]['value'])) {
-                            $node->field_website_links['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_website_links['und'][0]['value']);
-                            $node->field_website_links['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_website_links['und'][0]['safe_value']);
-                        }
-
-                        if (isset($node->field_info_for_contact_center['und'][0]['value'])) {
-                            $node->field_info_for_contact_center['und'][0]['value'] = str_replace($find_str, $replace_str, $node->field_info_for_contact_center['und'][0]['value']);
-                            $node->field_info_for_contact_center['und'][0]['safe_value'] = str_replace($find_str, $replace_str, $node->field_info_for_contact_center['und'][0]['safe_value']);
-                        }
-
-                    }
-
-                }
-
-            }
-        }
-    }
-    return $node;
-}
 
 /**
  * resource connectMySQL()
@@ -1081,7 +1066,7 @@ function usa_data_migration_connectMySQL() {
     if ( !empty($port) ) {
         $host .= ":" . $port;
     }
-    $link = mysql_connect($host, $user, $pass);
-    mysql_select_db($db, $link);
+    $link = @mysql_connect($host, $user, $pass);
+    @mysql_select_db($db, $link);
     return $link;
 }
