@@ -119,9 +119,9 @@ function cmp_misc_views_api() {
 function cmp_misc_views_pre_execute(&$view){
 
     if ( $view->name === 'dump_nodes' || $view->name === 'dump_taxonomy' ) {
-        $page = ( empty($_REQUEST['page']) ? 0 : intval($_REQUEST['page']) );
+        $page = ( empty($view->args[0]) ? 0 : intval($view->args[0]) );
         $query = $view->build_info['query'];
-        $query->range($page*50, 50);
+        $query->range($page*1, 1);
     }
 }
 
@@ -440,4 +440,157 @@ function cmp_misc_entity_load($entities, $type)
         }
     }
 }
+
+/*
+ * Implementation of hook_cronapi
+ */
+function cmp_misc_cronapi($op, $job = NULL) {
+
+    $items['cmp_misc_daily_content_scan_cron'] = array(
+        'description' => 'Send email to owner about archival of content',
+        'rule' => '*/5 * * * *', // Every day at 2am assume 0 2
+        'callback' => '_cmp_misc_send_report',
+    );
+
+    $items['cmp_misc_archival_cron'] = array(
+        'description' => 'Archiving Content',
+        'rule' => '*/15 * * * *', // Every 15 minutes
+        'callback' => '_cmp_misc_check_archived_content',
+    );
+    return $items;
+}
+
+function _cmp_misc_check_archived_content() {
+    watchdog('cron',"STARTED >> ARCHIVING CONTENT: " . date('Y-m-d H:i:s'));
+}
+
+function _cmp_misc_get_expiring_nodes() {
+
+    $expiring_date = strtotime(date('Y-m-d H:i:s') . ' -6 months');
+
+    $sql = "SELECT n.nid, n.title FROM field_data_field_date_last_reviewed lr
+        INNER JOIN node n ON n.nid = lr.entity_id
+        WHERE n.status = 1 AND UNIX_TIMESTAMP(lr.field_date_last_reviewed_value) <= :start_date";
+    $result = db_query($sql, array(':start_date'=>$expiring_date));
+    $arr = array();
+    foreach($result as $row) {
+        $node = node_load($row->nid);
+
+        if (isset($node->field_owner['und'][0]['target_id'])) {
+            $user = user_load($node->field_owner['und'][0]['target_id']);
+            $arr[$node->field_owner['und'][0]['target_id']]['nodes'][] = l($node->title, 'node/'. $node->nid);
+            $arr[$node->field_owner['und'][0]['target_id']]['name'] = $user->name;
+            $arr[$node->field_owner['und'][0]['target_id']]['mail'] = $user->mail;
+        }
+    }
+    return $arr;
+
+}
+
+function _cmp_misc_send_report() {
+
+    watchdog('cron',"STARTED >> DAILY SCANNING CONTENT: " . date('Y-m-d H:i:s'));
+
+    $ret = _cmp_misc_get_expiring_nodes();
+    $subject = "CMP Content Scan Result: " . date('Y-m-d H:i:s');
+    $res = "";
+
+    foreach($ret as $t =>$k) {
+        $to = $k['mail'];
+        $body="Dear " . $k['name'] . ", <br />You have the following content that has not been reviewed for more than 6 months: <br/>";
+        $body .= "<ul>";
+
+        foreach($k['nodes'] as $node_link) {
+            $body .= '<li>' . $node_link . '</li>';
+        }
+
+        $body .= "</ul>";
+
+        // Subject
+        $params['subject'] = $subject;
+
+        // body
+        $params['body'] = $body;
+
+
+        $from = variable_get('forward_sender_address', '');
+        if (empty($from)) {
+            $from = variable_get('site_mail', '');
+        }
+
+        $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+        $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+
+        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+
+        // Flood control
+        flood_register_event('cmp_misc');
+    }
+
+    watchdog('cron',"FINISHED >> DAILY SCANNING CONTENT: ". date('Y-m-d H:i:s'));
+
+    return $res;
+}
+function cmp_misc_mail($key, &$message, $params) {
+    $language = $message['language'];
+    if ($key == 'scanning_content') {
+        $message['headers']['MIME-Version'] = '1.0';
+        $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
+        $message['headers']['Reply-To'] = $params['headers']['Reply-To'];
+
+        $message['subject']=t($params['subject']);
+        $message['body'][]=$params['body'];
+        $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
+    }
+}
+
+class Cmp_miscMailSystem implements MailSystemInterface {
+    /**
+     * Concatenate and wrap the e-mail body for plain-text mails.
+     *
+     * @param $message
+     *   A message array, as described in hook_mail_alter().
+     *
+     * @return
+     *   The formatted $message.
+     */
+    public function format(array $message) {
+        $message['body'] = implode("\n\n", $message['body']);
+        return $message;
+    }
+
+    /**
+     * Send an e-mail message, using Drupal variables and default settings.
+     *
+     * @see http://php.net/manual/en/function.mail.php
+     * @see drupal_mail()
+     *
+     * @param $message
+     *   A message array, as described in hook_mail_alter().
+     * @return
+     *   TRUE if the mail was successfully accepted, otherwise FALSE.
+     */
+    public function mail(array $message) {
+        $mimeheaders = array();
+        foreach ($message['headers'] as $name => $value) {
+            $mimeheaders[] = $name . ': ' . mime_header_encode($value);
+        }
+        $line_endings = variable_get('mail_line_endings', MAIL_LINE_ENDINGS);
+        return mail(
+            $message['to'],
+            mime_header_encode($message['subject']),
+            // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
+            // on Unix and CRLF on Windows. Drupal automatically guesses the
+            // line-ending format appropriate for your system. If you need to
+            // override this, adjust $conf['mail_line_endings'] in settings.php.
+            preg_replace('@\r?\n@', $line_endings, $message['body']),
+            // For headers, PHP's API suggests that we use CRLF normally,
+            // but some MTAs incorrectly replace LF with CRLF. See #234403.
+            join("\n", $mimeheaders)
+        );
+    }
+}
+
+
+
 

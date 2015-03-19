@@ -572,7 +572,7 @@ function usa_data_migration_lockEntireSite() {
  * After a call to this function, usa_data_migration_urlIsLocked() shall always 
  * return TRUE until another call to usa_data_migration_lockUrlToTerm() is made.
  */
-function usa_data_migration_unlockAllUrls() {
+function usa_data_migration_unlockAllUrls($tid) {
     db_query("TRUNCATE TABLE udm_locked_urls");
     error_log("All URL-paths unlocked in udm_locked_urls");
 }

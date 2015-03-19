@@ -1,0 +1,13 @@
+<?php
+
+function cmp_misc_enable() {
+  $current = variable_get('mail_system', array('default-system' => 'DefaultMailSystem'));
+  $addition = array('cmp_misc' => 'Cmp_miscMailSystem');
+  variable_set('mail_system', array_merge($current, $addition));
+}
+
+function cmp_misc_disable() {
+  $mail_system = variable_get('mail_system', array('default-system' => 'DefaultMailSystem'));
+  unset($mail_system['Cmp_miscMailSystem']);
+  variable_set('mail_system', $mail_system);
+}
