@@ -52,7 +52,7 @@ class RulesI18nStringObjectWrapper extends i18n_string_object_wrapper {
     // a String to be available always.
     $properties['label'] = array(
       'title' => t('Configuration name'),
-      'string' => @$this->object->label,
+      'string' => $this->object->label,
     );
 
     $this->buildElementProperties($this->object, $properties);

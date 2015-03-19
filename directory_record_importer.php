@@ -1,14 +1,9 @@
 <?php
 
-die();
-
 $files = array(
-    '/home/ubuntu/directory_api.xml',
-    '/home/ubuntu/directory_api_ES.xml',
-    '/home/ubuntu/corporate.xml'
+    '../../DIRECTORYINFO/usagov_english_titles.xml',
+    '../../DIRECTORYINFO/usagov_spanish_titles.xml',
 );
-//$cor_es = '/home/ubuntu/corporate_ES.xml';
-
 
 $import = new DirectoryRecordImporter();
 $import->fromXMLFiles($files);
@@ -16,6 +11,7 @@ $import->fromXMLFiles($files);
 class DirectoryRecordImporter 
 {
     var $records = array();
+    var $collisions = array();
 
     public function __construct()
     {
@@ -43,36 +39,67 @@ class DirectoryRecordImporter
             {
                 if ( !empty($records[(string)$contact->Id]) )
                 {
+                    echo "Dupe    : {$contact->Id} {$contact->Name} \n";
+                    /*
                     if ( $contact->Name === $records[(string)$contact->Id]['contact']->Name )
                     {
                         echo "Dupe    : {$contact->Name} \n";
                     } else {
                         echo "Collide : {$contact->Name} != ". (string)$records[(string)$contact->Id]['contact']->Name ."\n";
                     }
+                    */
                     continue;
                 }
+
+                $this->checkNameCollision( $contact );
+
                 $existing = $this->findExistingDirectoryRecord( $contact );
                 if ( $existing )
                 {
-                    echo "Exists  : {$contact->Name} \n";
+                    #echo "Exists  : {$contact->Name} \n";
                     $existing['contact'] = $contact;
                     $this->records[(string)$contact->Id] = $existing;
                     continue;
                 }
+
                 $record = $this->createDirectoryRecord( $contact );
                 if ( $record ) 
                 {
-                    echo "Created : {$contact->Name} \n";
+                    #echo "Created : {$contact->Name} \n";
                     $this->records[(string)$contact->Id] = array( 'contact'=>$contact, 'record'=>$existing );
                     continue;
                 }
                 echo "Error   : {$contact->Name} \n";
+
             }
         }
-        $this->setRelations();
+        //$this->setRelations();
         //$this->save();
+print_r($this->collisioans['category']);
+asort($this->collisions['name']);
+foreach ( $this->collisions['name'] as $n=>$c )
+{
+    if ( $c > 1 ) { echo $c .' > '. $n ."\n"; }
+}
+
     } 
 
+    public function checkNameCollision( $contact )
+    {
+        $category      = trim((string)$contact->Category);
+        $name          = trim((string)$contact->Name);
+        $sys_title     = isset($contact->Sys_Title)     ? trim((string)$contact->Sys_Title)     : '';
+        $display_title = isset($contact->Display_Title) ? trim((string)$contact->Display_Title) : '';
+
+        if (!empty($this->collisions['name'][$name])) 
+        {
+            $this->collisions['category'][$category]++;
+            $this->collisions['name'][$name]++;
+        } else {
+            $this->collisions['name'][$name] = 1;
+        }
+    }
+    
     public function setRelations()
     {
         echo "Setting Parent/Child Relations\n";
@@ -211,33 +238,38 @@ class DirectoryRecordImporter
 
         $entity = entity_create('node', $values);
         $meta   = entity_metadata_wrapper('node',$entity);
-        $meta->title->set( (string)$contact->Name );
-        $meta->field_description->set( (string)$contact->Description );
-        $meta->field_email->set(       (string)$contact->Email );	
-        $meta->field_street_1->set( (string)$contact->Street1 );
-        $meta->field_street_2->set( (string)$contact->Street2 );
-        $meta->field_city->set(  (string)$contact->City );
-        $meta->field_state->set( (string)$contact->StateTer );
-        $meta->field_zip->set(   (string)$contact->Zip );
-        $meta->field_language->set( $this->filterLanguage((string)$contact->Language) );
-        $meta->field_phone_number->set(     [(string)$contact->Phone] );	
-        $meta->field_toll_free_number->set( [(string)$contact->Tollfree] );
-        $meta->field_tty_number->set(       [(string)$contact->TTY] );
+
+
+
+        //$meta->title->set( (trim((string)$contact->Category)=='Better Business Buerau') ? (string)$contact->Sys_Title : (string)$contact->Name );
+        $meta->title->set( $this->filterTitle($contact) );
+        $meta->field_description->set( trim((string)$contact->Description) );
+        $meta->field_email->set(       trim((string)$contact->Email) );	
+        $meta->field_street_1->set( trim((string)$contact->Street1) );
+        $meta->field_street_2->set( trim((string)$contact->Street2) );
+        $meta->field_city->set(  trim((string)$contact->City) );
+        $meta->field_state->set( trim((string)$contact->StateTer) );
+        $meta->field_zip->set(   trim((string)$contact->Zip) );
+        $meta->field_language->set( $this->filterLanguage(trim((string)$contact->Language)) );
+        $meta->field_phone_number->set(     [trim((string)$contact->Phone)] );	
+        $meta->field_toll_free_number->set( [trim((string)$contact->Tollfree)] );
+        $meta->field_tty_number->set(       [trim((string)$contact->TTY)] );
         $meta->field_contact_links->set(   array("value"=>$this->listifyLinks( $contact->Contact_Url   )) );
         $meta->field_in_person_links->set( array("value"=>$this->listifyLinks( $contact->In_Person_Url )) );
-        $meta->field_website_links->set(   array("value"=>$this->listifyLinks( $contact->Website_Url   )) );
+        $meta->field_website_links->set(   array("value"=>$this->listifyLinks( $contact->Web_Url   )) );
 
-        $meta->field_cfo_agency->set( (string)$contact->CFO_Agency );
-        $meta->field_government_branch->set( $this->filterBranch((string)$contact->Fed_Branch) );
+        $meta->field_cfo_agency->set( trim((string)$contact->CFO_Agency) );
+        $meta->field_government_branch->set( $this->filterBranch(trim((string)$contact->Fed_Branch)) );
 
-        $meta->field_show_on_az_index->set('yes');
-        $meta->field_group_by->set('State');
-        $meta->field_directory_type->set('State Government Agency');
-        $meta->field_alpha_order_name->set( (string)$contact->Name );
-        $meta->field_donated_money->set( 'No' );
-        $meta->field_for_use_by->set( ['USA.gov','GobiernoUSA.gov','Contact Center'] );
+        $meta->field_directory_type->set(   trim((string)$contact->Category) );
+        $meta->field_alpha_order_name->set( $this->filterTitle($contact) );
 
-        $meta->save();
+        $meta->field_show_on_az_index->set( $this->filterAZIndex(trim((string)$contact->ShowOnFederalAZIndex)) );
+        $meta->field_group_by->set( trim((string)$contact->Groupby) );
+        $meta->field_donated_money->set( $this->filterDonatedMoney(trim((string)$contact->Donated_Money)) );
+        $meta->field_for_use_by_text->set( $this->filterForUseBy(trim((string)$contact->RecordUse), trim((string)$contact->Language)) );
+
+        #$meta->save();
 
         return array( 'entity'=>&$entity, 'meta'=>&$meta );
     }
@@ -263,12 +295,89 @@ class DirectoryRecordImporter
         return null;
     }
 
+
+    public function filterAZIndex( $index )
+    {
+        if ( $index == 'N' ) { return 'No'; }
+        if ( $index == 'Y' ) { return 'Yes'; }
+        return 'N';
+    }
+    
+
+    public function filterDonatedMoney( $donatedMoney )
+    {
+        if ( $donatedMoney == 'N' ) { return 'No'; }
+        if ( $donatedMoney == 'Y' ) { return 'Yes'; }
+        return 'N/A';
+    }
+
+    public function filterForUseBy( $recordUse, $language )
+    {
+        if ( $lang == 'en' ) 
+        { 
+            if ( $recordUse=='Both' )
+            {
+                return array( 'USA.gov', 'Kids.USA.gov', 'NCC Knowledge Base', 'Contact Center', 'Print CAH');
+            } else if ( $recordUse=='Web Only' ) {
+                return array( 'USA.gov', 'Kids.USA.gov', 'NCC Knowledge Base', 'Contact Center');
+            } else if ( $recordUse=='Print Only' ) {
+                return array('Print CAH');
+            } 
+        } else if ( $lang == 'es' ) { 
+            if ( $recordUse=='Both' )
+            {
+                return array('GobiernoUSA.gov', 'NCC Knowledge Base', 'Contact Center', 'Print Guia');
+            } else if ( $recordUse=='Web Only' ) {
+                return array('GobiernoUSA.gov', 'NCC Knowledge Base', 'Contact Center');
+            } else if ( $recordUse=='Print Only' ) {
+                return array('Print Guia');
+            } 
+        }
+        return array($recordUse);
+    }
+
+    public function filterTitle( $contact )
+    {
+        $category      = trim((string)$contact->Category);
+        $name          = trim((string)$contact->Name);
+        $sys_title     = isset($contact->Sys_Title)     ? trim((string)$contact->Sys_Title)     : '';
+        $display_title = isset($contact->Display_Title) ? trim((string)$contact->Display_Title) : '';
+
+        /// some BBB items have a display_title which looks better than the sys_title, so 
+        /// we will do precedence of Display_Title,Sys_Title,name
+        $bbb = 'Better Business Bureau';
+        if ( $category == $bbb )
+        {
+            if ( $name == $bbb && !empty($sys_title) ) 
+            {
+                if ( $sys_title == $bbb && !empty($display_title) ) 
+                {
+                    return $display_title;
+                }
+                return $sys_title;
+            }
+        }
+
+        /// Some names actually look ok, but might as well just be consisitant
+        $sir = 'State Insurance Regulators';
+        #$ins = array('Bureau of Insurance','Department of Insurance','Insurance Department');
+        if ( $category == $sir )
+        {
+            if ( !empty($sys_title) )
+            {
+                return $sys_title;
+            }
+        }
+
+        return $name;
+    }
+
     public function filterLanguage( $lang )
     {
         if ( $lang == 'es' ) { return 'Spanish'; }
         if ( $lang == 'en' ) { return 'English'; }
         return $lang;
-    }
+     }
 
     public function filterBranch( $branch )
     {
