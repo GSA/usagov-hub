@@ -448,7 +448,7 @@ function cmp_misc_cronapi($op, $job = NULL) {
 
     $items['cmp_misc_daily_content_scan_cron'] = array(
         'description' => 'Send email to owner about archival of content',
-        'rule' => '0 2 * * *', // Every day at 2am assume
+        'rule' => '*/5 * * * *', // Every day at 2am assume 0 2
         'callback' => '_cmp_misc_send_report',
     );
 
