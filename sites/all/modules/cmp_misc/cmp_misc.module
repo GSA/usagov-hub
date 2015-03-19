@@ -441,12 +441,27 @@ function cmp_misc_entity_load($entities, $type)
     }
 }
 
-
 /*
- * Implementation of hook_cron
+ * Implementation of hook_cronapi
  */
-function cmp_misc_cron() {
+function cmp_misc_cronapi($op, $job = NULL) {
 
+    $items['cmp_misc_daily_content_scan_cron'] = array(
+        'description' => 'Send email to owner about archival of content',
+        'rule' => ' 0 2 * * *', // Every day at 2am assume
+        'callback' => '_cmp_misc_send_report();',
+    );
+
+    $items['cmp_misc_archival_cron'] = array(
+        'description' => 'Archiving Content',
+        'rule' => '*/15 * * * *', // Every 15 minutes
+        'callback' => '_cmp_misc_check_archived_content',
+    );
+    return $items;
+}
+
+function _cmp_misc_check_archived_content() {
+    watchdog('cron',"STARTED >> ARCHIVING CONTENT: " . date('Y-m-d H:i:s'));
 }
 
 function _cmp_misc_get_expiring_nodes() {
@@ -473,6 +488,8 @@ function _cmp_misc_get_expiring_nodes() {
 }
 
 function _cmp_misc_send_report() {
+
+    watchdog('cron',"STARTED >> DAILY SCANNING CONTENT: " . date('Y-m-d H:i:s'));
 
     $ret = _cmp_misc_get_expiring_nodes();
     $subject = "CMP Content Scan Result: " . date('Y-m-d H:i:s');
@@ -508,8 +525,9 @@ function _cmp_misc_send_report() {
 
         // Flood control
         flood_register_event('cmp_misc');
-        $res .= $subject . $to . '<hr/>' . $body;
     }
+
+    watchdog('cron',"FINISHED >> DAILY SCANNING CONTENT: ". date('Y-m-d H:i:s'));
 
     return $res;
 }
