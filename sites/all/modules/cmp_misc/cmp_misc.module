@@ -119,7 +119,7 @@ function cmp_misc_views_api() {
 function cmp_misc_views_pre_execute(&$view){
 
     if ( $view->name === 'dump_nodes' || $view->name === 'dump_taxonomy' ) {
-        $page = ( empty($_REQUEST['page']) ? 0 : intval($_REQUEST['page']) );
+        $page = ( empty($view->args[0]) ? 0 : intval($view->args[0]) );
         $query = $view->build_info['query'];
         $query->range($page*1, 1);
     }
