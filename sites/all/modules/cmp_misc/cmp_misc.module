@@ -487,6 +487,58 @@ function _cmp_misc_get_expiring_nodes() {
 
 }
 
+/**
+ * Allows modules to respond to state transitions.
+ *
+ * @param $node
+ *  The node that is being transitioned.
+ *
+ * @param $previous_state
+ *  The state of the revision before the transition occurred.
+ *
+ * @param $new_state
+ *  The new state of the revision.
+ */
+function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_state)
+{
+    if ($previous_state == 'needs_review' && $new_state == 'needs_discussion') {
+        $node_vs = node_revision_list($node);
+        $node_vs_index = array_keys($node_vs);
+
+        if (count($node_vs) > 2 && isset($node_vs[$node_vs_index[1]])) {
+
+            // second revision will be always last person who touched
+            $last_edited_node = $node_vs[$node_vs_index[1]];
+            $last_edited_user = user_load($last_edited_node->uid);
+            $current_node = $node_vs[$node_vs_index[0]];
+            $current_user = user_load($current_node->uid);
+            _cmp_misc_send_last_edited_person($current_user, $last_edited_user, $node);
+
+        }
+    }
+}
+
+function _cmp_misc_send_last_edited_person($current_user, $user_to_send, $node) {
+    $to = $user_to_send->mail;
+
+    // Subject
+    $params['subject'] = "custom Discussion Needed :".$node->title;
+
+    $alias = drupal_get_path_alias('node/'.$node->nid);
+    // body
+    $params['body'] = '<b>Content item needs discussion</b> - <a href="' . $alias . '">' . $node->title . '</a> <br/>';
+    $params['body'] .= '<b>Summary</b> - ' . $node->field_description[und][0]['safe_value'] . ' <br/>';
+    $params['body'] .= '<b>User who requested discussion</b> - '. $current_user->name . '<br/>';
+    $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i');
+
+    $from = variable_get('site_mail', '');
+
+    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+
+    $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+}
+
 function _cmp_misc_send_report() {
 
     watchdog('cron',"STARTED >> DAILY SCANNING CONTENT: " . date('Y-m-d H:i:s'));
