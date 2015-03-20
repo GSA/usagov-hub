@@ -522,7 +522,7 @@ function _cmp_misc_send_last_edited_person($current_user, $user_to_send, $node) 
     $to = $user_to_send->mail;
 
     // Subject
-    $params['subject'] = "custom Discussion Needed :".$node->title;
+    $params['subject'] = "Discussion Needed :".$node->title;
 
     $alias = drupal_get_path_alias('node/'.$node->nid);
     // body
