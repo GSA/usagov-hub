@@ -537,7 +537,12 @@ function _cmp_misc_send_last_edited_person($current_user, $user_to_send, $node) 
     $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
 
     $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
-    drupal_set_message("Notification email sent to ".$to);
+
+    dsm($res);
+
+    if ($res["send"]) {
+        drupal_set_message("Notification email sent to ".$to);
+    }
 }
 
 function _cmp_misc_send_report() {
