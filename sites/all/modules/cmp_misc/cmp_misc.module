@@ -7,7 +7,7 @@ if ( empty($GLOBALS['base_url']) && !empty($_SERVER['HTTP_HOST']) )
 } else {
     //header('XXX: BASE_URL ALREADY SET');
 }
-
+/*
 if ( !empty(getenv('CMP_AWS_S3_BUCKET')) ) 
 {
     if ( empty(variable_get('s3fs_bucket')) ) 
@@ -25,7 +25,7 @@ if ( !empty(getenv('CMP_AWS_S3_BUCKET')) )
         $_POST['s3fs_bucket']    = getenv('CMP_AWS_S3_BUCKET');
         $_REQUEST['s3fs_bucket'] = getenv('CMP_AWS_S3_BUCKET');
     }
-}
+}*/
 
 
 function cmp_misc_init() 
@@ -537,6 +537,7 @@ function _cmp_misc_send_last_edited_person($current_user, $user_to_send, $node) 
     $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
 
     $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+    drupal_set_message("Notification email sent to ".$to);
 }
 
 function _cmp_misc_send_report() {
