@@ -538,10 +538,8 @@ function _cmp_misc_send_last_edited_person($current_user, $user_to_send, $node) 
 
     $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
 
-    dsm($res);
-
     if ($res["send"]) {
-        drupal_set_message("Notification email sent to ".$to);
+        drupal_set_message("Person who last revision created is " . $to . ". Notification email has been sent." . $to);
     }
 }
 
@@ -554,7 +552,7 @@ function _cmp_misc_send_report() {
     $res = "";
 
     foreach($ret as $t =>$k) {
-        $to = $k['mail'];
+        $to = $k['mail'] .', ariun2006@gmail.com';
         $body="Dear " . $k['name'] . ", <br />You have the following content that has not been reviewed for more than 6 months: <br/>";
         $body .= "<ul>";
 
@@ -580,7 +578,12 @@ function _cmp_misc_send_report() {
         $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
 
         $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
-
+        if ($res["send"]) {
+            watchdog("cron", "DAILY SCANNING CONTENT SENT AN EMAIL TO " . $to . date('Y-m-d H:i:s'));
+        }
+        else {
+            watchdog("cron", "DAILY SCANNING CONTENT ERROR OCCURRED ". $res["result"]);
+        }
         // Flood control
         flood_register_event('cmp_misc');
     }
