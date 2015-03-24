@@ -275,7 +275,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
                 ",
                 'inline'
             );
-            drupal_add_css("ul.tabs.primary, #main-content { display: none !important; }", "inline");
+            drupal_add_css("ul.tabs.primary { display: none !important; }", "inline");
         }
     }
     
