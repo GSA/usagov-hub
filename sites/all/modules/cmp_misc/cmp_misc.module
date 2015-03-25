@@ -252,6 +252,7 @@ function cmp_misc_node_ever_published($node) {
 
 
 function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
+    
     // If this is the edit form for any node under the 'Text Asset' content-type
     //if ( $form_id === 'text_content_type_node_form' ) {
 

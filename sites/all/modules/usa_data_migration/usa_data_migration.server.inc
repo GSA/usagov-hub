@@ -293,9 +293,18 @@ function usa_data_migration_printTaxonomyDump() {
     $returnData['TaxDump_sqlDump'] = '';
 
     // Dump SQL commands to remove entities deleted from the CMP
-    $tidsKilled = usa_data_migration_getDeletedTerms();
-    foreach ( $tidsKilled as $tid ) {
-        $returnData['TaxDump_sqlDump'] .= "DELETE from taxonomy_term_data WHERE tid={$tid};\n";
+    if ( $batch === 1 ) {
+        $tidsKilled = usa_data_migration_getDeletedTerms();
+        foreach ( $tidsKilled as $tid ) {
+            $returnData['TaxDump_sqlDump'] .= "DELETE from taxonomy_term_data WHERE tid={$tid};\n";
+        }
+    }
+
+    // Dump taxonomy-creation/modification dates table
+    if ( $batch === 1 ) {
+        $returnData['TaxDump_sqlDump'] .= "\nTRUNCATE TABLE taxonomy_dates;\n";
+        $returnData['TaxDump_sqlDump'] .= usa_data_migration_getMySQLDump("taxonomy_dates", '', false, true, true, false, false);
+        $returnData['TaxDump_sqlDump'] .= "\n";
     }
 
     // taxonomy_term_data

@@ -133,7 +133,7 @@ function usa_data_migration_config_form() {
         }
         drupal_set_message(
             "<b>FYI:</b> This site is setup to recieve a message telling it to do an update-pull. This trigger-URL is: "
-                ."<a target=\"_blank\" href=\"{$pushURL}\">{$pushURL}</a>",
+                ."<a target=\"_blank\" href=\"{$pushURL}&\">{$pushURL}&</a>",
             "status",
             false
         );
