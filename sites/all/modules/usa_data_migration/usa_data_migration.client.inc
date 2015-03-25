@@ -100,6 +100,9 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         $taxonomyDataSource .= '&since='.$since;
     }
 
+    // Make sure this table exists to synch data into 
+    usa_data_migration_ensureTaxonomyDateTableExsists();
+
     $tidsPulled = array();
     while ( true ) {
 
