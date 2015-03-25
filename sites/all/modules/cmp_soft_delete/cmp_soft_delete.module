@@ -1,0 +1,188 @@
+<?php
+/*
+CREATE TABLE node_deleted (
+nid INT PRIMARY KEY,
+deletion_uid INT,
+deletion_timestamp INT
+);
+ */
+
+/*
+ * Implements hook_menu()
+ */
+function cmp_soft_delete_menu() {
+    //approvharddelete
+    $items['node/%node/undosoftdelete'] = array(
+        'title' => "Undelete",
+        'page callback' => '_cmp_soft_delete_undo_soft_delete',
+        'page arguments' => array(1),
+        'access callback' => 'node_access',
+        'access arguments' => array('delete', 1),
+        'type' => MENU_LOCAL_TASK,
+        'context' => MENU_CONTEXT_INLINE,
+    );
+    $items['node/%node/approvharddelete'] = array(
+        'title' => "Undelete",
+        'page callback' => '_cmp_soft_delete_do_hard_delete',
+        'page arguments' => array(1),
+        'access callback' => 'node_access',
+        'access arguments' => array('delete', 1),
+        'type' => MENU_LOCAL_TASK,
+        'context' => MENU_CONTEXT_INLINE,
+    );
+
+    return $items;
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function cmp_soft_delete_form_alter(&$form, &$form_state, $form_id) {
+    if ($form_id == 'node_delete_confirm'){
+        global $user;
+        $isAdmin = in_array('administrator', $user->roles);
+        // Override node_delete_confirm_submit() submit handler
+        $form['#submit'][0] = 'cmp_soft_delete_node_delete_confirm_submit';
+
+        $form['permanent'] = array(
+            '#type' => 'checkbox',
+            '#title' => t("Permanently delete this content"),
+            '#default_value' => 0,
+            '#attributes' => array()
+        );
+        if (!$isAdmin) {
+            $form['permanent']['#type'] = 'hidden';
+        }
+    }
+
+    if (in_array($form_id, array('text_content_type_node_form',
+            'file_content_type_node_form',
+            'html_content_type_node_form',
+            'directory_record_content_type_node_form',
+            'page_node_form',
+            'multimedia_content_type_node_form',
+            'state_details_node_form'))) {
+
+
+        if (isset($form['nid']['#value']) && db_query("SELECT COUNT(*) FROM node_deleted WHERE nid = :nid",array(":nid"=>$form['nid']['#value']))->fetchField() > 0) {
+            // print warning message
+            $form['title']['#prefix'] = "<div class='messages warning'>Content has been soft deleted. <br /> <ul><li><a href='/node/"
+                . $form['nid']['#value'] . "/approvharddelete'>Approve Deletion</a></li> <li><a href='/node/"
+                . $form['nid']['#value'] . "/undosoftdelete'>Disapprove Deletion</a></li></ul></div>";
+            drupal_set_message(t('Content has been soft deleted.'));
+        }
+    }
+}
+
+
+/**
+ * Provides a delete submit confirmation page handles soft and hard deletes.
+ *
+ * @param $form
+ *   A form array
+ * @param $form_state
+ *   A form state
+ */
+function cmp_soft_delete_node_delete_confirm_submit($form, &$form_state) {
+
+    $redirect_to = '/admin/content';
+    $node = node_load($form_state['values']['nid']);
+    $everPublished = _cmp_soft_delete_node_ever_published($node);
+
+    // never published and
+    if ($everPublished == 0 || $form_state['values']['permanent']) {
+        // do HARD DELETE
+        _cmp_soft_delete_do_hard_delete($node);
+    }
+    else
+    {
+        // DO SOFT DELETE
+        _cmp_soft_delete_send_email_to_editors($node);
+        _cmp_soft_delete_do_soft_delete($node);
+    }
+    $form_state['redirect'] = $redirect_to;
+}
+
+function _cmp_soft_delete_do_soft_delete($node) {
+    global $user;
+    $res = db_insert('node_deleted') // Table name no longer needs {}
+    ->fields(array(
+            'nid' => $node->nid,
+            'deletion_uid' => $user->uid,
+            'deletion_timestamp' => REQUEST_TIME,
+        ))
+        ->execute();
+    drupal_set_message("\"" . $node->title . "\" has been soft deleted.", 'warning');
+}
+
+function _cmp_soft_delete_undo_soft_delete($node) {
+    $num_deleted = db_delete("node_deleted")
+        ->condition("nid" , $node->nid)->execute();
+    drupal_set_message("\"" . $node->title. "\" has been removed from soft deleted state.");
+    drupal_goto("admin/workbench/delete");
+}
+
+function _cmp_soft_delete_do_hard_delete($node) {
+    // clean up soft deleted table as well
+    db_delete("node_deleted")
+        ->condition("nid" , $node->nid)->execute();
+
+    node_delete($node->nid);
+    drupal_set_message("\"" . $node->title. "\" has been deleted.");
+}
+
+// email to editors
+function _cmp_soft_delete_send_email_to_editors($node) {
+   /* dsm("sending editors");
+    global $user;
+
+   // $to = $user_to_send->mail; who is editor?
+
+    // Subject
+    $params['subject'] = "Deletion Needed : " . $node->title;
+
+    $alias = drupal_get_path_alias('node/'.$node->nid);
+    // body
+    $params['body'] = '<p><strong>Content item needs deleted - </strong><a href="node/' . $node->nid . '/edit">' . $node->title . '</a></p>';
+    $params['body'] .= '<p><strong>Summary - </strong>' . $node->field_description[und][0]['safe_value'] . '</p>';
+    $params['body'] .= '<p><strong>User who requested review - </strong>' . $user->name . '</p>';
+    $params['body'] .= '<p><strong>Last updated on - </strong> ' . date('Y-m-d - H:i') . '</p>';
+
+    $from = variable_get('site_mail', '');
+
+    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+
+    $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+
+    if ($res["send"]) {
+        drupal_set_message("Node deletion email is " . $to . ". Notification email has been sent." . $to);
+    }*/
+}
+
+function _cmp_soft_delete_node_ever_published($node) {
+
+    if (isset($node->workbench_moderation) && !empty($node->workbench_moderation['published'])) {
+        return true;
+    }
+
+    // Get the moderation history of this node.
+    $query = db_select('workbench_moderation_node_history', 'm');
+    $query->condition('m.nid', $node->nid)
+        ->condition('m.state', 'published')
+        ->fields('m',array('stamp'));
+
+    $moderations = $query->execute()->rowCount();
+
+    // Make sure it's an array.
+    return !empty($moderations);
+}
+
+function _cmp_soft_delete_get_soft_deleted_nodes() {
+    $ret = array();
+    $query = db_query("SELECT nid FROM node_deleted");
+    foreach($query as $row) {
+        $ret[] = $row->nid;
+    }
+    return $ret;
+}
