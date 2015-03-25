@@ -33,7 +33,7 @@ function usa_data_migration_updatePull($security = true, $terminateThreadOnCompl
             @ob_end_clean();
             while (@ob_end_clean());
             header('Content-Type: text');
-            exit('Access Denied: Invalid security key');
+            exit("Access Denied: Invalid security key ({$_REQUEST['key']})");
         }
     }
 
@@ -152,15 +152,39 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         cleanup_killOrphanedTaxonomyData();
         cleanup_killOrphanedFieldData();
         
-        // Synch node [field] structure into this environment 
+        // Synch taxonomy [field] structure into this environment 
         if ( $quick != true && !empty($pullData['taxFieldStructure_BundleImportCode']) ) {
-            usa_data_migration_importStructureWithCode( $pullData['taxFieldStructure_BundleImportCode'] );
+
+            // Try this operation up to 50 times...
+            for ( $x = 0 ; $x < 50 ; $x++ ) {
+
+
+                try {
+                    usa_data_migration_importStructureWithCode( $pullData['taxFieldStructure_BundleImportCode'] );
+                    break; // break out of loop on successful import
+                } catch ( DatabaseSchemaObjectExistsException $e ) {
+
+                    $msg = $e->getMessage();
+                    if ( strpos($msg, 'already exists') !== false ) {
+                        $words = explode(' ', $msg);
+                        db_query("DROP TABLE ".$words[1]);
+                    } else {
+                        $msg = 'There was an error executing usa_data_migration_importStructureWithCode()...';
+                        usa_data_migration_log($msg);
+                        usa_data_migration_error_log($msg);
+                        break; // break out of loop from an unhandleable exception
+                    }
+
+                }
+            }
+
+
             taxonomy_vocabulary_static_reset();
             taxonomy_terms_static_reset();
             field_cache_clear();
             usa_data_migration_log("Imported taxonomy structure from remote host");
         }
-
+        
         // Synch terms into this environment
         $linkMySql = usa_data_migration_connectMySQL();
         $sqlLines = explode("\n", $pullData['TaxDump_sqlDump']);
@@ -327,9 +351,43 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
 
         // Synch node [field] structure into this environment 
         if ( $quick != true && !empty($pullData['nodeFieldStructure_BundleImportCode']) ) {
-            usa_data_migration_importStructureWithCode( $pullData['nodeFieldStructure_BundleImportCode'] );
-            field_cache_clear();
-            usa_data_migration_log("Imported node structure from remote host");
+
+            // Try this operation up to 50 times...
+            for ( $x = 0 ; $x < 50 ; $x++ ) {
+
+                try {
+                    $msg = "Trying to import node-structure...";
+                    usa_data_migration_log($msg);
+                    usa_data_migration_error_log($msg);
+                    usa_data_migration_importStructureWithCode( $pullData['nodeFieldStructure_BundleImportCode'] );
+                    field_cache_clear();
+                    usa_data_migration_log("Imported node structure from remote host");
+                    break; // break out of loop on successful import
+                } catch ( DatabaseSchemaObjectExistsException $e ) {
+
+                    $eMsg = $e->getMessage();
+                    $words = explode(' ', $eMsg);
+                    $problemTbl = $words[1];
+                    if ( strpos($eMsg, 'already exists') !== false && db_table_exists($problemTbl) ) {
+                        $msg = "Couldnt import structure, table {$problemTbl} was in the way, dropping, and retrying...";
+                        usa_data_migration_log($msg);
+                        usa_data_migration_error_log($msg);
+                        db_query("DROP TABLE ".$problemTbl);
+                    } else {
+                        $msg = 'There was an error executing usa_data_migration_importStructureWithCode()...';
+                        usa_data_migration_log($msg);
+                        usa_data_migration_error_log($msg);
+                        break; // break out of loop from an unhandleable exception
+                    }
+
+                }
+
+            }
+
+            $msg = __FUNCTION__.'() has completed, failed, given-up, or succeeded, with the structure-import. Continuing operation...';
+            usa_data_migration_log($msg);
+            usa_data_migration_error_log($msg);
+
         }
 
         // Synch nodes into this environment
@@ -572,7 +630,7 @@ function usa_data_migration_lockEntireSite() {
  * After a call to this function, usa_data_migration_urlIsLocked() shall always 
  * return TRUE until another call to usa_data_migration_lockUrlToTerm() is made.
  */
-function usa_data_migration_unlockAllUrls($tid) {
+function usa_data_migration_unlockAllUrls() {
     db_query("TRUNCATE TABLE udm_locked_urls");
     error_log("All URL-paths unlocked in udm_locked_urls");
 }
@@ -612,7 +670,7 @@ function usa_data_migration_ensureLockedUrlsTblExsists() {
     // No need to run this function more than once in a PHP thread
     global $udm_ELUTE;
     if ( isset($udm_ELUTE) && $udm_ELUTE === true ) {
-        reutrn;
+        return;
     }
     $udm_ELUTE = true; // Setting this, we will bail in the future, in this funct, in this thread
 
@@ -1066,7 +1124,7 @@ function usa_data_migration_connectMySQL() {
     if ( !empty($port) ) {
         $host .= ":" . $port;
     }
-    $link = mysql_connect($host, $user, $pass);
-    mysql_select_db($db, $link);
+    $link = @mysql_connect($host, $user, $pass);
+    @mysql_select_db($db, $link);
     return $link;
 }
