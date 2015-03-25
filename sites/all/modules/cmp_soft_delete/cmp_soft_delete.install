@@ -4,7 +4,7 @@
  * Implements hook_install().
  */
 function cmp_soft_delete_install() {
-    drupal_install_schema('cmp_soft_delete');
+    //drupal_install_schema('cmp_soft_delete');
 }
 
 /**
