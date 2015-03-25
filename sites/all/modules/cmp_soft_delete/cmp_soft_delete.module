@@ -129,6 +129,7 @@ function _cmp_soft_delete_do_hard_delete($node) {
 
     node_delete($node->nid);
     drupal_set_message("\"" . $node->title. "\" has been deleted.");
+    drupal_goto("admin/workbench");
 }
 
 // email to editors
