@@ -134,31 +134,37 @@ function _cmp_soft_delete_do_hard_delete($node) {
 
 // email to editors
 function _cmp_soft_delete_send_email_to_editors($node) {
-   /* dsm("sending editors");
+
     global $user;
 
-   // $to = $user_to_send->mail; who is editor?
+    if (isset($node->field_workflow_notification_emai['und'][0]['value'])){
 
-    // Subject
-    $params['subject'] = "Deletion Needed : " . $node->title;
+        $to = $node->field_workflow_notification_emai['und'][0]['value'];
 
-    $alias = drupal_get_path_alias('node/'.$node->nid);
-    // body
-    $params['body'] = '<p><strong>Content item needs deleted - </strong><a href="node/' . $node->nid . '/edit">' . $node->title . '</a></p>';
-    $params['body'] .= '<p><strong>Summary - </strong>' . $node->field_description[und][0]['safe_value'] . '</p>';
-    $params['body'] .= '<p><strong>User who requested review - </strong>' . $user->name . '</p>';
-    $params['body'] .= '<p><strong>Last updated on - </strong> ' . date('Y-m-d - H:i') . '</p>';
+        // Subject
+        $params['subject'] = "Deletion Needed : " . $node->title;
 
-    $from = variable_get('site_mail', '');
+        $alias = drupal_get_path_alias('node/'.$node->nid);
+        // body
+        $params['body'] = '<p><strong>Content item needs deleted - </strong><a href="node/' . $node->nid . '/edit">' . $node->title . '</a></p>';
+        $params['body'] .= '<p><strong>Summary - </strong>' . $node->field_description[und][0]['safe_value'] . '</p>';
+        $params['body'] .= '<p><strong>User who requested deletion - </strong>' . $user->name . '</p>';
+        $params['body'] .= '<p><strong>Last updated on - </strong> ' . date('Y-m-d - H:i') . '</p>';
 
-    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
-    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+        $from = variable_get('site_mail', '');
 
-    $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+        $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
 
-    if ($res["send"]) {
-        drupal_set_message("Node deletion email is " . $to . ". Notification email has been sent." . $to);
-    }*/
+        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+
+        if ($res["send"]) {
+            drupal_set_message("Node deletion email is " . $to . ". Notification email has been sent." . $to);
+        }
+    }
+    else {
+        drupal_set_message("Workflow email wasn't set for the asset. Therefore system didn't send an email.", 'warning');
+    }
 }
 
 function _cmp_soft_delete_node_ever_published($node) {
