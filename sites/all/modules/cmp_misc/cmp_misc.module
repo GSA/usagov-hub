@@ -355,7 +355,21 @@ function cmp_misc_mail_alter(&$message) {
     $message['headers']['Content-Type'] = "html/text; charset=UTF-8; format=flowed; delsp=yes";
 }
 
+/*
+ * Implements HOOK_node_presave
+ */
+function cmp_misc_node_presave($node) {
 
+    // Strip trailing empty <p> tags from text-asset body fields
+    if ( $node->type == 'text_content_type' && !empty($node->body['und'][0]['value']) ) {
+        while ( substr($node->body['und'][0]['value'], -13) === '<p>&nbsp;</p>' ) {
+            $strLen = strlen($node->body['und'][0]['value']);
+            $bodyVal = $node->body['und'][0]['value'];
+            $node->body['und'][0]['value'] = substr($bodyVal, 0, $strLen - 13);
+        }
+    }
+
+}
 
 /*
  * Implements HOOK_node_insert
@@ -364,6 +378,15 @@ function cmp_misc_mail_alter(&$message) {
  * We use this field as an easy way to obtain the workflow information with the ElasticSearch mdoule...
  */
 function cmp_misc_node_insert($node) {
+    
+    // Strip trailing empty <p> tags from text-asset body fields
+    if ( $node->type == 'text_content_type' && !empty($node->body['und'][0]['value']) ) {
+        while ( substr($node->body['und'][0]['value'], -13) === '<p>&nbsp;</p>' ) {
+            $strLen = strlen($node->body['und'][0]['value']);
+            $bodyVal = $node->body['und'][0]['value'];
+            $node->body['und'][0]['value'] = substr($bodyVal, 0, $strLen - 13);
+        }
+    }
     
     // If this node is of a content-type that has the workflow_state_search field....
     if ( isset($node->field_workflow_state_search) ) {
