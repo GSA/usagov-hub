@@ -1,24 +1,36 @@
 <?php
-die('Nope nope nope');
+#die('Nope nope nope');
 $files = array(
     '../../DIRECTORYINFO/usagov_english_titles.xml',
     '../../DIRECTORYINFO/usagov_spanish_titles.xml',
 );
 
 $import = new DirectoryRecordImporter();
+$import->testRun = true;
 $import->deleteAllDirectoryRecords();
 $import->fromXMLFiles($files);
 
 class DirectoryRecordImporter
 {
+    var $federalAgencyRegex;
+    var $abbrRegex;
     var $records;
     var $collisions;
+    var $users;
+    var $russell;
+    var $ownersNotFound;
+    var $categories;
+    var $alphas;
 
     public function __construct()
     {
-        $this->records = array();
+        $this->federalAgencyRegex = '/^(.*?)\s*\(([A-Z]+)\)\s*$/';
+        $this->abbrRegex          = "/\b(Apt|Ave|Bldg|Blvd|Cir|Ct|Dr|Expy|Jct|Ln|Rte|St|Ste|Tpke)(?!\.)\b/";
+        $this->records    = array();
         $this->collisions = array();
-        $this->fix_collisions_in_categories = array('Better Business Bureau');
+        $this->categories = array();
+        $this->alphas     = array();
+        $this->findExistingUsersAssoc();
     }
 
     public function fromXMLFiles( $files )
@@ -29,14 +41,9 @@ class DirectoryRecordImporter
             $xml = simplexml_load_file($file);
             /// grab from xml file
 
-            /// loop once to prep for name collisions
+            /// loop once to prep for reports
             foreach ( $xml as $contact )
             {
-                $category = trim((string)$contact->Category);
-                if ( empty($category) || $category=='None' )
-                {
-                    continue;
-                }
                 $this->checkNameCollision( $contact );
             }
 
@@ -50,7 +57,6 @@ class DirectoryRecordImporter
                 }
                 if ( !empty($records[(string)$contact->Id]) )
                 {
-                    #echo "Dupe    : {$contact->Id} {$contact->Name} \n";
                     continue;
                 }
 
@@ -66,7 +72,6 @@ class DirectoryRecordImporter
                 $record = $this->saveDirectoryRecord( $contact );
                 if ( $record )
                 {
-                    #echo "Created : ". (string)$record['meta']->Name ." \n";
                     $this->records[(string)$contact->Id] = array( 'contact'=>$contact, 'record'=>$record );
 
                     /// add misising english state goverment records
@@ -75,10 +80,8 @@ class DirectoryRecordImporter
                      {
                         if ( !empty($records[(string)$contact->Id.'EN']) )
                         {
-                            #echo "Dupe    : {$contact->Id} {$contact->Name} \n";
                             continue;
                         }
-                        /// basic field mappings
                         $contact->Language  = 'en';
                         if ( isset($contact->English_Translation_Name) )
                         {
@@ -87,25 +90,66 @@ class DirectoryRecordImporter
                         $en_record = $this->saveDirectoryRecord( $contact );
                         if ( $en_record )
                         {
-                            #echo "Created : ".(string)$en_record['meta']->Title ." \n";
                             $this->records[(string)$contact->Id.'EN'] = array( 'contact'=>$contact, 'record'=>$en_record );
                         }
                     }
                     continue;
                 }
-
-                #echo "Error   : {$contact->Name} \n";
-
             }
-
         }
         $this->setRelations();
         $this->nameCollisionReport();
+        $this->alphaReport();
+        $this->categoryReport();
+    }
 
+    public function categoryReport()
+    {
+        echo "\nCATEGORY REPORT:\n";
+        foreach ( $this->categories as $category => $category_count )
+        {
+            echo "    category: ". str_pad($category_count,5,' ',STR_PAD_LEFT) ." : {$category}\n";
+        }
+    } 
+
+    public function alphaReport()
+    {
+        echo "\nALPHA-NAME-ORDER COLLISION REPORT:\n";
+        foreach ( $this->alphas as $alpha => $data )
+        {
+            if ( $data['count'] > 1 )
+            {
+                echo "\n    ". str_pad($data['count'],3,' ',STR_PAD_RIGHT) ." : {$alpha}\n";
+                foreach ( $data['contacts'] as $contact )
+                {
+                    
+                    echo "\n        Name : ". (string)$contact->Name           ."\n".
+                         "            alphaordername = ". (string)$contact->Alphaordername ."\n".
+                         "            sys_title      = ". (string)$contact->Sys_Title      ."\n";
+                }
+            }
+        }
+    } 
+
+    public function findExistingUsersAssoc()
+    {
+        $this->users = db_select('users', 'u')
+                        ->fields('u', array('mail','uid'))
+                        ->execute()
+                        ->fetchAllAssoc('mail');
+        if ( !empty($this->users['russell.oneill']) )
+        {
+            $this->russell =& $this->users['russell.oneill'];
+        }
+        if ( !empty($this->users['russell.oneill@gsa.gov']) )
+        {
+            $this->russell =& $this->users['russell.oneill@gsa.gov'];
+        }
     }
 
     public function deleteAllDirectoryRecords()
     {
+        if ( $this->testRun ) { return 0; }
         $results = db_select('node', 'n')
               ->fields('n', array('nid'))
               ->condition('type', 'directory_record_content_type')
@@ -120,6 +164,7 @@ class DirectoryRecordImporter
         {
             node_delete_multiple($nids);
         }
+        return count($nids);
     }
 
     public function findExistingDirectoryRecord( $contact )
@@ -147,8 +192,26 @@ class DirectoryRecordImporter
     {
         $category      = trim((string)$contact->Category);
         $name          = trim((string)$contact->Name);
+        $alpha         = trim((string)$contact->Alphaordername);
         $display_title = isset($contact->Display_Title) ? trim((string)$contact->Display_Title) : '';
         $sys_title     = isset($contact->Sys_Title)     ? trim((string)$contact->Sys_Title)     : '';
+
+        if ( !empty($category) && empty($this->categories[$category]) )
+        {
+            $this->categories[$category] = 0;
+        }
+        $this->categories[$category]++;
+
+        if ( $category == 'Federal Agency' ) 
+        {
+            if ( !empty($alpha) && empty($this->alphas[$alpha]) )
+            {
+                $this->alphas[$alpha] = array( 'contacts'=>[], 'count'=>0 );
+            }
+            $this->alphas[$alpha]['count']++;
+            $this->alphas[$alpha]['contacts'][] = $contact;
+            
+        }
 
         if (isset($this->collisions['name'][$name]))
         {
@@ -208,6 +271,7 @@ class DirectoryRecordImporter
 
     public function nameCollisionReport()
     {
+        echo "\nCATEGORY COLLISION REPORT:\n";
         foreach ( $this->collisions['category'] as $category => $category_data )
         {
             if ( $category_data['count']['name'] > 1 )
@@ -215,29 +279,30 @@ class DirectoryRecordImporter
                 asort($category_data['value']['name']);
                 #asort($category_data['value']['display']);
                 #asort($category_data['value']['sys']);
-                echo "Category: {$category}\n";
-                echo "  name collisions:      {$category_data['count']['name']}\n";
+                echo "    category: {$category}\n";
+                echo "        name collisions:      {$category_data['count']['name']}\n";
                 foreach ( $category_data['value']['name'] as $name=>$count )
                 {
                     if ( $count < 1 ) { continue; }
-                    echo "    ". str_pad($count,4,' ',STR_PAD_LEFT) ." : $name\n";
+                    echo "          ". str_pad($count,4,' ',STR_PAD_LEFT) ." : $name\n";
                 }
                 if ( $category_data['count']['display'] )
                 {
-                    echo "  name + display_title: {$category_data['count']['display']}\n";
+                    echo "        name + display_title: {$category_data['count']['display']}\n";
                 }
                 if ( $category_data['count']['sys'] )
                 {
-                    echo "  name + sys_title:     {$category_data['count']['sys']}\n";
+                    echo "        name + sys_title:     {$category_data['count']['sys']}\n";
                 }
-                echo "\n";
             }
+            echo "\n";
         }
     }
 
     public function setRelations()
     {
         echo "Setting Parent/Child Relations\n";
+        if ( $this->testRun ) { return; }
         /// build parent/child relations
         foreach ( $this->records as $record )
         {
@@ -378,42 +443,82 @@ class DirectoryRecordImporter
         $entity = entity_create('node', $values);
         $meta   = entity_metadata_wrapper('node',$entity);
 
-        $meta->language(trim((string)$contact->Language));
+        $meta->language(                    trim((string)$contact->Language) );
+        $meta->title->set(                  html_entity_decode($this->filterTitle($contact)) );
+        $meta->field_acronym->set(          html_entity_decode($this->filterAcronym($contact)) );
+        $meta->field_description->set(      $this->abbr(trim((string)$contact->Description)) );
+        $meta->field_email->set(            trim((string)$contact->Email) );
+        $meta->field_street_1->set(         $this->abbr(trim((string)$contact->Street1)) );
+        $meta->field_street_2->set(         $this->abbr(trim((string)$contact->Street2)) );
+        $meta->field_city->set(             trim((string)$contact->City) );
+        $meta->field_state->set(            trim((string)$contact->StateTer) );
+        $meta->field_zip->set(              trim((string)$contact->Zip) );
+        $meta->field_language->set(         $this->filterLanguage(trim((string)$contact->Language)) );
+        $meta->field_phone_number->set(     array(trim((string)$contact->Phone)) );
+        $meta->field_toll_free_number->set( array(trim((string)$contact->Tollfree)) );
+        $meta->field_tty_number->set(       array(trim((string)$contact->TTY)) );
+        $meta->field_contact_links->set(    array("value"=>$this->listifyLinks( $contact->Contact_Url )) );
+        $meta->field_in_person_links->set(  array("value"=>$this->listifyLinks( $contact->In_Person_Url )) );
+        $meta->field_website_links->set(    array("value"=>$this->listifyLinks( $contact->Web_Url )) );
 
-        //$meta->title->set( (trim((string)$contact->Category)=='Better Business Buerau') ? (string)$contact->Sys_Title : (string)$contact->Name );
-        $meta->title->set( html_entity_decode($this->filterTitle($contact)) );
-        $meta->field_description->set( trim((string)$contact->Description) );
-        $meta->field_email->set(       trim((string)$contact->Email) );
-        $meta->field_street_1->set( trim((string)$contact->Street1) );
-        $meta->field_street_2->set( trim((string)$contact->Street2) );
-        $meta->field_city->set(  trim((string)$contact->City) );
-        $meta->field_state->set( trim((string)$contact->StateTer) );
-        $meta->field_zip->set(   trim((string)$contact->Zip) );
-        $meta->field_language->set( $this->filterLanguage(trim((string)$contact->Language)) );
-        $meta->field_phone_number->set(     [trim((string)$contact->Phone)] );
-        $meta->field_toll_free_number->set( [trim((string)$contact->Tollfree)] );
-        $meta->field_tty_number->set(       [trim((string)$contact->TTY)] );
-        $meta->field_contact_links->set(   array("value"=>$this->listifyLinks( $contact->Contact_Url )) );
-        $meta->field_in_person_links->set( array("value"=>$this->listifyLinks( $contact->In_Person_Url )) );
-        $meta->field_website_links->set(   array("value"=>$this->listifyLinks( $contact->Web_Url )) );
-
-        $meta->field_cfo_agency->set( trim((string)$contact->CFO_Agency) );
+        $meta->field_cfo_agency->set(        trim((string)$contact->CFO_Agency) );
         $meta->field_government_branch->set( $this->filterBranch(trim((string)$contact->Fed_Branch)) );
 
         $meta->field_directory_type->set(   trim((string)$contact->Category) );
-        $meta->field_alpha_order_name->set( $this->filterTitle($contact) );
+        $meta->field_alpha_order_name->set( trim((string)$contact->Alphaordername) );
 
         $meta->field_show_on_az_index->set( $this->filterAZIndex(trim((string)$contact->ShowOnFederalAZIndex)) );
-        $meta->field_group_by->set( trim((string)$contact->Groupby) );
-        $meta->field_donated_money->set( $this->filterDonatedMoney(trim((string)$contact->Donated_Money)) );
-        $meta->field_for_use_by_text->set( $this->filterForUseBy($contact) );
+        $meta->field_group_by->set(         trim((string)$contact->Groupby) );
+        $meta->field_donated_money->set(    $this->filterDonatedMoney(trim((string)$contact->Donated_Money)) );
+        $meta->field_for_use_by_text->set(  $this->filterForUseBy($contact) );
 
-        $meta->save();
+        $meta->field_owner->set(  $this->filterOwner((string)$contact->Page_Owner) );
+
+        if ( ! $this->testRun )
+        {
+            $meta->save();
+        }
 
         return array( 'entity'=>&$entity, 'meta'=>&$meta );
     }
 
+    public function abbr( $value )
+    {
+        return preg_replace( $this->abbrRegex, '$1.', $value );
+    }
+
     /// FILTERS
+
+   
+    public function filterOwner( $page_owner )
+    {
+        /// try owner directly as email
+        if ( !empty($this->users[$page_owner]) )
+        {
+            return $this->users[$page_owner];
+        }
+
+        /// try and force email
+        if ( !empty($this->users[$page_owner.'@gsa.gov']) )
+        {
+            return $this->users[$page_owner.'@gsa.gov'];
+        }
+
+        /// log not-found for this owner
+        if ( !isset($this->ownerNotFound[$page_owner]) )
+        {
+            $this->ownerNotFound[$page_owner] = 0;
+        }
+        $this->ownerNotFound[$page_owner]++;
+
+        /// give to russell
+        if ( !empty($this->russell) )
+        {
+            return $this->russell;
+        }
+        // ok fine, give to admin
+        return 1;
+    }
 
     public function filterAZIndex( $index )
     {
@@ -513,14 +618,37 @@ class DirectoryRecordImporter
         return [$forUseBy];
     }
 
+    public function filterAcronym( $contact )
+    {
+        $category = trim((string)$contact->Category);
+        if ( $category == 'Federal Agency' )
+        {
+            $name = trim((string)$contact->Name);
+            $matches = array();
+            preg_match($this->federalAgencyRegex,$name,$matches);    
+            if ( !empty($matches[2]) )
+            {
+                #echo $name .' >>> '. $matches[2] ." >>> ". $matches[1] ."\n";
+                return $matches[2]; 
+            }
+        }
+        return '';       
+    }
+
     public function filterTitle( $contact )
     {
         $category      = trim((string)$contact->Category);
         $name          = trim((string)$contact->Name);
 
-        if ( !in_array($category,$this->fix_collisions_in_categories) )
+        /// strip off acronym
+        if ( $category == 'Federal Agency' )
         {
-            return $name;
+            $matches = array();
+            preg_match($this->federalAgencyRegex,$name,$matches);    
+            if ( !empty($matches[2]) )
+            {
+                $name = $matches[1]; 
+            }
         }
 
         $sys_title     = isset($contact->Sys_Title)     ? trim((string)$contact->Sys_Title)     : '';
@@ -534,6 +662,8 @@ class DirectoryRecordImporter
             {
                 /// remove id from tail
                 $clean_sys_title = preg_replace('/\[\#\d+\]$/','',$sys_title);
+                /// clean up city state
+                $clean_sys_title = preg_replace('/\-([^\-]+)\-([^\-]+)$/',', $1, $2',$clean_sys_title);
                 if ( !empty($clean_sys_title) )
                 {
                     return $clean_sys_title;
@@ -566,7 +696,8 @@ class DirectoryRecordImporter
         $list = "";
         foreach ( $links as $link )
         {
-            $list .= "<li><a href=\"{$link->Url}\">{$link->Description}</a></li>";
+            $description = $this->abbr($link->Description);
+            $list .= "<li><a href=\"{$link->Url}\">{$description}</a></li>";
         }
         return !empty($list) ? "<ul>{$list}</ul>" : "";
     }
