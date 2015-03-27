@@ -112,12 +112,28 @@ function _cmp_soft_delete_do_soft_delete($node) {
             'deletion_timestamp' => REQUEST_TIME,
         ))
         ->execute();
+
+    // Tell USA Data Migration module that node has been deleted
+    $nidsDeleted = variable_get('udm_nidsDeleted', array());
+    // Limit tracking to the last 50 nodes to save db space
+    $nidsDeleted = array_slice($nidsDeleted, -50);
+    $nidsDeleted[] = $node->nid;
+    variable_set('udm_nidsDeleted', $nidsDeleted);
+
     drupal_set_message("\"" . $node->title . "\" has been soft deleted.", 'warning');
 }
 
 function _cmp_soft_delete_undo_soft_delete($node) {
     $num_deleted = db_delete("node_deleted")
         ->condition("nid" , $node->nid)->execute();
+
+    // Tell USA Data Migration module that node has been deleted
+    $nidsDeleted = variable_get('udm_nidsDeleted', array());
+    // Limit tracking to the last 50 nodes to save db space
+    $nidsDeleted = array_diff($nidsDeleted, array($node->nid));
+    $nidsDeleted = array_slice($nidsDeleted, -50);
+    variable_set('udm_nidsDeleted', $nidsDeleted);
+
     drupal_set_message("\"" . $node->title. "\" has been removed from soft deleted state.");
     drupal_goto("admin/workbench/delete");
 }
@@ -192,4 +208,8 @@ function _cmp_soft_delete_get_soft_deleted_nodes() {
         $ret[] = $row->nid;
     }
     return $ret;
+}
+
+function _cmp_soft_delete_get_node_stat($nid) {
+   return db_query("SELECT deletion_uid, deletion_timestamp FROM node_deleted WHERE nid = :nid", array(":nid"=>$nid))->fetchAssoc();
 }
