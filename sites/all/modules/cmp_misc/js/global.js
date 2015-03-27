@@ -68,10 +68,10 @@
 
                     var jqThis = jQuery(this);
                     console.log(jqThis);
-                    var wysiwygSource = jQuery('.cke_wysiwyg_frame').eq(0).contents().find('body').html();
+                    var wysiwygSource = jqThis.contents().find('body').html();
                     var sourceAltered = false;
 
-                    while ( wysiwygSource.indexOf('<p><br></p>') !== -1 ) {
+                    while ( wysiwygSource.substring(wysiwygSource.length - 11) == '<p><br></p>' ) {
                         wysiwygSource = wysiwygSource.substring(0, wysiwygSource.length - 11);
                         sourceAltered = true;
                     }
