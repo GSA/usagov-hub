@@ -56,7 +56,34 @@
             location.replace(url[0]);
         });
 
+        setTimeout( function () {
 
+            // When someone clicks on any element within a WYSIWYG UI...
+            jQuery('.cke a').bind('mousedown', function () {
+
+                // Look at all WYSIWYG IFrames (source-containers) on the page...
+                jQuery('.cke_wysiwyg_frame').each( function () {
+
+                    /* and kill trailing-empty P-tags */
+
+                    var jqThis = jQuery(this);
+                    console.log(jqThis);
+                    var wysiwygSource = jqThis.contents().find('body').html();
+                    var sourceAltered = false;
+
+                    while ( wysiwygSource.substring(wysiwygSource.length - 11) == '<p><br></p>' ) {
+                        wysiwygSource = wysiwygSource.substring(0, wysiwygSource.length - 11);
+                        sourceAltered = true;
+                    }
+
+                    if ( sourceAltered === true ) {
+                        jQuery('.cke_wysiwyg_frame').eq(0).contents().find('body').html(wysiwygSource);
+                    }
+
+                });
+
+            });
+        }, 1000);
 
     });
 })(jQuery);
