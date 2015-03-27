@@ -544,6 +544,7 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
 
 function _cmp_misc_send_last_edited_person($current_user, $user_to_send, $node) {
     $to = $user_to_send->mail;
+    global $user;
 
     // Subject
     $params['subject'] = "Discussion Needed :".$node->title;
@@ -552,7 +553,7 @@ function _cmp_misc_send_last_edited_person($current_user, $user_to_send, $node) 
     // body
     $params['body'] = '<b>Content item needs discussion</b> - <a href="' . $alias . '">' . $node->title . '</a> <br/>';
     $params['body'] .= '<b>Summary</b> - ' . $node->field_description[und][0]['safe_value'] . ' <br/>';
-    $params['body'] .= '<b>User who requested discussion</b> - '. $current_user->name . '<br/>';
+    $params['body'] .= '<b>User who requested discussion</b> - '. $user->name . '<br/>';
     $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i');
 
     $from = variable_get('site_mail', '');
