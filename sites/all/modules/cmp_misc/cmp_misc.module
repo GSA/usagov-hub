@@ -87,6 +87,43 @@ function cmp_misc_user_login($edit, $account) {
 
 }
 
+function _get_region_node_count_by_tid($tids) {
+/*
+| field_data_field_asset_order_bottom             |
+| field_data_field_asset_order_carousel           |
+| field_data_field_asset_order_content            |
+| field_data_field_asset_order_menu               |
+| field_data_field_asset_order_sidebar            |
+ * */
+
+    /*$sql_b = 'SELECT COUNT(*) FROM node n
+        INNER JOIN field_data_field_asset_order_bottom t ON n.nid = t.field_asset_order_bottom_target_id
+        WHERE t.entity_id IN (' . implode(',', $tids) . ') AND n.status = 1';
+    $res_b = db_query($sql_b)->fetchField();
+
+    $sql_car = 'SELECT COUNT(*) FROM node n
+        INNER JOIN field_data_field_asset_order_carousel t ON n.nid = t.field_asset_order_carousel_target_id
+        WHERE t.entity_id IN (' . implode(',', $tids) . ') AND n.status = 1';
+    $res_car = db_query($sql_car)->fetchField();
+
+    $sql_con = 'SELECT COUNT(*) FROM node n
+        INNER JOIN field_data_field_asset_order_content t ON n.nid = t.field_asset_order_content_target_id
+        WHERE t.entity_id IN (' . implode(',', $tids) . ') AND n.status = 1';
+    $res_con = db_query($sql_con)->fetchField();
+
+    $sql_m = 'SELECT COUNT(*) FROM node n
+        INNER JOIN field_data_field_asset_order_menu t ON n.nid = t.field_asset_order_menu_target_id
+        WHERE t.entity_id IN (' . implode(',', $tids) . ') AND n.status = 1';
+    $res_m = db_query($sql_m)->fetchField();
+*/
+    $sql_s = 'SELECT field_asset_topic_taxonomy_tid FROM field_data_field_asset_topic_taxonomy t
+        WHERE t.entity_id IN (' . implode(',', $tids) . ')';
+    $res_s = db_query($sql_s)->fetchField();
+   // if (!empty($res_s_))
+    //return _get_node_count_by_tid(array($res_s));
+    return $res_s;
+}
+
 function _get_node_count_by_tid($tids){
 
     $sql = 'SELECT COUNT(*) FROM node n
@@ -169,29 +206,38 @@ function cmp_misc_views_pre_render(&$view) {
         $is_asset_topic = (isset($view->exposed_data)
             && is_array($view->exposed_data)
             && $view->exposed_data['machine_name'] == 'asset_topic_taxonomy')? TRUE : FALSE;
-        $new_results = array();
-        $names=array();
+
+        $is_site_structure = (isset($view->exposed_data)
+            && is_array($view->exposed_data)
+            && $view->exposed_data['machine_name'] == 'site_strucutre_taxonomy')? TRUE : FALSE;
+
+
         $i=0;
         foreach($view->result as $row){
 
             $array_tids[]=$row->tid;
             $asset_count = _get_node_count_by_tid(array($row->tid));
 
-            $child_topics = ($is_asset_topic) ? _get_child_terms_count_by_tid($row->tid) : 0;
+            $child_topics = ($is_asset_topic || $is_site_structure) ? _get_child_terms_count_by_tid($row->tid) : 0;
+
+            if ($is_site_structure) {
+                // node should be counted differently it will look for regions
+                // find asset topic which is assigned to field_data_field_asset_topic_taxonomy
+                $asset_tid = _get_region_node_count_by_tid(array($row->tid));
+                if (is_numeric($asset_tid)) {
+                    $asset_count = _get_node_count_by_tid(array($asset_tid));
+                }
+            }
 
             $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
-                . $asset_count . ' Asset' . (($asset_count!=1)?'s':'')
-                . ($is_asset_topic? (', ' . ($child_topics . ' Subtopic' . (($child_topics!=1)?'s':''))) : '')
+                . $asset_count . ' Asset' . (($asset_count!=0)?'s':'')
+                . ($is_asset_topic || $is_site_structure? (', ' . ($child_topics . ' Subtopic' . (($child_topics!=0)?'s':''))) : '')
                 . ' )';
 
             $view->result[$i]->taxonomy_term_data_name = $new_title;
-          /*  if(!in_array($new_title, $names)){
-                $new_results[] = $view->result[$i];
-                $names[]=$new_title;
-            }*/
             $i++;
         }
-        //$view->result=$new_results;
+
     }
     elseif($view->name == 'overriden_content_report' && $view->current_display == 'overriden_content_report_page') {
 
