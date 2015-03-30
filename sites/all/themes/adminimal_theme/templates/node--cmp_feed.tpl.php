@@ -26,12 +26,8 @@
 
 	if ( user_is_logged_in() ) {
 
-		drupal_set_message(
-			'Note: You are viewing this page as a signed-in user. If you come to this same page while not signed in, '
-				.'you will see only an RSS feed.',
-			'status',
-			false
-		);
+		print '<h1>Note: You are viewing this page as a signed-in user. If you come to this same page while '
+			.'not signed in, you will see the feed alone.</h1>';
 
 		print '<textarea style="width: 100%; min-height: 500px;" spellcheck="false">'.$output.'</textarea>';
 
@@ -49,14 +45,18 @@
 
 		$retMarkups = array();
 
-		foreach ( $feedNode->field_feed_items['und'] as $nidContainer ) {
-			$nodeItem = node_load($nidContainer['target_id']);
-			$retMarkups[] = renderFeedItem($feedMode, 'node_feeditem', $nodeItem);
+		if ( !empty($feedNode->field_feed_items['und']) ) {
+			foreach ( $feedNode->field_feed_items['und'] as $nidContainer ) {
+				$nodeItem = node_load($nidContainer['target_id']);
+				$retMarkups[] = renderFeedItem($feedMode, 'node_feeditem', $nodeItem);
+			}
 		}
 
-		foreach ( $feedNode->field_feed_items_terms['und'] as $tidContainer ) {
-			$termItem = taxonomy_term_load($tidContainer['target_id']);
-			$retMarkups[] = renderFeedItem($feedMode, 'term_site_structure', $termItem);
+		if ( !empty($feedNode->field_feed_items_terms['und']) ) {
+			foreach ( $feedNode->field_feed_items_terms['und'] as $tidContainer ) {
+				$termItem = taxonomy_term_load($tidContainer['target_id']);
+				$retMarkups[] = renderFeedItem($feedMode, 'term_site_structure', $termItem);
+			}
 		}
 
 		if ( $feedMode == 'RSS Feed' ) {
