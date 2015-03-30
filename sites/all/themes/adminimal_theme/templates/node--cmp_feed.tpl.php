@@ -28,7 +28,7 @@
 
 		print '<h1>Note: You are viewing this page as a signed-in user. If you come to this same page while '
 			.'not signed in, you will see the feed alone.</h1>';
-
+		print '<style>.workbench-info-block { display: none !important; }</style>';
 		print '<textarea style="width: 100%; min-height: 500px;" spellcheck="false">'.$output.'</textarea>';
 
 	} else {
