@@ -7,11 +7,11 @@
 
 	switch ($feedMode) {
 		case 'RSS Feed':
-			$output = $node->field_feed_rss_markup['und'][0]['value'];
+			$output = trim($node->field_feed_rss_markup['und'][0]['value']);
 			$headContType = 'application/rss+xml';
 			break;
 		case 'JSON Feed':
-			$output = $node->field_json_feed_markup['und'][0]['value'];
+			$output = trim($node->field_json_feed_markup['und'][0]['value']);
 			$headContType = 'application/json';
 			break;
 		default:
@@ -60,9 +60,9 @@
 		}
 
 		if ( $feedMode == 'RSS Feed' ) {
-			return implode('', $retMarkups);
+			return trim(implode('', $retMarkups));
 		} else {
-			return implode(',', $retMarkups);
+			return trim(implode(',', $retMarkups));
 		}
 		
 	}
@@ -75,21 +75,21 @@
 		switch ($feedMode) {
 			case 'RSS Feed':
 				$retItemMarkup = "
-					<item>
-						<title>[title]</title>
-						<pubDate>[pubDate]</pubDate>
-						<link>[link]</link>
-						<description>[description]</description>
-					</item>";
+	<item>
+		<title>[title]</title>
+		<pubDate>[pubDate]</pubDate>
+		<link>[link]</link>
+		<description>[description]</description>
+	</item>";
 				break;
 			case 'JSON Feed':
 				$retItemMarkup = '
-					{
-						"ARTICLE": "CONTENT FLAG SET TO NO",
-						"LASTUPDATE": "[pubDate]",
-						"TITLE": "[title]",
-						"URL": "[link]"
-					}';
+	{
+		"ARTICLE": "CONTENT FLAG SET TO NO",
+		"LASTUPDATE": "[pubDate]",
+		"TITLE": "[title]",
+		"URL": "[link]"
+	}';
 				break;
 		}
 
