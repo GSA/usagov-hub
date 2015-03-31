@@ -571,24 +571,69 @@ function _cmp_misc_get_expiring_nodes() {
  */
 function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_state)
 {
+    // needs approval >>> needs discussion
     if ($previous_state == 'needs_review' && $new_state == 'needs_discussion') {
         $node_vs = node_revision_list($node);
         $node_vs_index = array_keys($node_vs);
-
-        if (count($node_vs) > 2 && isset($node_vs[$node_vs_index[1]])) {
+        //dsm($node_vs);
+        global $user;
+        $last_edited_node = $last_edited_user = '';
+        if (count($node_vs) > 2) {
 
             // second revision will be always last person who touched
-            $last_edited_node = $node_vs[$node_vs_index[1]];
-            $last_edited_user = user_load($last_edited_node->uid);
-            $current_node = $node_vs[$node_vs_index[0]];
-            $current_user = user_load($current_node->uid);
-            _cmp_misc_send_last_edited_person($current_user, $last_edited_user, $node);
+            for($i=0; $i<count($node_vs); $i++) {
+                $tmp_node = $node_vs[$node_vs_index[$i]];
 
+                if ($user->uid != $tmp_node->uid) {
+                    $last_edited_node = $node_vs[$node_vs_index[$i]];
+                    $last_edited_user = user_load($last_edited_node->uid);
+                    break;
+                }
+            }
+
+            if ($last_edited_node != '' && $last_edited_user != '')  {
+                $current_node = $node_vs[$node_vs_index[0]];
+                $current_user = user_load($current_node->uid);
+                _cmp_misc_send_last_edited_person($last_edited_user, $node);
+            }
+        }
+    }
+
+    // needs approval  from different state
+    if ($previous_state != 'needs_review' && $new_state == 'needs_review') {
+        _cmp_misc_send_needs_approval_notice_person( $node);
+    }
+}
+function _cmp_misc_send_needs_approval_notice_person( $node) {
+
+    if (isset( $node->field_workflow_notification_emai['und'][0]['value'])) {
+        $to = $node->field_workflow_notification_emai['und'][0]['value'];
+        global $user;
+
+        // Subject
+        $params['subject'] = "Approval Needed :" . $node->title;
+
+        $alias = drupal_get_path_alias('node/' . $node->nid);
+        // body
+        $params['body'] = '<b>Content item needs approval </b> - <a href="' . $alias . '">' . $node->title . '</a> <br/>';
+        $params['body'] .= '<b>Summary</b> - ' . $node->field_description['und'][0]['value'] . ' <br/>';
+        $params['body'] .= '<b>User who requested review</b> - ' . $user->name . '<br/>';
+        $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i');
+
+        $from = variable_get('site_mail', '');
+
+        $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+        $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+
+        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+
+        if ($res["send"]) {
+            drupal_set_message("Approval notification email has been sent." . $to);
         }
     }
 }
 
-function _cmp_misc_send_last_edited_person($current_user, $user_to_send, $node) {
+function _cmp_misc_send_last_edited_person($user_to_send, $node) {
     $to = $user_to_send->mail;
     global $user;
 
@@ -598,7 +643,7 @@ function _cmp_misc_send_last_edited_person($current_user, $user_to_send, $node) 
     $alias = drupal_get_path_alias('node/'.$node->nid);
     // body
     $params['body'] = '<b>Content item needs discussion</b> - <a href="' . $alias . '">' . $node->title . '</a> <br/>';
-    $params['body'] .= '<b>Summary</b> - ' . $node->field_description[und][0]['safe_value'] . ' <br/>';
+    $params['body'] .= '<b>Summary</b> - ' . $node->field_description['und'][0]['value'] . ' <br/>';
     $params['body'] .= '<b>User who requested discussion</b> - '. $user->name . '<br/>';
     $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i');
 
@@ -610,7 +655,7 @@ function _cmp_misc_send_last_edited_person($current_user, $user_to_send, $node) 
     $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
 
     if ($res["send"]) {
-        drupal_set_message("Person who last revision created is " . $to . ". Notification email has been sent." . $to);
+        drupal_set_message("Person who last revision created is " . $user_to_send->name . ". Notification email has been sent." . $to);
     }
 }
 
