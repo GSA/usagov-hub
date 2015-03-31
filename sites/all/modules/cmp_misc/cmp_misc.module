@@ -262,6 +262,13 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
         }
 
         if ( $form_id === 'user_login' || $form_id === 'user_login_block' ) {
+            if ( empty($_SERVER['HTTPS']) ) {
+                @ob_end_clean();
+                while(@ob_end_clean());
+                header('Location: https://'.$_SERVER['HTTP_HOST']);
+                drupal_add_http_header('Location', 'https://'.$_SERVER['HTTP_HOST']);
+                exit();
+            }
             unset($form['name']);
             unset($form['pass']);
             unset($form['actions']);
