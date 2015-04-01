@@ -299,6 +299,39 @@ function cmp_misc_node_ever_published($node) {
 
 function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
     
+    // Disabel the user log-in form - force users to go through GSA-Secure-Auth
+    if ( request_uri() !== '/user' ) {
+
+        if ( $form_id === 'user_pass' || $form_id === 'user_pass_block' ) {
+            $form = array();
+            exit('Service disabled');
+        }
+
+        if ( $form_id === 'user_login' || $form_id === 'user_login_block' ) {
+            if ( empty($_SERVER['HTTPS']) ) {
+                @ob_end_clean();
+                while(@ob_end_clean());
+                header('Location: https://'.$_SERVER['HTTP_HOST']);
+                drupal_add_http_header('Location', 'https://'.$_SERVER['HTTP_HOST']);
+                exit();
+            }
+            unset($form['name']);
+            unset($form['pass']);
+            unset($form['actions']);
+            unset($form['links']);
+            unset($form['#submit']);
+            drupal_add_js(
+                "
+                    jQuery(document).ready( function () {
+                        jQuery('.saml-link a').text('Log in through GSA Secure-Auth');
+                    });
+                ",
+                'inline'
+            );
+            drupal_add_css("ul.tabs.primary { display: none !important; }", "inline");
+        }
+    }
+    
     // If this is the edit form for any node under the 'Text Asset' content-type
     //if ( $form_id === 'text_content_type_node_form' ) {
 
