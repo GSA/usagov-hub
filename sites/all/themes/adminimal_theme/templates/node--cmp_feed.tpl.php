@@ -86,21 +86,21 @@
 		switch ($feedMode) {
 			case 'RSS Feed':
 				$retItemMarkup = "
-	<item>
-		<title>[title]</title>
-		<pubDate>[pubDate]</pubDate>
-		<link>[link]</link>
-		<description>[description]</description>
-	</item>";
+    <item>
+        <title>[title]</title>
+        <pubDate>[pubDate]</pubDate>
+        <link>[link]</link>
+        <description>[description]</description>
+    </item>";
 				break;
 			case 'JSON Feed':
 				$retItemMarkup = '
-	{
-		"ARTICLE": "CONTENT FLAG SET TO NO",
-		"LASTUPDATE": "[pubDate]",
-		"TITLE": "[title]",
-		"URL": "[link]"
-	}';
+    {
+        "ARTICLE": "CONTENT FLAG SET TO NO",
+        "LASTUPDATE": "[pubDate]",
+        "TITLE": "[title]",
+        "URL": "[link]"
+    }';
 				break;
 		}
 
