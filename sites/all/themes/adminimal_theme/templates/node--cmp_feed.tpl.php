@@ -19,10 +19,21 @@
 			break;
 	}
 
+	// Handel general replacement-patterns
 	$output = str_replace('[title]', $node->title, $output);
 	$output = str_replace('[items]', renderFeedItems($feedMode, $node), $output, $output);
 	$output = str_replace('[description]', $node->body['und'][0]['value'], $output);
 	$output = str_replace('[request-path]', 'http://'.$_SERVER['HTTP_HOST'] . request_uri(), $output);
+
+	// Handel JSONP callback/jsoncallback replacement-pattern
+	$callback = 'null';
+	if ( !empty($_REQUEST['callback']) ) {
+		$callback = $_REQUEST['callback'];
+	}
+	if ( !empty($_REQUEST['jsoncallback']) ) {
+		$callback = $_REQUEST['jsoncallback'];
+	}
+	$output = str_replace('[callback]', $callback, $output);
 
 	if ( user_is_logged_in() ) {
 
@@ -110,9 +121,35 @@
 					$updateUnixTime = time();
 				}
 
+				// Get the taxonomy-term's top-level parent item, in order to tell which domain the link should point to
+				$termParents = taxonomy_get_parents_all($itemEntity->tid);
+				$termTopParent = array_pop($termParents);
+				switch ( strtolower($termTopParent->name) ) {
+					case 'usa.gov':
+						$linkDomain = 'http://usa.gov/';
+						break;
+					case 'kids.gov':
+						$linkDomain = 'http://kids.usa.gov/';
+						break;
+					case 'gobiernousa.gov':
+						$linkDomain = 'http://www.usa.gov/gobiernousa/';
+						break;
+					default:
+						$linkDomain = '!ERROR!(Unrecognized Top Level Taxonomy Term)!/ERROR!';
+				}
+
+				// Parse out the URL-path from the "Friendly URL" (this field value may or may not be a full absolute-path)
+				$friendlyUrl = $itemEntity->field_friendly_url['und'][0]['value'];
+				if ( strpos($friendlyUrl, 'http://') === 0 || strpos($friendlyUrl, 'https://') === 0 ) {
+					$friendlyUrl = parse_url($friendlyUrl, PHP_URL_PATH);
+				}
+
+				// Concatenate the full link-target
+				$linkTarget = $linkDomain . ltrim($friendlyUrl, '/');
+
 				$retItemMarkup = str_replace('[title]', $itemEntity->field_page_title['und'][0]['value'], $retItemMarkup);
 				$retItemMarkup = str_replace('[pubDate]', date( ($feedMode == 'RSS Feed' ? 'M d, Y H:i:s' : 'm/d/Y'), $updateUnixTime), $retItemMarkup);
-				$retItemMarkup = str_replace('[link]', $itemEntity->field_friendly_url['und'][0]['value'], $retItemMarkup);
+				$retItemMarkup = str_replace('[link]', $linkTarget, $retItemMarkup);
 				$retItemMarkup = str_replace('[description]', $itemEntity->description, $retItemMarkup);
 				break;
 		}
