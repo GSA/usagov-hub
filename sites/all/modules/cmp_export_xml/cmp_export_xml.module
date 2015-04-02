@@ -653,7 +653,7 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
     p.field_phone_number_value AS phone,
     e.field_email_value AS email
     FROM node n
-    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Better Business Bureaus'
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Better Business Bureau'
 
     LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
     LEFT JOIN field_data_field_street_2 st2 ON st2.entity_id = n.nid
