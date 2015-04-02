@@ -231,7 +231,7 @@ function cmp_misc_views_pre_render(&$view) {
 
             $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
                 . $asset_count . ' Asset' . (($asset_count!=0)?'s':'')
-                . ($is_asset_topic || $is_site_structure? (', ' . ($child_topics . ' Subtopic' . (($child_topics!=0)?'s':''))) : '')
+                . ($is_asset_topic || $is_site_structure? (', ' . ($child_topics . ' Asset Node' . (($child_topics!=0)?'s':''))) : '')
                 . ' )';
 
             $view->result[$i]->taxonomy_term_data_name = $new_title;
