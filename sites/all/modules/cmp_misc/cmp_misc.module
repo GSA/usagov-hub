@@ -194,7 +194,7 @@ function cmp_misc_views_pre_render(&$view) {
 
             $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
                 . $child_term_count . ' Child Page' . (($child_term_count!=1)?'s':'') . ', '
-                . $nav_count . ' Supplimental Nav Link'. (($nav_count!=1)?'s':'') . ', '
+                . $nav_count . ' Supplemental Nav Link'. (($nav_count!=1)?'s':'') . ', '
                 . $asset_count . ' Asset' . (($asset_count!=1)?'s':'') . ', '
                 . $topic_count . ' Subtopic' . (($topic_count!=1)?'s':'') . ' )';
 
