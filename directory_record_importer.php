@@ -1,8 +1,8 @@
 <?php
-die('Nope nope nope');
+#die('Nope nope nope');
 $files = array(
-    '../../DIRECTORYINFO/usagov_english_titles.xml',
-    '../../DIRECTORYINFO/usagov_spanish_titles.xml',
+    '/home/dnarkiewicz/usagov_english_titles.xml',
+    '/home/dnarkiewicz/usagov_spanish_titles.xml',
 );
 
 $import = new DirectoryRecordImporter();
@@ -106,11 +106,11 @@ class DirectoryRecordImporter
             echo "\n";
         }
         $this->setRelations();
-        //$this->nameCollisionReport();
-        //$this->alphaReport();
-        //$this->sysTitleReport();
-        //$this->categoryReport();
-        //$this->uniqueReport();
+        $this->nameCollisionReport();
+        $this->alphaReport();
+        $this->sysTitleReport();
+        $this->categoryReport();
+        $this->uniqueReport();
     }
 
     public function findExistingUsersAssoc()
@@ -338,10 +338,10 @@ class DirectoryRecordImporter
         $meta->field_language->set(         $this->filterLanguage(trim((string)$contact->Language)) );
         $meta->field_phone_number->set(     $this->filterList($contact->Phone) );
         $meta->field_toll_free_number->set( $this->filterList($contact->Tollfree) );
-        $meta->field_tty_number->set(       $this->filterList($contact->TTY) );
-        $meta->field_contact_links->set(    array("value"=>$this->listifyLinks( $contact->Contact_Url )) );
-        $meta->field_in_person_links->set(  array("value"=>$this->listifyLinks( $contact->In_Person_Url )) );
-        $meta->field_website_links->set(    array("value"=>$this->listifyLinks( $contact->Web_Url )) );
+        $meta->field_tty_number->set(       $this->filterList($contact->TTY) ); 
+        $meta->field_contact_links->set(    array("value"=>$this->listifyLinks( $contact->Contact_Url   ), "format"=>"filtered_html" ) );
+        $meta->field_in_person_links->set(  array("value"=>$this->listifyLinks( $contact->In_Person_Url ), "format"=>"filtered_html" ) );
+        $meta->field_website_links->set(    array("value"=>$this->listifyLinks( $contact->Web_Url       ), "format"=>"filtered_html" ) );
 
         $meta->field_cfo_agency->set(        trim((string)$contact->CFO_Agency) );
         $meta->field_government_branch->set( $this->filterBranch(trim((string)$contact->Fed_Branch)) );
@@ -378,10 +378,35 @@ class DirectoryRecordImporter
     }
     public function filterCategory ( $category )
     {
-        if ( $category == 'Better Business Bureaus' )
-        {
-            return 'Better Business Bureau';
+        if ( in_array($category, array(
+		 'Better Business Bureau'
+		,'Car Manufacturer'
+		,'Consumer Organization' 
+		,'Corporation'
+		,'Government Consumer Protection Office'
+		,'Trade Association'
+		,'State Utility Commission'
+		,'State Insurance Regulator'
+		,'State Securities Administrator')) )
+	{
+		return $category.'s';	
         }
+        if ( $category == 'State Government Agency' )
+	{
+		return 'State Government Agencies';
+	}
+        if ( $category == 'Federal Agency' )
+	{
+		return 'Federal Agencies';
+	}
+        if ( $category == 'State DMV' )
+	{
+		return 'State DMVs';
+	}
+        if ( $category == 'State Banking Authority')
+	{
+		return 'State Banking Authorities';
+	}	
         return $category;
     }
     public function filterOwner( $page_owner )
@@ -442,12 +467,12 @@ class DirectoryRecordImporter
             return [];
         }
 
-        if ( in_array($category,['Better Business Bureau','Better Business Bureaus']) )
+        if ( in_array($category,['Better Business Bureaus']) )
         {
             return ['Print CAH','Contact Center'];
         }
 
-        if ( in_array($category,['Car Manufacturer',
+        if ( in_array($category,['Car Manufacturers',
                                  'Corporations',
                                  'Trade Associations']) )
         {
@@ -464,7 +489,7 @@ class DirectoryRecordImporter
             }
         }
 
-        if ( in_array($category,['Federal Agency']) )
+        if ( in_array($category,['Federal Agencies']) )
         {
             if ( $language == 'en' )
             {
@@ -488,7 +513,7 @@ class DirectoryRecordImporter
             }
         }
 
-        if ( in_array($category,['Government Consumer Protection Office',
+        if ( in_array($category,['Government Consumer Protection Offices',
                                  'State Banking Authorities',
                                  'State Insurance Regulators',
                                  'State Securities Administrators',
@@ -517,7 +542,7 @@ class DirectoryRecordImporter
     public function filterAcronym( $contact )
     {
         $category = $this->filterCategory(trim((string)$contact->Category));
-        if ( $category == 'Federal Agency' )
+        if ( $category == 'Federal Agencies' )
         {
             $name = trim((string)$contact->Name);
             $matches = array();
@@ -546,7 +571,7 @@ class DirectoryRecordImporter
             }
         }
 
-        if ( in_array($category,['Corporations','Federal Agency']) )
+        if ( in_array($category,['Corporations','Federal Agencies']) )
         {
             return $name;
         }
@@ -632,7 +657,7 @@ class DirectoryRecordImporter
         $this->categories[$category]++;
 
         /**/
-        if ( $category == 'Federal Agency' )
+        if ( $category == 'Federal Agencies' )
         {
             if ( !empty($alpha) && empty($this->alphas[$alpha]) )
             {
@@ -774,7 +799,7 @@ class DirectoryRecordImporter
                 echo "\n        Sys_Title : ". str_pad($data['count'],3,' ',STR_PAD_RIGHT) ." ". (string)$contact->Sys_Title ."\n";
                 foreach ( $data['contacts'] as $contact )
                 {
-                    echo "                 ID:". (string)$contact->Id ." ". (string)$contact->Category ."\n";
+                    echo "                 ID:". (string)$contact->Id ." ". $this->filterCategory((string)$contact->Category) ."\n";
                 }
             }
         }
@@ -789,7 +814,7 @@ class DirectoryRecordImporter
                 echo "\n        Sys_Title : ". str_pad($data['count'],3,' ',STR_PAD_RIGHT) ." ". $uniq ."\n";
                 foreach ( $data['contacts'] as $contact )
                 {
-                    echo "                 ID:". (string)$contact->Id ." ". (string)$contact->Category ."\n";
+                    echo "                 ID:". (string)$contact->Id ." ". $this->filterCategory((string)$contact->Category) ."\n";
                 }
             }
         }
