@@ -25,7 +25,7 @@ function cmp_export_xml_menu() {
 function _cmp_export_xml_landing() {
 
     $ret = "<div><ul>";
-    $ret .= "<li>Download Better Business Bureaus xml <a href='/admin/export/bbb/en'>English</a> | <a href='/admin/export/bbb/es'>Spanish</a></li>";
+    $ret .= "<li>Download Better Business Bureaus xml <a href='/admin/export/bbb/en'>English</a> </li>"; //| <a href='/admin/export/bbb/es'>Spanish</a>
     $ret .= "<li>Download Car Manufacturer xml <a href='/admin/export/carman/en'>English</a> | <a href='/admin/export/carman/es'>Spanish</a> </li>";
     $ret .= "<li>Download Consumner Organizations xml <a href='/admin/export/co/en'>English</a> | <a href='/admin/export/co/es'>Spanish</a> </li>";
     $ret .= "<li>Download Corporations xml <a href='/admin/export/corp/en'>English</a> | <a href='/admin/export/corp/es'>Spanish</a></li>";
@@ -65,7 +65,7 @@ function _cmp_export_xml_download_xml() {
             break;
 
             case 'carman':
-                $file_content = _cmp_export_xml_carman_ta($use_by, 'Car Manufacturer');
+                $file_content = _cmp_export_xml_carman_ta($use_by, 'Car Manufacturers');
                 $filename = 'car_manufacturer';
             break;
 
@@ -160,9 +160,6 @@ function _cmp_export_xml_sba_sir_ssa_uc($use_by='Print CAH', $dir_type) {
     e.field_email_value AS email,
     l.field_website_links_value AS website,
     de.field_description_value AS summary,
-    toll.field_toll_free_number_value AS toll_free,
-    tty.field_tty_number_value AS tty,
-    p.field_phone_number_value AS phone,
     field_subdivision_value AS subdivision
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = :dir_type
@@ -175,9 +172,6 @@ function _cmp_export_xml_sba_sir_ssa_uc($use_by='Print CAH', $dir_type) {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
-    LEFT JOIN field_data_field_toll_free_number toll ON toll.entity_id = n.nid
-    LEFT JOIN field_data_field_tty_number tty ON tty.entity_id = n.nid
-    LEFT JOIN field_data_field_phone_number p ON p.entity_id = n.nid
     LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
 
@@ -194,11 +188,8 @@ function _cmp_export_xml_sba_sir_ssa_uc($use_by='Print CAH', $dir_type) {
                 "street2"=>$row->street2,
                 "state"=>$row->state,
                 "zip"=>$row->zip,
-                "phone"=>$row->phone,
                 "email"=>$row->email,
                 "website"=>$row->website,
-                "toll_free"=>$row->toll_free,
-                "tty"=>$row->tty,
                 "summary"=>$row->summary,
                 "title"=>$row->title,
                 "subdivision"=>$row->subdivision
@@ -222,15 +213,30 @@ function _cmp_export_xml_sba_sir_ssa_uc($use_by='Print CAH', $dir_type) {
             $text .= "<ParaStyle:BodyText>" . $add['street1'] . ' ' . $add['street2'] . $new_line;
             $text .= "<CharStyle:Bold>".$add["city"] . "<CharStyle:>, " .$add["state"] . " " . $add["zip"] . $new_line;
 
-            if (isset($add["phone"]) && strlen($add["phone"]) > 0) {
-                $text .= $add["phone"] . $new_line;
+            $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+            $phone_res = db_query($phone_sql, array(":nid"=>$add['nid']));
+            foreach($phone_res as $phone_row) {
+                if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                    $text .= $phone_row->phone . $new_line;
+                }
             }
-            if (isset($add["toll_free"]) && strlen($add["toll_free"]) > 0) {
-                $text .= "<CharStyle:Fields>Toll-free: <CharStyle:>" . $add["toll_free"].$new_line;
+
+            $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+            $toll_res = db_query($toll_sql, array(':nid'=>$add["nid"]));
+            foreach($toll_res as $toll_row) {
+                if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                    $text .= "<CharStyle:Fields>Toll-free: <CharStyle:>" . $toll_row->toll_free.$new_line;
+                }
             }
-            if (isset($add["tty"]) && strlen($add["tty"]) > 0) {
-                $text .= "<CharStyle:Fields>TTY: <CharStyle:>" . $add["tty"].$new_line;
+
+            $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+            $tty_res = db_query($tty_sql, array(':nid'=>$add["nid"]));
+            foreach($tty_res as $tty_row) {
+                if (isset($tty_row->tty) && strlen($tty_row->tty) > 0) {
+                    $text .= "<CharStyle:Fields>TTY: <CharStyle:>" . $tty_row->tty.$new_line;
+                }
             }
+
             if (isset($add["email"]) && strlen($add["email"]) > 0) {
                 $text .= "<CharStyle:Fields>Email: <CharStyle:>" . $add["email"].$new_line;
             }
@@ -255,12 +261,9 @@ function _cmp_export_xml_fed($use_by='Print CAH')  {
     z.field_zip_value AS zip,
     e.field_email_value AS email,
     l.field_website_links_value AS website,
-    de.field_description_value AS summary,
-    toll.field_toll_free_number_value AS toll_free,
-    tty.field_tty_number_value AS tty,
-    p.field_phone_number_value AS phone
+    de.field_description_value AS summary
     FROM node n
-    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Federal Agency'
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Federal Agencies'
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
     LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
     LEFT JOIN field_data_field_street_2 st2 ON st2.entity_id = n.nid
@@ -270,9 +273,6 @@ function _cmp_export_xml_fed($use_by='Print CAH')  {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
-    LEFT JOIN field_data_field_toll_free_number toll ON toll.entity_id = n.nid
-    LEFT JOIN field_data_field_tty_number tty ON tty.entity_id = n.nid
-    LEFT JOIN field_data_field_phone_number p ON p.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
 
     $res = db_query($sql,array(":use_by"=>$use_by));
@@ -285,15 +285,29 @@ function _cmp_export_xml_fed($use_by='Print CAH')  {
         $text .= "<ParaStyle:BodyText>" . $new_line;
         $text .= $row->street1 . ' ' . $row->street2 . $new_line;
         $text .= $row->city . ", " . $row->state . " " . $row->zip . $new_line;
-        if (isset($add["phone"]) && strlen($add["phone"]) > 0) {
-            $text .= $add["phone"] . $new_line;
-        }
-        if(isset($row->toll_free) && strlen($row->toll_free) > 0) {
-            $text .= "Toll-free: " . $row->toll_free . $new_line;
+
+        $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+        $phone_res = db_query($phone_sql, array(":nid"=>$row-nid));
+        foreach($phone_res as $phone_row) {
+            if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                $text .= $phone_row->phone . $new_line;
+            }
         }
 
-        if (isset($row->tty) && strlen($row->tt) > 0){
-            $text .= "TTY: " . $row->tty.$new_line;
+        $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+        $toll_res = db_query($toll_sql, array(':nid'=>$row->nid));
+        foreach($toll_res as $toll_row) {
+            if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                $text .= "Toll-free: " . $toll_row->toll_free . $new_line;
+            }
+        }
+
+        $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+        $tty_res = db_query($tty_sql, array(':nid'=>$row->nid));
+        foreach($tty_res as $tty_row) {
+            if (isset($tty_row->tty) && strlen($tty_row->tt) > 0) {
+                $text .= "TTY: " . $tty_row->tty . $new_line;
+            }
         }
 
         if (isset($row->email) && strlen($row->email) > 0 ) {
@@ -324,13 +338,10 @@ function _cmp_export_xml_cpo($use_by='Print CAH')  {
     e.field_email_value AS email,
     l.field_website_links_value AS website,
     de.field_description_value AS summary,
-    toll.field_toll_free_number_value AS toll_free,
-    tty.field_tty_number_value AS tty,
-    p.field_phone_number_value AS phone,
     field_group_by_value AS serve_style,
     field_subdivision_value AS subdivision
     FROM node n
-    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Government Consumer Protection Office'
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Government Consumer Protection Offices'
     INNER JOIN field_data_field_group_by gby ON gby.entity_id = n.nid
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
     LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
@@ -341,9 +352,6 @@ function _cmp_export_xml_cpo($use_by='Print CAH')  {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
-    LEFT JOIN field_data_field_toll_free_number toll ON toll.entity_id = n.nid
-    LEFT JOIN field_data_field_tty_number tty ON tty.entity_id = n.nid
-    LEFT JOIN field_data_field_phone_number p ON p.entity_id = n.nid
     LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY field_state_value ASC, n.title ASC, field_group_by_value DESC";
 
@@ -360,11 +368,8 @@ function _cmp_export_xml_cpo($use_by='Print CAH')  {
                 "street2"=>$row->street2,
                 "state"=>$row->state,
                 "zip"=>$row->zip,
-                "phone"=>$row->phone,
                 "email"=>$row->email,
                 "website"=>$row->website,
-                "toll_free"=>$row->toll_free,
-                "tty"=>$row->tty,
                 "summary"=>$row->summary,
                 "title"=>$row->title,
                 "subdivision"=>$row->subdivision
@@ -392,8 +397,27 @@ function _cmp_export_xml_cpo($use_by='Print CAH')  {
                 $text .= "<ParaStyle:BodyText>" . $add['street1'] . ' ' . $add['street2'] . $new_line;
                 $text .= "<CharStyle:Bold>". $add["city"] . "<CharStyle:>, " . $add["state"] . " " . $add["zip"] . $new_line;
 
-                if (isset($add["phone"]) && strlen($add["phone"]) > 0) {
-                    $text .= $add["phone"] . $new_line;
+                $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+                $phone_res = db_query($phone_sql, array(":nid"=>$add['nid']));
+                foreach($phone_res as $phone_row) {
+                    if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                        $text .= $phone_row->phone . $new_line;
+                    }
+                }
+                $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+                $toll_res = db_query($toll_sql, array(':nid'=>$add['nid']));
+                foreach($toll_res as $toll_row) {
+                    if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                        $text .= "Toll-free: " . $toll_row->toll_free . $new_line;
+                    }
+                }
+
+                $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+                $tty_res = db_query($tty_sql, array(':nid'=>$add['nid']));
+                foreach($tty_res as $tty_row) {
+                    if (isset($tty_row->tty) && strlen($tty_row->tt) > 0) {
+                        $text .= "TTY: " . $tty_row->tty . $new_line;
+                    }
                 }
 
                 if (isset($add["email"]) && strlen($add["email"]) > 0) {
@@ -432,10 +456,7 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
     z.field_zip_value AS zip,
     e.field_email_value AS email,
     l.field_website_links_value AS website,
-    de.field_description_value AS summary,
-    toll.field_toll_free_number_value AS toll_free,
-    tty.field_tty_number_value AS tty,
-    p.field_phone_number_value AS phone
+    de.field_description_value AS summary
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Corporations'
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
@@ -447,9 +468,6 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
-    LEFT JOIN field_data_field_toll_free_number toll ON toll.entity_id = n.nid
-    LEFT JOIN field_data_field_tty_number tty ON tty.entity_id = n.nid
-    LEFT JOIN field_data_field_phone_number p ON p.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY field_state_value, n.title";
 
 
@@ -467,7 +485,6 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
                 "phone"=>$row->phone,
                 "email"=>$row->email,
                 "website"=>$row->website,
-                "toll_free"=>$row->toll_free,
                 "tty"=>$row->tty,
                 "summary"=>$row->summary,
                 "title"=>$row->title
@@ -486,16 +503,31 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
             $text .= "<ParaStyle:BodyText>" . $new_line;
             $text .= $add['street1'] . ' ' . $add['street2'] . $new_line;
             $text .= $add["city"] . ", " .$add["state"] . " " . $add["zip"] . $new_line;
-            if (isset($add["phone"]) && strlen($add["phone"]) > 0) {
-                $text .= $add["phone"] . $new_line;
-            }
-            if(isset($add['toll_free']) && strlen($add['toll_free']) > 0) {
-                $text .= "Toll-free: " . $add['toll_free'] . $new_line;
+
+            $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+            $phone_res = db_query($phone_sql, array(":nid"=>$add['nid']));
+            foreach($phone_res as $phone_row) {
+                if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                    $text .= $phone_row->phone . $new_line;
+                }
             }
 
-            if (isset($add['tty']) && strlen($add['tty']) > 0){
-                $text .= "TTY: " . $add['tty'] . $new_line;
+            $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+            $toll_res = db_query($toll_sql, array(':nid'=>$add['nid']));
+            foreach($toll_res as $toll_row) {
+                if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                    $text .= "Toll-free: " . $toll_row->toll_free . $new_line;
+                }
             }
+
+            $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+            $tty_res = db_query($tty_sql, array(':nid'=>$add['nid']));
+            foreach($tty_res as $tty_row) {
+                if (isset($tty_row->tty) && strlen($tty_row->tt) > 0) {
+                    $text .= "TTY: " . $tty_row->tty . $new_line;
+                }
+            }
+
             if (isset($add["email"]) && strlen($add["email"]) > 0) {
                 $text .= "Email: " . $add["email"] . $new_line;
             }
@@ -523,10 +555,7 @@ function _cmp_export_xml_co($use_by='Print CAH')  {
     z.field_zip_value AS zip,
     e.field_email_value AS email,
     l.field_website_links_value AS website,
-    de.field_description_value AS summary,
-    toll.field_toll_free_number_value AS toll_free,
-    tty.field_tty_number_value AS tty,
-    p.field_phone_number_value AS phone
+    de.field_description_value AS summary
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Consumer Organizations'
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
@@ -538,30 +567,40 @@ function _cmp_export_xml_co($use_by='Print CAH')  {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
-    LEFT JOIN field_data_field_toll_free_number toll ON toll.entity_id = n.nid
-    LEFT JOIN field_data_field_tty_number tty ON tty.entity_id = n.nid
-    LEFT JOIN field_data_field_phone_number p ON p.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
 
     $res = db_query($sql,array(':use_by'=>$use_by));
 
     $new_line ="\n";
     $text = "<ASCII-WIN>".$new_line.$new_line;
-
     foreach($res as $row) {
         $text .= "<ParaStyle:CorpName>" . $row->title . $new_line;
         $text .= "<ParaStyle:BodyText>" . $new_line;
         $text .= $row->street1 . ' ' . $row->street2 . $new_line;
         $text .= $row->city . ", " . $row->state . " " . $row->zip . $new_line;
-        if (isset($add["phone"]) && strlen($add["phone"]) > 0) {
-            $text .= $add["phone"] . $new_line;
-        }
-        if(isset($row->toll_free) && strlen($row->toll_free) > 0) {
-            $text .= "Toll-free: " . $row->toll_free . $new_line;
+
+        $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+        $phone_res = db_query($phone_sql, array(":nid"=>$row->nid));
+        foreach($phone_res as $phone_row) {
+            if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                $text .= $phone_row->phone . $new_line;
+            }
         }
 
-        if (isset($row->tty) && strlen($row->tt) > 0){
-            $text .= "TTY: " . $row->tty.$new_line;
+        $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+        $toll_res = db_query($toll_sql, array(':nid'=>$row->nid));
+        foreach($toll_res as $toll_row) {
+            if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                $text .= "Toll-free: " . $toll_row->toll_free . $new_line;
+            }
+        }
+
+        $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+        $tty_res = db_query($tty_sql, array(':nid'=>$row->nid));
+        foreach($tty_res as $tty_row) {
+            if (isset($tty_row->tty) && strlen($tty_row->tt) > 0) {
+                $text .= "TTY: " . $tty_row->tty . $new_line;
+            }
         }
 
         if (isset($row->email) && strlen($row->email) > 0 ) {
@@ -591,9 +630,7 @@ function _cmp_export_xml_carman_ta($use_by='Print CAH', $dir_type)  {
     z.field_zip_value AS zip,
     e.field_email_value AS email,
     l.field_website_links_value AS website,
-    de.field_description_value AS summary,
-    toll.field_toll_free_number_value AS toll_free,
-    p.field_phone_number_value AS phone
+    de.field_description_value AS summary
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = :dir_type
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
@@ -605,8 +642,6 @@ function _cmp_export_xml_carman_ta($use_by='Print CAH', $dir_type)  {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
-    LEFT JOIN field_data_field_toll_free_number toll ON toll.entity_id = n.nid
-    LEFT JOIN field_data_field_phone_number p ON p.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
 
     $res = db_query($sql,array(':use_by'=>$use_by, ":dir_type"=>$dir_type));
@@ -619,11 +654,29 @@ function _cmp_export_xml_carman_ta($use_by='Print CAH', $dir_type)  {
         $text .= "<ParaStyle:BodyText>".$new_line;
         $text .= $row->street1 . ' ' . $row->street2 . $new_line;
         $text .= $row->city . ", " . $row->state . " " . $row->zip . $new_line;
-        if (isset($add["phone"]) && strlen($add["phone"]) > 0) {
-            $text .= $add["phone"] . $new_line;
+
+        $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+        $phone_res = db_query($phone_sql, array(":nid"=>$row->nid));
+        foreach($phone_res as $phone_row) {
+            if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                $text .= $phone_row->phone . $new_line;
+            }
         }
-        if(isset($row->toll_free) && strlen($row->toll_free) > 0) {
-            $text .= "Toll-free: " . $row->toll_free . $new_line;
+
+        $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+        $toll_res = db_query($toll_sql, array(':nid'=>$row->nid));
+        foreach($toll_res as $toll_row) {
+            if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                $text .= "Toll-free: " . $toll_row->toll_free . $new_line;
+            }
+        }
+
+        $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+        $tty_res = db_query($tty_sql, array(':nid'=>$row->nid));
+        foreach($tty_res as $tty_row) {
+            if (isset($tty_row->tty) && strlen($tty_row->tt) > 0) {
+                $text .= "TTY: " . $tty_row->tty . $new_line;
+            }
         }
 
         if (isset($row->email) && strlen($row->email) > 0 ) {
@@ -650,17 +703,14 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
     c.field_city_value AS city,
     UPPER(s.field_state_value) AS state,
     z.field_zip_value AS zip,
-    p.field_phone_number_value AS phone,
     e.field_email_value AS email
     FROM node n
-    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Better Business Bureau'
-
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Better Business Bureaus'
     LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
     LEFT JOIN field_data_field_street_2 st2 ON st2.entity_id = n.nid
     LEFT JOIN field_data_field_city c ON c.entity_id = n.nid
     LEFT JOIN field_data_field_state s ON s.entity_id = n.nid
     LEFT JOIN field_data_field_zip z ON z.entity_id = n.nid
-    LEFT JOIN field_data_field_phone_number p ON p.entity_id = n.nid
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY field_state_value, field_city_value";
 
@@ -692,9 +742,15 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
             $text .= "<ParaStyle:BodyText>" . $new_line;
             $text .= $add['street1'] . ' ' . $add['street2'] . $new_line;
             $text .= $add["city"] . ", " .$add["state"] . " " . $add["zip"] . $new_line;
-            if (isset($add["phone"]) && strlen($add["phone"]) > 0) {
-                $text .= $add["phone"] . $new_line;
+
+            $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+            $phone_res = db_query($phone_sql, array(":nid"=>$add['nid']));
+            foreach($phone_res as $phone_row) {
+                if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                    $text .= $phone_row->phone . $new_line;
+                }
             }
+
             if (isset($add["email"]) && strlen($add["email"]) > 0) {
                 $text .= "Email: " . $add["email"] . $new_line;
             }
