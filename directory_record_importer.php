@@ -1,5 +1,5 @@
 <?php
-#die('Nope nope nope');
+die('Nope nope nope');
 $files = array(
     '../../DIRECTORYINFO/usagov_english_titles.xml',
     '../../DIRECTORYINFO/usagov_spanish_titles.xml',
