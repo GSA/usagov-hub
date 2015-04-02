@@ -193,10 +193,10 @@ function cmp_misc_views_pre_render(&$view) {
             //$page_count= $asset_count+$term_page_count;
 
             $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
-                . $child_term_count . ' Child Page' . (($child_term_count!=1)?'s':'') . ', '
-                . $nav_count . ' Supplemental Nav Link'. (($nav_count!=1)?'s':'') . ', '
-                . $asset_count . ' Asset' . (($asset_count!=1)?'s':'') . ', '
-                . $topic_count . ' Subtopic' . (($topic_count!=1)?'s':'') . ' )';
+                . $child_term_count . ' Child Page' . (($child_term_count!=0)?'s':'') . ', '
+                . $nav_count . ' Supplemental Nav Link'. (($nav_count!=0)?'s':'') . ', '
+                . $asset_count . ' Asset' . (($asset_count!=0)?'s':'') . ', '
+                . $topic_count . ' Asset Node' . (($topic_count!=0)?'s':'') . ' )';
 
             $view->result[$i]->taxonomy_term_data_name = $new_title;
             $i++;
