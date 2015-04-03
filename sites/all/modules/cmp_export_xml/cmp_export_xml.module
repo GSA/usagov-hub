@@ -130,7 +130,7 @@ function _cmp_export_xml_download_xml() {
             break;
 
             case 'uc':
-                $file_content = _cmp_export_xml_sba_sir_ssa_uc($use_by. 'State Utility Commissions');
+                $file_content = _cmp_export_xml_sba_sir_ssa_uc($use_by, 'State Utility Commissions');
                 $filename = 'utility_commissions';
             break;
         }
@@ -173,7 +173,7 @@ function _cmp_export_xml_sba_sir_ssa_uc($use_by='Print CAH', $dir_type) {
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
     LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
-    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
+    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY s.field_state_value, n.title";
 
 
     $res = db_query($sql, array(":use_by"=>$use_by, ":dir_type"=>$dir_type));
@@ -199,7 +199,7 @@ function _cmp_export_xml_sba_sir_ssa_uc($use_by='Print CAH', $dir_type) {
 
     $new_line ="\n";
     $text = "<ASCII-WIN>".$new_line;
-
+    ksort($data);
     foreach($data as $state=>$addresses) {
         $text .= "<ParaStyle:CorpName>". $state . $new_line.$new_line;
 
@@ -380,6 +380,7 @@ function _cmp_export_xml_cpo($use_by='Print CAH')  {
     $new_line ="\n";
     $text = "<ASCII-WIN>".$new_line;
 
+    ksort($data);
     foreach($data as $state=>$office_types) {
         $text .= "<ParaStyle:CorpName>". $state . $new_line;
 
@@ -456,7 +457,8 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
     z.field_zip_value AS zip,
     e.field_email_value AS email,
     l.field_website_links_value AS website,
-    de.field_description_value AS summary
+    de.field_description_value AS summary,
+    LEFT(UPPER(n.title),1) AS le
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Corporations'
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
@@ -468,15 +470,14 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
-    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY field_state_value, n.title";
+    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY UPPER(n.title)";
 
 
     $res = db_query($sql, array(':use_by'=>$use_by));
     $data = array();
     foreach($res as $row) {
-        $le = strtoupper(substr($row->title,0,1));
 
-            $data[$le][] = array("nid"=>$row->nid,
+            $data[$row->le][] = array("nid"=>$row->nid,
                 "city"=>$row->city,
                 "street1"=>$row->street1,
                 "street2"=>$row->street2,
@@ -734,6 +735,7 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
     $new_line ="\n";
     $text = "<ASCII-WIN>".$new_line;
 
+    ksort($data);
     foreach($data as $state=>$addresses) {
         $text .= "<ParaStyle:CorpName>". $state . $new_line.$new_line;
 
