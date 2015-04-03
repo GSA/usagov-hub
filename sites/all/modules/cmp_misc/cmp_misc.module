@@ -265,8 +265,8 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
             if ( empty($_SERVER['HTTPS']) ) {
                 @ob_end_clean();
                 while(@ob_end_clean());
-                header('Location: https://'.$_SERVER['HTTP_HOST']);
-                drupal_add_http_header('Location', 'https://'.$_SERVER['HTTP_HOST']);
+                header('Location: https://'.$_SERVER['HTTP_HOST'].request_uri());
+                drupal_add_http_header('Location', 'https://'.$_SERVER['HTTP_HOST'].request_uri());
                 exit();
             }
             unset($form['name']);
