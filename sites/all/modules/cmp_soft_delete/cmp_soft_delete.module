@@ -129,6 +129,8 @@ function _cmp_soft_delete_undo_soft_delete($node) {
     $num_deleted = db_delete("node_deleted")
         ->condition("nid" , $node->nid)->execute();
 
+    node_save($node);
+
     // Tell USA Data Migration module that node has been deleted
     $nidsDeleted = variable_get('udm_nidsDeleted', array());
     // Limit tracking to the last 50 nodes to save db space
