@@ -1,6 +1,65 @@
 <?php
 
 /**
+ * Implements HOOK_form_alter().
+ *
+ * A hacky way of hiding certain fields from the node-edit form form CMP-Feed nodes
+ */
+function cmp_feeds_form_alter(&$form, &$form_state, $form_id) {
+
+    if ( $form_id === 'cmp_feed_node_form' ) {
+
+        drupal_add_js(
+            "
+                jQuery(document).ready( function () {
+                    jQuery('.vertical-tabs strong:contains(\"URL path settings\")').parents('.vertical-tab-button').hide();
+                    jQuery('.vertical-tabs strong:contains(\"Comment settings\")').parents('.vertical-tab-button').hide();
+                    jQuery('.vertical-tabs strong:contains(\"Revision information\")').parents('.vertical-tab-button').hide();
+                });
+            ",
+            "inline"
+        );
+    }
+
+}
+
+/**
+ * Implements hook_node_insert()
+ *
+ * When a cmp_feed node is created, ensure the Friendly-URL field data is synched into its URL-alias
+ */
+function cmp_feeds_node_insert($node) {
+
+    if ( !empty($node->type) && $node->type === 'cmp_feed' ) {
+
+        // Can't do this now since HOOK_node_update is fiered before the save into MySQL so,...
+        register_shutdown_function('cmp_feeds_setCmpFeedsToFriendlyUrls');
+        register_shutdown_function('cmp_feeds_gotoLatestCmpFeed');
+    }
+}
+
+/**
+ * Implements hook_node_update()
+ *
+ * When a cmp_feed node is changed, ensure the Friendly-URL field data is synched into its URL-alias
+ */
+function cmp_feeds_node_update($node) {
+
+    if ( !empty($node->type) && $node->type === 'cmp_feed' ) {
+
+        // Can't do this now since HOOK_node_update is fiered before the save into MySQL so,...
+        register_shutdown_function('cmp_feeds_setCmpFeedsToFriendlyUrls');
+    }
+}
+
+/* A helper-function, redirects to the alias-path of the latest created CMP-Feed. */
+function cmp_feeds_gotoLatestCmpFeed() {
+
+    $nid = db_query("SELECT nid FROM node n WHERE n.type='cmp_feed' ORDER BY nid DESC LIMIT 1 ")->fetchColumn();
+    drupal_goto(drupal_get_path_alias('node/'.$nid));
+}
+
+/**
  * Implements hook_theme().
  *
  */
@@ -17,6 +76,49 @@ function cmp_feeds_theme() {
     );
 
     return $themes;
+}
+
+/* implements HOOK_usa_data_migration_synched */
+function cmp_feeds_usa_data_migration_synched($entityType, $entityIds) {
+    if ( $entityType === 'nodes' ) {
+        cmp_feeds_setCmpFeedsToFriendlyUrls();
+    }
+}
+
+/* This function makes sure that the 'Friendly URL' field-value is used as 
+the alias-path for CMP-Feed nodes */
+function cmp_feeds_setCmpFeedsToFriendlyUrls() {
+
+    $records = db_query("
+        SELECT u.entity_id, u.field_friendly_url_value
+        FROM field_data_field_friendly_url u
+        WHERE u.entity_type = 'node' AND u.bundle = 'cmp_feed'
+    ");
+
+    foreach ( $records as $record ) {
+
+        $nid = $record->entity_id;
+
+        // Kill an alias that already exsists
+        db_query("DELETE FROM url_alias WHERE source = 'node/{$nid}' ");
+        drupal_clear_path_cache();
+
+        // Save new alias
+        $alias = trim($record->field_friendly_url_value);
+        $alias = str_replace('http://kids.usa.gov/', '', $alias);
+        $alias = str_replace('http://usa.gov/', '', $alias);
+        $alias = str_replace('http://', '', $alias);
+        $pathInfo = array(
+            'source' => 'node/'.$nid,
+            'alias' => ltrim($alias, '/'),
+        );
+
+        if ( $alias !== '' ) {
+            path_save($pathInfo);
+            error_log("Set alias path {$alias} for node {$nid}");
+        }
+    }
+
 }
 
 /**
