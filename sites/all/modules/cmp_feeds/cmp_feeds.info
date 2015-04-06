@@ -1,0 +1,5 @@
+name = CMP Feeds
+description = A small module used to contain the pre-prochook(s)/TPL-file used to render feeds 
+package = CTAC
+core = 7.x
+files[] = cmp_feeds.module
