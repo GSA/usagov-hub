@@ -88,6 +88,7 @@ function cmp_soft_delete_node_delete_confirm_submit($form, &$form_state) {
     $redirect_to = '/admin/content';
     $node = node_load($form_state['values']['nid']);
     $everPublished = _cmp_soft_delete_node_ever_published($node);
+    drupal_set_message($form_state['values']['permanent'] . ' ' . $everPublished);
 
     // never published and
     if ($everPublished == 0 || $form_state['values']['permanent']) {
@@ -163,7 +164,7 @@ function _cmp_soft_delete_send_email_to_editors($node) {
         $alias = drupal_get_path_alias('node/'.$node->nid);
         // body
         $params['body'] = '<p><strong>Content item needs deleted - </strong><a href="node/' . $node->nid . '/edit">' . $node->title . '</a></p>';
-        $params['body'] .= '<p><strong>Summary - </strong>' . $node->field_description[und][0]['safe_value'] . '</p>';
+        $params['body'] .= '<p><strong>Summary - </strong>' . $node->field_description[und][0]['value'] . '</p>';
         $params['body'] .= '<p><strong>User who requested deletion - </strong>' . $user->name . '</p>';
         $params['body'] .= '<p><strong>Last updated on - </strong> ' . date('Y-m-d - H:i') . '</p>';
 
