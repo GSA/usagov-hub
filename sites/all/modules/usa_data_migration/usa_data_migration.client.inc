@@ -39,7 +39,7 @@ function usa_data_migration_updatePull($security = true, $terminateThreadOnCompl
 
     // Dont pull if there may be another thread doing a pull right now
     $since = variable_get('udm_last_pull_time', 0);
-    if ( abs(time() - $since) > 25 || $since == 0 ) { 
+    if ( abs(time() - $since) > 90 || $since == 0 ) { 
         $since = intval($since) - 1800; // 1800 = 30 mins
         $since = ( $since < 0 ? 0 : $since );
         error_log('since is: ' . (time() - $since));
@@ -231,6 +231,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     // Taxonomy-pull post-synch processes
     cleanup_killOrphanTaxonomyTerms(); // TO ONLY BE RUN AFTER A COMPLETE SYNCH!
     usa_data_migration_filterTaxonomy();
+    usa_data_migration_killTermsByField();
     if ( $since == 0 ) {
         usa_data_migration_postSynch_taxonomyTermsFriendlyAliases(false);
     } else {
@@ -314,7 +315,7 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
 
         // Target location
         $batchURL = $nodeDataSource . "&batch={$batch}&size={$size}";
-        //error_log('Pulling a batch of nodes from '.$batchURL);
+        usa_data_migration_log('Pulling a batch of nodes from '.$batchURL);
         $pullString = file_get_contents($batchURL);
         $batch++; // The next run of the loop shall pull the next $size nodes
 
@@ -327,7 +328,6 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         if ( $pullString === false ) {
             $msg = "Error - {$thisFunct} could not obtain data from {$batchURL}";
             usa_data_migration_log($msg);
-            usa_data_migration_error_log($msg);
             return $msg;
         }
 
@@ -343,7 +343,6 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         if ( $pullData === false ) {
             $msg = "Error - {$thisFunct} pull malformed data from {$batchURL}";
             usa_data_migration_log($msg);
-            usa_data_migration_error_log($msg);
             return $msg;
         }
         
@@ -355,13 +354,12 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         // Synch node [field] structure into this environment 
         if ( $quick != true && !empty($pullData['nodeFieldStructure_BundleImportCode']) ) {
 
-            // Try this operation up to 50 times...
-            for ( $x = 0 ; $x < 50 ; $x++ ) {
+            // Try this operation up to 30 times...
+            for ( $x = 0 ; $x < 30 ; $x++ ) {
 
                 try {
                     $msg = "Trying to import node-structure...";
                     usa_data_migration_log($msg);
-                    usa_data_migration_error_log($msg);
                     usa_data_migration_importStructureWithCode( $pullData['nodeFieldStructure_BundleImportCode'] );
                     field_cache_clear();
                     usa_data_migration_log("Imported node structure from remote host");
@@ -374,12 +372,10 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
                     if ( strpos($eMsg, 'already exists') !== false && db_table_exists($problemTbl) ) {
                         $msg = "Couldnt import structure, table {$problemTbl} was in the way, dropping, and retrying...";
                         usa_data_migration_log($msg);
-                        usa_data_migration_error_log($msg);
                         db_query("DROP TABLE ".$problemTbl);
                     } else {
                         $msg = 'There was an error executing usa_data_migration_importStructureWithCode()...';
                         usa_data_migration_log($msg);
-                        usa_data_migration_error_log($msg);
                         break; // break out of loop from an unhandleable exception
                     }
 
@@ -389,7 +385,6 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
 
             $msg = __FUNCTION__.'() has completed, failed, given-up, or succeeded, with the structure-import. Continuing operation...';
             usa_data_migration_log($msg);
-            usa_data_migration_error_log($msg);
 
         }
 
@@ -412,17 +407,17 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     }
 
     // Run cleanup process
-    //usa_data_migration_error_log("Cleaning up");
+    usa_data_migration_log("Cleaning up");
     cleanup_killOrphanedNodeRevisions();
     cleanup_killOrphanedFieldData();
-    //usa_data_migration_error_log("Clean-up complete");
+    usa_data_migration_log("Clean-up complete");
 
     // Prost run process for node-pulls
     if ( count($nidsPulled) == 0 ) {
         error_log('Not running usa_data_migration_postSynch_s3translate(), as no nodes were synced.');
     } else {
         $nidList = implode(',', $nidsPulled);
-        usa_data_migration_postSynch_s3translate($nidList);
+        //usa_data_migration_postSynch_s3translate($nidList);
     }
 
     // Trigger post-process hooks
@@ -518,7 +513,7 @@ function usa_data_migration_debugShowPageLockingStatusPage() {
     print "<br/>";
     print "<b>udm_last_pull_time (seconds ago):</b> " . ( time() - variable_get('udm_last_pull_time', 0) );
     print "<br/>";
-    print "<b>Pull-Request currently allowed:</b> " . ( abs(time() - variable_get('udm_last_pull_time', 0)) > 25 ? 'yes' : 'no' );
+    print "<b>Pull-Request currently allowed:</b> " . ( abs(time() - variable_get('udm_last_pull_time', 0)) > 90 ? 'yes' : 'no' );
     print "<br/>";
 
     $timeReport = variable_get('udm_HookProcTime_node', '!UNKNOWN!');
@@ -727,6 +722,45 @@ function usa_data_migration_filterTaxonomy() {
     }
 
     usa_data_migration_error_log(__FUNCTION__." has delete {$delCount} terms.");
+}
+
+/*
+ * void usa_data_migration_killTermsByField()
+ *
+ * As per the settings in the UDM module (see the administration interface), this 
+ * function will kill taxonomy terms based on field-values.
+ */
+function usa_data_migration_killTermsByField() {
+
+    if ( intval(variable_get('udm_tax_delbyfield', 0)) === 0 ) {
+        return;
+    }
+
+    $checkField = variable_get('udm_tax_delbyfield_field', '');
+    $deadlyValue = variable_get('udm_tax_delbyfield_fieldval', '');
+
+    $vocab = taxonomy_vocabulary_machine_name_load('site_strucutre_taxonomy');
+    $terms = taxonomy_get_tree($vocab->vid, 0, null, true);
+
+    foreach ($terms as $term ) {
+        if ( !empty($term->{$checkField}['und'][0]['value']) ) {
+
+            $thisFieldValue = $term->{$checkField}['und'][0]['value'];
+            $thisFieldValue = strtolower($thisFieldValue);
+
+            if ( $thisFieldValue === strtolower($deadlyValue) ) {
+                $termParents = taxonomy_get_parents_all($term->tid);
+                if ( count($termParents) === 1 ) {
+                    usa_data_migration_log(__FUNCTION__."() is not deleting term ".$term->tid." as it is a root-level item.");
+                } else {
+                    $msg = __FUNCTION__."() is deleting term ".$term->tid;
+                    usa_data_migration_log($msg);
+                    taxonomy_term_delete($term->tid);
+                }
+            }
+        }
+    }
+    
 }
 
 function usa_data_migration_DeleteTermAndMaintainChildren($termName = '') {
@@ -1090,7 +1124,8 @@ function usa_data_migration_postSynch_s3translate($strNids = '') {
         } else {
 
             $s3url = $entity->field_file_media['und'][0]['uri'];
-            $realURL = str_replace('s3://', 'http://gsa-cmp-fileupload.s3.amazonaws.com/', $s3url);
+            $s3url = str_replace('s3:///', 's3://', $s3url);
+            $realURL = str_replace('s3://', '//gsa-cmp-fileupload.s3.amazonaws.com/', $s3url);
 
             // then plug the URL to the file into the "" field
             $entity->field_file_media_url = array(
