@@ -531,7 +531,7 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
 
             if (isset($m[2]) && strlen(trim($m[2])) > 0) {
                 $text .= "<Contact_Url>" . $new_line;
-                $text .= $tab_line . "<Url>" . $m[2] . "<Url>" . $new_line;
+                $text .= $tab_line . "<Url>" . $m[2] . "</Url>" . $new_line;
                 if (isset($m2[1][0]) && strlen(trim($m2[1][0])) > 0) {
                     $text .= $tab_line . "<Description>" . $m2[1][0] . "</Description>" . $new_line;
                 }
@@ -548,7 +548,7 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
 
             if (isset($m[2]) && strlen(trim($m[2])) > 0) {
                 $text .= "<In_Person_Url>".$new_line;
-                $text .= $tab_line . "<Url>" . $m[2] . "<Url>" . $new_line;
+                $text .= $tab_line . "<Url>" . $m[2] . "</Url>" . $new_line;
                 if (isset($m2[1][0]) && strlen(trim($m2[1][0])) > 0) {
                     $text .= $tab_line . "<Description>" . $m2[1][0] . "</Description>" . $new_line;
                 }
