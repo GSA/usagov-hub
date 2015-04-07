@@ -603,9 +603,9 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
             $text .= "<CFO_Agency>" . $node->field_cfo_agency['und'][0]['value'] . "</CFO_Agency>" . $new_line;
         }
 
-        if (isset($node->government_branch['und'][0]['value'])
-            && strlen($node->government_branch['und'][0]['value']) > 0) {
-            $text .= "<Fed_Branch>" . $node->government_branch['und'][0]['value'] . "</Fed_Branch>" . $new_line;
+        if (isset($node->field_government_branch['und'][0]['value'])
+            && strlen($node->field_government_branch['und'][0]['value']) > 0) {
+            $text .= "<Fed_Branch>" . $node->field_government_branch['und'][0]['value'] . "</Fed_Branch>" . $new_line;
         }
 
         $text .= "</Contact>".$new_line;
