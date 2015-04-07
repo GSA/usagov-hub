@@ -451,7 +451,13 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
         if (isset($node->field_description['und'][0]['value']) && strlen($node->field_description['und'][0]['value']) > 0) {
             $text .= "<Description>" . $node->field_description['und'][0]['value'] . "</Description>" . $new_line;
         }
-        // $text .= "<Source_Url>" . $node-> . "</Source_Url>".$new_line;
+
+        if (isset($node->field_alpha_order_name['und'][0]['value']) && $dir_type == "Federal Agencies") {
+            $text .= "<Source_Url>" ."http://dev-usagov.ctacdev.com/directory/".str_replace(" ", "-",strtolower($node->field_alpha_order_name['und'][0]['value'])) . "</Source_Url>".$new_line;
+        }
+        else {
+            $text .= "<Source_Url>not publishable path</Source_Url>" .$new_line;
+        }
 
         if (isset($node->field_subdivision['und'][0]['value']) && strlen($node->field_subdivision['und'][0]['value']) > 0) {
             $text .= "<Subdivision>" . $node->field_subdivision['und'][0]['value'] . "</Subdivision>" . $new_line;
