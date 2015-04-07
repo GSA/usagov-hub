@@ -29,8 +29,6 @@ function _cmp_export_xml_landing() {
     $ret .= "<li>Download Car Manufacturer xml <a href='/admin/export/carman/en'>English</a> | <a href='/admin/export/carman/es'>Spanish</a> </li>";
     $ret .= "<li>Download Consumner Organizations xml <a href='/admin/export/co/en'>English</a> | <a href='/admin/export/co/es'>Spanish</a> </li>";
     $ret .= "<li>Download Corporations xml <a href='/admin/export/corp/en'>English</a> | <a href='/admin/export/corp/es'>Spanish</a></li>";
-   // $ret .= "<li><a href='/admin/export/corporate_es'>Download CORPORATE ES xml?</a></li>";
-   // $ret .= "<li><a href='/admin/export/corporate'>Download CORPORATE xml?</a></li>";
     $ret .= "<li>Download Consumer Protection Office xml <a href='/admin/export/cpo/en'>English</a> | <a href='/admin/export/cpo/es'>Spanish</a></li>";
     $ret .= "<li>Download Federal Agencies xml <a href='/admin/export/fed/en'>English</a> | <a href='/admin/export/fed/es'>Spanish</a></li>";
     $ret .= "<li>Download State Banking Authorities xml <a href='/admin/export/sba/en'>English</a> | <a href='/admin/export/sba/es'>Spanish</a></li>";
@@ -39,6 +37,7 @@ function _cmp_export_xml_landing() {
     $ret .= "<li>Download Trade Associations xml <a href='/admin/export/ta/en'>English</a> | <a href='/admin/export/ta/es'>Spanish</a></li>";
     $ret .= "<li>Download Utility Commissions xml <a href='/admin/export/uc/en'>English</a> | <a href='/admin/export/uc/es'>Spanish</a></li>";
     $ret .= "<li>Download DIRECTORY API xml <a href='/admin/export/directory_api/en'>English</a> | <a href='/admin/export/directory_api/es'>Spanish</a></li>";
+    $ret .= "<li>Download CORPORATE xml <a href='/admin/export/corporate/en'>English</a> | <a href='/admin/export/corporate/es'>Spanish</a></li>";
     $ret .= "</ul></div>";
 
 
@@ -444,8 +443,7 @@ function _cmp_export_xml_directory_api($use_by='Print CAH')  {
     $new_line ="\n";
     $tab_line ="\t";
 
-    $text = '<?xml version="1.0" encoding="UTF-8" ?>'.$new_line;
-    $text .= '<Contacts>'.$new_line;
+    $text = "";
 
     foreach($res as $row) {
         $node = node_load($row->nid);
@@ -610,7 +608,13 @@ function _cmp_export_xml_directory_api($use_by='Print CAH')  {
 
         $text .= "</Contact>".$new_line;
     }
-    return $text;
+
+    if (strlen($text) > 0) {
+        return '<?xml version="1.0" encoding="UTF-8" ?>'.$new_line.'<Contacts>'.$new_line.$text."</Contacts>";
+    }
+    else {
+        return '<?xml version="1.0" encoding="UTF-8" ?>'.$new_line;
+    }
 }
 
 function _cmp_export_xml_corp($use_by='Print CAH')  {
