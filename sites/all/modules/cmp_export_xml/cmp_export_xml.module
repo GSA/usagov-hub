@@ -78,7 +78,7 @@ function _cmp_export_xml_download_xml() {
             break;
 
             case 'corporate':
-                $file_content = _cmp_export_xml_corporate($use_by);
+                $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Corporations');
                 $filename = 'CORPORATE';
             break;
 
@@ -88,7 +88,7 @@ function _cmp_export_xml_download_xml() {
             break;
 
             case 'directory_api':
-                $file_content = _cmp_export_xml_directory_api($use_by);
+                $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Federal Agencies');
                 $filename = 'DIRECTORY API';
             break;
 
@@ -428,17 +428,13 @@ function _cmp_export_xml_cpo($use_by='Print CAH')  {
     return $text;
 }
 
-function _cmp_export_xml_corporate($use_by='Print CAH')  {
-
-}
-
-function _cmp_export_xml_directory_api($use_by='Print CAH')  {
+function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)  {
 
     $sql = "SELECT DISTINCT n.nid FROM node n
-    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Federal Agencies'
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = :dir_type
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title ";
-    $res = db_query($sql, array(':use_by'=>$use_by));
+    $res = db_query($sql, array(':use_by'=>$use_by, ":dir_type"=>$dir_type));
 
     $new_line ="\n";
     $tab_line ="\t";
@@ -482,6 +478,12 @@ function _cmp_export_xml_directory_api($use_by='Print CAH')  {
 
         if (isset($node->field_language['und'][0]['value']) && strlen($node->field_language['und'][0]['value']) > 0) {
             $text .= "<Language>" . ($node->field_language['und'][0]['value'] == "English" ? "en" : "es") . "</Language>" . $new_line;
+        }
+
+        if (isset($node->field_phone_number['und'])) {
+            for($i=0; $i < count($node->field_phone_number['und']); $i++) {
+                $text .= "<Phone>" . $node->field_phone_number['und'][$i]['value'] . "</Phone>" . $new_line;
+            }
         }
 
         if (isset($node->field_toll_free_number['und'])) {
@@ -609,11 +611,13 @@ function _cmp_export_xml_directory_api($use_by='Print CAH')  {
         $text .= "</Contact>".$new_line;
     }
 
+    $ret = '<?xml version="1.0" encoding="UTF-8" ?>'.$new_line;
+
     if (strlen($text) > 0) {
-        return '<?xml version="1.0" encoding="UTF-8" ?>'.$new_line.'<Contacts>'.$new_line.$text."</Contacts>";
+        return $ret.'<Contacts>'.$new_line.$text."</Contacts>";
     }
     else {
-        return '<?xml version="1.0" encoding="UTF-8" ?>'.$new_line;
+        return $ret;
     }
 }
 
