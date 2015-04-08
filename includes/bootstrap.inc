@@ -695,7 +695,7 @@ function drupal_environment_initialize() {
   // An empty string is used here to disable the cache limiter.
   ini_set('session.cache_limiter', '');
   // Use httponly session cookies.
-  ini_set('session.cookie_httponly', '1');
+  ini_set('session.cookie_httponly', '0');
 
   // Set sane locale settings, to ensure consistent string, dates, times and
   // numbers handling.
