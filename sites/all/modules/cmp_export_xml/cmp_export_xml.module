@@ -79,9 +79,9 @@ function _cmp_export_xml_download_xml() {
 
             case 'corporate':
                 $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Corporations');
-                $filename_no_change = 'corporate_api';
+                $filename_no_change = 'corporate';
                 if ($use_by == "Print Guia") {
-                    $filename_no_change = 'corporate_api_ES';
+                    $filename_no_change = 'corporate_ES';
                 }
             break;
 
