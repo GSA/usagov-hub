@@ -37,7 +37,7 @@ function _cmp_export_xml_landing() {
     $ret .= "<li>Download Trade Associations xml <a href='/admin/export/ta/en'>English</a> | <a href='/admin/export/ta/es'>Spanish</a></li>";
     $ret .= "<li>Download Utility Commissions xml <a href='/admin/export/uc/en'>English</a> | <a href='/admin/export/uc/es'>Spanish</a></li>";
     $ret .= "<li>Download DIRECTORY API xml <a href='/admin/export/directory_api/en'>English</a> | <a href='/admin/export/directory_api/es'>Spanish</a></li>";
-    $ret .= "<li>Download CORPORATE xml <a href='/admin/export/corporate/en'>English</a> | <a href='/admin/export/corporate/es'>Spanish</a></li>";
+    $ret .= "<li>Download CORPORATE API xml <a href='/admin/export/corporate/en'>English</a> | <a href='/admin/export/corporate/es'>Spanish</a></li>";
     $ret .= "</ul></div>";
 
 
@@ -79,7 +79,10 @@ function _cmp_export_xml_download_xml() {
 
             case 'corporate':
                 $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Corporations');
-                $filename = 'CORPORATE';
+                $filename_no_change = 'corporate_api';
+                if ($use_by == "Print Guia") {
+                    $filename_no_change = 'corporate_api_ES';
+                }
             break;
 
             case 'cpo':
@@ -89,7 +92,10 @@ function _cmp_export_xml_download_xml() {
 
             case 'directory_api':
                 $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Federal Agencies');
-                $filename = 'DIRECTORY API';
+                $filename_no_change = 'directory_api';
+                if ($use_by == "Print Guia") {
+                    $filename_no_change = 'directory_api_ES';
+                }
             break;
 
             case 'fed':
@@ -128,7 +134,12 @@ function _cmp_export_xml_download_xml() {
     }
 
     if ($file_content != '') {
-        $name = strftime($filename. "_" . $args[3] .'_%m_%d_%Y.xml');
+        if (isset($filename_no_change) && strlen($filename_no_change) > 0) {
+            $name = $filename_no_change.".xml";
+        }
+        else {
+            $name = strftime($filename . "_" . $args[3] . '_%m_%d_%Y.xml');
+        }
         header('Content-Disposition: attachment;filename=' . $name);
         header('Content-Type: text/xml');
 
