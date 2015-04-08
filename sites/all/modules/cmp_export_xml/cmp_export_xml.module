@@ -427,6 +427,14 @@ function _cmp_export_xml_cpo($use_by='Print CAH')  {
     return $text;
 }
 
+
+function __make_xml_friendly($str) {
+    $str = strip_tags($str);
+    $str = str_replace('&','&amp;',$str);
+    $str = str_replace("</br>", " ", $str);
+    return $str;
+}
+
 function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)  {
 
     $sql = "SELECT DISTINCT n.nid FROM node n
@@ -443,42 +451,44 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
     foreach($res as $row) {
         $node = node_load($row->nid);
 
+        // clean some fields
+
         $text .= "<Contact>" . $new_line;
         $text .= "<Id>" . $row->nid . "</Id>" . $new_line;
-        $text .= "<Name>" . $node->title . ((isset($node->field_acronym['und'][0]['value']) && strlen($node->field_acronym['und'][0]['value']) > 0) ? " (" . $node->field_acronym['und'][0]['value'] . ")" : "") . "</Name>" . $new_line;
+        $text .= "<Name>" . __make_xml_friendly($node->title) . ((isset($node->field_acronym['und'][0]['value']) && strlen($node->field_acronym['und'][0]['value']) > 0) ? " (" . __make_xml_friendly($node->field_acronym['und'][0]['value']) . ")" : "") . "</Name>" . $new_line;
 
         if (isset($node->field_description['und'][0]['value']) && strlen($node->field_description['und'][0]['value']) > 0) {
-            $text .= "<Description>" . $node->field_description['und'][0]['value'] . "</Description>" . $new_line;
+            $text .= "<Description>" . __make_xml_friendly($node->field_description['und'][0]['value']) . "</Description>" . $new_line;
         }
 
         if (isset($node->field_alpha_order_name['und'][0]['value']) && $dir_type == "Federal Agencies") {
-            $text .= "<Source_Url>" ."http://dev-usagov.ctacdev.com/directory/".str_replace(" ", "-",strtolower($node->field_alpha_order_name['und'][0]['value'])) . "</Source_Url>".$new_line;
+            $text .= "<Source_Url>" .__make_xml_friendly("http://dev-usagov.ctacdev.com/directory/".str_replace(" ", "-",strtolower($node->field_alpha_order_name['und'][0]['value']))) . "</Source_Url>".$new_line;
         }
         else {
             $text .= "<Source_Url>not publishable path</Source_Url>" .$new_line;
         }
 
         if (isset($node->field_subdivision['und'][0]['value']) && strlen($node->field_subdivision['und'][0]['value']) > 0) {
-            $text .= "<Subdivision>" . $node->field_subdivision['und'][0]['value'] . "</Subdivision>" . $new_line;
+            $text .= "<Subdivision>" . __make_xml_friendly($node->field_subdivision['und'][0]['value']) . "</Subdivision>" . $new_line;
         }
 
         if (isset($node->field_street_1['und'][0]['value']) && strlen($node->field_street_1['und'][0]['value']) > 0) {
-            $text .= "<Street1>" . $node->field_street_1['und'][0]['value'] . "</Street1>" . $new_line;
+            $text .= "<Street1>" . __make_xml_friendly($node->field_street_1['und'][0]['value']) . "</Street1>" . $new_line;
         }
 
         if (isset($node->field_street_2['und'][0]['value']) && strlen($node->field_street_2['und'][0]['value']) > 0) {
-            $text .= "<Street2>" . $node->field_street_2['und'][0]['value'] . "</Street2>" . $new_line;
+            $text .= "<Street2>" . __make_xml_friendly($node->field_street_2['und'][0]['value']) . "</Street2>" . $new_line;
         }
 
         if (isset($node->field_city['und'][0]['value'] ) && strlen($node->field_city['und'][0]['value']) > 0) {
-            $text .= "<City>" . $node->field_city['und'][0]['value'] . "</City>" . $new_line;
+            $text .= "<City>" . __make_xml_friendly($node->field_city['und'][0]['value']) . "</City>" . $new_line;
         }
         if (isset($node->field_state['und'][0]['value']) && strlen($node->field_state['und'][0]['value']) > 0) {
-            $text .= "<State>" . $node->field_state['und'][0]['value'] . "</State>" . $new_line;
+            $text .= "<State>" . __make_xml_friendly($node->field_state['und'][0]['value']) . "</State>" . $new_line;
         }
 
         if (isset($node->field_zip['und'][0]['value']) && strlen($node->field_zip['und'][0]['value']) > 0) {
-            $text .= "<Zip>" . $node->field_zip['und'][0]['value'] . "</Zip>" . $new_line;
+            $text .= "<Zip>" . __make_xml_friendly($node->field_zip['und'][0]['value']) . "</Zip>" . $new_line;
         }
 
         if (isset($node->field_language['und'][0]['value']) && strlen($node->field_language['und'][0]['value']) > 0) {
@@ -487,24 +497,24 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
 
         if (isset($node->field_phone_number['und'])) {
             for($i=0; $i < count($node->field_phone_number['und']); $i++) {
-                $text .= "<Phone>" . $node->field_phone_number['und'][$i]['value'] . "</Phone>" . $new_line;
+                $text .= "<Phone>" . __make_xml_friendly($node->field_phone_number['und'][$i]['value']) . "</Phone>" . $new_line;
             }
         }
 
         if (isset($node->field_toll_free_number['und'])) {
             for($i=0; $i < count($node->field_toll_free_number['und']); $i++) {
-                $text .= "<Tollfree>" . $node->field_toll_free_number['und'][$i]['value'] . "</Tollfree>" . $new_line;
+                $text .= "<Tollfree>" . __make_xml_friendly($node->field_toll_free_number['und'][$i]['value']) . "</Tollfree>" . $new_line;
             }
         }
 
         if (isset($node->field_tty_number['und'])) {
             for($i=0; $i < count($node->field_tty_number['und']); $i++) {
-                $text .= "<TTY>" . $node->field_tty_number['und'][$i]['value'] . "</TTY>" . $new_line;
+                $text .= "<TTY>" . __make_xml_friendly($node->field_tty_number['und'][$i]['value']) . "</TTY>" . $new_line;
             }
         }
 
         if (isset($node->field_email['und'][0]['value']) && strlen($node->field_email['und'][0]['value'])) {
-            $text .= "<Email>" . $node->field_email['und'][0]['value'] . "</Email>" . $new_line;
+            $text .= "<Email>" . __make_xml_friendly($node->field_email['und'][0]['value']) . "</Email>" . $new_line;
         }
         // Web URL
         $webs = explode("</li>", $node->field_website_links['und'][0]['value']);
@@ -514,9 +524,9 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
 
             if (isset($m[2]) && strlen(trim($m[2])) > 0) {
                 $text .= "<Web_Url>" . $new_line;
-                $text .= $tab_line . "<Url>" . $m[2] . "</Url>" . $new_line;
+                $text .= $tab_line . "<Url>" . __make_xml_friendly($m[2]) . "</Url>" . $new_line;
                 if (isset($m2[1][0]) && strlen(trim($m2[1][0])) > 0) {
-                    $text .= $tab_line . "<Description>" . $m2[1][0] . "</Description>" . $new_line;
+                    $text .= $tab_line . "<Description>" . __make_xml_friendly($m2[1][0]) . "</Description>" . $new_line;
                 }
                 $text .= $tab_line . "<Language>en</Language>" . $new_line;
                 $text .= "</Web_Url>" . $new_line;
@@ -531,9 +541,9 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
 
             if (isset($m[2]) && strlen(trim($m[2])) > 0) {
                 $text .= "<Contact_Url>" . $new_line;
-                $text .= $tab_line . "<Url>" . $m[2] . "</Url>" . $new_line;
+                $text .= $tab_line . "<Url>" . __make_xml_friendly($m[2]) . "</Url>" . $new_line;
                 if (isset($m2[1][0]) && strlen(trim($m2[1][0])) > 0) {
-                    $text .= $tab_line . "<Description>" . $m2[1][0] . "</Description>" . $new_line;
+                    $text .= $tab_line . "<Description>" . __make_xml_friendly($m2[1][0]) . "</Description>" . $new_line;
                 }
                 $text .= $tab_line . "<Language>en</Language>" . $new_line;
                 $text .= "</Contact_Url>" . $new_line;
@@ -548,9 +558,9 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
 
             if (isset($m[2]) && strlen(trim($m[2])) > 0) {
                 $text .= "<In_Person_Url>".$new_line;
-                $text .= $tab_line . "<Url>" . $m[2] . "</Url>" . $new_line;
+                $text .= $tab_line . "<Url>" . __make_xml_friendly($m[2]) . "</Url>" . $new_line;
                 if (isset($m2[1][0]) && strlen(trim($m2[1][0])) > 0) {
-                    $text .= $tab_line . "<Description>" . $m2[1][0] . "</Description>" . $new_line;
+                    $text .= $tab_line . "<Description>" . __make_xml_friendly($m2[1][0]) . "</Description>" . $new_line;
                 }
                 $text .= $tab_line . "<Language>en</Language>" . $new_line;
                 $text .= "</In_Person_Url>".$new_line;
@@ -563,7 +573,7 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
                 $child_node = node_load($node->field_child_records['und'][$j]['endpoints']['und'][0]['entity_id']);
                 $text .= "<Child>".$new_line;
                 $text .= $tab_line."<Id>".$node->field_child_records['und'][$j]['endpoints']['und'][0]['entity_id']."</Id>".$new_line;
-                $text .= $tab_line."<Name>".$child_node->title."</Name>".$new_line;
+                $text .= $tab_line."<Name>".__make_xml_friendly($child_node->title)."</Name>".$new_line;
                 $text .= "</Child>".$new_line;
             }
         }
@@ -574,7 +584,7 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
             $parent_node = node_load($node->field_parent_record['und'][0]['endpoints']['und'][1]['entity_id']);
             $text .= "<Parent>".$new_line;
             $text .= $tab_line."<Id>" .$node->field_parent_record['und'][0]['endpoints']['und'][1]['entity_id'] . "</Id>".$new_line;
-            $text .= $tab_line."<Name>" .$parent_node->title. "</Name>".$new_line;
+            $text .= $tab_line."<Name>" .__make_xml_friendly($parent_node->title). "</Name>".$new_line;
             $text .= "</Parent>".$new_line;
         }
 
@@ -586,7 +596,7 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
                 $alt_node = node_load($node->field_spanish_toggle['und'][0]['endpoints']['und'][1]['entity_id']);
                 $text .= '<Alt_Language>'.$new_line;
                 $text .= $tab_line."<Id>".$node->field_spanish_toggle['und'][0]['endpoints']['und'][1]['entity_id']."</Id>".$new_line;
-                $text .= $tab_line."<Name>".$alt_node->title."</Name>".$new_line;
+                $text .= $tab_line."<Name>".__make_xml_friendly($alt_node->title)."</Name>".$new_line;
                 $text .= $tab_line."<Language>es</Language>".$new_line;
                 $text .= '</Alt_Language>'.$new_line;
             }
@@ -598,19 +608,19 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
                 $alt_node = node_load($node->field_english_toggle['und'][0]['endpoints']['und'][1]['entity_id']);
                 $text .= '<Alt_Language>'.$new_line;
                 $text .= $tab_line."<Id>".$node->field_english_toggle['und'][0]['endpoints']['und'][1]['entity_id']."</Id>".$new_line;
-                $text .= $tab_line."<Name>".$alt_node->title."</Name>".$new_line;
+                $text .= $tab_line."<Name>".__make_xml_friendly($alt_node->title)."</Name>".$new_line;
                 $text .= $tab_line."<Language>en</Language>".$new_line;
                 $text .= '</Alt_Language>'.$new_line;
             }
         }
         if (isset($node->field_cfo_agency['und'][0]['value'])
             && strlen($node->field_cfo_agency['und'][0]['value']) > 0) {
-            $text .= "<CFO_Agency>" . $node->field_cfo_agency['und'][0]['value'] . "</CFO_Agency>" . $new_line;
+            $text .= "<CFO_Agency>" . __make_xml_friendly($node->field_cfo_agency['und'][0]['value']) . "</CFO_Agency>" . $new_line;
         }
 
         if (isset($node->field_government_branch['und'][0]['value'])
             && strlen($node->field_government_branch['und'][0]['value']) > 0) {
-            $text .= "<Fed_Branch>" . $node->field_government_branch['und'][0]['value'] . "</Fed_Branch>" . $new_line;
+            $text .= "<Fed_Branch>" . __make_xml_friendly($node->field_government_branch['und'][0]['value']) . "</Fed_Branch>" . $new_line;
         }
 
         $text .= "</Contact>".$new_line;
