@@ -651,7 +651,7 @@ function _cmp_misc_send_needs_approval_notice_person( $node) {
         global $user;
 
         // Subject
-        $params['subject'] = "Approval Needed :" . $node->title;
+        $params['subject'] = "Approval Needed: " . $node->title;
 
         $alias = drupal_get_path_alias('node/' . $node->nid);
         // body
