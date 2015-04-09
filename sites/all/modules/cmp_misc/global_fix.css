@@ -18,3 +18,8 @@
 .report-tree .expandable {
     background-image: url(images/tv-expandable.gif);
 }
+
+body.page-node-add div#edit-field-workflow-state-search,
+body.page-node-edit div#edit-field-workflow-state-search {
+	display: none;
+}
