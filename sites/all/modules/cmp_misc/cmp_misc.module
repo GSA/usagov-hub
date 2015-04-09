@@ -517,6 +517,167 @@ function cmp_misc_cronapi($op, $job = NULL) {
     return $items;
 }
 
+/**
+ * Allows modules to respond to state transitions.
+ *
+ * @param $node
+ *  The node that is being transitioned.
+ *
+ * @param $previous_state
+ *  The state of the revision before the transition occurred.
+ *
+ * @param $new_state
+ *  The new state of the revision.
+ */
+function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_state)
+{
+    // needs approval >>> needs discussion
+    if ($previous_state == 'needs_review' && $new_state == 'needs_discussion') {
+        $node_vs = node_revision_list($node);
+        $node_vs_index = array_keys($node_vs);
+        //dsm($node_vs);
+        global $user;
+        $last_edited_node = $last_edited_user = '';
+        if (count($node_vs) > 2) {
+
+            // second revision will be always last person who touched
+            for($i=0; $i<count($node_vs); $i++) {
+                $tmp_node = $node_vs[$node_vs_index[$i]];
+
+                if ($user->uid != $tmp_node->uid) {
+                    $last_edited_node = $node_vs[$node_vs_index[$i]];
+                    $last_edited_user = user_load($last_edited_node->uid);
+                    break;
+                }
+            }
+
+            if ($last_edited_node != '' && $last_edited_user != '')  {
+                $current_node = $node_vs[$node_vs_index[0]];
+                $current_user = user_load($current_node->uid);
+                _cmp_misc_send_last_edited_person($last_edited_user, $node);
+            }
+        }
+    }
+
+    // needs approval  from different state
+    if ($previous_state != 'needs_review' && $new_state == 'needs_review') {
+        _cmp_misc_send_needs_approval_notice_person( $node);
+    }
+
+    /* Some node(s) have a field_workflow_state_search field, which we want to always contain the current workflow-status.
+    We use this field as an easy way to obtain the workflow information with the ElasticSearch mdoule... */
+    if ( isset($node->field_workflow_state_search) ) { // If this node is of a content-type that has the workflow_state_search field....
+
+        // Write the (current) workflow-status into the workflow_state_search [text] field...
+
+        /* I am SCHEDULING this, because I am uncertain at what point this hook is called... 
+        Or in other words: is this hook being triggered on pre-save? post-save? I tried altering $node 
+        in this function, and found it did not touch the node in the database, but I feel uncomfortable
+        loading and saving the node [right here] because the node may be undergoing [an incomplete] alteration 
+        at this line (in this function) */
+        // Schedule helper-function _cmp_misc_setWorkflowStatusSearchTextField() on PHP-thread-termination
+        register_shutdown_function('_cmp_misc_setWorkflowStatusSearchTextField', $node->nid, $new_state);
+
+    }
+
+}
+
+/**
+ * void _cmp_misc_setWorkflowStatusSearchTextField(int $nid, string $workFlowStatusText)
+ *
+ * NOTICE: THIS DOES NOT CHANGE NOR TOUCH THE ACTUAL WORKFLOW-STATE IN ANY WAY!
+ * This function only writes the given text to the $node->workflow_state_search field, this is 
+ * a field used only by Elastic-Search.
+ * 
+ * This is created as a helper-function for cmp_misc_workbench_moderation_transition() above.
+ */
+function _cmp_misc_setWorkflowStatusSearchTextField($nid, $workFlowStatusText) {
+
+    // Load the node entity
+    $entity = array_values(entity_load('node', array($nid))); 
+    $entity = $entity[0];
+
+    // Write the value into the loaded Drupal-object
+    $entity->field_workflow_state_search = array(
+        'und' => array(
+            0 => array(
+                'value' => $workFlowStatusText
+            )
+        )
+    );
+
+    // Save into the database
+    entity_save('node', $entity);
+
+    // Debug - for those of us who tail the error_log
+    $myFunct = __FUNCTION__;
+    error_log(
+        "Notice: {$myFunct}() has set the current workflow-status ({$workFlowStatusText}) "
+        ."into field_workflow_state_search for node {$nid} ({$entity->title})"
+    );
+}
+
+function _cmp_misc_send_needs_approval_notice_person( $node) {
+
+    if (isset( $node->field_workflow_notification_emai['und'][0]['value'])) {
+        $to = $node->field_workflow_notification_emai['und'][0]['value'];
+        global $user;
+
+        // Subject
+        $params['subject'] = "Approval Needed: " . $node->title;
+
+        $alias = drupal_get_path_alias('node/' . $node->nid);
+        // body
+        $params['body'] = '<b>Content item needs approval </b> - <a href="' . $alias . '">' . $node->title . '</a> <br/>';
+        $params['body'] .= '<b>Summary</b> - ' . $node->field_description['und'][0]['value'] . ' <br/>';
+        $params['body'] .= '<b>User who requested review</b> - ' . $user->name . '<br/>';
+        $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i') . '<br/>';
+        if ( !empty($node->field_comments['und'][0]['value']) ) {
+            $strComment = strip_tags($node->field_comments['und'][0]['value']);
+        } else {
+            $strComment = '<i>No comments supplied</i>';
+        }
+        $params['body'] .= '<b>Comments: </b>' . $strComment;
+
+        $from = variable_get('site_mail', '');
+
+        $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+        $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+
+        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+
+        if ($res["send"]) {
+            drupal_set_message("Approval notification email has been sent." . $to);
+        }
+    }
+}
+
+function _cmp_misc_send_last_edited_person($user_to_send, $node) {
+    $to = $user_to_send->mail;
+    global $user;
+
+    // Subject
+    $params['subject'] = "Discussion Needed :".$node->title;
+
+    $alias = drupal_get_path_alias('node/'.$node->nid);
+    // body
+    $params['body'] = '<b>Content item needs discussion</b> - <a href="' . $alias . '">' . $node->title . '</a> <br/>';
+    $params['body'] .= '<b>Summary</b> - ' . $node->field_description['und'][0]['value'] . ' <br/>';
+    $params['body'] .= '<b>User who requested discussion</b> - '. $user->name . '<br/>';
+    $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i');
+
+    $from = variable_get('site_mail', '');
+
+    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+
+    $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+
+    if ($res["send"]) {
+        drupal_set_message("Person who last revision created is " . $user_to_send->name . ". Notification email has been sent." . $to);
+    }
+}
+
 function _cmp_misc_check_archived_content() {
     watchdog('cron',"STARTED >> ARCHIVING CONTENT: " . date('Y-m-d H:i:s'));
 }
