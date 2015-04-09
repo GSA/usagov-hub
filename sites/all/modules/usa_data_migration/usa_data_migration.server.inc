@@ -465,6 +465,21 @@ function usa_data_migration_printNodeDump() {
     $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("node", "nid IN ({$nidList})", false, true, true, false, true);
     $returnData['NodeDump_sqlDump'] .= "\n";
 
+    // Transport relation-related tables to the child-sites
+    $returnData['NodeDump_sqlDump'] .= "TRUNCATE TABLE relation;\n";
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("relation", '', true, false, false, false, false);
+    $returnData['NodeDump_sqlDump'] .= "TRUNCATE TABLE relation_bundles;\n";
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("relation_bundles", '', true, false, false, false, false);
+    $returnData['NodeDump_sqlDump'] .= "TRUNCATE TABLE relation_revision;\n";
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("relation_revision", '', true, false, false, false, false);
+    $returnData['NodeDump_sqlDump'] .= "TRUNCATE TABLE relation_type;\n";
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("relation_type", '', true, false, false, false, false);
+    $returnData['NodeDump_sqlDump'] .= "TRUNCATE TABLE field_data_endpoints;\n";
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("field_data_endpoints", '', true, false, false, false, false);
+    $returnData['NodeDump_sqlDump'] .= "TRUNCATE TABLE field_revision_endpoints;\n";
+    $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump("field_revision_endpoints", '', true, false, false, false, false);
+    $returnData['NodeDump_sqlDump'] .= "\n";
+
     // Wipe the UID info from node on the child-site
     $returnData['NodeDump_sqlDump'] .= "\n";
     $returnData['NodeDump_sqlDump'] .= "UPDATE node SET uid = 1; \n";

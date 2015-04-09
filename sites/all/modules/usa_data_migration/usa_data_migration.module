@@ -59,7 +59,7 @@ function usa_data_migration_menu() {
         'description' => 'Configure the USA Data Migration',
         'page callback' => 'drupal_get_form',
         'page arguments' => array('usa_data_migration_config_form'),
-        'access arguments' => array('access administration pages'),
+        'access callback' => 'usa_data_migration_hasAdminAccess',
         'type' => MENU_NORMAL_ITEM,
         'file' => 'usa_data_migration.admin.inc',
     );
@@ -132,6 +132,22 @@ function usa_data_migration_menu() {
     usa_data_migration_ensureFileManagedTableHasTypeField();
 
     return $items;
+}
+
+/* Used for menu-callbacks to determine weather or not the current 
+user should have access to UDM administrative-pages */
+function usa_data_migration_hasAdminAccess() {
+
+    global $user;
+    if ( !empty($user->roles) ) {
+        foreach ( $user->roles as $role ) {
+            if ( $role === 'administrator' ) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 function usa_data_migration_menu_alter(&$items) {
@@ -428,13 +444,15 @@ function usa_data_migration_form_getTaxonomyMangerTickedItems($recusiveSearch = 
 
     foreach ($recusiveSearch as $key => $data) {
 
-        // If this is a leaf
+        // Check for checkbox-tick
         if ( isset($data['tid']) ) {
             if ( !empty($data['checkbox']) ) {
                 $ret[] = intval($data['checkbox']);
             }
-        } else {
-            $ret = array_merge($ret, usa_data_migration_form_getTaxonomyMangerTickedItems($data));
+        }
+
+        if ( !empty($data['children']) ) {
+            $ret = array_merge($ret, usa_data_migration_form_getTaxonomyMangerTickedItems($data['children']));
         }
 
     }
