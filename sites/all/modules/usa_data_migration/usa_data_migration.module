@@ -444,13 +444,15 @@ function usa_data_migration_form_getTaxonomyMangerTickedItems($recusiveSearch = 
 
     foreach ($recusiveSearch as $key => $data) {
 
-        // If this is a leaf
+        // Check for checkbox-tick
         if ( isset($data['tid']) ) {
             if ( !empty($data['checkbox']) ) {
                 $ret[] = intval($data['checkbox']);
             }
-        } else {
-            $ret = array_merge($ret, usa_data_migration_form_getTaxonomyMangerTickedItems($data));
+        }
+
+        if ( !empty($data['children']) ) {
+            $ret = array_merge($ret, usa_data_migration_form_getTaxonomyMangerTickedItems($data['children']));
         }
 
     }
