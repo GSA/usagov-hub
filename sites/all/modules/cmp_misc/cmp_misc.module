@@ -8,9 +8,9 @@ if ( empty($GLOBALS['base_url']) && !empty($_SERVER['HTTP_HOST']) )
     //header('XXX: BASE_URL ALREADY SET');
 }
 /*
-if ( !empty(getenv('CMP_AWS_S3_BUCKET')) ) 
+if ( !empty(getenv('CMP_AWS_S3_BUCKET')) )
 {
-    if ( empty(variable_get('s3fs_bucket')) ) 
+    if ( empty(variable_get('s3fs_bucket')) )
     {
         variable_set( 's3fs_bucket',     getenv('CMP_AWS_S3_BUCKET') );
         variable_set( 'amazons3_bucket', getenv('CMP_AWS_S3_BUCKET') );
@@ -19,7 +19,7 @@ if ( !empty(getenv('CMP_AWS_S3_BUCKET')) )
             $GLOBALS['conf']['s3fs_bucket'] = getenv('CMP_AWS_S3_BUCKET');
         }
     }
-   
+
     if ( isset($_POST['s3fs_bucket']) && empty($_POST['s3fs_bucket']) )
     {
         $_POST['s3fs_bucket']    = getenv('CMP_AWS_S3_BUCKET');
@@ -28,7 +28,7 @@ if ( !empty(getenv('CMP_AWS_S3_BUCKET')) )
 }*/
 
 
-function cmp_misc_init() 
+function cmp_misc_init()
 {
     drupal_add_js(drupal_get_path('module', 'cmp_misc') .'/js/global.js');
     drupal_add_css(drupal_get_path('module', 'cmp_misc') .'/global_fix.css');
@@ -41,8 +41,8 @@ function cmp_misc_menu() {
 
 /* Implements HOOK_user_login
  *
- * When a user successfully logs into the CMP/Data-Entry site, set a 
- * top-domain cookie. This cookie will be used to inform a child-site 
+ * When a user successfully logs into the CMP/Data-Entry site, set a
+ * top-domain cookie. This cookie will be used to inform a child-site
  * (when the user navigates to it), that this is an authenticated user
  * [with the CMP site]
  */
@@ -53,7 +53,7 @@ function cmp_misc_user_login($edit, $account) {
             ."user's browser to state they should be admin-links on child-sites."
     );
 
-    /* I'll programtically detect the top-devel-domain here so this works on our 
+    /* I'll programtically detect the top-devel-domain here so this works on our
     Stage environments */
     $hostnameParts = explode('.', $_SERVER['HTTP_HOST']);
     $topLevelDomainName = '.' . array_pop($hostnameParts); // .gov
@@ -69,7 +69,7 @@ function cmp_misc_user_login($edit, $account) {
         $topLevelDomainName /* cookie shall be available on all usa.gov subdomains */
     );
 
-    // Collect which roles this user has 
+    // Collect which roles this user has
     $roles = array();
     if ( !empty($account->roles) && is_array($account->roles) && count($account->roles) > 0 ) {
         $roles = $account->roles;
@@ -298,7 +298,7 @@ function cmp_misc_node_ever_published($node) {
 
 
 function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
-    
+
     // Kill any way for someone to reset the admin password - we can do this in the database if we need to
     // Or we can: drush uli
     if ( $form_id === 'user_pass' || $form_id === 'user_pass_block' ) {
@@ -338,7 +338,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
             // do nothing, show the Drupal login form
         }
     }
-    
+
     // If this is the edit form for any node under the 'Text Asset' content-type
     //if ( $form_id === 'text_content_type_node_form' ) {
 
@@ -355,9 +355,9 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
             if ( $isAdmin ) { return; } /// admin can always see delete
             /// if !ever_published : delete button
             if ( !$everPublished ) { return; } /// anyone can see delete
-            /// if  ever_published &&  awaiting_deletion && !(state:awaiting->deleted) : disabled delete button + message    
-            if ( $workflowState=='awaiting_deletion' && !$canApproveDelete && !empty($form['actions']['delete']) ) 
-            { /* awaiting deletion approval */ 
+            /// if  ever_published &&  awaiting_deletion && !(state:awaiting->deleted) : disabled delete button + message
+            if ( $workflowState=='awaiting_deletion' && !$canApproveDelete && !empty($form['actions']['delete']) )
+            { /* awaiting deletion approval */
                 $form['actions']['delete']['#value'] = 'Awaiting Deletion';
                 $form['actions']['delete']['#type'] = 'button';
                 unset($form['actions']['delete']['#submit']);
@@ -368,13 +368,13 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
                 return;
             }
             /// if  ever_published &&  awaiting_deletion &&  (state:awaiting->deleted) : approve soft delete button
-            if ( $workflowState=='awaiting_deletion' &&  $canApproveDelete && !empty($form['actions']['delete']) ) 
-            { /* approve deletion */ 
+            if ( $workflowState=='awaiting_deletion' &&  $canApproveDelete && !empty($form['actions']['delete']) )
+            { /* approve deletion */
                 $form['actions']['delete']['#value'] = 'Approve Deletion';
                 return;
             }
             /// if  ever_published &&  deleted : show state
-            if ( $workflowState=='deleted' && !empty($form['actions']['delete']) ) 
+            if ( $workflowState=='deleted' && !empty($form['actions']['delete']) )
             {
                 $form['actions']['delete']['#value'] = 'Already Deleted';
                 $form['actions']['delete']['#type'] = 'button';
@@ -437,7 +437,7 @@ function cmp_misc_node_presave($node) {
  * Pre-save node operations...
  */
 function cmp_misc_node_insert($node) {
-    
+
     // Strip trailing empty <p> tags from text-asset body fields
     if ( $node->type == 'text_content_type' && !empty($node->body['und'][0]['value']) ) {
         while ( substr($node->body['und'][0]['value'], -13) === '<p>&nbsp;</p>' ) {
@@ -449,21 +449,21 @@ function cmp_misc_node_insert($node) {
 
 }
 
-function cmp_misc_entity_load($entities, $type) 
+function cmp_misc_entity_load($entities, $type)
 {
-    if ( $type === 'file' ) 
+    if ( $type === 'file' )
     {
-        foreach ( $entities as $theEntity ) 
+        foreach ( $entities as $theEntity )
         {
-            if ( !isset($theEntity->type) && isset($theEntity->uri) && strpos($theEntity->uri, 's3://') === 0 ) 
+            if ( !isset($theEntity->type) && isset($theEntity->uri) && strpos($theEntity->uri, 's3://') === 0 )
             {
                 $theEntity->type = 'image';
             }
         }
     }
-    if ( $type === 'node' ) 
+    if ( $type === 'node' )
     {
-        foreach ( $entities as $theEntity ) 
+        foreach ( $entities as $theEntity )
         {
             if ( $row = db_query("select deleted, deletion_uid, deletion_timestamp, uuid from {node} where {node}.nid = {$theEntity->nid}")->fetchAssoc() )
             {
@@ -482,25 +482,226 @@ function cmp_misc_entity_load($entities, $type)
 function cmp_misc_cronapi($op, $job = NULL) {
 
     $items['cmp_misc_daily_content_scan_cron'] = array(
-        'description' => 'Send email to owner about archival of content',
-        'rule' => '*/5 * * * *', // Every day at 2am assume 0 2
+        'description' => 'Send email to owner about stale/old content',
+        'rule' => '0 3 * * *', // Every day at 3am
         'callback' => '_cmp_misc_send_report',
     );
 
-    $items['cmp_misc_archival_cron'] = array(
-        'description' => 'Archiving Content',
-        'rule' => '*/15 * * * *', // Every 15 minutes
-        'callback' => '_cmp_misc_check_archived_content',
+    $items['cmp_misc_publish_and_archival_cron'] = array(
+        'description' => 'Auto Publishing/Archiving Content',
+        'rule' => '*/5 * * * *', // Every 5 minutes to give us time to hit 15min target
+        'callback' => '_cmp_misc_check_content_freshness',
     );
     return $items;
 }
 
-function _cmp_misc_check_archived_content() {
-    watchdog('cron',"STARTED >> ARCHIVING CONTENT: " . date('Y-m-d H:i:s'));
+function _cmp_misc_check_content_freshness()
+{
+    $pub = _cmp_misc_auto_publish_content();
+    $arv = _cmp_misc_auto_archive_content();
+    watchdog( 'cron', "FreshCheck: Auto-Publish($pub) Auto-Archive($arv)");
 }
 
-function _cmp_misc_get_expiring_nodes() {
+function _cmp_misc_auto_publish_content()
+{
+    /// trigger a workflow state transition to published, this will aoutomatically trigger a legit publish as well
+    $records = db_query(
+             'SELECT
+                n.nid, n.vid as pub_rev, c.vid as curr_rev,
+                d.deletion_timestamp,
+                a.field_archive_date_value,
+                p.field_schedule_publish_value,
+                w.state
+              FROM
+                {node} n
+                LEFT JOIN ( # use current revision
+                    select nid, max(vid) as vid
+                    from   {node_revision}
+                    group by nid
+                )                                                 c on ( c.nid = n.nid )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
+                LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
+                LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid         AND is_current = 1 )
+              WHERE
+                # node is not deleted
+                d.deletion_timestamp IS NULL
+                # current revision is not already published
+                AND NOT ( n.status = 1 && n.vid != c.vid )
+                # is not archived
+                AND (
+                    # no archive date set
+                    a.field_archive_date_value IS NULL
+                    OR # archive date is in the future
+                    UNIX_TIMESTAMP(a.field_archive_date_value) > :now
+                )
+                # is publishable
+                AND (
+                    # publish date set
+                    p.field_schedule_publish_value IS NOT NULL
+                    AND # publish date is in the past
+                    UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
+                )
+                AND w.state = \'scheduled_for_publication\'
+            ',array( ":now" => REQUEST_TIME )
+    )->fetchAll();
 
+    foreach  ( $records as $record )
+    {
+        $node = node_load($record->nid,$record->curr_rev);
+        workbench_moderation_moderate($node,workbench_moderation_state_published());
+    }
+    return count($records);
+}
+
+function _cmp_misc_auto_archive_content()
+{
+    /// Just unplublish any nodes with a previous archive date. archive date trumps publication date
+    $records = db_query(
+             'SELECT
+                n.nid, n.vid as curr_rev,
+                n.status,
+                d.deletion_timestamp,
+                a.field_archive_date_value
+              FROM
+                {node} n
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND n.vid = a.revision_id )
+              WHERE
+                # node is not deleted
+                d.deletion_timestamp IS NULL
+                # any revision of the node is currently published
+                AND n.status = 1
+                # is archivable
+                AND (
+                    # archive date set
+                    a.field_archive_date_value IS NOT NULL
+                    AND # archive date is in the past
+                    UNIX_TIMESTAMP(a.field_archive_date_value) < :now
+                )
+            ',array( ":now" => REQUEST_TIME )
+    )->fetchAll();
+
+    foreach  ( $records as $record )
+    {
+        $node = node_load($record->nid,$record->curr_rev);
+        $node->status = 0;
+        node_save($node);
+    }
+    return count($records);
+}
+
+function _cmp_misc_node_past_publication_date($node)
+{
+    /// Not deleted, not already published, not archived, has past publish date
+    return db_query(
+             'SELECT
+                n.nid, n.vid as pub_rev, c.vid as curr_rev,
+                d.deletion_timestamp,
+                a.field_archive_date_value,
+                p.field_schedule_publish_value
+              FROM
+                {node} n
+                LEFT JOIN ( # use current revision
+                    SELECT nid, max(vid) as vid
+                    FROM   {node_revision}
+                    WHERE nid = :nid
+                    GROUP BY nid
+                )                                                 c on ( n.nid = c.nid )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
+                LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
+                LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid         AND is_current = 1 )
+              WHERE
+                # node is our node
+                n.nid = :nid
+                # node is not deleted
+                AND d.deletion_timestamp IS NULL
+                # current revision is not already published
+                AND NOT ( n.status = 1 && n.vid != c.vid )
+                # is not archived
+                AND (
+                    # no archive date set
+                    a.field_archive_date_value IS NULL
+                    OR # archive date is in the future
+                    UNIX_TIMESTAMP(a.field_archive_date_value) > :now
+                )
+                # is publishable
+                AND (
+                    # has publish date set
+                    p.field_schedule_publish_value IS NOT NULL
+                    AND # publish date is in the past
+                    UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
+                )
+            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME )
+    )->rowCount();
+}
+
+function _cmp_misc_node_future_publication_date($node)
+{
+    /// Not deleted, not already published, not archived, has future publish date
+    return db_query(
+             'SELECT
+                n.nid, n.vid as pub_rev, c.vid as curr_rev,
+                d.deletion_timestamp,
+                a.field_archive_date_value,
+                p.field_schedule_publish_value
+              FROM
+                {node} n
+                LEFT JOIN ( # use current revision
+                    SELECT nid, max(vid) as vid
+                    FROM   {node_revision}
+                    WHERE nid = :nid
+                    GROUP BY nid
+                )                                                 c on ( n.nid = c.nid )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
+                LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
+                LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid         AND is_current = 1 )
+              WHERE
+                # node is our node
+                n.nid = :nid
+                # node is not deleted
+                AND d.deletion_timestamp IS NULL
+                # current revision is not already published
+                AND NOT ( n.status = 1 && n.vid != c.vid )
+                # is not archived
+                AND (
+                    # no archive date set
+                    a.field_archive_date_value IS NULL
+                    OR # archive date is in the future
+                    UNIX_TIMESTAMP(a.field_archive_date_value) > :now
+                )
+                # is publishable
+                AND (
+                    # has publish date set
+                    p.field_schedule_publish_value IS NOT NULL
+                    AND # publish date is in the past
+                    UNIX_TIMESTAMP(p.field_schedule_publish_value) > :now
+                )
+            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME )
+    )->rowCount();
+}
+
+function _cmp_misc_forget_recent_publish($node)
+{
+    $hist = db_query('SELECT *
+	          FROM   workbench_moderation_node_history h
+	          WHERE nid = :nid
+	          ORDER BY stamp DESC LIMIT 2',array(":nid"=>$node->nid))->fetchAll();
+    if ( count($hist) == 2 && $hist[0]->state==workbench_moderation_state_published() && $hist[1]->state=='scheduled_for_publication' )
+    {
+        db_query(
+            'update {workbench_moderation_node_history} set from_state = :from_state where hid = :hid',
+            array( ":from_state"=>$hist[0]->from_state, ":hid"=>$hist[1]->hid ));
+        db_query(
+            'delete from {workbench_moderation_node_history} where hid = :hid',
+            array( ":hid"=>$hist[0]->hid ));
+    }
+}
+
+function _cmp_misc_get_expiring_nodes()
+{
     $expiring_date = strtotime(date('Y-m-d H:i:s') . ' -6 months');
 
     $sql = "SELECT n.nid, n.title FROM field_data_field_date_last_reviewed lr
@@ -536,6 +737,16 @@ function _cmp_misc_get_expiring_nodes() {
  */
 function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_state)
 {
+    if ( $new_state == workbench_moderation_state_published()
+        /// allow a user to force a published transition for items already in 'scheduled' state
+        /// so two publish attempts in a row would immediately publish the content
+        # && $previous_state != 'scheduled_for_publication'
+          && _cmp_misc_node_future_publication_date($node) )
+    {
+        workbench_moderation_moderate( $node, 'scheduled_for_publication' );
+        _cmp_misc_forget_recent_publish($node);
+    }
+
     // needs approval >>> needs discussion
     if ($previous_state == 'needs_review' && $new_state == 'needs_discussion') {
         $node_vs = node_revision_list($node);
@@ -575,10 +786,10 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
 
         // Write the (current) workflow-status into the workflow_state_search [text] field...
 
-        /* I am SCHEDULING this, because I am uncertain at what point this hook is called... 
-        Or in other words: is this hook being triggered on pre-save? post-save? I tried altering $node 
+        /* I am SCHEDULING this, because I am uncertain at what point this hook is called...
+        Or in other words: is this hook being triggered on pre-save? post-save? I tried altering $node
         in this function, and found it did not touch the node in the database, but I feel uncomfortable
-        loading and saving the node [right here] because the node may be undergoing [an incomplete] alteration 
+        loading and saving the node [right here] because the node may be undergoing [an incomplete] alteration
         at this line (in this function) */
         // Schedule helper-function _cmp_misc_setWorkflowStatusSearchTextField() on PHP-thread-termination
         register_shutdown_function('_cmp_misc_setWorkflowStatusSearchTextField', $node->nid, $new_state);
@@ -591,15 +802,15 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
  * void _cmp_misc_setWorkflowStatusSearchTextField(int $nid, string $workFlowStatusText)
  *
  * NOTICE: THIS DOES NOT CHANGE NOR TOUCH THE ACTUAL WORKFLOW-STATE IN ANY WAY!
- * This function only writes the given text to the $node->workflow_state_search field, this is 
+ * This function only writes the given text to the $node->workflow_state_search field, this is
  * a field used only by Elastic-Search.
- * 
+ *
  * This is created as a helper-function for cmp_misc_workbench_moderation_transition() above.
  */
 function _cmp_misc_setWorkflowStatusSearchTextField($nid, $workFlowStatusText) {
 
     // Load the node entity
-    $entity = array_values(entity_load('node', array($nid))); 
+    $entity = array_values(entity_load('node', array($nid)));
     $entity = $entity[0];
 
     // Write the value into the loaded Drupal-object
@@ -791,7 +1002,3 @@ class Cmp_miscMailSystem implements MailSystemInterface {
         );
     }
 }
-
-
-
-
