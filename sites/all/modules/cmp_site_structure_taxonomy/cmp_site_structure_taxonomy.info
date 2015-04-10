@@ -1,0 +1,4 @@
+name = CMP Site Structure Taxonomy Alter
+description = Module will be used to customize site structure taxonomy for CMP Project
+package = CTAC Custom
+core = 7.x
