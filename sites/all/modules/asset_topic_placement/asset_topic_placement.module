@@ -28,8 +28,8 @@ function asset_topic_placement_menu() {
         'title' => 'Get Nodes Under Topics',
         'description' => 'AJAX return for nodes under given Asset-Topics',
         'page callback' => 'asset_topic_placement_ajaxReturnNodesUnderTopics',
-        'type' => MENU_CALLBACK,
-        'access callback' => true
+        'access arguments' => array(true),
+        'type' => MENU_CALLBACK
     );
 
     return $items;
