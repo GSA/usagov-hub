@@ -7,6 +7,7 @@ $files = array(
 
 $import = new DirectoryRecordImporter();
 $import->testRun    = false;
+$import->fullReload = false;
 $import->fromXMLFiles($files);
 
 class DirectoryRecordImporter
@@ -362,8 +363,8 @@ class DirectoryRecordImporter
         $meta->field_language->set(         $this->filterLanguage(trim((string)$contact->Language)) );
         $meta->field_phone_number->set(     $this->filterList($contact->Phone) );
         $meta->field_toll_free_number->set( $this->filterList($contact->Tollfree) );
-        $meta->field_tty_number->set(       $this->filterList($contact->TTY) ); 
-        $meta->field_synonym->set(          $this->filterList($contact->Synonym) ); 
+        $meta->field_tty_number->set(       $this->filterList($contact->TTY) );
+        $meta->field_synonym->set(          $this->filterList($contact->Synonym) );
         $meta->field_contact_links->set(    array("value"=>$this->listifyLinks( $contact->Contact_Url   ), "format"=>"filtered_html" ) );
         $meta->field_in_person_links->set(  array("value"=>$this->listifyLinks( $contact->In_Person_Url ), "format"=>"filtered_html" ) );
         $meta->field_website_links->set(    array("value"=>$this->listifyLinks( $contact->Web_Url       ), "format"=>"filtered_html" ) );
@@ -371,9 +372,10 @@ class DirectoryRecordImporter
         $meta->field_cfo_agency->set(        trim((string)$contact->CFO_Agency) );
         $meta->field_government_branch->set( $this->filterBranch(trim((string)$contact->Fed_Branch)) );
         $meta->field_subdivision->set(       trim((string)$contact->Subdivision) );
+        $meta->field_directory_type->set(    $this->filterCategory(trim((string)$contact->Category)) );
 
-        $meta->field_directory_type->set(   $this->filterCategory(trim((string)$contact->Category)) );
-        $meta->field_alpha_order_name->set( trim((string)$contact->Alphaordername) );
+        $meta->field_alpha_order_name->set(         trim((string)$contact->Alphaordername) );
+        $meta->field_english_translation_name->set( trim((string)$contact->English_Translation_Name) );
 
         $meta->field_show_on_az_index->set( $this->filterAZIndex(trim((string)$contact->ShowOnFederalAZIndex)) );
         $meta->field_group_by->set(         trim((string)$contact->Groupby) );
@@ -406,7 +408,7 @@ class DirectoryRecordImporter
         if ( in_array($category, array(
     		 'Better Business Bureau'
     		,'Car Manufacturer'
-    		,'Consumer Organization' 
+    		,'Consumer Organization'
     		,'Corporation'
     		,'Government Consumer Protection Office'
     		,'Trade Association'
@@ -414,7 +416,7 @@ class DirectoryRecordImporter
     		,'State Insurance Regulator'
     		,'State Securities Administrator')) )
 	    {
-	    	return $category.'s';	
+	    	return $category.'s';
         }
         if ( $category == 'State Government Agency' )
     	{
@@ -431,7 +433,7 @@ class DirectoryRecordImporter
         if ( $category == 'State Banking Authority')
 	    {
 	    	return 'State Banking Authorities';
-        }	
+        }
         return $category;
     }
     public function filterOwner( $page_owner )
