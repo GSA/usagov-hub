@@ -225,23 +225,39 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 
 	console.log('Now applying changes to the Asset-Topic-Placement-Field: ' + fieldSelector);
 
+	// Initalize NodeUnderTopicCache
+	if ( typeof NodeUnderTopicCache === 'undefined' ) {
+		NodeUnderTopicCache = {};
+	}
+
 	// Get selected Asset-Topic Taxonomy terms
 	var terms = [];
 	jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
 		terms.push(this.value);
 	});
+	var nutCacheKey = 't' + terms.join('t', terms);
 
 	// Get nodes associated to these Asset-Topic taxonomy terms...
-	jQuery.get('/atm/get-nodes-under-topics?terms='+terms.join(','), function (nodes) {
-		for ( var x = 0 ; x < nodes.length ; x++ ) {
-			injectRowIntoAssetPlacementField(fieldSelector, nodes[x].nid, nodes[x].title);
-		}
+	if ( typeof NodeUnderTopicCache[nutCacheKey] !== 'undefined' ) {
+		alterTermsInAssetPlacementField_callInjectRows(fieldSelector, NodeUnderTopicCache[nutCacheKey], callback);
+	} else {
+		jQuery.get('/atm/get-nodes-under-topics?terms='+terms.join(','), function (nodes) {
+			NodeUnderTopicCache[nutCacheKey] = nodes;
+			alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback);
+		});
+	}
 
-		if ( typeof callback == 'function' ) {
-			callback();
-		}
-	});
+}
 
+function alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback) {
+
+	for ( var x = 0 ; x < nodes.length ; x++ ) {
+		injectRowIntoAssetPlacementField(fieldSelector, nodes[x].nid, nodes[x].title);
+	}
+
+	if ( typeof callback == 'function' ) {
+		callback();
+	}
 }
 
 function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
