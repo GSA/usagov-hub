@@ -36,6 +36,35 @@ jQuery(document).ready( function () {
 
 });
 
+// When the user changes the "Type of page to generate" field, show/hide the "Home Page" group
+jQuery(document).ready( function () {
+
+	setInterval(function () {
+
+		var needingAttachment = jQuery('.field-name-field-type-of-page-to-generate').not('.homepage-watch-attached');
+		if ( needingAttachment.length !== 0 ) {
+
+			needingAttachment.find('select').bind('change click', function () {
+				// Using setTimeout to ensure the following fires after the browser has set the UI value
+				setTimeout( function (pageTypeFieldUI) {
+					if ( pageTypeFieldUI.value == 'home' ) {
+						jQuery('.group-asset-placement').hide();
+						jQuery('.group-homepage-container').show();
+					} else {
+						jQuery('.group-asset-placement').show();
+						jQuery('.group-homepage-container').hide();
+					}
+				},100, this);
+			}).click();
+			needingAttachment.addClass('homepage-watch-attached');
+			console.log('homepage-watch-attached functionality has attached itself to a new taxonomy-form');
+		}
+
+	}, 500);
+
+
+});
+
 function initAssetTopicPlacementHelperScript() {
 
 	updateAssetTopicPlacementCountClasses();
@@ -359,7 +388,6 @@ function reinitializeDragTables() {
 			jqThisRow.removeClass('must-set-val');
 			if ( hasSetTimer === false ) {
 				setTimeout( function () {
-					console.log('test');
 					dragTblObj.hideColumns();
 					ensureEditAssetLinksExsist();
 				}, 200);
