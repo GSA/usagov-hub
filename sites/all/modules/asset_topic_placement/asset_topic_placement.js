@@ -200,6 +200,7 @@ function alterTermsInAssetPlacementFields(callback) {
 											var targId = jQuery('.field-name-field-home-quickfindcont-asset').attr('id');
 											alterTermsInAssetPlacementField('#'+targId, function () {
 
+												reinitializeDragTables();
 												jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
 												jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
 
@@ -314,38 +315,56 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 	// Remove any "No items" message in this table
 	jQuery('td:contains("No items have been added yet")').parent().remove();
 
-	// Determin where the drag-table information is stored in the Drupal js-variable
-	var base = fieldSelector;
-	base = base.replace('#edit-', '') + '-values';
-	// Bug killer for the taxonomy_manager page which may change DOM-ids of the entity-reference fields
-	for ( var x = 2 ; x < 30 ; x++ ) {
-		base = base.replace('--'+x+'-', '-');
-	}
+	// Mark this drag-table as needing to be reinitialized
+	jQuery(fieldSelector).addClass('needs-dragtable-reinit');
 
-	// Break bindings
-	jQuery(fieldSelector).html( jQuery(fieldSelector).html() )
+}
 
-	// Remove all drag-handles in the table
-	jQuery(fieldSelector+' a.tabledrag-handle .handle').remove();
+function reinitializeDragTables() {
 
-	// Remove the "Show row weights" link in this table
-	jQuery(fieldSelector).parent().find('a.tabledrag-toggle-weight').remove();
+	jQuery('.needs-dragtable-reinit').each( function () {
+		
+		var jqThis = jQuery(this);
+		var fieldSelector = '#' + jqThis.attr('id');
 
-	Drupal.tableDrag[base] = new Drupal.tableDrag(jQuery('#'+base).get(0), Drupal.settings.tableDrag[base]);
+		console.log('Reinitializing drag-table: '+fieldSelector);
 
-	// Re-initialize the Drupal.tableDrag[~]
-	var dragTblObj = Drupal.tableDrag[base];
-	dragTblObj.showColumns();
-	jQuery(fieldSelector+' .must-set-val').each( function () {
-		//alert( jQuery(fieldSelector+' tr').length - track );
-		var jqThis = jQuery(this)
-		jqThis.val( jqThis.attr('setValTo') );
-		setTimeout( function () {
-			jqThis.removeClass('must-set-val');
-			dragTblObj.hideColumns();
-			ensureEditAssetLinksExsist();
-		}, 150);
+		// Determin where the drag-table information is stored in the Drupal js-variable
+		var base = fieldSelector;
+		base = base.replace('#edit-', '') + '-values';
+		// Bug killer for the taxonomy_manager page which may change DOM-ids of the entity-reference fields
+		for ( var x = 2 ; x < 30 ; x++ ) {
+			base = base.replace('--'+x+'-', '-');
+		}
+
+		// Break bindings
+		jQuery(fieldSelector).html( jQuery(fieldSelector).html() )
+
+		// Remove all drag-handles in the table
+		jQuery(fieldSelector+' a.tabledrag-handle .handle').remove();
+
+		// Remove the "Show row weights" link in this table
+		jQuery(fieldSelector).parent().find('a.tabledrag-toggle-weight').remove();
+
+		Drupal.tableDrag[base] = new Drupal.tableDrag(jQuery('#'+base).get(0), Drupal.settings.tableDrag[base]);
+
+		// Re-initialize the Drupal.tableDrag[~]
+		var dragTblObj = Drupal.tableDrag[base];
+		dragTblObj.showColumns();
+		jQuery(fieldSelector+' .must-set-val').each( function () {
+			//alert( jQuery(fieldSelector+' tr').length - track );
+			var jqThis = jQuery(this)
+			jqThis.val( jqThis.attr('setValTo') );
+			setTimeout( function () {
+				jqThis.removeClass('must-set-val');
+				dragTblObj.hideColumns();
+				ensureEditAssetLinksExsist();
+			}, 150);
+		});
+		
 	});
+
+
 }
 
 function updateWeightOptionsInAssetPlacementField(fieldSelector) {
