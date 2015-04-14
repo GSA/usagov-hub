@@ -325,6 +325,7 @@ function reinitializeDragTables() {
 	jQuery('.needs-dragtable-reinit').each( function () {
 		
 		var jqThis = jQuery(this);
+		jqThis.removeClass('needs-dragtable-reinit');
 		var fieldSelector = '#' + jqThis.attr('id');
 
 		console.log('Reinitializing drag-table: '+fieldSelector);
@@ -351,19 +352,22 @@ function reinitializeDragTables() {
 		// Re-initialize the Drupal.tableDrag[~]
 		var dragTblObj = Drupal.tableDrag[base];
 		dragTblObj.showColumns();
-		jQuery(fieldSelector+' .must-set-val').each( function () {
-			//alert( jQuery(fieldSelector+' tr').length - track );
-			var jqThis = jQuery(this)
-			jqThis.val( jqThis.attr('setValTo') );
-			setTimeout( function () {
-				jqThis.removeClass('must-set-val');
-				dragTblObj.hideColumns();
-				ensureEditAssetLinksExsist();
-			}, 150);
+		var hasSetTimer = false;
+		jqThis.find('.must-set-val').each( function () {
+			var jqThisRow = jQuery(this);
+			jqThisRow.val( jqThisRow.attr('setValTo') );
+			jqThisRow.removeClass('must-set-val');
+			if ( hasSetTimer === false ) {
+				setTimeout( function () {
+					console.log('test');
+					dragTblObj.hideColumns();
+					ensureEditAssetLinksExsist();
+				}, 200);
+				hasSetTimer = true;
+			}
 		});
 		
 	});
-
 
 }
 
