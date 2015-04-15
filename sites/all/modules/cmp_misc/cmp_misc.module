@@ -1020,3 +1020,46 @@ class Cmp_miscMailSystem implements MailSystemInterface {
         );
     }
 }
+
+/**
+ * Implements hook_search_api_alter_callback_info()
+ */
+function cmp_misc_search_api_alter_callback_info() {
+    $callbacks['most_recent_revision_alter'] = array(
+        'name' => t('Index Most Recent Revision'),
+        'description' => t('Indexes most recent revision content information to the index.'),
+        'class' => 'MostRecentRevisionStateAlterSettings',
+        'weight' => 100,
+    );
+
+    return $callbacks;
+}
+
+/**
+ * @file
+ * Search API data alteration callback that changes data before send to elastic search
+ */
+class MostRecentRevisionStateAlterSettings extends SearchApiAbstractAlterCallback {
+
+    public function alterItems(array &$items) {
+        foreach ($items as $id => &$item) {
+
+                $sql = "SELECT MAX(vid) FROM {node_revision} WHERE nid =:nid";
+            $recent_vid = db_query($sql, array(':nid'=>$id))->fetchField();
+
+            $sql = 'SELECT vid FROM {node} WHERE nid=:nid ';
+            $node_vid = db_query($sql, array(':nid'=>$id))->fetchField();
+
+            if ($recent_vid != $node_vid) {
+                $current_node = node_load($id, $recent_vid);
+
+                foreach($current_node as $key => $value) {
+                    if(property_exists($item, $key)) {
+                        $item->{$key} = $value ;
+                    }
+                }
+            }
+        }
+    }
+
+}
