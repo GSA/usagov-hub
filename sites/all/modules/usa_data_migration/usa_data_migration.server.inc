@@ -433,6 +433,9 @@ function usa_data_migration_printNodeDump() {
     $offset = ($batch - 1) * $size;
     $since = ( !empty($_GET['since']) && intval($_GET['since']) > 0 ? 'AND n.changed > '.intval($_GET['since']) : false );
     $cTypeList = '\'' . implode("', '", variable_get('udm_conttypes', array())) . '\'';
+    if ( !empty($_REQUEST['type']) ) {
+        $cTypeList = "'" . $_REQUEST['type'] . "'";
+    }
     $nids = db_query("
         SELECT nid FROM node n 
         WHERE n.type IN ({$cTypeList}) {$since} 
