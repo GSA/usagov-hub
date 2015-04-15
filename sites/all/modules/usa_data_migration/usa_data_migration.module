@@ -4,6 +4,48 @@
 module_load_include('inc', 'usa_data_migration', 'usa_data_migration.client');
 module_load_include('inc', 'usa_data_migration', 'usa_data_migration.server');
 
+/* This is for the CLIENT - if the current requesting-page (URL) is locked [due to an ongoing 
+synch operation], lagg HERE, DURRING DRUPAL BOOTSTRAP, until the synch operation completes. 
+This need to be done here, NOT during HOOK_init() because this needs to execute before the menu-router
+fetches the target term from the database.
+*/
+if ( usa_data_migration_lagIfRequestingLockedPage() ) {
+    drupal_add_js(
+        "
+            jQuery(document).ready( function () {
+                console.log('DevNote: This page was lagged as your request for this page was made during a data-migration related to this content.');
+            })
+        ",
+        "inline"
+    );
+}
+
+/*
+ * Implements HOOK_init()
+ */
+function usa_data_migration_init() {
+
+    // This is for the SERVER - trigger content-push (really, trigger the childsites to pull)
+    if ( !empty($_SESSION['udm_push_eid']) && !empty($_SESSION['udm_push_type']) ) {
+
+        $eid = $_SESSION['udm_push_eid'];
+        $etype = $_SESSION['udm_push_type'];
+        drupal_add_js(
+            "
+                jQuery(document).ready( function () {
+                    console.log('Telling the CMP {$etype} {$eid} needs to be pushed to child-sites...');
+                    var pushURL = '/udm-trigger-pull-on-child-sites?eid={$eid}&etype={$etype}';
+                    jQuery.get(pushURL, function (data) {
+                        console.log('Push has completed, CMP end responded with: '+data);
+                    });
+                })
+            ",
+            "inline"
+        );
+    }
+
+}
+
 /*
  * Implements HOOK_menu()
  */
@@ -17,7 +59,7 @@ function usa_data_migration_menu() {
         'description' => 'Configure the USA Data Migration',
         'page callback' => 'drupal_get_form',
         'page arguments' => array('usa_data_migration_config_form'),
-        'access arguments' => array('access administration pages'),
+        'access callback' => 'usa_data_migration_hasAdminAccess',
         'type' => MENU_NORMAL_ITEM,
         'file' => 'usa_data_migration.admin.inc',
     );
@@ -59,9 +101,18 @@ function usa_data_migration_menu() {
     );
 
     // Menu item to receive push requests
+    $items['dev/udm-debug-and-status'] = array(
+        'title' => 'Page-Lock Debug info',
+        'description' => 'Prints page-locking debug info',
+        'page callback' => 'usa_data_migration_debugShowPageLockingStatusPage',
+        'access callback' => true,
+        'type' => MENU_CALLBACK,
+    );
+
+    // Menu item to receive push requests
     $items['udm-trigger-pull-on-child-sites'] = array(
         'title' => 'Push Request Receiver',
-        'description' => 'This page receives a push-request',
+        'description' => 'Tells child-sites to do an update-pull',
         'page callback' => 'usa_data_migration_triggerUpdatePullOnAllChildSites',
         'access callback' => true,
         'type' => MENU_CALLBACK,
@@ -81,6 +132,22 @@ function usa_data_migration_menu() {
     usa_data_migration_ensureFileManagedTableHasTypeField();
 
     return $items;
+}
+
+/* Used for menu-callbacks to determine weather or not the current 
+user should have access to UDM administrative-pages */
+function usa_data_migration_hasAdminAccess() {
+
+    global $user;
+    if ( !empty($user->roles) ) {
+        foreach ( $user->roles as $role ) {
+            if ( $role === 'administrator' ) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 function usa_data_migration_menu_alter(&$items) {
@@ -377,13 +444,15 @@ function usa_data_migration_form_getTaxonomyMangerTickedItems($recusiveSearch = 
 
     foreach ($recusiveSearch as $key => $data) {
 
-        // If this is a leaf
+        // Check for checkbox-tick
         if ( isset($data['tid']) ) {
             if ( !empty($data['checkbox']) ) {
                 $ret[] = intval($data['checkbox']);
             }
-        } else {
-            $ret = array_merge($ret, usa_data_migration_form_getTaxonomyMangerTickedItems($data));
+        }
+
+        if ( !empty($data['children']) ) {
+            $ret = array_merge($ret, usa_data_migration_form_getTaxonomyMangerTickedItems($data['children']));
         }
 
     }

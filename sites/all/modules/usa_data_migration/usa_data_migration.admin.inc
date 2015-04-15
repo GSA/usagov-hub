@@ -16,6 +16,7 @@ function usa_data_migration_config_form() {
                 if ( empty($_REQUEST['udm_tax_del']) ) { $_REQUEST['udm_tax_del'] = 0; }
                 if ( empty($_REQUEST['udm_friendly_alias']) ) { $_REQUEST['udm_friendly_alias'] = 0; }
                 if ( empty($_REQUEST['udm_filemedia_s3translate']) ) { $_REQUEST['udm_filemedia_s3translate'] = 0; }
+                if ( empty($_REQUEST['udm_tax_delbyfield']) ) { $_REQUEST['udm_tax_delbyfield'] = 0; }
                 if ( empty($_REQUEST['data_abbr'])) {$_REQUEST['data_abbr'] = "Apt.|Apartment\nAve.|Avenue\nBldg.|Building\nBlvd.|Boulevard\nCir.|Circle\nCt.|Court\nDr.|Drive"
                     ."\nExpy.|Expressway\nJct.|Junction\nLn.|Lane\nRte.|Route\nSt.|Street\nSte.|Suite\nTpke.|Turnpike"; }
 
@@ -38,6 +39,9 @@ function usa_data_migration_config_form() {
                 variable_set('udm_friendly_alias', $_REQUEST['udm_friendly_alias']);
                 variable_set('udm_filemedia_s3translate', $_REQUEST['udm_filemedia_s3translate']);
                 variable_set('data_abbr', $_REQUEST['data_abbr']);
+                variable_set('udm_tax_delbyfield', $_REQUEST['udm_tax_delbyfield']);
+                variable_set('udm_tax_delbyfield_field', $_REQUEST['udm_tax_delbyfield_field']);
+                variable_set('udm_tax_delbyfield_fieldval', $_REQUEST['udm_tax_delbyfield_fieldval']);
 
 
                 if ( isset($_REQUEST['udm_conttypes']) ) {
@@ -79,7 +83,8 @@ function usa_data_migration_config_form() {
             case 'Pull ALL nodes-entities now':
                 ini_set('error_reporting', E_ALL);
                 $target = variable_get('udm_pull_from_nodetarget');
-                $ret = usa_data_migration_synchNodesFromTarget($target, false, 50);
+                $onlyCertainType = ( empty($_REQUEST['dopullnodetype']) ? '' : $_REQUEST['dopullnodetype'] );
+                $ret = usa_data_migration_synchNodesFromTarget($target, false, 50, 0, 0, false, $onlyCertainType);
                 drupal_set_message(
                     'usa_data_migration_synchNodesFromTarget() returned: ' . $ret,
                     'status'
@@ -133,7 +138,7 @@ function usa_data_migration_config_form() {
         }
         drupal_set_message(
             "<b>FYI:</b> This site is setup to recieve a message telling it to do an update-pull. This trigger-URL is: "
-                ."<a target=\"_blank\" href=\"{$pushURL}\">{$pushURL}</a>",
+                ."<a target=\"_blank\" href=\"{$pushURL}&\">{$pushURL}&</a>",
             "status",
             false
         );
@@ -205,8 +210,8 @@ function usa_data_migration_config_form() {
     $form['actions']['dopulltax']['fullpull_acts'] = array(
         '#type' => 'fieldset', 
         '#title' => 'Full-Pull Actions', 
-        '#collapsible' => false, 
-        '#collapsed' => false,
+        '#collapsible' => true, 
+        '#collapsed' => true,
     );
 
     $form['actions']['dopulltax']['fullpull_acts']['dopulltax'] = array(
@@ -217,6 +222,11 @@ function usa_data_migration_config_form() {
     $form['actions']['dopulltax']['fullpull_acts']['dopullnodes'] = array(
         '#type' => 'submit',
         '#value' => 'Pull ALL nodes-entities now',
+    );
+
+    $form['actions']['dopulltax']['fullpull_acts']['dopullnodetype'] = array(
+        '#title' => 'Pull only a certain node type:',
+        '#type' => 'textfield',
     );
 
     $form['actions']['log'] = array(
@@ -448,6 +458,45 @@ function usa_data_migration_config_form() {
         '#type' => 'textfield',
         '#title' => 'Term name to delete',
         '#default_value' => variable_get('udm_tax_del_term', '')
+    );
+
+    $form['pullsettings']['udm_tax_delbyfield'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Delete a particular taxonomy terms based on field-value',
+        '#default_value' => variable_get('udm_tax_delbyfield', 0)
+    );
+
+    $form['pullsettings']['udm_tax_delbyfield_settings'] = array(
+        '#type' => 'fieldset',
+        '#title' => 'Term deletion settings', 
+        '#collapsible' => true, 
+        '#collapsed' => false,
+        '#states' => array(
+            'invisible' => array(
+                ':input[name="udm_tax_delbyfield"]' => array('checked' => false),
+            ),
+        ),
+    );
+
+    $vocabFields = field_info_instances('taxonomy_term', 'site_strucutre_taxonomy');
+    $delbyfieldFields = array();
+    foreach ($vocabFields as $fieldMachineName => $fieldData) {
+        $delbyfieldFields[$fieldMachineName] = $fieldData['label'] . ' (' . $fieldMachineName . ')';
+    }
+    $form['pullsettings']['udm_tax_delbyfield_settings']['udm_tax_delbyfield_field'] = array(
+        '#type' => 'select',
+        '#title' => 'Delete terms where;',
+        '#options' => $delbyfieldFields,
+        '#default_value' => variable_get('udm_tax_delbyfield_field', ''),
+        '#field_prefix' => 'the ',
+        '#field_suffix' => 'field...',
+    );
+    
+    $form['pullsettings']['udm_tax_delbyfield_settings']['udm_tax_delbyfield_fieldval'] = array(
+        '#type' => 'textfield',
+        '#title' => '',
+        '#default_value' => variable_get('udm_tax_delbyfield_fieldval', ''),
+        '#field_prefix' => 'is set to the value; ',
     );
 
     $logHtml = '';
