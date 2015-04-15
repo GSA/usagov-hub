@@ -83,7 +83,8 @@ function usa_data_migration_config_form() {
             case 'Pull ALL nodes-entities now':
                 ini_set('error_reporting', E_ALL);
                 $target = variable_get('udm_pull_from_nodetarget');
-                $ret = usa_data_migration_synchNodesFromTarget($target, false, 50);
+                $onlyCertainType = ( empty($_REQUEST['dopullnodetype']) ? '' : $_REQUEST['dopullnodetype'] );
+                $ret = usa_data_migration_synchNodesFromTarget($target, false, 50, 0, 0, false, $onlyCertainType);
                 drupal_set_message(
                     'usa_data_migration_synchNodesFromTarget() returned: ' . $ret,
                     'status'
@@ -209,8 +210,8 @@ function usa_data_migration_config_form() {
     $form['actions']['dopulltax']['fullpull_acts'] = array(
         '#type' => 'fieldset', 
         '#title' => 'Full-Pull Actions', 
-        '#collapsible' => false, 
-        '#collapsed' => false,
+        '#collapsible' => true, 
+        '#collapsed' => true,
     );
 
     $form['actions']['dopulltax']['fullpull_acts']['dopulltax'] = array(
@@ -221,6 +222,11 @@ function usa_data_migration_config_form() {
     $form['actions']['dopulltax']['fullpull_acts']['dopullnodes'] = array(
         '#type' => 'submit',
         '#value' => 'Pull ALL nodes-entities now',
+    );
+
+    $form['actions']['dopulltax']['fullpull_acts']['dopullnodetype'] = array(
+        '#title' => 'Pull only a certain node type:',
+        '#type' => 'textfield',
     );
 
     $form['actions']['log'] = array(
