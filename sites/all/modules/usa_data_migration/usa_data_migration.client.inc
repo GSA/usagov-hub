@@ -283,7 +283,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
  * and synch it into this environment. This function returns TRUE on success, and a 
  * string on failure (depending on the $retTrueOnSuccess argument)
  */
-function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSuccess = true, $batchSize = 100, $maxBatch = 0, $since = 0, $quick = false) {
+function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSuccess = true, $batchSize = 100, $maxBatch = 0, $since = 0, $quick = false, $onlyCertainType = '') {
 
     // Debug for devs who tail the PHP error_log
     $thisFunct = __FUNCTION__;
@@ -302,6 +302,11 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     // Pass since argument (if we are doing an update-pull)
     if ( intval($since) > 0 ) {
         $nodeDataSource .= '&since='.$since;
+    }
+
+    // Restricy typ-epull (if requested)
+    if ( trim($onlyCertainType) !== '' ) {
+        $nodeDataSource .= '$type='.$onlyCertainType;
     }
 
     $nidsPulled = array();
