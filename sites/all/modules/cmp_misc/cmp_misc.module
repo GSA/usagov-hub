@@ -295,40 +295,28 @@ function cmp_misc_mail_alter(&$message) {
 /*
  * Implements HOOK_node_insert
  *
- * Some node(s) have a field_workflow_state_search field, which we want to always contain the current workflow-status.
- * We use this field as an easy way to obtain the workflow information with the ElasticSearch mdoule...
+ * Pre-save node operations...
  */
 function cmp_misc_node_insert($node) {
-    
-    // If this node is of a content-type that has the workflow_state_search field....
-    if ( isset($node->field_workflow_state_search) ) {
 
-        // and if this node is under use of the workbench_moderation/workflow module...
-        if ( isset($node->field_workflow_state_search) || !empty($node->workbench_moderation_state_new) ) {
-            
-            // Get the current work-flow status
-            if ( !empty($node->workbench_moderation_state_new) ) {
-                $currentWorkFlowStatus = $node->workbench_moderation_state_new; // only exsists when value changed?
-            } else {
-                $currentWorkFlowStatus = $node->workbench_moderation['current']->state; // seems to contain old value when the work-flow changes
-            }
-
-            // then set the current workflow-status into the workflow_state_search field
-            $node->field_workflow_state_search = array(
-                'und' => array(
-                    0 => array(
-                        'value' => $currentWorkFlowStatus
-                    )
-                )
-            );
-
-            // Debug - for those of us who tail the error_log
-            $myFunct = __FUNCTION__;
-            error_log(
-                "Notice: {$myFunct} has set the current workflow-status ({$currentWorkFlowStatus}) "
-                ."into field_workflow_state_search for node {$node->nid} ({$node->title})"
-            );
+    // Strip trailing empty <p> tags from text-asset body fields
+    if ( $node->type == 'text_content_type' && !empty($node->body['und'][0]['value']) ) {
+        while ( substr($node->body['und'][0]['value'], -13) === '<p>&nbsp;</p>' ) {
+            $strLen = strlen($node->body['und'][0]['value']);
+            $bodyVal = $node->body['und'][0]['value'];
+            $node->body['und'][0]['value'] = substr($bodyVal, 0, $strLen - 13);
         }
+    }
+
+    // Ensure the "Workflow State (for search indexing)" text-field is initialized
+    if ( $node->type === 'text_content_type') {
+        $node->field_workflow_state_search = array(
+            'und' => array(
+                0 => array(
+                    'value' => 'draft'
+                )
+            )
+        );
     }
 
 }
@@ -451,19 +439,25 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
         _cmp_misc_send_needs_approval_notice_person( $node);
     }
 
+
     /* Some node(s) have a field_workflow_state_search field, which we want to always contain the current workflow-status.
     We use this field as an easy way to obtain the workflow information with the ElasticSearch mdoule... */
     if ( isset($node->field_workflow_state_search) ) { // If this node is of a content-type that has the workflow_state_search field....
 
         // Write the (current) workflow-status into the workflow_state_search [text] field...
 
-        /* I am SCHEDULING this, because I am uncertain at what point this hook is called... 
-        Or in other words: is this hook being triggered on pre-save? post-save? I tried altering $node 
+        /* I am SCHEDULING this, because I am uncertain at what point this hook is called...
+        Or in other words: is this hook being triggered on pre-save? post-save? I tried altering $node
         in this function, and found it did not touch the node in the database, but I feel uncomfortable
-        loading and saving the node [right here] because the node may be undergoing [an incomplete] alteration 
+        loading and saving the node [right here] because the node may be undergoing [an incomplete] alteration
         at this line (in this function) */
         // Schedule helper-function _cmp_misc_setWorkflowStatusSearchTextField() on PHP-thread-termination
-        register_shutdown_function('_cmp_misc_setWorkflowStatusSearchTextField', $node->nid, $new_state);
+        register_shutdown_function(
+            '_cmp_misc_setWorkflowStatusSearchTextField',
+            $node->nid,
+            $node->vid,
+            $new_state
+        );
 
     }
 
@@ -473,34 +467,36 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
  * void _cmp_misc_setWorkflowStatusSearchTextField(int $nid, string $workFlowStatusText)
  *
  * NOTICE: THIS DOES NOT CHANGE NOR TOUCH THE ACTUAL WORKFLOW-STATE IN ANY WAY!
- * This function only writes the given text to the $node->workflow_state_search field, this is 
+ * This function only writes the given text to the $node->workflow_state_search field, this is
  * a field used only by Elastic-Search.
- * 
+ *
  * This is created as a helper-function for cmp_misc_workbench_moderation_transition() above.
  */
-function _cmp_misc_setWorkflowStatusSearchTextField($nid, $workFlowStatusText) {
+function _cmp_misc_setWorkflowStatusSearchTextField($nid, $vid, $workFlowStatusText) {
 
-    // Load the node entity
-    $entity = array_values(entity_load('node', array($nid))); 
-    $entity = $entity[0];
+    db_query("
+        UPDATE field_data_field_workflow_state_search
+        SET field_workflow_state_search_value = '{$workFlowStatusText}'
+        WHERE 
+            entity_id = {$nid}
+            AND revision_id = {$vid}
+    ");
 
-    // Write the value into the loaded Drupal-object
-    $entity->field_workflow_state_search = array(
-        'und' => array(
-            0 => array(
-                'value' => $workFlowStatusText
-            )
-        )
-    );
+    db_query("
+        UPDATE field_revision_field_workflow_state_search
+        SET field_workflow_state_search_value = '{$workFlowStatusText}'
+        WHERE 
+            entity_id = {$nid}
+            AND revision_id = {$vid}
+    ");
 
-    // Save into the database
-    entity_save('node', $entity);
+    entity_get_controller('node')->resetCache(array($nid));
 
     // Debug - for those of us who tail the error_log
     $myFunct = __FUNCTION__;
     error_log(
         "Notice: {$myFunct}() has set the current workflow-status ({$workFlowStatusText}) "
-        ."into field_workflow_state_search for node {$nid} ({$entity->title})"
+        ."into field_workflow_state_search for node {$nid}/{$vid}"
     );
 }
 
