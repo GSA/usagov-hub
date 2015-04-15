@@ -447,6 +447,17 @@ function cmp_misc_node_insert($node) {
         }
     }
 
+    // Ensure the "Workflow State (for search indexing)" text-field is initialized
+    if ( $node->type === 'text_content_type') {
+        $node->field_workflow_state_search = array(
+            'und' => array(
+                0 => array(
+                    'value' => 'draft'
+                )
+            )
+        );
+    }
+
 }
 
 function cmp_misc_entity_load($entities, $type)
@@ -792,7 +803,12 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
         loading and saving the node [right here] because the node may be undergoing [an incomplete] alteration
         at this line (in this function) */
         // Schedule helper-function _cmp_misc_setWorkflowStatusSearchTextField() on PHP-thread-termination
-        register_shutdown_function('_cmp_misc_setWorkflowStatusSearchTextField', $node->nid, $new_state);
+        register_shutdown_function(
+            '_cmp_misc_setWorkflowStatusSearchTextField',
+            $node->nid,
+            $node->vid,
+            $new_state
+        );
 
     }
 
@@ -807,29 +823,31 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
  *
  * This is created as a helper-function for cmp_misc_workbench_moderation_transition() above.
  */
-function _cmp_misc_setWorkflowStatusSearchTextField($nid, $workFlowStatusText) {
+function _cmp_misc_setWorkflowStatusSearchTextField($nid, $vid, $workFlowStatusText) {
 
-    // Load the node entity
-    $entity = array_values(entity_load('node', array($nid)));
-    $entity = $entity[0];
+    db_query("
+        UPDATE field_data_field_workflow_state_search
+        SET field_workflow_state_search_value = '{$workFlowStatusText}'
+        WHERE 
+            entity_id = {$nid}
+            AND revision_id = {$vid}
+    ");
 
-    // Write the value into the loaded Drupal-object
-    $entity->field_workflow_state_search = array(
-        'und' => array(
-            0 => array(
-                'value' => $workFlowStatusText
-            )
-        )
-    );
+    db_query("
+        UPDATE field_revision_field_workflow_state_search
+        SET field_workflow_state_search_value = '{$workFlowStatusText}'
+        WHERE 
+            entity_id = {$nid}
+            AND revision_id = {$vid}
+    ");
 
-    // Save into the database
-    entity_save('node', $entity);
+    entity_get_controller('node')->resetCache(array($nid));
 
     // Debug - for those of us who tail the error_log
     $myFunct = __FUNCTION__;
     error_log(
         "Notice: {$myFunct}() has set the current workflow-status ({$workFlowStatusText}) "
-        ."into field_workflow_state_search for node {$nid} ({$entity->title})"
+        ."into field_workflow_state_search for node {$nid}/{$vid}"
     );
 }
 
