@@ -825,7 +825,7 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
  */
 function _cmp_misc_setWorkflowStatusSearchTextField($nid, $vid, $workFlowStatusText) {
 
-    db_query("
+    /*db_query("
         UPDATE field_data_field_workflow_state_search
         SET field_workflow_state_search_value = '{$workFlowStatusText}'
         WHERE 
@@ -839,9 +839,12 @@ function _cmp_misc_setWorkflowStatusSearchTextField($nid, $vid, $workFlowStatusT
         WHERE 
             entity_id = {$nid}
             AND revision_id = {$vid}
-    ");
+    ");*/
+    $node = node_load($nid,$vid);
+    $node->field_workflow_state_search['und'][0]['value'] = $workFlowStatusText;
+    node_save($node);
 
-    entity_get_controller('node')->resetCache(array($nid));
+    //entity_get_controller('node')->resetCache(array($nid));
 
     // Debug - for those of us who tail the error_log
     $myFunct = __FUNCTION__;
@@ -1044,21 +1047,24 @@ class MostRecentRevisionStateAlterSettings extends SearchApiAbstractAlterCallbac
     public function alterItems(array &$items) {
         foreach ($items as $id => &$item) {
 
-                $sql = "SELECT MAX(vid) FROM {node_revision} WHERE nid =:nid";
+            $sql = "SELECT MAX(vid) FROM {node_revision} WHERE nid =:nid";
             $recent_vid = db_query($sql, array(':nid'=>$id))->fetchField();
 
             $sql = 'SELECT vid FROM {node} WHERE nid=:nid ';
             $node_vid = db_query($sql, array(':nid'=>$id))->fetchField();
 
+            $current_node = node_load($id, $recent_vid);
             if ($recent_vid != $node_vid) {
-                $current_node = node_load($id, $recent_vid);
 
                 foreach($current_node as $key => $value) {
                     if(property_exists($item, $key)) {
                         $item->{$key} = $value ;
                     }
+
                 }
             }
+            $item->field_workflow_state_search['und'][0]['value']= $current_node->workbench_moderation['current']->state;
+            $item->field_workflow_state_search['und'][0]['safe_value']= $current_node->workbench_moderation['current']->state;
         }
     }
 
