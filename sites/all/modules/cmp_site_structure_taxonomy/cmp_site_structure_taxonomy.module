@@ -70,26 +70,3 @@ function _cmp_sst_get_dir_listing() {
 
     return $ret;
 }
-
-
-/**
- * mixed cmp_site_structure_acronymToStateName(string $stateAcronym, [mixed $whatToRetOnFail = false])
- *
- * Returns a full state-name based on input, or $whatToRetOnFail when not found.
- */
-function cmp_site_structure_acronymToStateName($acronym, $whatToRetOnFail = false) {
-
-    $acronym = strtolower($acronym);
-
-    $state_list = array('al'=>"alabama",'ak'=>"alaska",'az'=>"arizona",'ar'=>"arkansas",'ca'=>"california",'co'=>"colorado",'ct'=>"connecticut",'de'=>"delaware",'dc'=>"district of columbia",'fl'=>"florida",'ga'=>"georgia",'hi'=>"hawaii",'id'=>"idaho",'il'=>"illinois",'in'=>"indiana",'ia'=>"iowa",'ks'=>"kansas",'ky'=>"kentucky",'la'=>"louisiana",'me'=>"maine",'md'=>"maryland",'ma'=>"massachusetts",'mi'=>"michigan",'mn'=>"minnesota",'ms'=>"mississippi",'mo'=>"missouri",'mt'=>"montana",'ne'=>"nebraska",'nv'=>"nevada",'nh'=>"new hampshire",'nj'=>"new jersey",'nm'=>"new mexico",'ny'=>"new york",'nc'=>"north carolina",'nd'=>"north dakota",'oh'=>"ohio",'ok'=>"oklahoma",'or'=>"oregon",'pa'=>"pennsylvania",'ri'=>"rhode island",'sc'=>"south carolina",'sd'=>"south dakota",'tn'=>"tennessee",'tx'=>"texas",'ut'=>"utah",'vt'=>"vermont",'va'=>"virginia",'wa'=>"washington",'wv'=>"west virginia",'wi'=>"wisconsin",'wy'=>"wyoming", 'as' => 'american samoa', 'vi' => 'u.s. virgin islands', 'mp' => 'northern mariana islands', 'pr' => 'puerto rico', 'gu' => 'guam');
-
-    if ( empty($state_list[$acronym]) ) {
-        if ( in_array($acronym, $state_list) ) {
-            return $acronym;
-        } else {
-            return $whatToRetOnFail;
-        }
-    } else {
-        return $state_list[$acronym];
-    }
-}
