@@ -1,0 +1,99 @@
+<?php
+
+function cmp_site_structure_taxonomy_form_alter(&$form,&$form_state){
+
+    if (($form['#form_id'] == 'taxonomy_manager_form'
+            && isset($form['voc']['#value']->machine_name)
+            && $form['voc']['#value']->machine_name == 'site_strucutre_taxonomy')
+        || ($form['#form_id'] == 'taxonomy_form_term'
+            && isset($form['vocabulary_machine_name']['#value'])
+            && $form['vocabulary_machine_name']['#value'] == 'site_strucutre_taxonomy')
+    ){
+       drupal_add_js(drupal_get_path('module', 'cmp_site_structure_taxonomy') .'/cmp_sst.js');
+
+       if ($form['#form_id'] == 'taxonomy_manager_form'
+            && isset($form['voc']['#value']->machine_name)
+            && $form['voc']['#value']->machine_name == 'site_strucutre_taxonomy'){
+           $form['term_data']['field_directory_record_url']['und']['#options'] = _cmp_sst_get_dir_listing();
+
+           // set default value
+           if (isset($form['term_data']['#term']['field_directory_record_url']['und'][0]['value'])) {
+               $form['term_data']['field_directory_record_url']['und']['#default_value'][0] = $form['term_data']['#term']['field_directory_record_url']['und'][0]['value'];
+           }
+       }
+       else {
+           $form['field_directory_record_url']['und']['#options'] = _cmp_sst_get_dir_listing();
+           if (isset($form['#term']['field_directory_record_url']['und'][0]['value'])) {
+               $form['field_directory_record_url']['und']['#default_value'][0] = $form['#term']['field_directory_record_url']['und'][0]['value'];
+           }
+       }
+    }
+}
+
+function _cmp_sst_get_dir_listing() {
+
+    $ret = array();
+    $ret['_none'] = '-None-';
+
+    // A-Z list
+    foreach (range('A', 'Z') as $char) {
+        $ret[$char] = 'A-Z index - '.$char;
+    }
+
+    // alpha order name
+    $sql = "SELECT DISTINCT n.title, n.nid as page_url, LEFT(title,1) as letter, ao.field_alpha_order_name_value as ao_name, field_acronym_value as acronym
+                  FROM node n INNER JOIN field_data_field_for_use_by_text u ON u.entity_id=n.nid
+                  INNER JOIN field_data_field_directory_type d ON d.entity_id = n.nid AND field_directory_type_value LIKE 'Federal Agencies'
+                  INNER JOIN field_data_field_show_on_az_index az ON field_show_on_az_index_value='Yes' AND az.entity_id=n.nid
+                  INNER JOIN field_data_field_alpha_order_name ao ON ao.entity_id=n.nid AND LENGTH(field_alpha_order_name_value) > 0
+                  LEFT JOIN field_data_field_acronym ac ON ac.entity_id=n.nid "
+        ." WHERE n.status = 1 AND n.type ='directory_record_content_type' ORDER BY n.title";
+    $res = db_query($sql);
+
+    foreach($res as $row) {
+        $path = str_replace(" ", "-",strtolower($row->ao_name));
+        $ret[$path] = 'Federal - ' . $path;
+    }
+
+    $state_list = array('al'=>"alabama",'ak'=>"alaska",'az'=>"arizona",'ar'=>"arkansas",'ca'=>"california",'co'=>"colorado",'ct'=>"connecticut",'de'=>"delaware",'dc'=>"district of columbia",'fl'=>"florida",'ga'=>"georgia",'hi'=>"hawaii",'id'=>"idaho",'il'=>"illinois",'in'=>"indiana",'ia'=>"iowa",'ks'=>"kansas",'ky'=>"kentucky",'la'=>"louisiana",'me'=>"maine",'md'=>"maryland",'ma'=>"massachusetts",'mi'=>"michigan",'mn'=>"minnesota",'ms'=>"mississippi",'mo'=>"missouri",'mt'=>"montana",'ne'=>"nebraska",'nv'=>"nevada",'nh'=>"new hampshire",'nj'=>"new jersey",'nm'=>"new mexico",'ny'=>"new york",'nc'=>"north carolina",'nd'=>"north dakota",'oh'=>"ohio",'ok'=>"oklahoma",'or'=>"oregon",'pa'=>"pennsylvania",'ri'=>"rhode island",'sc'=>"south carolina",'sd'=>"south dakota",'tn'=>"tennessee",'tx'=>"texas",'ut'=>"utah",'vt'=>"vermont",'va'=>"virginia",'wa'=>"washington",'wv'=>"west virginia",'wi'=>"wisconsin",'wy'=>"wyoming", 'as' => 'american samoa', 'vi' => 'u.s. virgin islands', 'mp' => 'northern mariana islands', 'pr' => 'puerto rico', 'gu' => 'guam');
+
+    // consumer
+    foreach($state_list as $state=>$val) {
+        $fulleStateName = cmp_site_structure_acronymToStateName($state);
+        $urlStateName = str_replace(' ', '-', strtolower($fulleStateName));
+        $ret['state-consumer/'.$urlStateName] = 'Consumer - ' . $state;
+        $ret['consumer-'.$val] = 'Consumer - ' . $val;
+    }
+
+    // state
+    foreach($state_list as $state=>$val) {
+        $ret[$state] = 'State - ' . $state;
+        $ret[$val] = 'State - ' . $val;
+    }
+
+    dsm($ret);
+    return $ret;
+}
+
+
+/**
+ * mixed cmp_site_structure_acronymToStateName(string $stateAcronym, [mixed $whatToRetOnFail = false])
+ *
+ * Returns a full state-name based on input, or $whatToRetOnFail when not found.
+ */
+function cmp_site_structure_acronymToStateName($acronym, $whatToRetOnFail = false) {
+
+    $acronym = strtolower($acronym);
+
+    $state_list = array('al'=>"alabama",'ak'=>"alaska",'az'=>"arizona",'ar'=>"arkansas",'ca'=>"california",'co'=>"colorado",'ct'=>"connecticut",'de'=>"delaware",'dc'=>"district of columbia",'fl'=>"florida",'ga'=>"georgia",'hi'=>"hawaii",'id'=>"idaho",'il'=>"illinois",'in'=>"indiana",'ia'=>"iowa",'ks'=>"kansas",'ky'=>"kentucky",'la'=>"louisiana",'me'=>"maine",'md'=>"maryland",'ma'=>"massachusetts",'mi'=>"michigan",'mn'=>"minnesota",'ms'=>"mississippi",'mo'=>"missouri",'mt'=>"montana",'ne'=>"nebraska",'nv'=>"nevada",'nh'=>"new hampshire",'nj'=>"new jersey",'nm'=>"new mexico",'ny'=>"new york",'nc'=>"north carolina",'nd'=>"north dakota",'oh'=>"ohio",'ok'=>"oklahoma",'or'=>"oregon",'pa'=>"pennsylvania",'ri'=>"rhode island",'sc'=>"south carolina",'sd'=>"south dakota",'tn'=>"tennessee",'tx'=>"texas",'ut'=>"utah",'vt'=>"vermont",'va'=>"virginia",'wa'=>"washington",'wv'=>"west virginia",'wi'=>"wisconsin",'wy'=>"wyoming", 'as' => 'american samoa', 'vi' => 'u.s. virgin islands', 'mp' => 'northern mariana islands', 'pr' => 'puerto rico', 'gu' => 'guam');
+
+    if ( empty($state_list[$acronym]) ) {
+        if ( in_array($acronym, $state_list) ) {
+            return $acronym;
+        } else {
+            return $whatToRetOnFail;
+        }
+    } else {
+        return $state_list[$acronym];
+    }
+}
