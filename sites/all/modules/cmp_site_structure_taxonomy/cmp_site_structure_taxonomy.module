@@ -37,7 +37,7 @@ function _cmp_sst_get_dir_listing() {
 
     // A-Z list
     foreach (range('A', 'Z') as $char) {
-        $ret[$char] = 'A-Z index - '.$char;
+        $ret['directory/'.strtolower($char)] = 'A-Z index - '.$char;
     }
 
     // alpha order name
@@ -51,7 +51,8 @@ function _cmp_sst_get_dir_listing() {
     $res = db_query($sql);
 
     foreach($res as $row) {
-        $path = str_replace(" ", "-",strtolower($row->ao_name));
+        //dsm($row);
+        $path = _cmp_sst_getUrlToDirectoryRecord($row->page_url); // Function defined in directory_pages.module
         $ret[$path] = 'Federal - ' . $path;
     }
 
@@ -69,4 +70,148 @@ function _cmp_sst_get_dir_listing() {
     }
 
     return $ret;
+}
+
+/**
+ * string _cmp_sst_getUrlToDirectoryRecord(int $nid)
+ * string _cmp_sst_getUrlToDirectoryRecord(object $node)
+ *
+ * !!NOTICE!! This function is copied over from usa_data_migration.module
+ * ANY CHANGE TO THIS FUNCTION SHOULD ALSO BE DONE TO THE FUNCTION IN USA_DATA_MIGRATION.MODULE
+ *
+ * Given a node-ID, this function returns a relative path (with a beginning slash)
+ * to the Directory-Record node. 
+ *
+ * Based on the directory record type, this will return:
+ *   /federal-agencies/<title converted to lower case with spaces converted to hyphens>
+ *   /state-consumer/<state name with spaces converted to hyphens in lowercase>
+ *   /state-government/<short state name with spaces converted to hyphens in lowercase>
+ *   or /directory/<alpha-order-name> 
+ */
+function _cmp_sst_getUrlToDirectoryRecord($n) {
+
+    // Load the node if it was not directly given to us
+    if ( gettype($n) === 'integer' || gettype($n) === 'string' ) {
+        $n = intval($n);
+        if ( $n > 0 ) {
+            $n = node_load($n);
+        } else {
+            $msg = 'Bad data given to '.__FUNCTION__;
+            error_log($msg);
+            drupal_set_message($msg, 'error', false);
+            return '/bad-data-'.__FUNCTION__;
+        }
+    }
+
+    // Determine which site we are running on (English or Spanish mode)
+    $siteName = variable_get('site_name', '');
+    if ( strpos(strtolower($siteName), 'gobierno') === false ) {
+        $englishMode = true;
+    } else {
+        $englishMode = false;
+    }
+
+    // Get the directory record-type
+    $dirRecordType = '- NO DATA -';
+    if ( !empty($n->field_directory_type['und'][0]['value']) ) {
+        $dirRecordType = $n->field_directory_type['und'][0]['value'];
+    }
+
+    // Get the URL-friendly version of the title, alpha-name, etc.
+    $urlAlphaOrderName = '!NotSetInCMP!';
+    if ( !empty($n->field_alpha_order_name['und'][0]['value']) ) {
+        $urlAlphaOrderName = $n->field_alpha_order_name['und'][0]['value'];
+        $urlAlphaOrderName = strtolower($urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace(' ', '-', $urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace('.', '-', $urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace(',', '-', $urlAlphaOrderName);
+    }
+    $urlTitle = '!NotSetInCMP!';
+    if ( !empty($n->title) ) {
+        $urlTitle = $n->title;
+        $urlTitle = strtolower($urlTitle);
+        $urlTitle = str_replace(' ', '-', $urlTitle);
+        $urlTitle = str_replace('.', '-', $urlTitle);
+        $urlTitle = str_replace(',', '-', $urlTitle);
+    }
+    $urlState = '!NotSetInCMP!';
+    if ( !empty($n->field_state['und'][0]['value']) ) {
+        $urlState = $n->field_state['und'][0]['value'];
+        $urlState = _cmp_sst_stateNameToAcronym($urlState);
+        $urlState = strtoupper($urlState);
+    }
+    $urlShortState = '!NotSetInCMP!';
+    if ( !empty($n->field_state['und'][0]['value']) ) {
+        $urlShortState = $n->field_state['und'][0]['value'];
+        $urlShortState = _cmp_sst_acronymToStateName($urlShortState);
+    }
+
+    // Based on the Directory-Record type, return an [alias] URL
+    switch ( strtolower($dirRecordType) ) {
+
+        case 'federal agencies';
+
+            return ( $englishMode ? '/federal-agencies/' : '/agencias-federales/') . $urlTitle;
+
+        case 'consumer organizations';
+        case 'government consumer protection offices';
+            
+            return ( $englishMode ? '/state-consumer/' : '/organizaciones-consumidor/') . $urlState;
+
+        case 'state government agencies';
+            
+            return ( $englishMode ? '/state-government/' : '/gobiernos-estatales/') . $urlShortState;
+
+        default:
+
+            return ( $englishMode ? '/directory/' : '/directorios/') . $urlAlphaOrderName;
+    }
+
+}
+
+
+/**
+ * mixed directory_pages_stateNameToAcronym(string $stateName, [mixed $whatToRetOnFail = false])
+ *
+ * Returns a 2-letter state-abbreviation based on input, or $whatToRetOnFail when not found.
+ */
+function _cmp_sst_stateNameToAcronym($stateName, $whatToRetOnFail = false) {
+
+    $stateName = trim($stateName);
+    $stateName = strtolower($stateName);
+
+    $state_list = array('al'=>"alabama",'ak'=>"alaska",'az'=>"arizona",'ar'=>"arkansas",'ca'=>"california",'co'=>"colorado",'ct'=>"connecticut",'de'=>"delaware",'dc'=>"district of columbia",'fl'=>"florida",'ga'=>"georgia",'hi'=>"hawaii",'id'=>"idaho",'il'=>"illinois",'in'=>"indiana",'ia'=>"iowa",'ks'=>"kansas",'ky'=>"kentucky",'la'=>"louisiana",'me'=>"maine",'md'=>"maryland",'ma'=>"massachusetts",'mi'=>"michigan",'mn'=>"minnesota",'ms'=>"mississippi",'mo'=>"missouri",'mt'=>"montana",'ne'=>"nebraska",'nv'=>"nevada",'nh'=>"new hampshire",'nj'=>"new jersey",'nm'=>"new mexico",'ny'=>"new york",'nc'=>"north carolina",'nd'=>"north dakota",'oh'=>"ohio",'ok'=>"oklahoma",'or'=>"oregon",'pa'=>"pennsylvania",'ri'=>"rhode island",'sc'=>"south carolina",'sd'=>"south dakota",'tn'=>"tennessee",'tx'=>"texas",'ut'=>"utah",'vt'=>"vermont",'va'=>"virginia",'wa'=>"washington",'wv'=>"west virginia",'wi'=>"wisconsin",'wy'=>"wyoming", 'as' => 'american samoa', 'vi' => 'u.s. virgin islands', 'mp' => 'northern mariana islands', 'pr' => 'puerto rico', 'gu' => 'guam');
+    $state_list = array_flip($state_list);
+
+    if ( empty($state_list[$stateName]) ) {
+        if ( in_array($stateName, $state_list) ) {
+            return $stateName;
+        } else {
+            return $whatToRetOnFail;
+        }
+    } else {
+        return strtoupper($state_list[$stateName]);
+    }
+}
+
+/**
+ * mixed directory_pages_acronymToStateName(string $stateAcronym, [mixed $whatToRetOnFail = false])
+ *
+ * Returns a 2-letter state-name based on input, or $whatToRetOnFail when not found.
+ */
+function _cmp_sst_acronymToStateName($acronym, $whatToRetOnFail = false) {
+
+    $acronym = strtolower($acronym);
+
+    $state_list = array('al'=>"alabama",'ak'=>"alaska",'az'=>"arizona",'ar'=>"arkansas",'ca'=>"california",'co'=>"colorado",'ct'=>"connecticut",'de'=>"delaware",'dc'=>"district of columbia",'fl'=>"florida",'ga'=>"georgia",'hi'=>"hawaii",'id'=>"idaho",'il'=>"illinois",'in'=>"indiana",'ia'=>"iowa",'ks'=>"kansas",'ky'=>"kentucky",'la'=>"louisiana",'me'=>"maine",'md'=>"maryland",'ma'=>"massachusetts",'mi'=>"michigan",'mn'=>"minnesota",'ms'=>"mississippi",'mo'=>"missouri",'mt'=>"montana",'ne'=>"nebraska",'nv'=>"nevada",'nh'=>"new hampshire",'nj'=>"new jersey",'nm'=>"new mexico",'ny'=>"new york",'nc'=>"north carolina",'nd'=>"north dakota",'oh'=>"ohio",'ok'=>"oklahoma",'or'=>"oregon",'pa'=>"pennsylvania",'ri'=>"rhode island",'sc'=>"south carolina",'sd'=>"south dakota",'tn'=>"tennessee",'tx'=>"texas",'ut'=>"utah",'vt'=>"vermont",'va'=>"virginia",'wa'=>"washington",'wv'=>"west virginia",'wi'=>"wisconsin",'wy'=>"wyoming", 'as' => 'american samoa', 'vi' => 'u.s. virgin islands', 'mp' => 'northern mariana islands', 'pr' => 'puerto rico', 'gu' => 'guam');
+
+    if ( empty($state_list[$acronym]) ) {
+        if ( in_array($acronym, $state_list) ) {
+            return $acronym;
+        } else {
+            return $whatToRetOnFail;
+        }
+    } else {
+        return $state_list[$acronym];
+    }
 }
