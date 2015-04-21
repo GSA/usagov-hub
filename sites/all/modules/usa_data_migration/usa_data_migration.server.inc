@@ -30,7 +30,7 @@ function usa_data_migration_taxonomy_term_delete($term) {
 
     error_log(__FUNCTION__.'() triggered, udm_tidsDeleted is now: '.print_r($tidsDeleted, true));
 
-    usa_data_migration_schedualTriggerChildPull($term);
+    usa_data_migration_schedualTriggerChildPull($term, 'taxonomy_term');
 
 }
 
@@ -46,6 +46,7 @@ function usa_data_migration_entity_delete($entity, $type) {
         $nidsDeleted = array_slice($nidsDeleted, -50);
         $nidsDeleted[] = $entity->nid;
         variable_set('udm_nidsDeleted', $nidsDeleted);
+        usa_data_migration_schedualTriggerChildPull($entity, 'node');
     }
 
     // Track taxonomy deletions
@@ -56,9 +57,9 @@ function usa_data_migration_entity_delete($entity, $type) {
         $tidsDeleted[$entity->tid] = $entity->tid;
         variable_set('udm_tidsDeleted', $tidsDeleted);
         error_log(__FUNCTION__.'() triggered, udm_tidsDeleted is now: '.print_r($tidsDeleted, true));
+        usa_data_migration_schedualTriggerChildPull($entity, 'taxonomy_term');
     }
 
-    usa_data_migration_schedualTriggerChildPull($entity);
 }
 
 /*
@@ -105,7 +106,7 @@ function usa_data_migration_getDeletedTerms() {
  * Implements HOOK_taxonomy_term_update
  */
 function usa_data_migration_taxonomy_term_update($term) {
-    usa_data_migration_schedualTriggerChildPull($term);
+    usa_data_migration_schedualTriggerChildPull($term, 'taxonomy_term');
 
     if ( !empty($term->tid) ) {
         db_query("INSERT IGNORE INTO taxonomy_dates (tid) VALUES({$term->tid})");
@@ -119,7 +120,7 @@ function usa_data_migration_taxonomy_term_update($term) {
  */
 function usa_data_migration_taxonomy_term_insert($term) {
     
-    usa_data_migration_schedualTriggerChildPull($term);
+    usa_data_migration_schedualTriggerChildPull($term, 'taxonomy_term');
 
     if ( !empty($term->tid) ) {
         db_query("INSERT IGNORE INTO taxonomy_dates (tid) VALUES({$term->tid})");
@@ -132,14 +133,14 @@ function usa_data_migration_taxonomy_term_insert($term) {
  * Implements HOOK_node_insert
  */
 function usa_data_migration_node_insert($node) {
-    usa_data_migration_schedualTriggerChildPull($node);
+    usa_data_migration_schedualTriggerChildPull($node, 'node');
 }
 
 /*
  * Implements HOOK_workbench_moderation_transition
  */
 function usa_data_migration_workbench_moderation_transition($entity, $fromState, $toState) {
-    usa_data_migration_schedualTriggerChildPull($entity);
+    usa_data_migration_schedualTriggerChildPull($entity, 'node');
 }
 
 /*
@@ -147,7 +148,7 @@ function usa_data_migration_workbench_moderation_transition($entity, $fromState,
  *
  * Pushes a node or taxonomy-term out to child sites when nessesary
  */
-function usa_data_migration_schedualTriggerChildPull($entity) {
+function usa_data_migration_schedualTriggerChildPull($entity, $entityType) {
 
     $thisFunct = __FUNCTION__;
 
@@ -157,7 +158,7 @@ function usa_data_migration_schedualTriggerChildPull($entity) {
     }
 
     // Are we supposed to server this bundle-type?
-    if ( $entityType === 'taxonomy term' && intval(variable_get('udm_serv_taxonomy', 0)) === 0 ) {
+    if ( $entityType === 'taxonomy_term' && intval(variable_get('udm_serv_taxonomy', 0)) === 0 ) {
         usa_data_migration_error_log("Not pushing this taxonomy-term - we are not configured to push this bundle-type");
         return;
     }
