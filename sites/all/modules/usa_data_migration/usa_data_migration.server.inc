@@ -686,6 +686,7 @@ function usa_data_migration_getMySQLDump($tables, $where = '', $addDropTable = t
     $cmd = "mysqldump --skip-comments {$addDropTable} {$ignoreErrors} {$fullInsert}  {$lockTables} {$replace} "
         ."--host={$dbHost} '--user={$dbUser}' '--password={$dbPass}' {$dbDatabase} {$tables} {$where} ";
 
+    error_log(__FUNCTION__.'() triggered, pulling a MySqlDump with command: '.$cmd);
     return shell_exec($cmd);
 }
 
