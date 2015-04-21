@@ -39,7 +39,7 @@ function usa_data_migration_updatePull($security = true, $terminateThreadOnCompl
 
     // Dont pull if there may be another thread doing a pull right now
     $since = variable_get('udm_last_pull_time', 0);
-    if ( abs(time() - $since) > 90 || $since == 0 ) { 
+    if ( abs(time() - $since) > 300 || $since == 0 ) { 
         $since = intval($since) - 1800; // 1800 = 30 mins
         $since = ( $since < 0 ? 0 : $since );
         error_log('since is: ' . (time() - $since));
@@ -306,7 +306,7 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
 
     // Restricy typ-epull (if requested)
     if ( trim($onlyCertainType) !== '' ) {
-        $nodeDataSource .= '$type='.$onlyCertainType;
+        $nodeDataSource .= '&type='.$onlyCertainType;
     }
 
     $nidsPulled = array();
