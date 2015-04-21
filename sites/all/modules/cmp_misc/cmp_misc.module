@@ -132,7 +132,7 @@ function cmp_misc_views_pre_execute(&$view){
 
         // Implement limit by URL
         $limit = ( empty($view->args[1]) ? 1 : intval($view->args[1]) );
-        $query->range($page*$limit, $limit);
+        $query->range(($page-1)*$limit, $limit);
 
         // The "Recent Data export" display should only show taxonomy-terms that have been modded in the last 15mins
         if ( $view->current_display === 'views_data_export_2' ) {
