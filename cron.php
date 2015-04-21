@@ -54,13 +54,6 @@ function dispatchCronEmail($to, $sendermail, $subject, $message, $files = array(
     // email fields: to, from, subject, and so on
     $from = "BusinessUSA <".$sendermail.">"; 
     $headers = "From: $sendermail";
-    if ( !function_exists('version_awareness_environment_isproduction') || version_awareness_environment_isproduction() === true ) {
-        if ( strpos(request_uri(), '-DEBUG-EMAIL-NOADDITIONALHEADERS-') === false ) {
-            $headers .= "\r\nReply-To: $sendermail";
-            $headers .= "\r\nX-Mailer: PHP/" . phpversion();
-            $headers .= "\r\nReturn-Path: $sendermail";
-        }
-    }
  
     // boundary 
     $semi_rand = md5(time()); 
