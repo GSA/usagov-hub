@@ -266,9 +266,9 @@ function usa_data_migration_printTaxonomyDump() {
     /* GET THE TIDS OF TERMS TO PUSH OUT */
     // If a since argument is given, then we are only processing recently changed terms
     if ( empty($_GET['since']) ) { 
-        $tidQuery = "SELECT tid FROM {$cmpDbName}.taxonomy_term_data";
+        $tidQuery = "SELECT tid FROM `{$cmpDbName}`.taxonomy_term_data";
     } else {
-        $tidQuery = "SELECT d.tid FROM {$cmpDbName}.taxonomy_dates d WHERE d.changed > {$_GET['since']} OR d.created > {$_GET['since']}";
+        $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d WHERE d.changed > {$_GET['since']} OR d.created > {$_GET['since']}";
     }
     // If we are NOT doing a "Local-Push", then we need to work in batches
     if ( $doLocalPush == false ) {
@@ -325,7 +325,7 @@ function usa_data_migration_printTaxonomyDump() {
     if ( $batch === 1 ) {
         $returnData['TaxDump_sqlDump'] .= "\nTRUNCATE TABLE taxonomy_dates;\n";
         if ( $doLocalPush ) {
-            $returnData['TaxDump_sqlDump'] .= "INSERT INTO taxonomy_dates SELECT * FROM {$cmpDbName}.taxonomy_dates; \n";
+            $returnData['TaxDump_sqlDump'] .= "INSERT INTO taxonomy_dates SELECT * FROM `{$cmpDbName}`.taxonomy_dates; \n";
         } else {
             $returnData['TaxDump_sqlDump'] .= usa_data_migration_getMySQLDump("taxonomy_dates", '', false, true, true, false, false) . "\n";
         }
@@ -336,13 +336,13 @@ function usa_data_migration_printTaxonomyDump() {
         $returnData['TaxDump_sqlDump'] .= 
             "\n"
             ."DELETE FROM taxonomy_term_data WHERE tid IN ({$tidQuery}); \n"
-            ."INSERT INTO taxonomy_term_data SELECT * FROM {$cmpDbName}.taxonomy_term_data cmp WHERE cmp.tid IN ({$tidQuery}); \n"
+            ."INSERT INTO taxonomy_term_data SELECT * FROM `{$cmpDbName}`.taxonomy_term_data cmp WHERE cmp.tid IN ({$tidQuery}); \n"
             ."\n"
             ."DELETE FROM taxonomy_index WHERE tid IN ({$tidQuery}); \n"
-            ."INSERT INTO taxonomy_index SELECT * FROM {$cmpDbName}.taxonomy_index cmp WHERE cmp.tid IN ({$tidQuery}); \n"
+            ."INSERT INTO taxonomy_index SELECT * FROM `{$cmpDbName}`.taxonomy_index cmp WHERE cmp.tid IN ({$tidQuery}); \n"
             ."\n"
             ."DELETE FROM taxonomy_term_hierarchy WHERE tid IN ({$tidQuery}); \n"
-            ."INSERT INTO taxonomy_term_hierarchy SELECT * FROM {$cmpDbName}.taxonomy_term_hierarchy cmp WHERE cmp.tid IN ({$tidQuery}); \n"
+            ."INSERT INTO taxonomy_term_hierarchy SELECT * FROM `{$cmpDbName}`.taxonomy_term_hierarchy cmp WHERE cmp.tid IN ({$tidQuery}); \n"
             ."\n";
     } else {
         $returnData['TaxDump_sqlDump'] .= usa_data_migration_getMySQLDump(
@@ -382,7 +382,7 @@ function usa_data_migration_printTaxonomyDump() {
         foreach ($dumpFieldTables as $dumpFieldTable) {
             $returnData['TaxDump_sqlDump'] .= 
                 "DELETE FROM {$dumpFieldTable} WHERE entity_type = 'taxonomy_term' AND entity_id IN ({$tidQuery}); \n"
-                ."INSERT INTO {$dumpFieldTable} SELECT * FROM {$cmpDbName}.{$dumpFieldTable} cmp WHERE cmp.entity_type = 'taxonomy_term' AND cmp.entity_id IN ({$tidQuery}); \n"
+                ."INSERT INTO {$dumpFieldTable} SELECT * FROM `{$cmpDbName}`.{$dumpFieldTable} cmp WHERE cmp.entity_type = 'taxonomy_term' AND cmp.entity_id IN ({$tidQuery}); \n"
                 ."\n";
         }
 
@@ -499,9 +499,9 @@ function usa_data_migration_printNodeDump() {
     }
     // If a since argument is given, then we are only processing recently changed terms
     if ( empty($_GET['since']) ) { 
-        $nidQuery = "SELECT nid FROM {$cmpDbName}.node WHERE type IN ({$cTypeList})";
+        $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node WHERE type IN ({$cTypeList})";
     } else {
-        $nidQuery = "SELECT cn.nid FROM {$cmpDbName}.node cn WHERE cn.type IN ({$cTypeList}) AND (cn.changed > {$_GET['since']} OR cn.created > {$_GET['since']})";
+        $nidQuery = "SELECT cn.nid FROM `{$cmpDbName}`.node cn WHERE cn.type IN ({$cTypeList}) AND (cn.changed > {$_GET['since']} OR cn.created > {$_GET['since']})";
     }
     // If we are NOT doing a "Local-Push", then we need to work in batches
     if ( $doLocalPush == false ) {
@@ -565,25 +565,25 @@ function usa_data_migration_printNodeDump() {
             $returnData['NodeDump_sqlDump'] .= 
                 "\n"
                 ."TRUNCATE TABLE file_managed; \n"
-                ."INSERT INTO file_managed SELECT * FROM {$cmpDbName}.file_managed; \n"
+                ."INSERT INTO file_managed SELECT * FROM `{$cmpDbName}`.file_managed; \n"
                 ."\n"
                 ."TRUNCATE TABLE relation; \n"
-                ."INSERT INTO relation SELECT * FROM {$cmpDbName}.relation; \n"
+                ."INSERT INTO relation SELECT * FROM `{$cmpDbName}`.relation; \n"
                 ."\n"
                 ."TRUNCATE TABLE relation_bundles; \n"
-                ."INSERT INTO relation_bundles SELECT * FROM {$cmpDbName}.relation_bundles; \n"
+                ."INSERT INTO relation_bundles SELECT * FROM `{$cmpDbName}`.relation_bundles; \n"
                 ."\n"
                 ."TRUNCATE TABLE relation_revision; \n"
-                ."INSERT INTO relation_revision SELECT * FROM {$cmpDbName}.relation_revision; \n"
+                ."INSERT INTO relation_revision SELECT * FROM `{$cmpDbName}`.relation_revision; \n"
                 ."\n"
                 ."TRUNCATE TABLE relation_type; \n"
-                ."INSERT INTO relation_type SELECT * FROM {$cmpDbName}.relation_type; \n"
+                ."INSERT INTO relation_type SELECT * FROM `{$cmpDbName}`.relation_type; \n"
                 ."\n"
                 ."TRUNCATE TABLE field_data_endpoints; \n"
-                ."INSERT INTO field_data_endpoints SELECT * FROM {$cmpDbName}.field_data_endpoints; \n"
+                ."INSERT INTO field_data_endpoints SELECT * FROM `{$cmpDbName}`.field_data_endpoints; \n"
                 ."\n"
                 ."TRUNCATE TABLE field_revision_endpoints; \n"
-                ."INSERT INTO field_revision_endpoints SELECT * FROM {$cmpDbName}.field_revision_endpoints; \n"
+                ."INSERT INTO field_revision_endpoints SELECT * FROM `{$cmpDbName}`.field_revision_endpoints; \n"
                 ."\n";
         } else {
             $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
@@ -602,16 +602,16 @@ function usa_data_migration_printNodeDump() {
     if ( $doLocalPush ) {
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node SELECT * FROM {$cmpDbName}.node cmp WHERE nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node SELECT * FROM `{$cmpDbName}`.node cmp WHERE nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_revision SELECT * FROM {$cmpDbName}.node_revision cmp WHERE nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_revision SELECT * FROM `{$cmpDbName}`.node_revision cmp WHERE nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE vid<>(SELECT vid FROM node n WHERE n.nid=node_revision.nid);\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_access WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_access SELECT * FROM {$cmpDbName}.node_access cmp WHERE nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_access SELECT * FROM `{$cmpDbName}`.node_access cmp WHERE nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
     } else {
@@ -675,7 +675,7 @@ function usa_data_migration_printNodeDump() {
 
                     $returnData['NodeDump_sqlDump'] .= 
                         "DELETE FROM {$fieldTable} WHERE entity_type = 'node' AND entity_id IN ({$nidQuery}); \n"
-                        ."INSERT INTO {$fieldTable} SELECT * FROM {$cmpDbName}.{$fieldTable} cmp WHERE cmp.entity_type = 'node' AND cmp.entity_id IN ({$nidQuery}); \n"
+                        ."INSERT INTO {$fieldTable} SELECT * FROM `{$cmpDbName}`.{$fieldTable} cmp WHERE cmp.entity_type = 'node' AND cmp.entity_id IN ({$nidQuery}); \n"
                         ."\n";
 
                 } else {
