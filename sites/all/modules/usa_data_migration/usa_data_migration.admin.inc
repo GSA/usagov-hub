@@ -17,6 +17,7 @@ function usa_data_migration_config_form() {
                 if ( empty($_REQUEST['udm_friendly_alias']) ) { $_REQUEST['udm_friendly_alias'] = 0; }
                 if ( empty($_REQUEST['udm_filemedia_s3translate']) ) { $_REQUEST['udm_filemedia_s3translate'] = 0; }
                 if ( empty($_REQUEST['udm_tax_delbyfield']) ) { $_REQUEST['udm_tax_delbyfield'] = 0; }
+                if ( empty($_REQUEST['udm_do_localpush']) ) { $_REQUEST['udm_do_localpush'] = 0; }
                 if ( empty($_REQUEST['data_abbr'])) {$_REQUEST['data_abbr'] = "Apt.|Apartment\nAve.|Avenue\nBldg.|Building\nBlvd.|Boulevard\nCir.|Circle\nCt.|Court\nDr.|Drive"
                     ."\nExpy.|Expressway\nJct.|Junction\nLn.|Lane\nRte.|Route\nSt.|Street\nSte.|Suite\nTpke.|Turnpike"; }
 
@@ -42,6 +43,7 @@ function usa_data_migration_config_form() {
                 variable_set('udm_tax_delbyfield', $_REQUEST['udm_tax_delbyfield']);
                 variable_set('udm_tax_delbyfield_field', $_REQUEST['udm_tax_delbyfield_field']);
                 variable_set('udm_tax_delbyfield_fieldval', $_REQUEST['udm_tax_delbyfield_fieldval']);
+                variable_set('udm_do_localpush', $_REQUEST['udm_do_localpush']);
 
 
                 if ( isset($_REQUEST['udm_conttypes']) ) {
@@ -280,7 +282,7 @@ function usa_data_migration_config_form() {
         '#type' => 'fieldset', 
         '#title' => 'Serve bundles', 
         '#collapsible' => true, 
-        '#collapsed' => false,
+        '#collapsed' => true,
     );
 
     $form['serversettings']['bundlesset']['udm_serv_taxonomy'] = array(
@@ -330,6 +332,14 @@ function usa_data_migration_config_form() {
         ),
         '#description' => 'Go to the "<i>USA Taxonomy Migration</i>" module on the foreign site in order to get the '
             .'<b>push-request-URL</b> to paste here.<br/>Seperate each site-URL with a new-line.',
+    );
+
+    $form['serversettings']['udm_do_localpush'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Use local-push method',
+        '#default_value' => variable_get('udm_do_localpush', 0),
+        '#description' => 'When this mode is active, no MySQL will be given to the child-site to consume, this CMP '
+            .'environment will write to a local MySQL database instead.'
     );
 
     $form['pullsettings'] = array(
