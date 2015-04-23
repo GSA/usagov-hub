@@ -172,8 +172,8 @@ function _clean_kids_data($type) {
         //set flag
         $new_title = str_replace("!!!NEED TO BE DELETED!!!", '', $deleting_node->title);
         $deleting_node->title = $new_title ." !!!NEED TO BE DELETED!!!";
-        node_delete($deleting_node->nid);
-        $ret . "<br/>" . $deleting_node->nid;
+        //node_delete($deleting_node->nid);
+        $ret .= "<br/>" . $deleting_node->nid;
     }
 
     return $ret;
