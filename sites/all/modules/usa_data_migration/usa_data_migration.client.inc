@@ -44,10 +44,12 @@ function usa_data_migration_updatePull($security = true, $terminateThreadOnCompl
         $since = ( $since < 0 ? 0 : $since );
         error_log('since is: ' . (time() - $since));
     } else {
-        @ob_end_clean();
-        while (@ob_end_clean());
-        header('Content-Type: text');
-        exit('too soon');
+        if ( empty($_REQUEST['force']) ) {
+            @ob_end_clean();
+            while (@ob_end_clean());
+            header('Content-Type: text');
+            exit('too soon');
+        }
     }
 
     // Execute node update/pull
@@ -194,6 +196,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         foreach ( $sqlLines as $sqlLine ) {
             mysql_query($sqlLine, $linkMySql);
         }
+        mysql_close($linkMySql);
         entity_get_controller('taxonomy_term')->resetCache();
         //usa_data_migration_log("Consumed MySQL batch dump: {$batch}");
 
@@ -426,10 +429,12 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     }
 
     // Trigger post-process hooks
+    usa_data_migration_log("Firing HOOK_usa_data_migration_synched...");
     $hookStartTime = microtime(true);
     module_invoke_all('usa_data_migration_synched', 'nodes', $nidsPulled, $since);
     $timeTaken = round(microtime(true) - $hookStartTime, 2);
     variable_set('udm_HookProcTime_node', $timeTaken); // Note how long this hook took to execute (for debugging/logging purposes)
+    usa_data_migration_log("HOOK_usa_data_migration_synched() has completed.");
 
     // Exclaim finish message
     $msg = "{$thisFunct}() has finished importing nodes.";
@@ -558,7 +563,7 @@ function usa_data_migration_debugShowPageLockingStatusPage() {
  *
  * Returns FALSE if no lag was taken. Returns TRUE if this function needed to sleep() 
  */
-function usa_data_migration_lagIfRequestingLockedPage($maxLagSeconds = 45) {
+function usa_data_migration_lagIfRequestingLockedPage($maxLagSeconds = 8) {
 
     $rurl = request_uri();
 
@@ -610,10 +615,12 @@ function usa_data_migration_lockUrlToTerms($tids) {
 
         $tid = intval($tid);
 
-        $url = drupal_lookup_path('alias', 'taxonomy/term/'.$tid);
-        error_log("Locking URL path: {$url}");
+        $url = trim(drupal_lookup_path('alias', 'taxonomy/term/'.$tid));
 
-        db_query("INSERT IGNORE INTO udm_locked_urls (tid, url) VALUES ({$tid}, '{$url}') ");
+        if ( $url !== '' ) {
+            error_log("Locking URL path: {$url}");
+            db_query("INSERT IGNORE INTO udm_locked_urls (tid, url) VALUES ({$tid}, '{$url}') ");
+        }
     }
 }
 
@@ -720,6 +727,7 @@ function usa_data_migration_filterTaxonomy() {
         }
 
         if ( $doKillTerm === true ) {
+            error_log(__FUNCTION__."() is deleting taxonomy-term {$tid} as it does not belong on this child-site.");
             taxonomy_term_delete($tid);
             $delCount++;
         }
