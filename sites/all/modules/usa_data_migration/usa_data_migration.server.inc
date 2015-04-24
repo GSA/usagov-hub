@@ -318,7 +318,9 @@ function usa_data_migration_printTaxonomyDump() {
     if ( $batch === 1 ) {
         $tidsKilled = usa_data_migration_getDeletedTerms();
         $listTidsKilled = implode(',',$tidsKilled);
-        $returnData['TaxDump_sqlDump'] .= "DELETE from taxonomy_term_data WHERE tid IN ({$listTidsKilled});\n\n";
+        if ( trim($listTidsKilled) !== '' ) {
+            $returnData['TaxDump_sqlDump'] .= "DELETE from taxonomy_term_data WHERE tid IN ({$listTidsKilled});\n\n";
+        }
     }
 
     // Dump taxonomy-creation/modification dates table
@@ -556,7 +558,9 @@ function usa_data_migration_printNodeDump() {
     if ( $batch === 1 ) {
         $nidsKilled = usa_data_migration_getDeletedNodes();
         $listNidsKilled = implode(',',$nidsKilled);
-        $returnData['NodeDump_sqlDump'] .= "DELETE from node WHERE nid IN ({$listNidsKilled});\n\n";
+        if ( trim($listNidsKilled) !== '' ) {
+            $returnData['NodeDump_sqlDump'] .= "DELETE from node WHERE nid IN ({$listNidsKilled});\n\n";
+        }
     }
 
     // file_managed, relation, relation_bundles, relation_revision, relation_type, field_data_endpoints, field_revision_endpoints
