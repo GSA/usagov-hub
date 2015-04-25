@@ -111,6 +111,8 @@ function usa_data_migration_getDeletedTerms() {
  * Implements HOOK_taxonomy_term_update
  */
 function usa_data_migration_taxonomy_term_update($term) {
+
+    usa_data_migration_updateTopLevelTaxonomyNameTbl( array($term) );
     usa_data_migration_schedualTriggerChildPull($term, 'taxonomy_term');
 
     if ( !empty($term->tid) ) {
@@ -125,6 +127,7 @@ function usa_data_migration_taxonomy_term_update($term) {
  */
 function usa_data_migration_taxonomy_term_insert($term) {
     
+    usa_data_migration_updateTopLevelTaxonomyNameTbl( array($term) );
     usa_data_migration_schedualTriggerChildPull($term, 'taxonomy_term');
 
     if ( !empty($term->tid) ) {
@@ -878,6 +881,46 @@ function usa_data_migration_getAllFieldTables() {
     }
 
     return $ret;
+}
+
+
+
+/**
+ * void usa_data_migration_updateTopLevelTaxonomyNameTbl()
+ *
+ * This function will lookup the highest parent of each 
+ * term given, and update the taxonomy_tlt_name table
+ */
+function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
+
+    usa_data_migration_ensureTaxonomyTLTNameTableExsists();
+
+    foreach ( $tids as $tid ) {
+
+        db_query("DELETE FROM taxonomy_tlt_name WHERE tid = {$tid} ");
+
+        $tltName = '@TODO'; exit('@TODO'.__FUNCTION__);
+
+        db_query("INSERT INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, {$tltName}) ");
+
+    }
+
+}
+
+/**
+ *  void usa_data_migration_ensureTaxonomyTLTNameTableExsists()
+ *
+ *  This just makes sure this table exists in MySQL, and creates it if it is not
+ */
+function usa_data_migration_ensureTaxonomyTLTNameTableExsists() {
+    db_query("
+        CREATE TABLE IF NOT EXISTS taxonomy_tlt_name (
+            tid INT UNSIGNED NOT NULL,
+            tlt_name TEXT NULL DEFAULT 'UNKNOWN',
+            PRIMARY KEY (tid) ,
+            INDEX (created,changed)
+        )
+    ");
 }
 
 /**

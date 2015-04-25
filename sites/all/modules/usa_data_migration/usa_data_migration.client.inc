@@ -86,6 +86,15 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     $strQuickMode = ( $quick ? ' (in quick mode) ' : '' );
     usa_data_migration_error_log("Notice: {$thisFunct} is pulling taxonomy information {$strQuickMode} from {$taxonomyDataSource}");
 
+    // Debug for devs who tail the Slack channel
+    if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
+        slack_send_message(
+            "Notice: {$thisFunct}() is pulling taxonomy information {$strQuickMode} from {$taxonomyDataSource}. My process-id is: ".getmypid(),
+            "cmp-notify", 
+            $_SERVER['HTTP_HOST']
+        );
+    }
+
     // Tell the USA Taxonomy Man module to not execute on term-hook for this batch process
     global $utm_norun;
     $utm_norun = true;
@@ -153,7 +162,9 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         usa_data_migration_lockUrlToTerms( explode(',', $pullData['TaxDump_tidList']) );
 
         // Remove all data terms in this environment which are incoming (we dont want things to collide)
-        db_query("DELETE FROM taxonomy_term_data WHERE tid IN ({$pullData['TaxDump_tidList']}) ");
+        if ( trim($pullData['TaxDump_tidList']) !== '' ) {
+            db_query("DELETE FROM taxonomy_term_data WHERE tid IN ({$pullData['TaxDump_tidList']}) ");
+        }
         cleanup_killOrphanedTaxonomyData();
         cleanup_killOrphanedFieldData();
         
@@ -190,15 +201,51 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
             usa_data_migration_log("Imported taxonomy structure from remote host");
         }
         
+        // Exclaim pre-sql process message over Slack
+        if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
+            slack_send_message(
+                "Notice: About to consume MySQL data... My process-id is: ".getmypid(),
+                "@dfrey", 
+                $_SERVER['HTTP_HOST']
+            );
+        }
+
         // Synch terms into this environment
         $linkMySql = usa_data_migration_connectMySQL();
         $sqlLines = explode("\n", $pullData['TaxDump_sqlDump']);
+        mysql_query('SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;', $linkMySql);
         foreach ( $sqlLines as $sqlLine ) {
-            mysql_query($sqlLine, $linkMySql);
+            if ( trim($sqlLine) !== '' ) {
+
+                mysql_query($sqlLine, $linkMySql);
+
+                $err = mysql_error();
+                if ( $err !== '' ) {
+                    // Exclaim post-sql process message over Slack
+                    if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
+                        slack_send_message(
+                            "Notice: MySQL-data-consumption *error*! My process-id is: ".getmypid()."\n*The error was:* ".$err,
+                            "@dfrey", 
+                            $_SERVER['HTTP_HOST']
+                        );
+                    }
+                }
+
+            }
         }
+        mysql_query('COMMIT;', $linkMySql);
         mysql_close($linkMySql);
         entity_get_controller('taxonomy_term')->resetCache();
         //usa_data_migration_log("Consumed MySQL batch dump: {$batch}");
+
+        // Exclaim post-sql process message over Slack
+        if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
+            slack_send_message(
+                "Notice: *Done*with comsuming MySQL data! My process-id is: ".getmypid(),
+                "@dfrey", 
+                $_SERVER['HTTP_HOST']
+            );
+        }
 
         // Clear field cache for all synched taxonomy-terms
         foreach ( explode(',', $pullData['TaxDump_tidList']) as $nid ) {
@@ -213,6 +260,12 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
 
     }
 
+    // Bug killer - make sure that is not a value of array("")
+    if ( is_array($tidsPulled) && count($tidsPulled) === 1 && trim($tidsPulled[0]) === '' ) {
+        error_log('test');
+        $tidsPulled = array();
+    }
+
     // Don't let another PHP thread run this same function simultaneously (this is going to be spammed a lot in this function)
     variable_set('udm_last_pull_time', time() );
 
@@ -221,6 +274,11 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     cleanup_killOrphanedNodeRevisions();
     cleanup_killOrphanedTaxonomyData();
     cleanup_killOrphanedFieldData();
+    entity_get_controller('taxonomy_term')->resetCache();
+    taxonomy_vocabulary_static_reset();
+    taxonomy_terms_static_reset();
+    field_cache_clear();
+    sleep(3);
     //usa_data_migration_error_log("Clean-up complete");
 
     // Don't let another PHP thread run this same function simultaneously (this is going to be spammed a lot in this function)
@@ -260,6 +318,15 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     additionally, the trigger of HOOK_udm_last_pull_time() may take a while, so we'll set udm_last_pull_time to the future. */
     variable_set('udm_last_pull_time', time() + 24 );
 
+    // Exclaim post-process message over Slack
+    if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
+        slack_send_message(
+            "Notice: {$thisFunct}() has finished importing taxonomy-terms and is now running post-synch processes. Firing HOOK_usa_data_migration_synched()... My process-id is: ".getmypid(),
+            "cmp-notify", 
+            $_SERVER['HTTP_HOST']
+        );
+    }
+
     // Trigger post-process hooks
     $hookStartTime = microtime(true);
     module_invoke_all('usa_data_migration_synched', 'terms', $tidsPulled, $since);
@@ -270,6 +337,15 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     $msg = "{$thisFunct}() has finished importing terms, post-synch processes complete...";
     usa_data_migration_log($msg);
     usa_data_migration_error_log("Notice: " . $msg);
+
+    // Exclaim overall-finish message in Slack
+    if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
+        slack_send_message(
+            "{$thisFunct}() has finished importing terms, post-synch processes complete... I am now completely done. My process-id is: ".getmypid(),
+            "cmp-notify", 
+            $_SERVER['HTTP_HOST']
+        );
+    }
 
     // Return
     if ( $retTrueOnSuccess ) {
@@ -291,6 +367,13 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     // Debug for devs who tail the PHP error_log
     $thisFunct = __FUNCTION__;
     usa_data_migration_error_log("Notice: {$thisFunct} is pulling node information from {$nodeDataSource}");
+    if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
+        slack_send_message(
+            "Notice: {$thisFunct}() is pulling nodes changed since {$since} from {$nodeDataSource}. My process-id is: ".getmypid(),
+            "cmp-notify", 
+            $_SERVER['HTTP_HOST']
+        );
+    }
 
     // Init
     $batch = 1;
@@ -428,6 +511,15 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         //usa_data_migration_postSynch_s3translate($nidList);
     }
 
+    // Exclaim post-process message over Slack
+    if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
+        slack_send_message(
+            "Notice: {$thisFunct}() has finished importing nodes and is now running post-synch processes. Firing HOOK_usa_data_migration_synched()... My process-id is: ".getmypid(),
+            "cmp-notify", 
+            $_SERVER['HTTP_HOST']
+        );
+    }
+
     // Trigger post-process hooks
     usa_data_migration_log("Firing HOOK_usa_data_migration_synched...");
     $hookStartTime = microtime(true);
@@ -440,6 +532,15 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     $msg = "{$thisFunct}() has finished importing nodes.";
     usa_data_migration_log($msg);
     usa_data_migration_error_log("Notice: " . $msg);
+
+    // Exclaim finish message over Slack
+    if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
+        slack_send_message(
+            "Notice: {$thisFunct}() has finished importing nodes and running post-synch processes. I am now completely done. My process-id is: ".getmypid(),
+            "cmp-notify", 
+            $_SERVER['HTTP_HOST']
+        );
+    }
 
     if ( $retTrueOnSuccess ) {
         return true;
@@ -950,16 +1051,18 @@ function cleanup_killOrphanedFieldData($maxSecondsForProcessing = 180) {
     $startTime = time();
     
     // node_access
-    $sql = "DELETE FROM node_access WHERE nid NOT IN ( SELECT n.nid FROM node n )";
+    $sql = "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n";
+    $sql .= "DELETE FROM node_access WHERE nid NOT IN ( SELECT n.nid FROM node n );\n";
+    $sql .= "COMMIT;";
     set_time_limit(800);
-    //error_log($sql);
     db_query($sql);
     
     // node_comment_statistics
     if ( db_table_exists('node_comment_statistics') ) {
-        $sql = "DELETE FROM node_comment_statistics WHERE nid NOT IN ( SELECT n.nid FROM node n )";
+        $sql = "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n";
+        $sql .= "DELETE FROM node_comment_statistics WHERE nid NOT IN ( SELECT n.nid FROM node n );\n";
+        $sql .= "COMMIT;";
         set_time_limit(800);
-        //error_log($sql);
         db_query($sql);
     }
 
@@ -983,7 +1086,9 @@ function cleanup_killOrphanedFieldData($maxSecondsForProcessing = 180) {
                 }
                 
                 // Delete orphaned field data for nodes from this table
-                $sql = "DELETE FROM {$tbl} WHERE entity_type = 'node' AND entity_id NOT IN ( SELECT nid FROM node )";
+                $sql = "SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;\n";
+                $sql .= "DELETE FROM {$tbl} WHERE entity_type = 'node' AND entity_id NOT IN ( SELECT nid FROM node );\n";
+                $sql .= "COMMIT;";
                 //error_log("Running SQL Query: {$sql}");
                 set_time_limit(800);
                 $rowDeleteCount = db_query($sql)->rowCount();
@@ -992,10 +1097,12 @@ function cleanup_killOrphanedFieldData($maxSecondsForProcessing = 180) {
 
                 // Delete orphaned field data for taxonomy-terms from this table
                 $sql = "
+                    SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
                     DELETE FROM {$tbl} 
                     WHERE 
                         entity_type = 'taxonomy_term' 
-                        AND entity_id NOT IN ( SELECT tid FROM taxonomy_term_data )
+                        AND entity_id NOT IN ( SELECT tid FROM taxonomy_term_data );
+                    COMMIT;
                 ";
                 //error_log("Running SQL Query: {$sql}");
                 set_time_limit(800);
