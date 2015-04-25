@@ -385,6 +385,9 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
 
     // Pull data
     $nodeDataSource .= ( strpos($nodeDataSource, '?') === false ? '?' : '&' ) . 'machineReadable=1';
+    if ( trim(variable_get('udm_node_filter_rule', '')) === '' ) {
+        $nodeDataSource .= '&filter='.trim(variable_get('udm_node_filter_rule', ''));
+    }
 
     // Make sure our table structures match with the structures on CMP
     usa_data_migration_ensureExpectedTableStructure();

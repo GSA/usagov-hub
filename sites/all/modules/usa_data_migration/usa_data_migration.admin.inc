@@ -35,6 +35,7 @@ function usa_data_migration_config_form() {
                 variable_set('udm_serv_nodes', $_REQUEST['udm_serv_nodes']);
                 variable_set('udm_tax_dofilter', $_REQUEST['udm_tax_dofilter']);
                 variable_set('udm_tax_filter_names', $_REQUEST['udm_tax_filter_names']);
+                variable_set('udm_node_filter_rule', $_REQUEST['udm_node_filter_rule']);
                 variable_set('udm_tax_del', $_REQUEST['udm_tax_del']);
                 variable_set('udm_tax_del_term', $_REQUEST['udm_tax_del_term']);
                 variable_set('udm_friendly_alias', $_REQUEST['udm_friendly_alias']);
@@ -440,6 +441,12 @@ function usa_data_migration_config_form() {
         '#type' => 'textfield',
         '#title' => 'Filter out taxonomy terms which do not have a top-level-parent with the name of:',
         '#default_value' => variable_get('udm_tax_filter_names', '')
+    );
+
+    $form['pullsettings']['udm_tax_filter_settings']['udm_node_filter_rule'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Filter for nodes where field = value:',
+        '#default_value' => variable_get('udm_node_filter_rule', '')
     );
 
     $form['pullsettings']['udm_tax_del'] = array(
