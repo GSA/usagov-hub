@@ -112,7 +112,7 @@ function usa_data_migration_getDeletedTerms() {
  */
 function usa_data_migration_taxonomy_term_update($term) {
 
-    usa_data_migration_updateTopLevelTaxonomyNameTbl( array($term) );
+    usa_data_migration_updateTopLevelTaxonomyNameTbl( array($term->tid) );
     usa_data_migration_schedualTriggerChildPull($term, 'taxonomy_term');
 
     if ( !empty($term->tid) ) {
@@ -127,7 +127,7 @@ function usa_data_migration_taxonomy_term_update($term) {
  */
 function usa_data_migration_taxonomy_term_insert($term) {
     
-    usa_data_migration_updateTopLevelTaxonomyNameTbl( array($term) );
+    usa_data_migration_updateTopLevelTaxonomyNameTbl( array($term->tid) );
     usa_data_migration_schedualTriggerChildPull($term, 'taxonomy_term');
 
     if ( !empty($term->tid) ) {
@@ -230,6 +230,13 @@ function usa_data_migration_printTaxonomyDump() {
         print "Missing or bad batch argument in request - this argument must be an integer greater than 0";
         exit();
     }
+    if ( !empty($_REQUEST['taxTpLvlParentNameFilter']) ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        $taxTpLvlParentNameFilter = $_REQUEST['taxTpLvlParentNameFilter'];
+    } else {
+        $taxTpLvlParentNameFilter = false;
+    }
     if ( empty($_REQUEST['size']) || intval($_REQUEST['size']) === 0 ) {
         @ob_end_clean();
         while (@ob_end_clean());
@@ -268,10 +275,18 @@ function usa_data_migration_printTaxonomyDump() {
 
     /* GET THE TIDS OF TERMS TO PUSH OUT */
     // If a since argument is given, then we are only processing recently changed terms
-    if ( empty($_GET['since']) ) { 
-        $tidQuery = "SELECT tid FROM `{$cmpDbName}`.taxonomy_term_data";
+    if ( empty($_GET['since']) ) {
+        if ( $taxTpLvlParentNameFilter === false ) {
+            $tidQuery = "SELECT tid FROM `{$cmpDbName}`.taxonomy_term_data";
+        } else {
+            $tidQuery = "SELECT tid FROM `{$cmpDbName}`.taxonomy_tlt_name WHERE tlt_name='{$taxTpLvlParentNameFilter}' ";
+        }
     } else {
-        $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d WHERE d.changed > {$_GET['since']} OR d.created > {$_GET['since']}";
+        if ( $taxTpLvlParentNameFilter === false ) {
+            $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d WHERE d.changed > {$_GET['since']} OR d.created > {$_GET['since']}";
+        } else {
+            $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d LEFT JOIN `{$cmpDbName}`.taxonomy_tlt_name tltn ON (tltn.tid=d.tid) WHERE ( d.changed > {$_GET['since']} OR d.created > {$_GET['since']} ) AND tltn.tlt_name = '{$taxTpLvlParentNameFilter}' ";
+        }
     }
     // If we are NOT doing a "Local-Push", then we need to work in batches
     if ( $doLocalPush == false ) {
@@ -883,8 +898,6 @@ function usa_data_migration_getAllFieldTables() {
     return $ret;
 }
 
-
-
 /**
  * void usa_data_migration_updateTopLevelTaxonomyNameTbl()
  *
@@ -899,9 +912,11 @@ function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
 
         db_query("DELETE FROM taxonomy_tlt_name WHERE tid = {$tid} ");
 
-        $tltName = '@TODO'; exit('@TODO'.__FUNCTION__);
+        $parents = taxonomy_get_parents_all($tid);
+        $topLevelParent = $parents[ count($parents) - 1 ];
+        $tltName = $topLevelParent->name;
 
-        db_query("INSERT INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, {$tltName}) ");
+        db_query("INSERT INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, '{$tltName}') ");
 
     }
 
@@ -916,9 +931,8 @@ function usa_data_migration_ensureTaxonomyTLTNameTableExsists() {
     db_query("
         CREATE TABLE IF NOT EXISTS taxonomy_tlt_name (
             tid INT UNSIGNED NOT NULL,
-            tlt_name TEXT NULL DEFAULT 'UNKNOWN',
-            PRIMARY KEY (tid) ,
-            INDEX (created,changed)
+            tlt_name TEXT NOT NULL,
+            PRIMARY KEY (tid)
         )
     ");
 }

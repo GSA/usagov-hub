@@ -105,6 +105,9 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
 
     // Pull data
     $taxonomyDataSource .= ( strpos($taxonomyDataSource, '?') === false ? '?' : '&' ) . 'machineReadable=1';
+    if ( trim(variable_get('udm_tax_filter_names', '')) !== '' ) {
+        $taxonomyDataSource .= '&taxTpLvlParentNameFilter=' . trim(variable_get('udm_tax_filter_names', ''));
+    }
 
     // Pass since argument
     if ( intval($since) > 0 ) {
@@ -291,8 +294,8 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
 
     // Taxonomy-pull post-synch processes
     cleanup_killOrphanTaxonomyTerms(); // TO ONLY BE RUN AFTER A COMPLETE SYNCH!
-    usa_data_migration_filterTaxonomy();
-    usa_data_migration_killTermsByField();
+    //usa_data_migration_filterTaxonomy();
+    //usa_data_migration_killTermsByField();
     if ( $since == 0 ) {
         usa_data_migration_postSynch_taxonomyTermsFriendlyAliases(false);
     } else {

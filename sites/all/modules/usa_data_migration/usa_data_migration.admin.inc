@@ -437,13 +437,9 @@ function usa_data_migration_config_form() {
     );
 
     $form['pullsettings']['udm_tax_filter_settings']['udm_tax_filter_names'] = array(
-        '#type' => 'textarea',
-        '#title' => 'Filter out taxonomy terms which do not have any parent with the name of:',
-        '#default_value' => variable_get('udm_tax_filter_names', ''),
-        '#description' => 'After taxonomy consumption, this module will loop through all taxonomy-terms, and check '
-            .'what parents exist - If none of the parents are <i>named</i> any of the given lines of input '
-            .'[<small>in this field</small>], then the term is deleted.<br/>Seperate each filter-pattern/name with '
-            .'a new-line.'
+        '#type' => 'textfield',
+        '#title' => 'Filter out taxonomy terms which do not have a top-level-parent with the name of:',
+        '#default_value' => variable_get('udm_tax_filter_names', '')
     );
 
     $form['pullsettings']['udm_tax_del'] = array(
