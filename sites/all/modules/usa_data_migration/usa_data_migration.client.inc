@@ -107,6 +107,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     $taxonomyDataSource .= ( strpos($taxonomyDataSource, '?') === false ? '?' : '&' ) . 'machineReadable=1';
     if ( trim(variable_get('udm_tax_filter_names', '')) !== '' ) {
         $taxonomyDataSource .= '&taxTpLvlParentNameFilter=' . trim(variable_get('udm_tax_filter_names', ''));
+        $taxonomyDataSource .= '&taxTpLvlParentNameFilter=' . trim(variable_get('udm_tax_filter_names', ''));
     }
 
     // Pass since argument
@@ -207,7 +208,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         // Exclaim pre-sql process message over Slack
         if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
             slack_send_message(
-                "Notice: About to consume MySQL data... My process-id is: ".getmypid(),
+                "Notice: About to consume MySQL data pulled from {$batchURL}... My process-id is: ".getmypid(),
                 "@dfrey", 
                 $_SERVER['HTTP_HOST']
             );
