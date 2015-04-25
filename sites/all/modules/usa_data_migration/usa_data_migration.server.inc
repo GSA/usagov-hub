@@ -375,6 +375,14 @@ function usa_data_migration_printTaxonomyDump() {
         ) . "\n";
     }
 
+    if ( $batch === 1 ) {
+        // Bundleug killer - for any [exsisting] term that does exsist on the childsite, force-update its weight value
+        $taxDatas = db_query("SELECT tid, weight FROM taxonomy_term_data");
+        foreach ( $taxDatas as $taxData ) {
+            $returnData['TaxDump_sqlDump'] .= "UPDATE taxonomy_term_data SET weight={$taxData->weight} WHERE tid={$taxData->tid};\n";
+        }
+    }
+
     // Get a list of all field-data/revision tables that contain information for the interested terms
     $dumpFieldTables = array();
     $fieldTables = usa_data_migration_getAllFieldTables();
