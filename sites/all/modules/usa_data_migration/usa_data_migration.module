@@ -242,12 +242,12 @@ function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
  */
 function usa_data_migration_cron() {
 
-    if ( intval(variable_get('udm_do_pull', false)) === 0 ) {
-        return;
+    if ( intval(variable_get('udm_do_pushoncron', false)) !== 0 ) {
+        
+        // MUST pass false to this function, or else this PHP-thread will die here
+        usa_data_migration_triggerUpdatePullOnAllChildSites(false);
     }
 
-    usa_data_migration_updatePull(false, false);
-    variable_set('udm_last_pull_time_cron', time());
 }
 
 /* This is used as a menu-callback */

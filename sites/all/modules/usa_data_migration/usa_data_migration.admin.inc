@@ -18,6 +18,7 @@ function usa_data_migration_config_form() {
                 if ( empty($_REQUEST['udm_filemedia_s3translate']) ) { $_REQUEST['udm_filemedia_s3translate'] = 0; }
                 if ( empty($_REQUEST['udm_tax_delbyfield']) ) { $_REQUEST['udm_tax_delbyfield'] = 0; }
                 if ( empty($_REQUEST['udm_do_localpush']) ) { $_REQUEST['udm_do_localpush'] = 0; }
+                if ( empty($_REQUEST['udm_do_pushoncron']) ) { $_REQUEST['udm_do_pushoncron'] = 0; }
                 if ( empty($_REQUEST['data_abbr'])) {$_REQUEST['data_abbr'] = "Apt.|Apartment\nAve.|Avenue\nBldg.|Building\nBlvd.|Boulevard\nCir.|Circle\nCt.|Court\nDr.|Drive"
                     ."\nExpy.|Expressway\nJct.|Junction\nLn.|Lane\nRte.|Route\nSt.|Street\nSte.|Suite\nTpke.|Turnpike"; }
 
@@ -45,6 +46,7 @@ function usa_data_migration_config_form() {
                 variable_set('udm_tax_delbyfield_field', $_REQUEST['udm_tax_delbyfield_field']);
                 variable_set('udm_tax_delbyfield_fieldval', $_REQUEST['udm_tax_delbyfield_fieldval']);
                 variable_set('udm_do_localpush', $_REQUEST['udm_do_localpush']);
+                variable_set('udm_do_pushoncron', $_REQUEST['udm_do_pushoncron']);
 
 
                 if ( isset($_REQUEST['udm_conttypes']) ) {
@@ -341,6 +343,14 @@ function usa_data_migration_config_form() {
         '#default_value' => variable_get('udm_do_localpush', 0),
         '#description' => 'When this mode is active, no MySQL will be given to the child-site to consume, this CMP '
             .'environment will write to a local MySQL database instead.'
+    );
+
+    $form['serversettings']['udm_do_pushoncron'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Push on cron',
+        '#default_value' => variable_get('udm_do_pushoncron', 0),
+        '#description' => 'When this checkbox is ticked, this module will pushed to all sites listed in the '
+            .'textarea above on HOOK_cron().'
     );
 
     $form['pullsettings'] = array(

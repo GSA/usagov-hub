@@ -1,20 +1,47 @@
 <?php
 
-function usa_data_migration_triggerUpdatePullOnAllChildSites() {
+function usa_data_migration_triggerUpdatePullOnAllChildSites($killThreadOnComplete = true) {
 
-    @ob_end_clean();
-    @ob_end_clean();
-    @ob_end_clean();
+    $ret = '';
 
-    unset($_SESSION['udm_push_eid']);
-    unset($_SESSION['udm_push_type']);
-    $targets = explode("\n", variable_get('udm_push_targets', ''));
-    foreach ($targets as $target) {
-        print "Pinging target: {$target}\n";
-        print "Responce was: ".file_get_contents($target) . "\n";
+    // Lets not bee too trigger-happy - don't poke the child-sites any more than once every minute
+    $lastTUPOACS = variable_get('udm_last_tupoacs', -3);
+    $lastTUPOACS_ago = time() - $lastTUPOACS;
+    if ( -1 < $lastTUPOACS_ago && $lastTUPOACS_ago < 60 ) {
+        $ret = 'NOT BOTHERING TO INVOKE CHILD-SITES - this has been done (by server/CMP) too recently.';
+    } else {
+
+        // Unset session variables that tell client browsers to trigger this function through AJAX
+        if ( isset($_SESSION['udm_push_eid']) ) {
+            unset($_SESSION['udm_push_eid']);
+        }        
+        if ( isset($_SESSION['udm_push_type']) ) {
+            unset($_SESSION['udm_push_type']);
+        }
+
+        // Run through each child-site
+        $targets = explode("\n", variable_get('udm_push_targets', ''));
+        foreach ($targets as $target) {
+            
+            $ret .= "Invoked site: {$target}\n";
+
+            // This next line is what triggers a child-site to do an update pull
+            $ret .= "Its response was: ".file_get_contents($target)."\n";
+        }
     }
 
-    exit();
+    // Post debug into into Slack
+
+
+    // Kill thread (assuming this function was called from an AJAX request)
+    if ( $killThreadOnComplete ) {
+        @ob_end_clean();
+        while ( @ob_end_clean() );
+        print trim($ret);
+        exit();
+    }
+
+    return trim($ret);
 }
 
 /*

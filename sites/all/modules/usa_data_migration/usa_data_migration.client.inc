@@ -90,8 +90,13 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
         slack_send_message(
             "Notice: {$thisFunct}() is pulling taxonomy information {$strQuickMode} from {$taxonomyDataSource}. My process-id is: ".getmypid(),
-            "cmp-notify", 
+            "#cmp-notify-verbose", 
             $_SERVER['HTTP_HOST']
+        );
+        slack_send_message(
+            $_SERVER['HTTP_HOST']." is pulling taxonomy data from the CMP.",
+            "cmp-notify", 
+            "cmp-childsite notification"
         );
     }
 
@@ -209,7 +214,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
             slack_send_message(
                 "Notice: About to consume MySQL data pulled from {$batchURL}... My process-id is: ".getmypid(),
-                "@dfrey", 
+                "#cmp-notify-verbose", 
                 $_SERVER['HTTP_HOST']
             );
         }
@@ -229,7 +234,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
                     if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
                         slack_send_message(
                             "Notice: MySQL-data-consumption *error*! My process-id is: ".getmypid()."\n*The error was:* ".$err,
-                            "@dfrey", 
+                            "#cmp-notify-verbose", 
                             $_SERVER['HTTP_HOST']
                         );
                     }
@@ -246,7 +251,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
             slack_send_message(
                 "Notice: *Done*with comsuming MySQL data! My process-id is: ".getmypid(),
-                "@dfrey", 
+                "#cmp-notify-verbose", 
                 $_SERVER['HTTP_HOST']
             );
         }
@@ -326,7 +331,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
         slack_send_message(
             "Notice: {$thisFunct}() has finished importing taxonomy-terms and is now running post-synch processes. Firing HOOK_usa_data_migration_synched()... My process-id is: ".getmypid(),
-            "cmp-notify", 
+            "#cmp-notify-verbose", 
             $_SERVER['HTTP_HOST']
         );
     }
@@ -346,7 +351,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
         slack_send_message(
             "{$thisFunct}() has finished importing terms, post-synch processes complete... I am now completely done. My process-id is: ".getmypid(),
-            "cmp-notify", 
+            "#cmp-notify-verbose", 
             $_SERVER['HTTP_HOST']
         );
     }
@@ -374,8 +379,13 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
         slack_send_message(
             "Notice: {$thisFunct}() is pulling nodes changed since {$since} from {$nodeDataSource}. My process-id is: ".getmypid(),
-            "cmp-notify", 
+            "#cmp-notify-verbose", 
             $_SERVER['HTTP_HOST']
+        );
+        slack_send_message(
+            $_SERVER['HTTP_HOST']." is pulling node data from the CMP.",
+            "cmp-notify", 
+            "cmp-childsite notification"
         );
     }
 
@@ -522,7 +532,7 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
         slack_send_message(
             "Notice: {$thisFunct}() has finished importing nodes and is now running post-synch processes. Firing HOOK_usa_data_migration_synched()... My process-id is: ".getmypid(),
-            "cmp-notify", 
+            "#cmp-notify-verbose", 
             $_SERVER['HTTP_HOST']
         );
     }
@@ -544,7 +554,7 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
     if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
         slack_send_message(
             "Notice: {$thisFunct}() has finished importing nodes and running post-synch processes. I am now completely done. My process-id is: ".getmypid(),
-            "cmp-notify", 
+            "#cmp-notify-verbose", 
             $_SERVER['HTTP_HOST']
         );
     }
