@@ -844,7 +844,7 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
  */
 function _cmp_misc_setWorkflowStatusSearchTextField($nid, $vid, $workFlowStatusText) {
 
-    /*db_query("
+    db_query("
         UPDATE field_data_field_workflow_state_search
         SET field_workflow_state_search_value = '{$workFlowStatusText}'
         WHERE 
@@ -858,12 +858,9 @@ function _cmp_misc_setWorkflowStatusSearchTextField($nid, $vid, $workFlowStatusT
         WHERE 
             entity_id = {$nid}
             AND revision_id = {$vid}
-    ");*/
-    $node = node_load($nid,$vid);
-    $node->field_workflow_state_search['und'][0]['value'] = $workFlowStatusText;
-    node_save($node);
+    ");
 
-    //entity_get_controller('node')->resetCache(array($nid));
+    entity_get_controller('node')->resetCache(array($nid));
 
     // Debug - for those of us who tail the error_log
     $myFunct = __FUNCTION__;
