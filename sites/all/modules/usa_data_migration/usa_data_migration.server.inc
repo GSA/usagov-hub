@@ -4,6 +4,14 @@ function usa_data_migration_triggerUpdatePullOnAllChildSites($killThreadOnComple
 
     $ret = '';
 
+    // Post debug into into Slack
+    $thisFunct = __FUNCTION__;
+    slack_send_message(
+        "Notice: {$thisFunct}() has triggered ".( isset($_SESSION['udm_push_eid']) ? "since {$_SESSION['udm_push_type']} {$_SESSION['udm_push_eid']} was modified." : "[via cron]."),
+        "#cmp-notify-verbose", 
+        $_SERVER['HTTP_HOST']
+    );
+
     // Lets not bee too trigger-happy - don't poke the child-sites any more than once every minute
     $lastTUPOACS = variable_get('udm_last_tupoacs', -3);
     $lastTUPOACS_ago = time() - $lastTUPOACS;
@@ -29,9 +37,6 @@ function usa_data_migration_triggerUpdatePullOnAllChildSites($killThreadOnComple
             $ret .= "Its response was: ".file_get_contents($target)."\n";
         }
     }
-
-    // Post debug into into Slack
-
 
     // Kill thread (assuming this function was called from an AJAX request)
     if ( $killThreadOnComplete ) {
