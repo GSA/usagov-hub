@@ -50,9 +50,11 @@ function _cmp_export_xml_download_xml() {
     if (isset($args[2]) && isset($args[3])) {
         if (strtolower($args[3]) == 'es') {
             $use_by = "Print Guia";
+            $lang = "Spanish";
         }
         else {
             $use_by = "Print CAH";
+            $lang = "English";
         }
 
         $args[2] = strtolower($args[2]);
@@ -78,7 +80,7 @@ function _cmp_export_xml_download_xml() {
             break;
 
             case 'corporate':
-                $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Corporations');
+                $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Corporations', $lang);
                 $filename_no_change = 'corporate';
                 if ($use_by == "Print Guia") {
                     $filename_no_change = 'corporate_ES';
@@ -91,7 +93,7 @@ function _cmp_export_xml_download_xml() {
             break;
 
             case 'directory_api':
-                $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Federal Agencies');
+                $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Federal Agencies', $lang);
                 $filename_no_change = 'directory_api';
                 if ($use_by == "Print Guia") {
                     $filename_no_change = 'directory_api_ES';
@@ -446,13 +448,14 @@ function __make_xml_friendly($str) {
     return $str;
 }
 
-function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)  {
+function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type, $language)  {
 
     //  INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
     $sql = "SELECT DISTINCT n.nid FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = :dir_type
+    INNER JOIN field_data_field_language l ON l.entity_id = n.nid AND l.field_language_value = :lang
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title ";
-    $res = db_query($sql, array(":dir_type"=>$dir_type));
+    $res = db_query($sql, array(":dir_type"=>$dir_type, ":lang"=>$language));
 
     $new_line ="\n";
     $tab_line ="\t";
