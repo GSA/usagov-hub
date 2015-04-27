@@ -448,11 +448,11 @@ function __make_xml_friendly($str) {
 
 function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)  {
 
+    //  INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
     $sql = "SELECT DISTINCT n.nid FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = :dir_type
-    INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title ";
-    $res = db_query($sql, array(':use_by'=>$use_by, ":dir_type"=>$dir_type));
+    $res = db_query($sql, array(":dir_type"=>$dir_type));
 
     $new_line ="\n";
     $tab_line ="\t";
@@ -495,7 +495,7 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type)
             $text .= "<City>" . __make_xml_friendly($node->field_city['und'][0]['value']) . "</City>" . $new_line;
         }
         if (isset($node->field_state['und'][0]['value']) && strlen($node->field_state['und'][0]['value']) > 0) {
-            $text .= "<State>" . __make_xml_friendly($node->field_state['und'][0]['value']) . "</State>" . $new_line;
+            $text .= "<StateTer>" . __make_xml_friendly($node->field_state['und'][0]['value']) . "</StateTer>" . $new_line;
         }
 
         if (isset($node->field_zip['und'][0]['value']) && strlen($node->field_zip['und'][0]['value']) > 0) {
