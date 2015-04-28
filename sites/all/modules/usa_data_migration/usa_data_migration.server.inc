@@ -566,15 +566,15 @@ function usa_data_migration_printNodeDump() {
     // If a since argument is given, then we are only processing recently changed terms
     if ( empty($_GET['since']) ) {
         if ( $filter === false ) {
-            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node WHERE type IN ({$cTypeList})";
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node WHERE type IN ({$cTypeList}) OR type='directory_record_content_type'";
         } else {
-            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND (ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}')";
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND (ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' )";
         }
     } else {
         if ( $filter === false ) {
             $nidQuery = "SELECT cn.nid FROM `{$cmpDbName}`.node cn WHERE cn.type IN ({$cTypeList}) AND (cn.changed > {$_GET['since']} OR cn.created > {$_GET['since']})";
         } else {
-            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND ( ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' ) AND ( n2.changed > {$_GET['since']} OR n2.created > {$_GET['since']} ) ";
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND ( ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' ) AND ( n2.changed > {$_GET['since']} OR n2.created > {$_GET['since']} ) ";
         }
     }
     // If we are NOT doing a "Local-Push", then we need to work in batches
