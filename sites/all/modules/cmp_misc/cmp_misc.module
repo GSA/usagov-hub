@@ -728,6 +728,10 @@ function _cmp_misc_forget_recent_publish($node)
             'delete from {workbench_moderation_node_history} where hid = :hid',
             array( ":hid"=>$hist[0]->hid ));
     }
+
+    /* Bug killer - in some specific edge case, another process (after the call to this function) may set the status 
+    to 1 for this node on the node table - so we shall ensure that status is 0 by use of register_shutdown_function() */
+    drupal_register_shutdown_function("db_query", "UPDATE node SET status=0 WHERE nid={$node->nid}");
 }
 
 function _cmp_misc_get_expiring_nodes()
