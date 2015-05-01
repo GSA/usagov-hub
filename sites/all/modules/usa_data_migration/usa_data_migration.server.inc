@@ -682,11 +682,11 @@ function usa_data_migration_printNodeDump() {
         $returnData['NodeDump_sqlDump'] .= "\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_revision SELECT * FROM `{$cmpDbName}`.node_revision cmp WHERE cmp.status=1 AND nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_revision SELECT * FROM `{$cmpDbName}`.node_revision cmp WHERE nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_access WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_access SELECT * FROM `{$cmpDbName}`.node_access cmp WHERE cmp.status=1 AND nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_access SELECT * FROM `{$cmpDbName}`.node_access cmp WHERE nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
     } else {
