@@ -566,15 +566,15 @@ function usa_data_migration_printNodeDump() {
     // If a since argument is given, then we are only processing recently changed terms
     if ( empty($_GET['since']) ) {
         if ( $filter === false ) {
-            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node WHERE type IN ({$cTypeList}) OR type='directory_record_content_type'";
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node WHERE status=1 AND ( type IN ({$cTypeList}) OR type='directory_record_content_type' ) ";
         } else {
-            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND (ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' )";
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND n2.status=1 AND AND (ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' )";
         }
     } else {
         if ( $filter === false ) {
-            $nidQuery = "SELECT cn.nid FROM `{$cmpDbName}`.node cn WHERE cn.type IN ({$cTypeList}) AND (cn.changed > {$_GET['since']} OR cn.created > {$_GET['since']})";
+            $nidQuery = "SELECT cn.nid FROM `{$cmpDbName}`.node cn WHERE cn.type IN ({$cTypeList}) AND cn.status=1 AND (cn.changed > {$_GET['since']} OR cn.created > {$_GET['since']})";
         } else {
-            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND ( ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' ) AND ( n2.changed > {$_GET['since']} OR n2.created > {$_GET['since']} ) ";
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND n2.status=1 AND ( ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' ) AND ( n2.changed > {$_GET['since']} OR n2.created > {$_GET['since']} ) ";
         }
     }
     // If we are NOT doing a "Local-Push", then we need to work in batches
@@ -678,15 +678,15 @@ function usa_data_migration_printNodeDump() {
     if ( $doLocalPush ) {
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node SELECT * FROM `{$cmpDbName}`.node cmp WHERE cmp.status=1 AND nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT IGNORE INTO node SELECT * FROM `{$cmpDbName}`.node cmp WHERE cmp.status=1 AND nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_revision SELECT * FROM `{$cmpDbName}`.node_revision cmp WHERE nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT IGNORE INTO node_revision SELECT * FROM `{$cmpDbName}`.node_revision cmp WHERE nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_access WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_access SELECT * FROM `{$cmpDbName}`.node_access cmp WHERE nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT IGNORE INTO node_access SELECT * FROM `{$cmpDbName}`.node_access cmp WHERE nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
     } else {
