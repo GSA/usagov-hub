@@ -18,6 +18,7 @@ function usa_data_migration_config_form() {
                 if ( empty($_REQUEST['udm_filemedia_s3translate']) ) { $_REQUEST['udm_filemedia_s3translate'] = 0; }
                 if ( empty($_REQUEST['udm_tax_delbyfield']) ) { $_REQUEST['udm_tax_delbyfield'] = 0; }
                 if ( empty($_REQUEST['udm_do_localpush']) ) { $_REQUEST['udm_do_localpush'] = 0; }
+                if ( empty($_REQUEST['udm_do_pushoncron']) ) { $_REQUEST['udm_do_pushoncron'] = 0; }
                 if ( empty($_REQUEST['data_abbr'])) {$_REQUEST['data_abbr'] = "Apt.|Apartment\nAve.|Avenue\nBldg.|Building\nBlvd.|Boulevard\nCir.|Circle\nCt.|Court\nDr.|Drive"
                     ."\nExpy.|Expressway\nJct.|Junction\nLn.|Lane\nRte.|Route\nSt.|Street\nSte.|Suite\nTpke.|Turnpike"; }
 
@@ -35,6 +36,7 @@ function usa_data_migration_config_form() {
                 variable_set('udm_serv_nodes', $_REQUEST['udm_serv_nodes']);
                 variable_set('udm_tax_dofilter', $_REQUEST['udm_tax_dofilter']);
                 variable_set('udm_tax_filter_names', $_REQUEST['udm_tax_filter_names']);
+                variable_set('udm_node_filter_rule', $_REQUEST['udm_node_filter_rule']);
                 variable_set('udm_tax_del', $_REQUEST['udm_tax_del']);
                 variable_set('udm_tax_del_term', $_REQUEST['udm_tax_del_term']);
                 variable_set('udm_friendly_alias', $_REQUEST['udm_friendly_alias']);
@@ -44,6 +46,7 @@ function usa_data_migration_config_form() {
                 variable_set('udm_tax_delbyfield_field', $_REQUEST['udm_tax_delbyfield_field']);
                 variable_set('udm_tax_delbyfield_fieldval', $_REQUEST['udm_tax_delbyfield_fieldval']);
                 variable_set('udm_do_localpush', $_REQUEST['udm_do_localpush']);
+                variable_set('udm_do_pushoncron', $_REQUEST['udm_do_pushoncron']);
 
 
                 if ( isset($_REQUEST['udm_conttypes']) ) {
@@ -342,6 +345,14 @@ function usa_data_migration_config_form() {
             .'environment will write to a local MySQL database instead.'
     );
 
+    $form['serversettings']['udm_do_pushoncron'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Push on cron',
+        '#default_value' => variable_get('udm_do_pushoncron', 0),
+        '#description' => 'When this checkbox is ticked, this module will pushed to all sites listed in the '
+            .'textarea above on HOOK_cron().'
+    );
+
     $form['pullsettings'] = array(
         '#type' => 'fieldset', 
         '#title' => 'Pull Settings', 
@@ -437,13 +448,15 @@ function usa_data_migration_config_form() {
     );
 
     $form['pullsettings']['udm_tax_filter_settings']['udm_tax_filter_names'] = array(
-        '#type' => 'textarea',
-        '#title' => 'Filter out taxonomy terms which do not have any parent with the name of:',
-        '#default_value' => variable_get('udm_tax_filter_names', ''),
-        '#description' => 'After taxonomy consumption, this module will loop through all taxonomy-terms, and check '
-            .'what parents exist - If none of the parents are <i>named</i> any of the given lines of input '
-            .'[<small>in this field</small>], then the term is deleted.<br/>Seperate each filter-pattern/name with '
-            .'a new-line.'
+        '#type' => 'textfield',
+        '#title' => 'Filter out taxonomy terms which do not have a top-level-parent with the name of:',
+        '#default_value' => variable_get('udm_tax_filter_names', '')
+    );
+
+    $form['pullsettings']['udm_tax_filter_settings']['udm_node_filter_rule'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Filter for nodes where field = value:',
+        '#default_value' => variable_get('udm_node_filter_rule', '')
     );
 
     $form['pullsettings']['udm_tax_del'] = array(
