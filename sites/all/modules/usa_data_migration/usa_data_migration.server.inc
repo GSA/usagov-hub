@@ -1,20 +1,52 @@
 <?php
 
-function usa_data_migration_triggerUpdatePullOnAllChildSites() {
+function usa_data_migration_triggerUpdatePullOnAllChildSites($killThreadOnComplete = true) {
 
-    @ob_end_clean();
-    @ob_end_clean();
-    @ob_end_clean();
+    $ret = '';
 
-    unset($_SESSION['udm_push_eid']);
-    unset($_SESSION['udm_push_type']);
-    $targets = explode("\n", variable_get('udm_push_targets', ''));
-    foreach ($targets as $target) {
-        print "Pinging target: {$target}\n";
-        print "Responce was: ".file_get_contents($target) . "\n";
+    // Post debug into into Slack
+    $thisFunct = __FUNCTION__;
+    slack_send_message(
+        "Notice: {$thisFunct}() has triggered ".( isset($_SESSION['udm_push_eid']) ? "since {$_SESSION['udm_push_type']} {$_SESSION['udm_push_eid']} was modified." : "[via cron]."),
+        "#cmp-notify-verbose", 
+        $_SERVER['HTTP_HOST']
+    );
+
+    // Lets not bee too trigger-happy - don't poke the child-sites any more than once every minute
+    $lastTUPOACS = variable_get('udm_last_tupoacs', -3);
+    $lastTUPOACS_ago = time() - $lastTUPOACS;
+    if ( -1 < $lastTUPOACS_ago && $lastTUPOACS_ago < 60 ) {
+        $ret = 'NOT BOTHERING TO INVOKE CHILD-SITES - this has been done (by server/CMP) too recently.';
+    } else {
+
+        // Unset session variables that tell client browsers to trigger this function through AJAX
+        if ( isset($_SESSION['udm_push_eid']) ) {
+            unset($_SESSION['udm_push_eid']);
+        }        
+        if ( isset($_SESSION['udm_push_type']) ) {
+            unset($_SESSION['udm_push_type']);
+        }
+
+        // Run through each child-site
+        $targets = explode("\n", variable_get('udm_push_targets', ''));
+        foreach ($targets as $target) {
+            
+            $ret .= "Invoked site: {$target}\n";
+
+            // This next line is what triggers a child-site to do an update pull
+            $ret .= "Its response was: ".file_get_contents($target)."\n";
+        }
     }
 
-    exit();
+    // Kill thread (assuming this function was called from an AJAX request)
+    if ( $killThreadOnComplete ) {
+        @ob_end_clean();
+        while ( @ob_end_clean() );
+        print trim($ret);
+        exit();
+    }
+
+    return trim($ret);
 }
 
 /*
@@ -111,6 +143,8 @@ function usa_data_migration_getDeletedTerms() {
  * Implements HOOK_taxonomy_term_update
  */
 function usa_data_migration_taxonomy_term_update($term) {
+
+    usa_data_migration_updateTopLevelTaxonomyNameTbl( array($term->tid) );
     usa_data_migration_schedualTriggerChildPull($term, 'taxonomy_term');
 
     if ( !empty($term->tid) ) {
@@ -125,6 +159,7 @@ function usa_data_migration_taxonomy_term_update($term) {
  */
 function usa_data_migration_taxonomy_term_insert($term) {
     
+    usa_data_migration_updateTopLevelTaxonomyNameTbl( array($term->tid) );
     usa_data_migration_schedualTriggerChildPull($term, 'taxonomy_term');
 
     if ( !empty($term->tid) ) {
@@ -227,6 +262,13 @@ function usa_data_migration_printTaxonomyDump() {
         print "Missing or bad batch argument in request - this argument must be an integer greater than 0";
         exit();
     }
+    if ( !empty($_REQUEST['taxTpLvlParentNameFilter']) ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        $taxTpLvlParentNameFilter = $_REQUEST['taxTpLvlParentNameFilter'];
+    } else {
+        $taxTpLvlParentNameFilter = false;
+    }
     if ( empty($_REQUEST['size']) || intval($_REQUEST['size']) === 0 ) {
         @ob_end_clean();
         while (@ob_end_clean());
@@ -265,10 +307,18 @@ function usa_data_migration_printTaxonomyDump() {
 
     /* GET THE TIDS OF TERMS TO PUSH OUT */
     // If a since argument is given, then we are only processing recently changed terms
-    if ( empty($_GET['since']) ) { 
-        $tidQuery = "SELECT tid FROM `{$cmpDbName}`.taxonomy_term_data";
+    if ( empty($_GET['since']) ) {
+        if ( $taxTpLvlParentNameFilter === false ) {
+            $tidQuery = "SELECT tid FROM `{$cmpDbName}`.taxonomy_term_data";
+        } else {
+            $tidQuery = "SELECT tid FROM `{$cmpDbName}`.taxonomy_tlt_name WHERE tlt_name='{$taxTpLvlParentNameFilter}' ";
+        }
     } else {
-        $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d WHERE d.changed > {$_GET['since']} OR d.created > {$_GET['since']}";
+        if ( $taxTpLvlParentNameFilter === false ) {
+            $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d WHERE d.changed > {$_GET['since']} OR d.created > {$_GET['since']}";
+        } else {
+            $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d LEFT JOIN `{$cmpDbName}`.taxonomy_tlt_name tltn ON (tltn.tid=d.tid) WHERE ( d.changed > {$_GET['since']} OR d.created > {$_GET['since']} ) AND tltn.tlt_name = '{$taxTpLvlParentNameFilter}' ";
+        }
     }
     // If we are NOT doing a "Local-Push", then we need to work in batches
     if ( $doLocalPush == false ) {
@@ -318,7 +368,9 @@ function usa_data_migration_printTaxonomyDump() {
     if ( $batch === 1 ) {
         $tidsKilled = usa_data_migration_getDeletedTerms();
         $listTidsKilled = implode(',',$tidsKilled);
-        $returnData['TaxDump_sqlDump'] .= "DELETE from taxonomy_term_data WHERE tid IN ({$listTidsKilled});\n\n";
+        if ( trim($listTidsKilled) !== '' ) {
+            $returnData['TaxDump_sqlDump'] .= "DELETE from taxonomy_term_data WHERE tid IN ({$listTidsKilled});\n\n";
+        }
     }
 
     // Dump taxonomy-creation/modification dates table
@@ -353,6 +405,14 @@ function usa_data_migration_printTaxonomyDump() {
             true, 
             false
         ) . "\n";
+    }
+
+    if ( $batch === 1 ) {
+        // Bundleug killer - for any [exsisting] term that does exsist on the childsite, force-update its weight value
+        $taxDatas = db_query("SELECT tid, weight FROM taxonomy_term_data");
+        foreach ( $taxDatas as $taxData ) {
+            $returnData['TaxDump_sqlDump'] .= "UPDATE taxonomy_term_data SET weight={$taxData->weight} WHERE tid={$taxData->tid};\n";
+        }
     }
 
     // Get a list of all field-data/revision tables that contain information for the interested terms
@@ -463,6 +523,12 @@ function usa_data_migration_printNodeDump() {
         exit();
     }
 
+    if ( empty($_REQUEST['filter']) ) {
+        $filter = false;
+    } else {
+        $filter = $_REQUEST['filter'];
+    }
+
     // Security validation
     if ( variable_get('udm_pull_security_key', '') !== '' ) { // If we expect a security key...
 
@@ -498,10 +564,18 @@ function usa_data_migration_printNodeDump() {
         $cTypeList = "'" . $_REQUEST['type'] . "'";
     }
     // If a since argument is given, then we are only processing recently changed terms
-    if ( empty($_GET['since']) ) { 
-        $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node WHERE type IN ({$cTypeList})";
+    if ( empty($_GET['since']) ) {
+        if ( $filter === false ) {
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node WHERE status=1 AND ( type IN ({$cTypeList}) OR type='directory_record_content_type' ) ";
+        } else {
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND n2.status=1 AND AND (ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' )";
+        }
     } else {
-        $nidQuery = "SELECT cn.nid FROM `{$cmpDbName}`.node cn WHERE cn.type IN ({$cTypeList}) AND (cn.changed > {$_GET['since']} OR cn.created > {$_GET['since']})";
+        if ( $filter === false ) {
+            $nidQuery = "SELECT cn.nid FROM `{$cmpDbName}`.node cn WHERE cn.type IN ({$cTypeList}) AND cn.status=1 AND (cn.changed > {$_GET['since']} OR cn.created > {$_GET['since']})";
+        } else {
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND n2.status=1 AND ( ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' ) AND ( n2.changed > {$_GET['since']} OR n2.created > {$_GET['since']} ) ";
+        }
     }
     // If we are NOT doing a "Local-Push", then we need to work in batches
     if ( $doLocalPush == false ) {
@@ -556,7 +630,9 @@ function usa_data_migration_printNodeDump() {
     if ( $batch === 1 ) {
         $nidsKilled = usa_data_migration_getDeletedNodes();
         $listNidsKilled = implode(',',$nidsKilled);
-        $returnData['NodeDump_sqlDump'] .= "DELETE from node WHERE nid IN ({$listNidsKilled});\n\n";
+        if ( trim($listNidsKilled) !== '' ) {
+            $returnData['NodeDump_sqlDump'] .= "DELETE from node WHERE nid IN ({$listNidsKilled});\n\n";
+        }
     }
 
     // file_managed, relation, relation_bundles, relation_revision, relation_type, field_data_endpoints, field_revision_endpoints
@@ -602,16 +678,15 @@ function usa_data_migration_printNodeDump() {
     if ( $doLocalPush ) {
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node SELECT * FROM `{$cmpDbName}`.node cmp WHERE nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT IGNORE INTO node SELECT * FROM `{$cmpDbName}`.node cmp WHERE cmp.status=1 AND nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_revision SELECT * FROM `{$cmpDbName}`.node_revision cmp WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE vid<>(SELECT vid FROM node n WHERE n.nid=node_revision.nid);\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT IGNORE INTO node_revision SELECT * FROM `{$cmpDbName}`.node_revision cmp WHERE nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_access WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node_access SELECT * FROM `{$cmpDbName}`.node_access cmp WHERE nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT IGNORE INTO node_access SELECT * FROM `{$cmpDbName}`.node_access cmp WHERE nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
     } else {
@@ -619,7 +694,7 @@ function usa_data_migration_printNodeDump() {
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node",
-            "nid IN (SELECT entity_id FROM {$tmpTableName})", 
+            "status=1 AND nid IN (SELECT entity_id FROM {$tmpTableName})", 
             false, 
             true, 
             true, 
@@ -630,7 +705,7 @@ function usa_data_migration_printNodeDump() {
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node_revision",
-            "nid IN (SELECT entity_id FROM {$tmpTableName}) AND vid = (SELECT n2.vid FROM node n2 WHERE n2.nid = node_revision.nid)", 
+            "status=1 AND nid IN (SELECT entity_id FROM {$tmpTableName}) AND vid = (SELECT n2.vid FROM node n2 WHERE n2.nid = node_revision.nid)", 
             false, 
             true, 
             true, 
@@ -641,7 +716,7 @@ function usa_data_migration_printNodeDump() {
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_access WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node_access",
-            "nid IN (SELECT entity_id FROM {$tmpTableName})", 
+            "status=1 AND  nid IN (SELECT entity_id FROM {$tmpTableName})", 
             false, 
             true, 
             true, 
@@ -874,6 +949,45 @@ function usa_data_migration_getAllFieldTables() {
     }
 
     return $ret;
+}
+
+/**
+ * void usa_data_migration_updateTopLevelTaxonomyNameTbl()
+ *
+ * This function will lookup the highest parent of each 
+ * term given, and update the taxonomy_tlt_name table
+ */
+function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
+
+    usa_data_migration_ensureTaxonomyTLTNameTableExsists();
+
+    foreach ( $tids as $tid ) {
+
+        db_query("DELETE FROM taxonomy_tlt_name WHERE tid = {$tid} ");
+
+        $parents = taxonomy_get_parents_all($tid);
+        $topLevelParent = $parents[ count($parents) - 1 ];
+        $tltName = $topLevelParent->name;
+
+        db_query("INSERT INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, '{$tltName}') ");
+
+    }
+
+}
+
+/**
+ *  void usa_data_migration_ensureTaxonomyTLTNameTableExsists()
+ *
+ *  This just makes sure this table exists in MySQL, and creates it if it is not
+ */
+function usa_data_migration_ensureTaxonomyTLTNameTableExsists() {
+    db_query("
+        CREATE TABLE IF NOT EXISTS taxonomy_tlt_name (
+            tid INT UNSIGNED NOT NULL,
+            tlt_name TEXT NOT NULL,
+            PRIMARY KEY (tid)
+        )
+    ");
 }
 
 /**
