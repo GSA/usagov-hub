@@ -36,6 +36,7 @@ function slack_send_message($message, $channel = '', $username = '') {
   else {
     $message_options['username'] = slack_get_default_username();
   }
+  error_log($message);
   $result = _slack_send_message($webhook_url, $message, $message_options);
   return $result;
 }

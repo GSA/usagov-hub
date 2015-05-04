@@ -678,7 +678,7 @@ function usa_data_migration_printNodeDump() {
     if ( $doLocalPush ) {
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node SELECT * FROM `{$cmpDbName}`.node cmp WHERE nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT INTO node SELECT * FROM `{$cmpDbName}`.node cmp WHERE cmp.status=1 AND nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE nid IN ({$nidQuery});\n";
@@ -694,7 +694,7 @@ function usa_data_migration_printNodeDump() {
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node",
-            "nid IN (SELECT entity_id FROM {$tmpTableName})", 
+            "status=1 AND nid IN (SELECT entity_id FROM {$tmpTableName})", 
             false, 
             true, 
             true, 
@@ -705,7 +705,7 @@ function usa_data_migration_printNodeDump() {
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node_revision",
-            "nid IN (SELECT entity_id FROM {$tmpTableName}) AND vid = (SELECT n2.vid FROM node n2 WHERE n2.nid = node_revision.nid)", 
+            "status=1 AND nid IN (SELECT entity_id FROM {$tmpTableName}) AND vid = (SELECT n2.vid FROM node n2 WHERE n2.nid = node_revision.nid)", 
             false, 
             true, 
             true, 
@@ -716,7 +716,7 @@ function usa_data_migration_printNodeDump() {
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_access WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node_access",
-            "nid IN (SELECT entity_id FROM {$tmpTableName})", 
+            "status=1 AND  nid IN (SELECT entity_id FROM {$tmpTableName})", 
             false, 
             true, 
             true, 
