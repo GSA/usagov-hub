@@ -177,9 +177,30 @@ function usa_data_migration_node_insert($node) {
 }
 
 /*
+ * Implements HOOK_node_insert
+ */
+function usa_data_migration_node_update($node) {
+    
+    /* When a new revision is added to a node, in certain edge cases, the node's "changed" field is not updated,
+    which can cause a node to be missed by childsite update-pulls. We will fix this here. */
+    if ( !empty($node->nid) ) {
+        $nowTime = time();
+        db_query("UPDATE node SET changed={$nowTime} WHERE nid={$node->nid}");
+    }
+}
+
+/*
  * Implements HOOK_workbench_moderation_transition
  */
 function usa_data_migration_workbench_moderation_transition($entity, $fromState, $toState) {
+
+    /* When a work-flow state [alone] is changed, in certain edge cases, the node's "changed" field is not updated,
+    which can cause a node to be missed by childsite update-pulls. We will fix this here. */
+    if ( !empty($entity->nid) ) {
+        $nowTime = time();
+        db_query("UPDATE node SET changed={$nowTime} WHERE nid={$entity->nid}");
+    }
+
     usa_data_migration_schedualTriggerChildPull($entity, 'node');
 }
 
@@ -566,15 +587,15 @@ function usa_data_migration_printNodeDump() {
     // If a since argument is given, then we are only processing recently changed terms
     if ( empty($_GET['since']) ) {
         if ( $filter === false ) {
-            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node WHERE status=1 AND ( type IN ({$cTypeList}) OR type='directory_record_content_type' ) ";
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node WHERE ( type IN ({$cTypeList}) OR type='directory_record_content_type' ) ";
         } else {
-            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND n2.status=1 AND (ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' )";
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND (ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' )";
         }
     } else {
         if ( $filter === false ) {
-            $nidQuery = "SELECT cn.nid FROM `{$cmpDbName}`.node cn WHERE cn.type IN ({$cTypeList}) AND cn.status=1 AND (cn.changed > {$_GET['since']} OR cn.created > {$_GET['since']})";
+            $nidQuery = "SELECT cn.nid FROM `{$cmpDbName}`.node cn WHERE cn.type IN ({$cTypeList}) AND (cn.changed > {$_GET['since']} OR cn.created > {$_GET['since']})";
         } else {
-            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND n2.status=1 AND ( ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' ) AND ( n2.changed > {$_GET['since']} OR n2.created > {$_GET['since']} ) ";
+            $nidQuery = "SELECT nid FROM `{$cmpDbName}`.node n2 LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by ub ON (n2.nid=ub.entity_id) LEFT JOIN `{$cmpDbName}`.field_data_field_for_use_by_text ub2 ON (n2.nid=ub2.entity_id) WHERE n2.type IN ({$cTypeList}) AND ( ub.field_for_use_by_value = '{$filter}' OR ub2.field_for_use_by_text_value = '{$filter}' OR n2.type='directory_record_content_type' ) AND ( n2.changed > {$_GET['since']} OR n2.created > {$_GET['since']} ) ";
         }
     }
     // If we are NOT doing a "Local-Push", then we need to work in batches
@@ -678,7 +699,7 @@ function usa_data_migration_printNodeDump() {
     if ( $doLocalPush ) {
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node WHERE nid IN ({$nidQuery});\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT IGNORE INTO node SELECT * FROM `{$cmpDbName}`.node cmp WHERE cmp.status=1 AND nid IN ({$nidQuery});\n";
+        $returnData['NodeDump_sqlDump'] .= "INSERT IGNORE INTO node SELECT * FROM `{$cmpDbName}`.node cmp WHERE nid IN ({$nidQuery});\n";
         $returnData['NodeDump_sqlDump'] .= "\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE nid IN ({$nidQuery});\n";
@@ -694,7 +715,7 @@ function usa_data_migration_printNodeDump() {
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node",
-            "status=1 AND nid IN (SELECT entity_id FROM {$tmpTableName})", 
+            "nid IN (SELECT entity_id FROM {$tmpTableName})", 
             false, 
             true, 
             true, 
@@ -705,7 +726,7 @@ function usa_data_migration_printNodeDump() {
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node_revision",
-            "status=1 AND nid IN (SELECT entity_id FROM {$tmpTableName}) AND vid = (SELECT n2.vid FROM node n2 WHERE n2.nid = node_revision.nid)", 
+            "nid IN (SELECT entity_id FROM {$tmpTableName}) AND vid = (SELECT n2.vid FROM node n2 WHERE n2.nid = node_revision.nid)", 
             false, 
             true, 
             true, 
@@ -716,7 +737,7 @@ function usa_data_migration_printNodeDump() {
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_access WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node_access",
-            "status=1 AND  nid IN (SELECT entity_id FROM {$tmpTableName})", 
+            "nid IN (SELECT entity_id FROM {$tmpTableName})", 
             false, 
             true, 
             true, 
