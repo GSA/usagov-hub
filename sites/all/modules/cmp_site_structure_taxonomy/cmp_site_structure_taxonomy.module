@@ -1,6 +1,7 @@
 <?php
 
 function cmp_site_structure_taxonomy_form_alter(&$form,&$form_state){
+    //dsm($form);
 
     if (($form['#form_id'] == 'taxonomy_manager_form'
             && isset($form['voc']['#value']->machine_name)
@@ -23,7 +24,7 @@ function cmp_site_structure_taxonomy_form_alter(&$form,&$form_state){
        }
        else {
            $form['field_directory_record_url']['und']['#options'] = _cmp_sst_get_dir_listing();
-           if (isset($form['#term']['field_directory_record_url']['und'][0]['value'])) {
+           if ((isset($form['actions']['submit']['#value']) && $form['actions']['submit']['#value'] != 'Delete' ) && isset($form['#term']['field_directory_record_url']['und'][0]['value'])) {
                $form['field_directory_record_url']['und']['#default_value'][0] = $form['#term']['field_directory_record_url']['und'][0]['value'];
            }
        }

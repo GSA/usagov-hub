@@ -476,7 +476,23 @@ function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type,
         }
 
         if (isset($node->field_alpha_order_name['und'][0]['value']) && $dir_type == "Federal Agencies") {
-            $text .= "<Source_Url>" .__make_xml_friendly("http://dev-usagov.ctacdev.com/directory/".str_replace(" ", "-",strtolower($node->field_alpha_order_name['und'][0]['value']))) . "</Source_Url>".$new_line;
+            $urlAlphaOrderName = strtolower($node->field_alpha_order_name['und'][0]['value']);
+            $urlAlphaOrderName = str_replace(' ', '-', $urlAlphaOrderName);
+            $urlAlphaOrderName = str_replace('.', '-', $urlAlphaOrderName);
+            $urlAlphaOrderName = str_replace(',', '-', $urlAlphaOrderName);
+
+            while ( strpos($urlAlphaOrderName, '--') !== false ) {
+                $urlAlphaOrderName = str_replace('--', '-', $urlAlphaOrderName);
+            }
+
+            if ($use_by == 'Print CAH') {
+                $beta_url = "http://beta.usa.gov/federal-agencies/";
+            }
+            else {
+                $beta_url = "http://beta.gobierno.usa.gov/agencias-federales/";
+            }
+
+            $text .= "<Source_Url>" . __make_xml_friendly($beta_url . $urlAlphaOrderName) . "</Source_Url>".$new_line;
         }
         else {
             $text .= "<Source_Url>not publishable path</Source_Url>" .$new_line;

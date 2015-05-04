@@ -1081,6 +1081,14 @@ class MostRecentRevisionStateAlterSettings extends SearchApiAbstractAlterCallbac
             }
             $item->field_workflow_state_search['und'][0]['value']= $current_node->workbench_moderation['current']->state;
             $item->field_workflow_state_search['und'][0]['safe_value']= $current_node->workbench_moderation['current']->state;
+
+            // node is text or directory content type, we need to add use by field
+            if ($current_node->type == 'directory_record_content_type' || $current_node->type == 'text_content_type') {
+                $item->field_for_use_by = $item->field_for_use_by_text;
+            }
+            else {
+                $item->field_for_use_by_text = $item->field_for_use_by;
+            }
         }
     }
 
