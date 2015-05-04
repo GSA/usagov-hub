@@ -653,15 +653,23 @@ function _cmp_misc_node_past_publication_date($node)
                 AND (
                     # no archive date set
                     a.field_archive_date_value IS NULL
-                    OR # archive date is in the future
-                    UNIX_TIMESTAMP(a.field_archive_date_value) > :now
+                    OR (
+                        # has archive date set
+                        a.field_archive_date_value IS NOT NULL
+                        AND # archive date is in the future
+                        UNIX_TIMESTAMP(a.field_archive_date_value) > :now
+                    )
                 )
                 # is publishable
                 AND (
-                    # has publish date set
-                    p.field_schedule_publish_value IS NOT NULL
-                    AND # publish date is in the past
-                    UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
+                    # has no publish date set
+                    p.field_schedule_publish_value IS NULL
+                    OR (
+                        # has publish date set
+                        p.field_schedule_publish_value IS NOT NULL
+                        AND # publish date is in the past
+                        UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
+                    )
                 )
             ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME )
     )->rowCount();
@@ -783,7 +791,8 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
 
     // any state >>> scheduled_for_publication
     // throw this straight to published if we can
-    if ( $new_state=='scheduled_for_publication' && _cmp_misc_node_past_publication_date($node) >= 1 ) 
+    if ( $new_state=='scheduled_for_publication' 
+         && ( _cmp_misc_node_past_publication_date($node) >= 1 ) )  
     {
         workbench_moderation_moderate( $node, workbench_moderation_state_published() );
     }
