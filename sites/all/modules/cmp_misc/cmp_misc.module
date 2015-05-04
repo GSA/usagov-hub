@@ -713,26 +713,26 @@ function _cmp_misc_node_future_publication_date($node)
     )->rowCount();
 }
 
-function _cmp_misc_forget_recent_publish($node)
-{
-    $hist = db_query('SELECT *
-	          FROM   workbench_moderation_node_history h
-	          WHERE nid = :nid
-	          ORDER BY stamp DESC LIMIT 2',array(":nid"=>$node->nid))->fetchAll();
-    if ( count($hist) == 2 && $hist[0]->state==workbench_moderation_state_published() && $hist[1]->state=='scheduled_for_publication' )
-    {
-        db_query(
-            'update {workbench_moderation_node_history} set from_state = :from_state where hid = :hid',
-            array( ":from_state"=>$hist[0]->from_state, ":hid"=>$hist[1]->hid ));
-        db_query(
-            'delete from {workbench_moderation_node_history} where hid = :hid',
-            array( ":hid"=>$hist[0]->hid ));
-    }
+// function _cmp_misc_forget_recent_publish($node)
+// {
+//     $hist = db_query('SELECT *
+// 	          FROM   workbench_moderation_node_history h
+// 	          WHERE nid = :nid
+// 	          ORDER BY stamp DESC LIMIT 2',array(":nid"=>$node->nid))->fetchAll();
+//     if ( count($hist) == 2 && $hist[0]->state==workbench_moderation_state_published() && $hist[1]->state=='scheduled_for_publication' )
+//     {
+//         db_query(
+//             'update {workbench_moderation_node_history} set from_state = :from_state where hid = :hid',
+//             array( ":from_state"=>$hist[0]->from_state, ":hid"=>$hist[1]->hid ));
+//         db_query(
+//             'delete from {workbench_moderation_node_history} where hid = :hid',
+//             array( ":hid"=>$hist[0]->hid ));
+//     }
 
-    /* Bug killer - in some specific edge case, another process (after the call to this function) may set the status 
-    to 1 for this node on the node table - so we shall ensure that status is 0 by use of register_shutdown_function() */
-    drupal_register_shutdown_function("db_query", "UPDATE node SET status=0 WHERE nid={$node->nid}");
-}
+//     /* Bug killer - in some specific edge case, another process (after the call to this function) may set the status 
+//     to 1 for this node on the node table - so we shall ensure that status is 0 by use of register_shutdown_function() */
+//     drupal_register_shutdown_function("db_query", "UPDATE node SET status=0 WHERE nid={$node->nid}");
+// }
 
 function _cmp_misc_get_expiring_nodes()
 {
@@ -771,15 +771,23 @@ function _cmp_misc_get_expiring_nodes()
  */
 function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_state)
 {
-    if ( $new_state == workbench_moderation_state_published()
+    #if ( $new_state == workbench_moderation_state_published()
         /// allow a user to force a published transition for items already in 'scheduled' state
         /// so two publish attempts in a row would immediately publish the content
         # && $previous_state != 'scheduled_for_publication'
-          && _cmp_misc_node_future_publication_date($node) )
+    #      && _cmp_misc_node_future_publication_date($node) )
+    #{
+    #    workbench_moderation_moderate( $node, 'scheduled_for_publication' );
+    #    _cmp_misc_forget_recent_publish($node);
+    #}
+
+    // any state >>> scheduled_for_publication
+    // throw this straight to published if we can
+    if ( _cmp_misc_node_past_publication_date($node) >= 1 ) 
     {
-        workbench_moderation_moderate( $node, 'scheduled_for_publication' );
-        _cmp_misc_forget_recent_publish($node);
+        workbench_moderation_moderate( $node, workbench_moderation_state_published() );
     }
+
 
     // needs approval >>> needs discussion
     if ($previous_state == 'needs_review' && $new_state == 'needs_discussion') {
