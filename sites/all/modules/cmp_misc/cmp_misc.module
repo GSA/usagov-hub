@@ -783,7 +783,7 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
 
     // any state >>> scheduled_for_publication
     // throw this straight to published if we can
-    if ( _cmp_misc_node_past_publication_date($node) >= 1 ) 
+    if ( $new_state=='scheduled_for_publication' && _cmp_misc_node_past_publication_date($node) >= 1 ) 
     {
         workbench_moderation_moderate( $node, workbench_moderation_state_published() );
     }
