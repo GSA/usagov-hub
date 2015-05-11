@@ -72,3 +72,32 @@ hooks_reaction_add("form_user_login_alter",
 
     }
 );
+
+/**
+ * Implements hook_form_alter().
+ *
+ * The saml_sp_drupal_login module creates the "Log in using GSA_SecureAuth" link incorrectly...
+ * We will modify this link here.
+ */
+hooks_reaction_add("form_user_login_block_alter",
+    function (&$form, &$form_state) {
+
+        // If the saml_sp_drupal_login is on, and is is configured, then we expect a form element [here].
+        if ( !empty($form['saml_sp_drupal_login_links']['#items'][0]['data']) ) {
+
+            // This is [should be] the "Log in using GSA_SecureAuth" link in the form
+            $linkHTML = $form['saml_sp_drupal_login_links']['#items'][0]['data'];
+
+            // This is where the link SHOULD REALLY point to
+            $correctReturn = 'returnTo=' . ltrim(request_uri(), '/');
+
+            // String-replace for correction
+            $linkHTML = str_replace('returnTo=user', $correctReturn, $linkHTML); // Almost always the incorrect default
+            $linkHTML = str_replace('returnTo=/node/462', $correctReturn, $linkHTML); // The Not Found Basic-Page
+
+            // Replace this link in the form with its fixed-version
+            $form['saml_sp_drupal_login_links']['#items'][0]['data'] = $linkHTML;
+        }
+
+    }
+);
