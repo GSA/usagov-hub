@@ -60,7 +60,11 @@ hooks_reaction_add("form_user_login_alter",
             $linkHTML = $form['saml_sp_drupal_login_links']['#items'][0]['data'];
 
             // This is where the link SHOULD REALLY point to
-            $correctReturn = 'returnTo=' . ltrim(request_uri(), '/');
+            if ( trim(request_uri(), '/') === '' ) {
+                $correctReturn = 'returnTo=/';
+            } else {
+                $correctReturn = 'returnTo=' . ltrim(request_uri(), '/');
+            }
 
             // String-replace for correction
             $linkHTML = str_replace('returnTo=user', $correctReturn, $linkHTML); // Almost always the incorrect default
@@ -89,7 +93,11 @@ hooks_reaction_add("form_user_login_block_alter",
             $linkHTML = $form['saml_sp_drupal_login_links']['#items'][0]['data'];
 
             // This is where the link SHOULD REALLY point to
-            $correctReturn = 'returnTo=' . ltrim(request_uri(), '/');
+            if ( trim(request_uri(), '/') === '' ) {
+                $correctReturn = 'returnTo=/';
+            } else {
+                $correctReturn = 'returnTo=' . ltrim(request_uri(), '/');
+            }
 
             // String-replace for correction
             $linkHTML = str_replace('returnTo=user', $correctReturn, $linkHTML); // Almost always the incorrect default
