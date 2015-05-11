@@ -48,6 +48,12 @@ function hooks_reaction_preinit() {
         global $hookReactionsHasInitialized;    // This marker states if hook_init() for this module has fired and completed or not 
         $hookReactionsHasInitialized = false;
 
+        // Safe-guard option incase we ever shoot ourselvs in the foot (i.e. someon puts an exit() into a common hook or global-code)
+        if ( strpos( $_SERVER["REQUEST_URI"], "-NO-HOOK-REACTION-") !== false ) {
+            // No not implement this module
+            return;
+        }
+
         // Execute pre-init code 
         if ( 
             strpos( $_SERVER["REQUEST_URI"], "-NO-HOOK-REACTION-") === false 
@@ -62,80 +68,49 @@ function hooks_reaction_preinit() {
             }
         }
         
-        // Eval (include) code from (organizaed reaction) files
+        // Eval (include) code from settings (pre-file-reactions)
+        $code = hooks_reaction_loadCodeFromSettings('pre');
         if ( 
-            strpos( $_SERVER["REQUEST_URI"], "-NO-HOOK-REACTION-") === false 
-            || strpos( $_SERVER["REQUEST_URI"], "-NO-FILE-HOOK-REACTION-") === false 
-            || strpos( $_SERVER["REQUEST_URI"], "-NO-PREINIT-HOOK-REACTION-") === false 
+            strpos( $_SERVER["REQUEST_URI"], "-NO-DB-HOOK-REACTION-") === false 
+            && strpos( $_SERVER["REQUEST_URI"], "-NO-PREFILE-HOOK-REACTION-") === false 
         ) {
-            if ( is_dir(__DIR__  . '/reactions-preinit') ) {
-                $files = scandir(__DIR__  . '/reactions-preinit');
+            if ( !empty($code) && $code !== "" ) {
+                eval($code);
+            }
+        }
+        
+        // Eval (include) code from (organizaed reaction) files
+        if ( strpos( $_SERVER["REQUEST_URI"], "-NO-FILE-HOOK-REACTION-") === false ) {
+            if ( is_dir(__DIR__  . '/reactions') ) {
+                $files = scandir(__DIR__  . '/reactions');
                 foreach ( $files as $file ) {
                     if ( strtolower(substr($file, -4)) === '.php' ) {
-                        $filePath = __DIR__  . '/reactions-preinit/' . $file;
-                        include $filePath;
+                        if ( stripos( $_SERVER["REQUEST_URI"], "-NO-" . $file . "-HOOK-REACTION-") === false ) {
+                            $filePath = __DIR__  . '/reactions/' . $file;
+                            include $filePath;
+                        }
                     }
                 }
             }
         }
+        
+        // Eval (include) code from settings (post-file-reactions)
+        if ( 
+            strpos( $_SERVER["REQUEST_URI"], "-NO-DB-HOOK-REACTION-") === false 
+            && strpos( $_SERVER["REQUEST_URI"], "-NO-POSTFILE-HOOK-REACTION-") === false 
+        ) {
+            $code = hooks_reaction_loadCodeFromSettings();
+            if ( !empty($code) && $code !== "" ) {
+                eval($code);
+            }
+        }
+        
+        global $hookReactionsHasInitialized;
+        $hookReactionsHasInitialized = true;        
+
     }
 }
 /* END: PRE-INIT CODE - This code will execute during inclusion of this file */
-
-function hooks_reaction_init() {
-
-	// Safe-guard option incase we ever shoot ourselvs in the foot (i.e. someon puts an exit() into a common hook or global-code)
-	if ( strpos( $_SERVER["REQUEST_URI"], "-NO-HOOK-REACTION-") !== false ) {
-        // No not implement this module
-		return;
-	}
-	
-	// Eval (include) code from settings (pre-file-reactions)
-	$code = hooks_reaction_loadCodeFromSettings('pre');
-    if ( 
-        strpos( $_SERVER["REQUEST_URI"], "-NO-DB-HOOK-REACTION-") === false 
-        && strpos( $_SERVER["REQUEST_URI"], "-NO-PREFILE-HOOK-REACTION-") === false 
-    ) {
-        if ( !empty($code) && $code !== "" ) {
-            eval($code);
-        }
-    }
-    
-	// Eval (include) code from (global reactions) file
-	$filePath = __DIR__ . '/reactions.php';
-	if ( file_exists($filePath) ) {
-        include($filePath);
-	}
-	
-	// Eval (include) code from (organizaed reaction) files
-    if ( strpos( $_SERVER["REQUEST_URI"], "-NO-FILE-HOOK-REACTION-") === false ) {
-        if ( is_dir(__DIR__  . '/reactions') ) {
-            $files = scandir(__DIR__  . '/reactions');
-            foreach ( $files as $file ) {
-                if ( strtolower(substr($file, -4)) === '.php' ) {
-                    if ( stripos( $_SERVER["REQUEST_URI"], "-NO-" . $file . "-HOOK-REACTION-") === false ) {
-                        $filePath = __DIR__  . '/reactions/' . $file;
-                        include $filePath;
-                    }
-                }
-            }
-        }
-	}
-    
-	// Eval (include) code from settings (post-file-reactions)
-    if ( 
-        strpos( $_SERVER["REQUEST_URI"], "-NO-DB-HOOK-REACTION-") === false 
-        && strpos( $_SERVER["REQUEST_URI"], "-NO-POSTFILE-HOOK-REACTION-") === false 
-    ) {
-        $code = hooks_reaction_loadCodeFromSettings();
-        if ( !empty($code) && $code !== "" ) {
-            eval($code);
-        }
-	}
-    
-	global $hookReactionsHasInitialized;
-	$hookReactionsHasInitialized = true;
-}
 
 /*
  * resource connectMySQL()
@@ -346,16 +321,6 @@ function hooks_reaction_form($form, $form_state) {
 		'#title' => 'Reactions stored in file(s)',
 		'#collapsible' => 1,
 		'#collapsed' => 0
-    );
-	$form['CurrentReactionsCode']['reactions'] = array(
-		'#type' => 'fieldset',
-		'#title' => 'reactions.php',
-		'#collapsible' => 1,
-		'#collapsed' => 1,
-		'#description' =>
-			'<textarea style="width: 100%;" rows="25" disabled="disabled">' . 
-			file_get_contents(__DIR__ . '/reactions.php') . 
-			'</textarea>'
     );
 	if ( is_dir(__DIR__  . '/reactions') ) {
 		$files = scandir(__DIR__  . '/reactions');
