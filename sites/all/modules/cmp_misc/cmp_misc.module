@@ -39,54 +39,6 @@ function cmp_misc_menu() {
     return $items;
 }
 
-/* Implements HOOK_user_login
- *
- * When a user successfully logs into the CMP/Data-Entry site, set a
- * top-domain cookie. This cookie will be used to inform a child-site
- * (when the user navigates to it), that this is an authenticated user
- * [with the CMP site]
- */
-function cmp_misc_user_login($edit, $account) {
-
-    error_log(
-        "User {$account->name} has logged into the CMP, setting a cookie in this"
-            ."user's browser to state they should be admin-links on child-sites."
-    );
-
-    /* I'll programtically detect the top-devel-domain here so this works on our
-    Stage environments */
-    $hostnameParts = explode('.', $_SERVER['HTTP_HOST']);
-    $topLevelDomainName = '.' . array_pop($hostnameParts); // .gov
-    $topLevelDomainName = array_pop($hostnameParts) . $topLevelDomainName; // usa.gov
-
-    // Set cookie saying this user is autheticate with the CMP
-    $secondsInOneDay = 86400;
-    setcookie (
-        'cmp-authenticated', /* cookie name */
-        'yes', /* cookie value */
-        time()+$secondsInOneDay, /* cookie-expiry time */
-        '/', /* cookie shall be available on all pages */
-        $topLevelDomainName /* cookie shall be available on all usa.gov subdomains */
-    );
-
-    // Collect which roles this user has
-    $roles = array();
-    if ( !empty($account->roles) && is_array($account->roles) && count($account->roles) > 0 ) {
-        $roles = $account->roles;
-    }
-
-    // Set a cookie stating what roles this user has on the CMP
-    $secondsInOneDay = 86400;
-    setcookie (
-        'cmp-roles', /* cookie name */
-        implode(',', $roles), /* cookie value */
-        time()+$secondsInOneDay, /* cookie-expiry time */
-        '/', /* cookie shall be available on all pages */
-        $topLevelDomainName /* cookie shall be available on all usa.gov subdomains */
-    );
-
-}
-
 function _get_region_node_count_by_tid($tids) {
 /*
 | field_data_field_asset_order_bottom             |
