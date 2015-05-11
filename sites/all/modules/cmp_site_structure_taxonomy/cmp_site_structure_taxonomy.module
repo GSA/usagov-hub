@@ -1,5 +1,136 @@
 <?php
 
+/*
+ * Implementation of hook_node_delete()
+ */
+function cmp_site_structure_taxonomy_node_delete($node){
+    _validate_remove_only_content_from_term($node);
+}
+
+/*
+ * Implementation of hook_taxonomy_term_delete()
+ */
+function cmp_site_structure_taxonomy_taxonomy_term_presave($term) {
+
+    // check empty pages only for site structure taxonomy
+    if ($term->vocabulary_machine_name == "site_strucutre_taxonomy") {
+        _check_empty_page($term);
+    }
+}
+
+function _validate_remove_only_content_from_term($node) {
+
+
+    if ($node != null && isset($node->field_asset_topic_taxonomy)) {
+
+        // find page which stores this term
+        $sql = "SELECT DISTINCT entity_id as sst_tid FROM field_data_field_asset_topic_taxonomy WHERE bundle = 'site_strucutre_taxonomy' AND field_asset_topic_taxonomy_tid = :asset_tid ";
+        $res = db_query($sql, array(':asset_tid'=>$node->field_asset_topic_taxonomy['und'][0]['tid']));
+
+        foreach($res as $row) {
+            $term = taxonomy_term_load($row->sst_tid);
+            _check_empty_page($term, $node);
+        };
+    }
+}
+function _check_empty_page($term=null, $node=null) {
+
+    if ($term != null
+        && $term->field_generate_page[und][0]['value'] == "yes"
+        && $term->field_generate_menu[und][0]['value'] == "yes"
+    ) {
+        $parent_terms = taxonomy_get_parents_all($term->tid);
+        $parent_term = end($parent_terms);
+
+        // to check whether it is for kids. At least one region needs to have asset assigned. If not, UX team will be notified
+        if ($parent_term->tid == 3072 && $parent_term->name == 'Kids.gov'
+        ) {
+            if ( $node == null
+            && count($term->field_asset_order_carousel['und']) == 0
+            && count($term->field_asset_order_content['und']) == 0
+            && count($term->field_asset_order_sidebar['und']) == 0
+            && count($term->field_asset_order_bottom['und']) == 0
+            && count($term->field_asset_order_menu['und']) == 0) {
+
+                // send email to UX team
+                _cmp_misc_notify_ux_team_about_empty_page($term);
+            }
+            else {
+                $actual_contents = 0;
+
+                if (isset($term->field_asset_order_carousel['und'])) {
+                    foreach ($term->field_asset_order_carousel['und'] as $t) {
+                        if ($t['target_id'] != $node->nid && is_numeric($t['target_id'])) {
+                            $actual_contents++;
+                        }
+                    }
+                }
+
+                if (isset($term->field_asset_order_content['und'])) {
+                    foreach ($term->field_asset_order_content['und'] as $t) {
+                        if ($t['target_id'] != $node->nid && is_numeric($t['target_id'])) {
+                            $actual_contents++;
+                        }
+                    }
+                }
+
+                if (isset($term->field_asset_order_sidebar['und'])) {
+                    foreach ($term->field_asset_order_sidebar['und'] as $t) {
+                        if ($t['target_id'] != $node->nid && is_numeric($t['target_id'])) {
+                            $actual_contents++;
+                        }
+                    }
+                }
+
+                if (isset($term->field_asset_order_bottom['und'])) {
+                    foreach ($term->field_asset_order_bottom['und'] as $t) {
+                        if ($t['target_id'] != $node->nid && is_numeric($t['target_id'])) {
+                            $actual_contents++;
+                        }
+                    }
+                }
+
+                if (isset($term->field_asset_order_menu['und'])) {
+                    foreach ($term->field_asset_order_menu['und'] as $t) {
+                        if ($t['target_id'] != $node->nid && is_numeric($t['target_id'])) {
+                            $actual_contents++;
+                        }
+                    }
+                }
+
+                if ($actual_contents == 0) {
+                    // send email to UX team
+                    _cmp_misc_notify_ux_team_about_empty_page($term);
+                }
+            }
+        }
+        else {
+
+            // assuming that it could be usa.gov or gobierno.gov
+            if ($term->field_type_of_page_to_generate[und][0]['value'] == "generic-content-page"
+                && ((isset($term->field_asset_topic_taxonomy[und][0]['tid']) && _get_node_count_by_tid(array($term->field_asset_topic_taxonomy[und][0]['tid']), array($node->nid)) == 0)
+                || !isset($term->field_asset_topic_taxonomy[und][0]['tid']))
+            ) {
+
+                // send email to UX team
+                _cmp_misc_notify_ux_team_about_empty_page($term);
+            }
+
+            $children_terms = taxonomy_get_children($term->tid);
+            if ($term->field_type_of_page_to_generate[und][0]['value'] == "generic-navigation-page" && count($children_terms) == 0) { // no children
+                // send email to UX team
+                _cmp_misc_notify_ux_team_about_empty_page($term);
+            }
+
+            if ($term->field_type_of_page_to_generate[und][0]['value'] == "50-state-page" && $term->field_usa_gov_50_state_category[und][0]['value'] == '_none') { // no children
+                // send email to UX team
+                _cmp_misc_notify_ux_team_about_empty_page($term);
+            }
+        }
+    }
+
+}
+
 function cmp_site_structure_taxonomy_form_alter(&$form,&$form_state){
     //dsm($form);
 
