@@ -226,11 +226,27 @@ function hooks_reaction_menu() {
     'description' => 'Configure code to execute when certain Drupal hooks are triggered',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('hooks_reaction_form'),
-    'access arguments' => array('access administration pages'),
+    'access callback' => 'hooks_reaction_userIsAdmin',
     'type' => MENU_NORMAL_ITEM,
   );
   
   return $items;
+}
+
+function hooks_reaction_userIsAdmin() {
+
+    global $user;
+    
+    if ( !empty($user->roles) && is_array($user->roles) ) {
+        foreach ( $user->roles as $role ) {
+            if ( $role == 'administrator' ) {
+
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 function _removeClosures($mixed) {
