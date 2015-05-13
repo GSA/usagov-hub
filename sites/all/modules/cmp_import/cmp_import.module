@@ -80,7 +80,103 @@ function cmp_import_menu() {
         'access callback' => TRUE
     );
 
+    $items['clean-kids-data/%'] = array(
+        'title' => 'unpublish kids some nodes',
+        'page callback' => '_clean_kids_data',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE,
+        'page arguments' => array(1)
+    );
+
     return $items;
+}
+
+function _clean_kids_data($type) {
+
+    // analyze html asset clean up
+    $sql = "SELECT n.nid FROM node n
+            WHERE n.type = :type AND n.status = 1 ";
+    $res = db_query($sql, array(":type"=>$type));
+    $ret = "";
+    $kids_assigned = array();
+    $non_kids = array();
+    $kids_no_region = array();
+    foreach($res as $row) {
+
+        $node = node_load($row->nid);
+      //  dsm($node);
+        for($j=0; $j < count($node->field_asset_topic_taxonomy['und']); $j++) {
+            // to check it has kids asset taxonomy assigned
+            $term_parents = taxonomy_get_parents_all($node->field_asset_topic_taxonomy['und'][$j]['tid']);
+            $is_kids_asset = FALSE;
+
+            $parent_terms = array();
+            foreach($term_parents as $a_term) {
+                if ($a_term->tid == 3897) { // whether it is kids asset topic taxonomy
+                    $is_kids_asset = TRUE;
+
+                }
+                $parent_terms[] = $a_term->name;
+            }
+            //$ret.= 'TAXONOMY ANALYSIS >>> '.$node->field_asset_topic_taxonomy['und'][$j]['tid'] . ' ' . $is_kids_asset . '--' . join('>>', $parent_terms) .  '<br/>';
+        }
+
+        if ($is_kids_asset) {
+            // node belongs to certain regions
+            /*
+            | field_data_field_asset_order_bottom           |
+            | field_data_field_asset_order_carousel         |
+            | field_data_field_asset_order_content          |
+            | field_data_field_asset_order_menu             |
+            | field_data_field_asset_order_sidebar          |
+             */
+            $sql_btm = "SELECT COUNT(*) FROM field_data_field_asset_order_bottom WHERE field_asset_order_bottom_target_id = :node_id ";
+            $res_btm = db_query($sql_btm, array(":node_id" => $row->nid))->fetchField();
+
+            $sql_crl = "SELECT COUNT(*) FROM field_data_field_asset_order_carousel WHERE field_asset_order_carousel_target_id = :node_id ";
+            $res_crl = db_query($sql_crl, array(":node_id" => $row->nid))->fetchField();
+
+            $sql_con = "SELECT COUNT(*) FROM field_data_field_asset_order_content WHERE field_asset_order_content_target_id = :node_id ";
+            $res_con = db_query($sql_con, array(":node_id" => $row->nid))->fetchField();
+
+            $sql_mnu = "SELECT COUNT(*) FROM field_data_field_asset_order_menu WHERE field_asset_order_menu_target_id = :node_id ";
+            $res_mnu = db_query($sql_mnu, array(":node_id" => $row->nid))->fetchField();
+
+            $sql_sdbr = "SELECT COUNT(*) FROM field_data_field_asset_order_sidebar WHERE field_asset_order_sidebar_target_id = :node_id ";
+            $res_sdbr = db_query($sql_sdbr, array(":node_id" => $row->nid))->fetchField();
+
+            if ($res_sdbr == 0 && $res_mnu == 0 && $res_con == 0 && $res_crl == 0 && $res_btm == 0) {
+                // node is not. Node needs to be deleted
+                $kids_no_region[$row->nid] = $node;
+            } else {
+                $kids_assigned[$row->nid] = $row->nid;
+            }
+        }
+        else {
+            $non_kids[$row->nid] = $row->nid;
+        }
+    }
+
+    $ret .= " <BR> <H3> NON KIDS ASSET : " . count($non_kids) . "</H3>";
+    dsm($non_kids);
+
+    $ret .= " <BR> <H3> KIDS ASSET FOUND IN REGION : " . count($kids_assigned) . "</H3>";
+    dsm($kids_assigned);
+
+    $ret .= " <BR> <H3> KIDS ASSET NOT FOUND IN REGION : " . count($kids_no_region) . "</H3>";
+    dsm($kids_no_region);
+
+    // change the title. It will be deleted in the future
+
+    foreach($kids_no_region as $deleting_node) {
+        //set flag
+        $new_title = str_replace("!!!NEED TO BE DELETED!!!", '', $deleting_node->title);
+        $deleting_node->title = $new_title ." !!!NEED TO BE DELETED!!!";
+        //node_delete($deleting_node->nid);
+        $ret .= "<br/>" . $deleting_node->nid;
+    }
+
+    return $ret;
 }
 
 function _fix_percussion_links(){

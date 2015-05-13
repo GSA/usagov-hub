@@ -1,0 +1,4 @@
+name = CMP Export Directory Records content as XML
+description = Module will be used for exporting directory records content as xml
+package = CTAC Custom
+core = 7.x
