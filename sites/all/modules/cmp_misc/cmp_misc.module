@@ -68,8 +68,12 @@ function _get_region_node_count_by_tid($tids) {
         WHERE t.entity_id IN (' . implode(',', $tids) . ') AND n.status = 1';
     $res_m = db_query($sql_m)->fetchField();
 */
-    $sql_s = 'SELECT field_asset_topic_taxonomy_tid FROM field_data_field_asset_topic_taxonomy t
-        WHERE t.entity_id IN (' . implode(',', $tids) . ')';
+    if ( empty($tids) ) { return 0; }
+    $tid_list = implode(',',$tids);
+    if ( empty($tid_list) ) { return 0; }
+
+    $sql_s = "SELECT field_asset_topic_taxonomy_tid FROM field_data_field_asset_topic_taxonomy t
+        WHERE t.entity_id IN ( $tid_list )";
     $res_s = db_query($sql_s)->fetchField();
    // if (!empty($res_s_))
     //return _get_node_count_by_tid(array($res_s));
