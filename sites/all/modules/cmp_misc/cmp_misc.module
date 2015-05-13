@@ -1,7 +1,35 @@
 <?php
 
-function cmp_misc_init() {
+/** update base_url to be https **/
+if ( empty($GLOBALS['base_url']) && !empty($_SERVER['HTTP_HOST']) )
+{
+    $GLOBALS['base_url'] = ( (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS']=='on') ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'];
+} else {
+    //header('XXX: BASE_URL ALREADY SET');
+}
+/*
+if ( !empty(getenv('CMP_AWS_S3_BUCKET')) )
+{
+    if ( empty(variable_get('s3fs_bucket')) )
+    {
+        variable_set( 's3fs_bucket',     getenv('CMP_AWS_S3_BUCKET') );
+        variable_set( 'amazons3_bucket', getenv('CMP_AWS_S3_BUCKET') );
+        if ( isset($GLOBALS['conf']) && isset($GLOBALS['conf']['s3fs_bucket']) )
+        {
+            $GLOBALS['conf']['s3fs_bucket'] = getenv('CMP_AWS_S3_BUCKET');
+        }
+    }
 
+    if ( isset($_POST['s3fs_bucket']) && empty($_POST['s3fs_bucket']) )
+    {
+        $_POST['s3fs_bucket']    = getenv('CMP_AWS_S3_BUCKET');
+        $_REQUEST['s3fs_bucket'] = getenv('CMP_AWS_S3_BUCKET');
+    }
+}*/
+
+
+function cmp_misc_init()
+{
     drupal_add_js(drupal_get_path('module', 'cmp_misc') .'/js/global.js');
     drupal_add_css(drupal_get_path('module', 'cmp_misc') .'/global_fix.css');
 }
@@ -11,11 +39,68 @@ function cmp_misc_menu() {
     return $items;
 }
 
-function _get_node_count_by_tid($tids){
+function _get_region_node_count_by_tid($tids) {
+/*
+| field_data_field_asset_order_bottom             |
+| field_data_field_asset_order_carousel           |
+| field_data_field_asset_order_content            |
+| field_data_field_asset_order_menu               |
+| field_data_field_asset_order_sidebar            |
+ * */
 
-    $sql = 'SELECT COUNT(*) FROM node n
-        INNER JOIN taxonomy_index t ON n.nid = t.nid
-        WHERE t.tid IN (' . implode(',', $tids) . ') AND n.status = 1';
+    /*$sql_b = 'SELECT COUNT(*) FROM node n
+        INNER JOIN field_data_field_asset_order_bottom t ON n.nid = t.field_asset_order_bottom_target_id
+        WHERE t.entity_id IN (' . implode(',', $tids) . ') AND n.status = 1';
+    $res_b = db_query($sql_b)->fetchField();
+
+    $sql_car = 'SELECT COUNT(*) FROM node n
+        INNER JOIN field_data_field_asset_order_carousel t ON n.nid = t.field_asset_order_carousel_target_id
+        WHERE t.entity_id IN (' . implode(',', $tids) . ') AND n.status = 1';
+    $res_car = db_query($sql_car)->fetchField();
+
+    $sql_con = 'SELECT COUNT(*) FROM node n
+        INNER JOIN field_data_field_asset_order_content t ON n.nid = t.field_asset_order_content_target_id
+        WHERE t.entity_id IN (' . implode(',', $tids) . ') AND n.status = 1';
+    $res_con = db_query($sql_con)->fetchField();
+
+    $sql_m = 'SELECT COUNT(*) FROM node n
+        INNER JOIN field_data_field_asset_order_menu t ON n.nid = t.field_asset_order_menu_target_id
+        WHERE t.entity_id IN (' . implode(',', $tids) . ') AND n.status = 1';
+    $res_m = db_query($sql_m)->fetchField();
+*/
+    if ( empty($tids) ) { return 0; }
+    $tid_list = implode(',',$tids);
+    if ( empty($tid_list) ) { return 0; }
+
+    $sql_s = "SELECT field_asset_topic_taxonomy_tid FROM field_data_field_asset_topic_taxonomy t
+        WHERE t.entity_id IN ( $tid_list )";
+    $res_s = db_query($sql_s)->fetchField();
+   // if (!empty($res_s_))
+    //return _get_node_count_by_tid(array($res_s));
+    return $res_s;
+}
+
+function _get_node_count_by_tid($tids, $not_include_nids = null)
+{
+    if ( empty($tids) ) { return 0; }
+    $tid_list = implode(',',$tids);
+    if ( empty($tid_list) ) { return 0; }
+
+    $nid_list = '';
+    if ( is_array($not_include_nids) && !empty($not_include_nids) )
+    {
+        $nids = implode(',',$not_include_nids);
+        if ( !empty($nids) )
+        {
+            $nid_list = " AND n.nid NOT IN ( $nid_list )";
+        }
+    }
+    $sql = "
+        SELECT COUNT(*)
+        FROM node n
+            INNER JOIN taxonomy_index t ON n.nid = t.nid
+        WHERE t.tid IN ( $tid_list )
+              AND n.status = 1 $nid_list";
 
     $res = db_query($sql)->fetchField();
 
@@ -99,10 +184,10 @@ function cmp_misc_views_pre_render(&$view) {
             //$page_count= $asset_count+$term_page_count;
 
             $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
-                . $child_term_count . ' Child Page' . (($child_term_count!=1)?'s':'') . ', '
-                . $nav_count . ' Supplimental Nav Link'. (($nav_count!=1)?'s':'') . ', '
-                . $asset_count . ' Asset' . (($asset_count!=1)?'s':'') . ', '
-                . $topic_count . ' Subtopic' . (($topic_count!=1)?'s':'') . ' )';
+                . $child_term_count . ' Child Page' . (($child_term_count!=0)?'s':'') . ', '
+                . $nav_count . ' Supplemental Nav Link'. (($nav_count!=0)?'s':'') . ', '
+                . $asset_count . ' Asset' . (($asset_count!=0)?'s':'') . ', '
+                . $topic_count . ' Asset Node' . (($topic_count!=0)?'s':'') . ' )';
 
             $view->result[$i]->taxonomy_term_data_name = $new_title;
             $i++;
@@ -113,19 +198,37 @@ function cmp_misc_views_pre_render(&$view) {
             && is_array($view->exposed_data)
             && $view->exposed_data['machine_name'] == 'asset_topic_taxonomy')? TRUE : FALSE;
 
+        $is_site_structure = (isset($view->exposed_data)
+            && is_array($view->exposed_data)
+            && $view->exposed_data['machine_name'] == 'site_strucutre_taxonomy')? TRUE : FALSE;
+
+
+        $i=0;
         foreach($view->result as $row){
+
+            $array_tids[]=$row->tid;
             $asset_count = _get_node_count_by_tid(array($row->tid));
 
-            $child_topics = ($is_asset_topic) ? _get_child_terms_count_by_tid($row->tid) : 0;
+            $child_topics = ($is_asset_topic || $is_site_structure) ? _get_child_terms_count_by_tid($row->tid) : 0;
+
+            if ($is_site_structure) {
+                // node should be counted differently it will look for regions
+                // find asset topic which is assigned to field_data_field_asset_topic_taxonomy
+                $asset_tid = _get_region_node_count_by_tid(array($row->tid));
+                if (is_numeric($asset_tid)) {
+                    $asset_count = _get_node_count_by_tid(array($asset_tid));
+                }
+            }
 
             $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
-                . $asset_count . ' Asset' . (($asset_count!=1)?'s':'')
-                . ($is_asset_topic? (', ' . ($child_topics . ' Subtopic' . (($child_topics!=1)?'s':''))) : '')
+                . $asset_count . ' Asset' . (($asset_count!=0)?'s':'')
+                . ($is_asset_topic || $is_site_structure? (', ' . ($child_topics . ' Asset Node' . (($child_topics!=0)?'s':''))) : '')
                 . ' )';
 
             $view->result[$i]->taxonomy_term_data_name = $new_title;
             $i++;
         }
+
     }
     elseif($view->name == 'overriden_content_report' && $view->current_display == 'overriden_content_report_page') {
 
@@ -186,6 +289,47 @@ function cmp_misc_node_ever_published($node) {
 
 
 function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
+
+    // Kill any way for someone to reset the admin password - we can do this in the database if we need to
+    // Or we can: drush uli
+    if ( $form_id === 'user_pass' || $form_id === 'user_pass_block' ) {
+        $form = array();
+        exit('Service disabled');
+    }
+
+    // Disable the user log-in form, force SecureAuth
+    if ( $form_id === 'user_login' || $form_id === 'user_login_block' ) {
+
+        // Force the login process to only be accessible over HTTPS
+        if ( empty($_SERVER['HTTPS']) ) {
+            @ob_end_clean();
+            while(@ob_end_clean());
+            header('Location: https://'.$_SERVER['HTTP_HOST'].request_uri());
+            drupal_add_http_header('Location', 'https://'.$_SERVER['HTTP_HOST'].request_uri());
+            exit();
+        }
+
+        // Only show the SecureAuth login link, unless the right key is provided
+        if ( strpos($_SERVER['REQUEST_URI'], 'Q8RWOD4HQ4') === false ) {
+            unset($form['name']);
+            unset($form['pass']);
+            unset($form['actions']);
+            unset($form['links']);
+            unset($form['#submit']);
+            drupal_add_js(
+                "
+                    jQuery(document).ready( function () {
+                        jQuery('.saml-link a').text('Log in through GSA Secure-Auth');
+                    });
+                ",
+                'inline'
+            );
+            drupal_add_css("ul.tabs.primary { display: none !important; }", "inline");
+        } else {
+            // do nothing, show the Drupal login form
+        }
+    }
+
     // If this is the edit form for any node under the 'Text Asset' content-type
     //if ( $form_id === 'text_content_type_node_form' ) {
 
@@ -202,9 +346,9 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
             if ( $isAdmin ) { return; } /// admin can always see delete
             /// if !ever_published : delete button
             if ( !$everPublished ) { return; } /// anyone can see delete
-            /// if  ever_published &&  awaiting_deletion && !(state:awaiting->deleted) : disabled delete button + message    
-            if ( $workflowState=='awaiting_deletion' && !$canApproveDelete && !empty($form['actions']['delete']) ) 
-            { /* awaiting deletion approval */ 
+            /// if  ever_published &&  awaiting_deletion && !(state:awaiting->deleted) : disabled delete button + message
+            if ( $workflowState=='awaiting_deletion' && !$canApproveDelete && !empty($form['actions']['delete']) )
+            { /* awaiting deletion approval */
                 $form['actions']['delete']['#value'] = 'Awaiting Deletion';
                 $form['actions']['delete']['#type'] = 'button';
                 unset($form['actions']['delete']['#submit']);
@@ -215,13 +359,13 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
                 return;
             }
             /// if  ever_published &&  awaiting_deletion &&  (state:awaiting->deleted) : approve soft delete button
-            if ( $workflowState=='awaiting_deletion' &&  $canApproveDelete && !empty($form['actions']['delete']) ) 
-            { /* approve deletion */ 
+            if ( $workflowState=='awaiting_deletion' &&  $canApproveDelete && !empty($form['actions']['delete']) )
+            { /* approve deletion */
                 $form['actions']['delete']['#value'] = 'Approve Deletion';
                 return;
             }
             /// if  ever_published &&  deleted : show state
-            if ( $workflowState=='deleted' && !empty($form['actions']['delete']) ) 
+            if ( $workflowState=='deleted' && !empty($form['actions']['delete']) )
             {
                 $form['actions']['delete']['#value'] = 'Already Deleted';
                 $form['actions']['delete']['#type'] = 'button';
@@ -262,7 +406,21 @@ function cmp_misc_mail_alter(&$message) {
     $message['headers']['Content-Type'] = "html/text; charset=UTF-8; format=flowed; delsp=yes";
 }
 
+/*
+ * Implements HOOK_node_presave
+ */
+function cmp_misc_node_presave($node) {
 
+    // Strip trailing empty <p> tags from text-asset body fields
+    if ( $node->type == 'text_content_type' && !empty($node->body['und'][0]['value']) ) {
+        while ( substr($node->body['und'][0]['value'], -13) === '<p>&nbsp;</p>' ) {
+            $strLen = strlen($node->body['und'][0]['value']);
+            $bodyVal = $node->body['und'][0]['value'];
+            $node->body['und'][0]['value'] = substr($bodyVal, 0, $strLen - 13);
+        }
+    }
+
+}
 
 /*
  * Implements HOOK_node_insert
@@ -293,64 +451,21 @@ function cmp_misc_node_insert($node) {
 
 }
 
-/*
- * Implements HOOK_node_update
- *
- * Some node(s) have a field_workflow_state_search field, which we want to always contain the current workflow-status.
- * We use this field as an easy way to obtain the workflow information with the ElasticSearch mdoule...
- */
-function cmp_misc_node_update($node) {
-
-    // If this node is of a content-type that has the workflow_state_search field....
-    if ( isset($node->field_workflow_state_search) ) {
-
-        // and if this node is under use of the workbench_moderation/workflow module...
-        if ( isset($node->field_workflow_state_search) || !empty($node->workbench_moderation_state_new) ) {
-            
-            // Get the current work-flow status
-            if ( !empty($node->workbench_moderation_state_new) ) {
-                $currentWorkFlowStatus = $node->workbench_moderation_state_new; // only exsists when value changed?
-            } else {
-                $currentWorkFlowStatus = $node->workbench_moderation['current']->state; // seems to contain old value when the work-flow changes
-            }
-
-            // then set the current workflow-status into the workflow_state_search field
-            $node->field_workflow_state_search = array(
-                'und' => array(
-                    0 => array(
-                        'value' => $currentWorkFlowStatus
-                    )
-                )
-            );
-
-            // Debug - for those of us who tail the error_log
-            $myFunct = __FUNCTION__;
-            error_log(
-                "Notice: {$myFunct} has set the current workflow-status ({$currentWorkFlowStatus}) "
-                ."into field_workflow_state_search for node {$node->nid} ({$node->title})"
-            );
-        }
-    }
-
-}
-
-
-
-function cmp_misc_entity_load($entities, $type) 
+function cmp_misc_entity_load($entities, $type)
 {
-    if ( $type === 'file' ) 
+    if ( $type === 'file' )
     {
-        foreach ( $entities as $theEntity ) 
+        foreach ( $entities as $theEntity )
         {
-            if ( !isset($theEntity->type) && isset($theEntity->uri) && strpos($theEntity->uri, 's3://') === 0 ) 
+            if ( !isset($theEntity->type) && isset($theEntity->uri) && strpos($theEntity->uri, 's3://') === 0 )
             {
                 $theEntity->type = 'image';
             }
         }
     }
-    if ( $type === 'node' ) 
+    if ( $type === 'node' )
     {
-        foreach ( $entities as $theEntity ) 
+        foreach ( $entities as $theEntity )
         {
             if ( $row = db_query("select deleted, deletion_uid, deletion_timestamp, uuid from {node} where {node}.nid = {$theEntity->nid}")->fetchAssoc() )
             {
@@ -363,6 +478,282 @@ function cmp_misc_entity_load($entities, $type)
     }
 }
 
+/*
+ * Implementation of hook_cronapi
+ */
+function cmp_misc_cronapi($op, $job = NULL) {
+
+    $items['cmp_misc_daily_content_scan_cron'] = array(
+        'description' => 'Send email to owner about stale/old content',
+        'rule' => '0 3 * * *', // Every day at 3am
+        'callback' => '_cmp_misc_send_report',
+    );
+
+    $items['cmp_misc_publish_and_archival_cron'] = array(
+        'description' => 'Auto Publishing/Archiving Content',
+        'rule' => '*/5 * * * *', // Every 5 minutes to give us time to hit 15min target
+        'callback' => '_cmp_misc_check_content_freshness',
+    );
+    return $items;
+}
+
+function _cmp_misc_check_content_freshness()
+{
+    $pub = _cmp_misc_auto_publish_content();
+    $arv = _cmp_misc_auto_archive_content();
+    watchdog( 'cron', "FreshCheck: Auto-Publish($pub) Auto-Archive($arv)");
+}
+
+function _cmp_misc_auto_publish_content()
+{
+    /// trigger a workflow state transition to published, this will aoutomatically trigger a legit publish as well
+    $records = db_query(
+             'SELECT
+                n.nid, n.vid as pub_rev, c.vid as curr_rev,
+                r.status as curr_rev_status,
+                d.deletion_timestamp,
+                a.field_archive_date_value,
+                p.field_schedule_publish_value,
+                w.state
+              FROM
+                {node} n
+                LEFT JOIN ( # use current revision
+                    select nid, max(vid) as vid
+                    from   {node_revision}
+                    group by nid
+                )                                                 c on ( c.nid = n.nid )
+                LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
+                LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
+                LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
+              WHERE
+                # node is not deleted
+                d.deletion_timestamp IS NULL
+                # current revision is not already published
+                AND r.status != 1
+                # is not archived
+                AND (
+                    # no archive date set
+                    a.field_archive_date_value IS NULL
+                    OR (
+                        # has archive date set
+                        a.field_archive_date_value IS NOT NULL
+                        AND # archive date is in the future
+                        UNIX_TIMESTAMP(a.field_archive_date_value) > :now
+                    )
+                )
+                # is publishable
+                AND (
+                    # has no publish date set
+                    p.field_schedule_publish_value IS NULL
+                    OR (
+                        # has publish date set
+                        p.field_schedule_publish_value IS NOT NULL
+                        AND # publish date is in the past
+                        UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
+                    )
+                )
+                AND w.state = \'scheduled_for_publication\'
+            ',array( ":now" => REQUEST_TIME )
+    )->fetchAll();
+
+    foreach  ( $records as $record )
+    {
+        $node = node_load($record->nid,$record->curr_rev);
+        workbench_moderation_moderate($node,workbench_moderation_state_published());
+    }
+    return count($records);
+}
+
+function _cmp_misc_auto_archive_content()
+{
+    /// Just unplublish any nodes with a previous archive date. archive date trumps publication date
+    $records = db_query(
+             'SELECT
+                n.nid, n.vid as curr_rev,
+                n.status,
+                d.deletion_timestamp,
+                a.field_archive_date_value
+              FROM
+                {node} n
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND n.vid = a.revision_id )
+              WHERE
+                # node is not deleted
+                d.deletion_timestamp IS NULL
+                # any revision of the node is currently published
+                AND n.status = 1
+                # is archivable
+                AND (
+                    # archive date set
+                    a.field_archive_date_value IS NOT NULL
+                    AND # archive date is in the past
+                    UNIX_TIMESTAMP(a.field_archive_date_value) < :now
+                )
+            ',array( ":now" => REQUEST_TIME )
+    )->fetchAll();
+
+    foreach  ( $records as $record )
+    {
+        $node = node_load($record->nid,$record->curr_rev);
+        $node->status = 0;
+        node_save($node);
+    }
+    return count($records);
+}
+
+function _cmp_misc_node_past_publication_date($node)
+{
+    /// Not deleted, not already published, not archived, has past publish date
+    return db_query(
+             'SELECT
+                n.nid, n.vid as pub_rev, c.vid as curr_rev,
+                r.status as curr_rev_status,
+                d.deletion_timestamp,
+                a.field_archive_date_value,
+                p.field_schedule_publish_value
+              FROM
+                {node} n
+                LEFT JOIN ( # use current revision
+                    SELECT nid, max(vid) as vid
+                    FROM   {node_revision}
+                    WHERE nid = :nid
+                    GROUP BY nid
+                )                                                 c on ( n.nid = c.nid )
+                LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
+                LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
+                LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
+              WHERE
+                # node is our node
+                n.nid = :nid
+                # node is not deleted
+                AND d.deletion_timestamp IS NULL
+                # current revision is not already published
+                AND r.status != 1
+                # is not archived
+                AND (
+                    # no archive date set
+                    a.field_archive_date_value IS NULL
+                    OR (
+                        # has archive date set
+                        a.field_archive_date_value IS NOT NULL
+                        AND # archive date is in the future
+                        UNIX_TIMESTAMP(a.field_archive_date_value) > :now
+                    )
+                )
+                # is publishable
+                AND (
+                    # has no publish date set
+                    p.field_schedule_publish_value IS NULL
+                    OR (
+                        # has publish date set
+                        p.field_schedule_publish_value IS NOT NULL
+                        AND # publish date is in the past
+                        UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
+                    )
+                )
+            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME )
+    )->rowCount();
+}
+
+function _cmp_misc_node_future_publication_date($node)
+{
+    /// Not deleted, not already published, not archived, has future publish date
+    return db_query(
+             'SELECT
+                n.nid, n.vid as pub_rev, c.vid as curr_rev,
+                r.status as curr_rev_status,
+                d.deletion_timestamp,
+                a.field_archive_date_value,
+                p.field_schedule_publish_value
+              FROM
+                {node} n
+                LEFT JOIN ( # use current revision
+                    SELECT nid, max(vid) as vid
+                    FROM   {node_revision}
+                    WHERE nid = :nid
+                    GROUP BY nid
+                )                                                 c on ( n.nid = c.nid )
+                LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
+                LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
+                LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
+              WHERE
+                # node is our node
+                n.nid = :nid
+                # node is not deleted
+                AND d.deletion_timestamp IS NULL
+                # current revision is not already published
+                AND r.status != 1
+                # is not archived
+                AND (
+                    # no archive date set
+                    a.field_archive_date_value IS NULL
+                    OR (
+                        # has archive date set
+                        a.field_archive_date_value IS NOT NULL
+                        AND # archive date is in the future
+                        UNIX_TIMESTAMP(a.field_archive_date_value) > :now
+                    )
+                )
+                # is future-publishable
+                AND (
+                    # has publish date set
+                    p.field_schedule_publish_value IS NOT NULL
+                    AND # publish date is in the past
+                    UNIX_TIMESTAMP(p.field_schedule_publish_value) > :now
+                )
+            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME )
+    )->rowCount();
+}
+
+// function _cmp_misc_forget_recent_publish($node)
+// {
+//     $hist = db_query('SELECT *
+// 	          FROM   workbench_moderation_node_history h
+// 	          WHERE nid = :nid
+// 	          ORDER BY stamp DESC LIMIT 2',array(":nid"=>$node->nid))->fetchAll();
+//     if ( count($hist) == 2 && $hist[0]->state==workbench_moderation_state_published() && $hist[1]->state=='scheduled_for_publication' )
+//     {
+//         db_query(
+//             'update {workbench_moderation_node_history} set from_state = :from_state where hid = :hid',
+//             array( ":from_state"=>$hist[0]->from_state, ":hid"=>$hist[1]->hid ));
+//         db_query(
+//             'delete from {workbench_moderation_node_history} where hid = :hid',
+//             array( ":hid"=>$hist[0]->hid ));
+//     }
+
+//     /* Bug killer - in some specific edge case, another process (after the call to this function) may set the status 
+//     to 1 for this node on the node table - so we shall ensure that status is 0 by use of register_shutdown_function() */
+//     drupal_register_shutdown_function("db_query", "UPDATE node SET status=0 WHERE nid={$node->nid}");
+// }
+
+function _cmp_misc_get_expiring_nodes()
+{
+    $expiring_date = strtotime(date('Y-m-d H:i:s') . ' -6 months');
+
+    $sql = "SELECT n.nid, n.title FROM field_data_field_date_last_reviewed lr
+        INNER JOIN node n ON n.nid = lr.entity_id
+        WHERE n.status = 1 AND UNIX_TIMESTAMP(lr.field_date_last_reviewed_value) <= :start_date";
+    $result = db_query($sql, array(':start_date'=>$expiring_date));
+    $arr = array();
+    foreach($result as $row) {
+        $node = node_load($row->nid);
+
+        if (isset($node->field_owner['und'][0]['target_id'])) {
+            $user = user_load($node->field_owner['und'][0]['target_id']);
+            $arr[$node->field_owner['und'][0]['target_id']]['nodes'][] = l($node->title, 'node/'. $node->nid);
+            $arr[$node->field_owner['und'][0]['target_id']]['name'] = $user->name;
+            $arr[$node->field_owner['und'][0]['target_id']]['mail'] = $user->mail;
+        }
+    }
+    return $arr;
+
+}
 
 /**
  * Allows modules to respond to state transitions.
@@ -378,6 +769,25 @@ function cmp_misc_entity_load($entities, $type)
  */
 function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_state)
 {
+    #if ( $new_state == workbench_moderation_state_published()
+        /// allow a user to force a published transition for items already in 'scheduled' state
+        /// so two publish attempts in a row would immediately publish the content
+        # && $previous_state != 'scheduled_for_publication'
+    #      && _cmp_misc_node_future_publication_date($node) )
+    #{
+    #    workbench_moderation_moderate( $node, 'scheduled_for_publication' );
+    #    _cmp_misc_forget_recent_publish($node);
+    #}
+
+    // any state >>> scheduled_for_publication
+    // throw this straight to published if we can
+    if ( $new_state=='scheduled_for_publication' 
+         && ( _cmp_misc_node_past_publication_date($node) >= 1 ) )  
+    {
+        workbench_moderation_moderate( $node, workbench_moderation_state_published() );
+    }
+
+
     // needs approval >>> needs discussion
     if ($previous_state == 'needs_review' && $new_state == 'needs_discussion') {
         $node_vs = node_revision_list($node);
@@ -411,7 +821,6 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
         _cmp_misc_send_needs_approval_notice_person( $node);
     }
 
-
     /* Some node(s) have a field_workflow_state_search field, which we want to always contain the current workflow-status.
     We use this field as an easy way to obtain the workflow information with the ElasticSearch mdoule... */
     if ( isset($node->field_workflow_state_search) ) { // If this node is of a content-type that has the workflow_state_search field....
@@ -424,12 +833,12 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
         loading and saving the node [right here] because the node may be undergoing [an incomplete] alteration
         at this line (in this function) */
         // Schedule helper-function _cmp_misc_setWorkflowStatusSearchTextField() on PHP-thread-termination
-        register_shutdown_function(
+       /* register_shutdown_function(
             '_cmp_misc_setWorkflowStatusSearchTextField',
             $node->nid,
             $node->vid,
             $new_state
-        );
+        );*/
 
     }
 
@@ -531,4 +940,205 @@ function _cmp_misc_send_last_edited_person($user_to_send, $node) {
     if ($res["send"]) {
         drupal_set_message("Person who last revision created is " . $user_to_send->name . ". Notification email has been sent." . $to);
     }
+}
+
+function _cmp_misc_notify_ux_team_about_empty_page($term) {
+
+    /*
+    $query = 'SELECT DISTINCT(ur.uid) FROM {users_roles} AS ur WHERE ur.rid IN (:rids)';
+    $result = db_query($query, array(':rids' => array(27)));
+    $uids = $result->fetchCol();
+    $users = user_load_multiple($uids);
+    $ux_members_emails = array();
+    foreach($users as $u) {
+        $ux_members_emails[] = $u->mail;
+    }
+    $to = (join(',', $ux_members_emails));
+
+     */
+
+    $to = "achuluunkhuu@ctacorp.com, lkhon@ctacorp.com";
+
+    // Subject
+    $params['subject'] = "Empty Page: ".$term->name;
+
+    $alias = drupal_get_path_alias("/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy");
+    // body
+    $params['body'] = '<b>Page becomes empty</b> - <a href="' . $alias . '">' . $term->name . '</a> <br/>';
+    $params['body'] .= '<b>Summary</b> - ' . $term->field_page_intro['und'][0]['value'] . ' <br/>';
+    $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i');
+
+    $from = variable_get('site_mail', '');
+
+    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+
+    $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+
+    if ($res["send"]) {
+        drupal_set_message("Notified about Empty page creation. Notification email has been sent." . $to);
+    }
+}
+
+function _cmp_misc_send_report() {
+
+    watchdog('cron',"STARTED >> DAILY SCANNING CONTENT: " . date('Y-m-d H:i:s'));
+
+    $ret = _cmp_misc_get_expiring_nodes();
+    $subject = "CMP Content Scan Result: " . date('Y-m-d H:i:s');
+    $res = "";
+
+    foreach($ret as $t =>$k) {
+        $to = $k['mail'] .', ariun2006@gmail.com';
+        $body="Dear " . $k['name'] . ", <br />You have the following content that has not been reviewed for more than 6 months: <br/>";
+        $body .= "<ul>";
+
+        foreach($k['nodes'] as $node_link) {
+            $body .= '<li>' . $node_link . '</li>';
+        }
+
+        $body .= "</ul>";
+
+        // Subject
+        $params['subject'] = $subject;
+
+        // body
+        $params['body'] = $body;
+
+
+        $from = variable_get('forward_sender_address', '');
+        if (empty($from)) {
+            $from = variable_get('site_mail', '');
+        }
+
+        $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+        $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+
+        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        if ($res["send"]) {
+            watchdog("cron", "DAILY SCANNING CONTENT SENT AN EMAIL TO " . $to . date('Y-m-d H:i:s'));
+        }
+        else {
+            watchdog("cron", "DAILY SCANNING CONTENT ERROR OCCURRED ". $res["result"]);
+        }
+        // Flood control
+        flood_register_event('cmp_misc');
+    }
+
+    watchdog('cron',"FINISHED >> DAILY SCANNING CONTENT: ". date('Y-m-d H:i:s'));
+
+    return $res;
+}
+function cmp_misc_mail($key, &$message, $params) {
+    $language = $message['language'];
+    if ($key == 'scanning_content') {
+        $message['headers']['MIME-Version'] = '1.0';
+        $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
+        $message['headers']['Reply-To'] = $params['headers']['Reply-To'];
+
+        $message['subject']=t($params['subject']);
+        $message['body'][]=$params['body'];
+        $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
+    }
+}
+
+class Cmp_miscMailSystem implements MailSystemInterface {
+    /**
+     * Concatenate and wrap the e-mail body for plain-text mails.
+     *
+     * @param $message
+     *   A message array, as described in hook_mail_alter().
+     *
+     * @return
+     *   The formatted $message.
+     */
+    public function format(array $message) {
+        $message['body'] = implode("\n\n", $message['body']);
+        return $message;
+    }
+
+    /**
+     * Send an e-mail message, using Drupal variables and default settings.
+     *
+     * @see http://php.net/manual/en/function.mail.php
+     * @see drupal_mail()
+     *
+     * @param $message
+     *   A message array, as described in hook_mail_alter().
+     * @return
+     *   TRUE if the mail was successfully accepted, otherwise FALSE.
+     */
+    public function mail(array $message) {
+        $mimeheaders = array();
+        foreach ($message['headers'] as $name => $value) {
+            $mimeheaders[] = $name . ': ' . mime_header_encode($value);
+        }
+        $line_endings = variable_get('mail_line_endings', MAIL_LINE_ENDINGS);
+        return mail(
+            $message['to'],
+            mime_header_encode($message['subject']),
+            // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
+            // on Unix and CRLF on Windows. Drupal automatically guesses the
+            // line-ending format appropriate for your system. If you need to
+            // override this, adjust $conf['mail_line_endings'] in settings.php.
+            preg_replace('@\r?\n@', $line_endings, $message['body']),
+            // For headers, PHP's API suggests that we use CRLF normally,
+            // but some MTAs incorrectly replace LF with CRLF. See #234403.
+            join("\n", $mimeheaders)
+        );
+    }
+}
+
+/**
+ * Implements hook_search_api_alter_callback_info()
+ */
+function cmp_misc_search_api_alter_callback_info() {
+    $callbacks['most_recent_revision_alter'] = array(
+        'name' => t('Index Most Recent Revision'),
+        'description' => t('Indexes most recent revision content information to the index.'),
+        'class' => 'MostRecentRevisionStateAlterSettings',
+        'weight' => 100,
+    );
+
+    return $callbacks;
+}
+
+/**
+ * @file
+ * Search API data alteration callback that changes data before send to elastic search
+ */
+class MostRecentRevisionStateAlterSettings extends SearchApiAbstractAlterCallback {
+
+    public function alterItems(array &$items) {
+        foreach ($items as $id => &$item) {
+
+            $sql = "SELECT MAX(vid) FROM {node_revision} WHERE nid =:nid";
+            $recent_vid = db_query($sql, array(':nid'=>$id))->fetchField();
+
+            $sql = 'SELECT vid FROM {node} WHERE nid=:nid ';
+            $node_vid = db_query($sql, array(':nid'=>$id))->fetchField();
+
+            $current_node = node_load($id, $recent_vid);
+            if ($recent_vid != $node_vid) {
+
+                foreach($current_node as $key => $value) {
+                    if(property_exists($item, $key)) {
+                        $item->{$key} = $value ;
+                    }
+
+                }
+            }
+            $item->field_workflow_state_search['und'][0]['value']= $current_node->workbench_moderation['current']->state;
+            $item->field_workflow_state_search['und'][0]['safe_value']= $current_node->workbench_moderation['current']->state;
+
+            // node is text or directory content type, we need to add use by field
+            if ($current_node->type == 'directory_record_content_type' || $current_node->type == 'text_content_type') {
+                $item->field_for_use_by = $item->field_for_use_by_text;
+            }
+            else {
+                $item->field_for_use_by_text = $item->field_for_use_by;
+            }
+        }
+    }
+
 }

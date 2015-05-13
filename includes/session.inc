@@ -323,7 +323,7 @@ function drupal_session_commit() {
         $insecure_session_name = substr(session_name(), 1);
         $params = session_get_cookie_params();
         $expire = $params['lifetime'] ? REQUEST_TIME + $params['lifetime'] : 0;
-        setcookie($insecure_session_name, $_COOKIE[$insecure_session_name], $expire, $params['path'], $params['domain'], FALSE, $params['httponly']);
+        setcookie($insecure_session_name, $session_id, $expire, $params['path'], $params['domain'], FALSE, $params['httponly']);
       }
     }
     // Write the session data.
@@ -365,7 +365,7 @@ function drupal_session_regenerate() {
     // $params['lifetime'] seconds from the current request. If it is not set,
     // it will expire when the browser is closed.
     $expire = $params['lifetime'] ? REQUEST_TIME + $params['lifetime'] : 0;
-    setcookie($insecure_session_name, $session_id, $expire, $params['path'], $params['domain'], FALSE, $params['httponly']);
+    setcookie($name, '', REQUEST_TIME - 3600, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
     $_COOKIE[$insecure_session_name] = $session_id;
   }
 
@@ -463,7 +463,7 @@ function _drupal_session_delete_cookie($name, $secure = NULL) {
     if ($secure !== NULL) {
       $params['secure'] = $secure;
     }
-    setcookie($name, '', REQUEST_TIME - 3600, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+    setcookie($name, '', REQUEST_TIME - 3600, $params['path'], $params['domain'], $params['secure'], false);
     unset($_COOKIE[$name]);
   }
 }

@@ -213,9 +213,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         // Exclaim pre-sql process message over Slack
         if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
             slack_send_message(
-                "Notice: About to consume MySQL data pulled from {$batchURL}... "
-                    ."This transaction should pull taxonomy-terms: ".( trim($pullData['TaxDump_tidList']) === '' ? '{none to pull}' : '*'.$pullData['TaxDump_tidList'].'*' )
-                    ." My process-id is: ".getmypid(),
+                "Notice: About to consume MySQL data pulled from {$batchURL}... My process-id is: ".getmypid(),
                 "#cmp-notify-verbose", 
                 $_SERVER['HTTP_HOST']
             );
@@ -252,7 +250,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
         // Exclaim post-sql process message over Slack
         if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
             slack_send_message(
-                "Notice: *Done* with *comsuming MySQL* data. My process-id is: ".getmypid(),
+                "Notice: *Done*with comsuming MySQL data! My process-id is: ".getmypid(),
                 "#cmp-notify-verbose", 
                 $_SERVER['HTTP_HOST']
             );
@@ -352,7 +350,7 @@ function usa_data_migration_synchTaxonomyFromTarget($taxonomyDataSource, $retTru
     // Exclaim overall-finish message in Slack
     if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
         slack_send_message(
-            "{$thisFunct}() has finished importing terms, post-synch processes complete... *I am now completely done.* My process-id is: ".getmypid(),
+            "{$thisFunct}() has finished importing terms, post-synch processes complete... I am now completely done. My process-id is: ".getmypid(),
             "#cmp-notify-verbose", 
             $_SERVER['HTTP_HOST']
         );
@@ -498,43 +496,9 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
 
         }
 
-        // Exclaim pre-sql process message over Slack
-        if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
-            slack_send_message(
-                "Notice: About to consume MySQL data pulled from {$batchURL}... "
-                    ."This transaction should pull node-IDs: ".( trim($pullData['NodeDump_nidList']) === '' ? '{none to pull}' : '*'.$pullData['NodeDump_nidList'].'*' )
-                    ." My process-id is: ".getmypid(),
-                "#cmp-notify-verbose", 
-                $_SERVER['HTTP_HOST']
-            );
-        }
-
         // Synch nodes into this environment
-        $linkMySql = usa_data_migration_connectMySQL();
-        $sqlLines = explode("\n", $pullData['NodeDump_sqlDump']);
-        mysql_query('SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;', $linkMySql);
-        foreach ( $sqlLines as $sqlLine ) {
-            if ( trim($sqlLine) !== '' ) {
-
-                mysql_query($sqlLine, $linkMySql);
-
-                $err = mysql_error();
-                if ( $err !== '' ) {
-                    // Exclaim post-sql process message over Slack
-                    if ( function_exists('slack_send_message') && in_array($_SERVER['HTTP_HOST'], variable_get('udm_prod_domains', array())) ) {
-                        slack_send_message(
-                            "Notice: MySQL-data-consumption *error*! My process-id is: ".getmypid()."\n*The error was:* ".$err,
-                            "#cmp-notify-verbose", 
-                            $_SERVER['HTTP_HOST']
-                        );
-                    }
-                }
-
-            }
-        }
-        mysql_query('COMMIT;', $linkMySql);
-        mysql_close($linkMySql);
-        entity_get_controller('node')->resetCache();        
+        db_query( $pullData['NodeDump_sqlDump'] );
+        entity_get_controller('node')->resetCache();
 
         // Clear field cache for all synched nodes
         foreach ( explode(',', $pullData['NodeDump_nidList']) as $nid ) {
@@ -561,7 +525,7 @@ function usa_data_migration_synchNodesFromTarget($nodeDataSource, $retTrueOnSucc
         error_log('Not running usa_data_migration_postSynch_s3translate(), as no nodes were synced.');
     } else {
         $nidList = implode(',', $nidsPulled);
-        usa_data_migration_postSynch_s3translate($nidList);
+        //usa_data_migration_postSynch_s3translate($nidList);
     }
 
     // Exclaim post-process message over Slack
@@ -1247,17 +1211,9 @@ function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases($tids = array
 
         // Save new alias
         $alias = $record->url;
-        $alias = str_replace('http://kids.usa.gov/',  '', $alias);
-        $alias = str_replace('https://kids.usa.gov/', '', $alias);
-        $alias = str_replace('//kids.usa.gov/', '', $alias);
-        $alias = str_replace('http://usa.gov/',  '', $alias);
-        $alias = str_replace('https://usa.gov/', '', $alias);
-        $alias = str_replace('//usa.gov/', '', $alias);
-        $alias = str_replace('http://gobierno.usa.gov/',  '', $alias);
-        $alias = str_replace('https://gobierno.usa.gov/', '', $alias);
-        $alias = str_replace('//gobierno.usa.gov/', '', $alias);
-        $alias = str_replace('http://',  '', $alias);
-        $alias = str_replace('https://', '', $alias);
+        $alias = str_replace('http://kids.usa.gov/', '', $alias);
+        $alias = str_replace('http://usa.gov/', '', $alias);
+        $alias = str_replace('http://', '', $alias);
         $pathInfo = array(
             'source' => 'taxonomy/term/'.$record->tid,
             'alias' => ltrim($alias, '/'),
@@ -1272,8 +1228,6 @@ function usa_data_migration_postSynch_taxonomyTermsFriendlyAliases($tids = array
 }
 
 function usa_data_migration_postSynch_s3translate($strNids = '') {
-
-    $strNids = trim($strNids);
 
     if ( intval(variable_get('udm_filemedia_s3translate', 0)) == 0 ) {
         return;
@@ -1324,21 +1278,6 @@ function usa_data_migration_postSynch_s3translate($strNids = '') {
 
         node_save($entity);
     }
-
-    db_query("UPDATE field_data_field_html SET field_html_value=REPLACE(field_html_value, 'S3://', 's3://');");
-    db_query("UPDATE field_data_field_html SET field_html_value=REPLACE(field_html_value, 's3://', '//gsa-cmp-fileupload.s3.amazonaws.com/');");
-
-    db_query("UPDATE field_revision_field_html SET field_html_value=REPLACE(field_html_value, 'S3://', 's3://');");
-    db_query("UPDATE field_revision_field_html SET field_html_value=REPLACE(field_html_value, 's3://', '//gsa-cmp-fileupload.s3.amazonaws.com/');");
-
-    db_query("UPDATE field_data_body SET body_value=REPLACE(body_value, 'S3://', 's3://') WHERE bundle IN ('text_content_type');");
-    db_query("UPDATE field_data_body SET body_value=REPLACE(body_value, 's3://', '//gsa-cmp-fileupload.s3.amazonaws.com/') WHERE bundle IN ('text_content_type');");
-
-    db_query("UPDATE field_revision_body SET body_value=REPLACE(body_value, 'S3://', 's3://') WHERE bundle IN ('text_content_type');");
-    db_query("UPDATE field_revision_body SET body_value=REPLACE(body_value, 's3://', '//gsa-cmp-fileupload.s3.amazonaws.com/') WHERE bundle IN ('text_content_type');");
-
-    field_cache_clear();
-    entity_get_controller('node')->resetCache();
 
     error_log(__FUNCTION__.'() complete.');
 }

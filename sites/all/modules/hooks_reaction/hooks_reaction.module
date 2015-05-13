@@ -3,6 +3,10 @@
 	Version 1.8
 	
 	ChangeLog
+        1.9
+            2015-5-12
+            Only admins to have access to the admin interface 
+            Reactions to be included into memory durring load of this scrpt, not HOOK_init()
         1.8
             2013-12-13
             Removed usage of drupal_get_path(), since this function is not guaranteed to be loaded every time this module-file is included/executed (when Drupe is not fully bootstrapped - i.e. When drupal is not fully-bootstrapping to print a cached page and there is an implementation of HOOK_exit)

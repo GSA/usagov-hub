@@ -114,7 +114,6 @@ Drupal.jsAC.prototype.onkeyup = function (input, e) {
  */
 Drupal.jsAC.prototype.select = function (node) {
   this.input.value = $(node).data('autocompleteValue');
-  $(this.input).trigger('autocompleteSelect', [node]);
 };
 
 /**
@@ -168,7 +167,7 @@ Drupal.jsAC.prototype.unhighlight = function (node) {
 Drupal.jsAC.prototype.hidePopup = function (keycode) {
   // Select item if the right key or mousebutton was pressed.
   if (this.selected && ((keycode && keycode != 46 && keycode != 8 && keycode != 27) || !keycode)) {
-    this.select(this.selected);
+    this.input.value = $(this.selected).data('autocompleteValue');
   }
   // Hide popup.
   var popup = this.popup;
@@ -221,7 +220,7 @@ Drupal.jsAC.prototype.found = function (matches) {
   for (key in matches) {
     $('<li></li>')
       .html($('<div></div>').html(matches[key]))
-      .mousedown(function () { ac.hidePopup(this); })
+      .mousedown(function () { ac.select(this); })
       .mouseover(function () { ac.highlight(this); })
       .mouseout(function () { ac.unhighlight(this); })
       .data('autocompleteValue', key)

@@ -371,38 +371,35 @@ function node_form_build_preview($form, &$form_state) {
  * @see node_form_build_preview()
  */
 function node_preview($node) {
-  // Clone the node before previewing it to prevent the node itself from being
-  // modified.
-  $cloned_node = clone $node;
-  if (node_access('create', $cloned_node) || node_access('update', $cloned_node)) {
-    _field_invoke_multiple('load', 'node', array($cloned_node->nid => $cloned_node));
+  if (node_access('create', $node) || node_access('update', $node)) {
+    _field_invoke_multiple('load', 'node', array($node->nid => $node));
     // Load the user's name when needed.
-    if (isset($cloned_node->name)) {
+    if (isset($node->name)) {
       // The use of isset() is mandatory in the context of user IDs, because
       // user ID 0 denotes the anonymous user.
-      if ($user = user_load_by_name($cloned_node->name)) {
-        $cloned_node->uid = $user->uid;
-        $cloned_node->picture = $user->picture;
+      if ($user = user_load_by_name($node->name)) {
+        $node->uid = $user->uid;
+        $node->picture = $user->picture;
       }
       else {
-        $cloned_node->uid = 0; // anonymous user
+        $node->uid = 0; // anonymous user
       }
     }
-    elseif ($cloned_node->uid) {
-      $user = user_load($cloned_node->uid);
-      $cloned_node->name = $user->name;
-      $cloned_node->picture = $user->picture;
+    elseif ($node->uid) {
+      $user = user_load($node->uid);
+      $node->name = $user->name;
+      $node->picture = $user->picture;
     }
 
-    $cloned_node->changed = REQUEST_TIME;
-    $nodes = array($cloned_node->nid => $cloned_node);
+    $node->changed = REQUEST_TIME;
+    $nodes = array($node->nid => $node);
     field_attach_prepare_view('node', $nodes, 'full');
 
     // Display a preview of the node.
     if (!form_get_errors()) {
-      $cloned_node->in_preview = TRUE;
-      $output = theme('node_preview', array('node' => $cloned_node));
-      unset($cloned_node->in_preview);
+      $node->in_preview = TRUE;
+      $output = theme('node_preview', array('node' => $node));
+      unset($node->in_preview);
     }
     drupal_set_title(t('Preview'), PASS_THROUGH);
 

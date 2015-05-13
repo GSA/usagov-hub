@@ -534,7 +534,6 @@ if ( function_exists('stripUnicode') === false ) {
                ( 96 < $charCode && $charCode < 123 )
                || ( 64 < $charCode && $charCode < 91 )
                || ( 47 < $charCode && $charCode < 58 )
-               || ( $charCode === 195 )
            ) {
                // Then this is a character, a-z, A-Z, or 0-1
            } else {
