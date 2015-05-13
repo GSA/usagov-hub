@@ -76,11 +76,27 @@ function _get_region_node_count_by_tid($tids) {
     return $res_s;
 }
 
-function _get_node_count_by_tid($tids, $not_include_nids = null){
+function _get_node_count_by_tid($tids, $not_include_nids = null)
+{
+    if ( empty($tids) ) { return 0; }
+    $tid_list = implode(',',$tids);
+    if ( empty($tid_list) ) { return 0; }
 
-    $sql = 'SELECT COUNT(*) FROM node n
-        INNER JOIN taxonomy_index t ON n.nid = t.nid
-        WHERE t.tid IN (' . implode(',', $tids) . ') AND n.status = 1 ' . (($not_include_nids != null && is_array($not_include_nids))? ' AND n.nid NOT IN (' . implode(',', $not_include_nids) . ')' : '');
+    $nid_list = '';
+    if ( is_array($not_include_nids) && !empty($not_include_nids) )
+    {
+        $nids = implode(',',$not_include_nids);
+        if ( !empty($nids) )
+        {
+            $nid_list = " AND n.nid NOT IN ( $nid_list )";
+        }
+    }
+    $sql = "
+        SELECT COUNT(*)
+        FROM node n
+            INNER JOIN taxonomy_index t ON n.nid = t.nid
+        WHERE t.tid IN ( $tid_list )
+              AND n.status = 1 $nid_list";
 
     $res = db_query($sql)->fetchField();
 
