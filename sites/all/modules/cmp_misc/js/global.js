@@ -83,6 +83,23 @@
                 });
 
             });
+
+            // Turn on spellchecker
+            jQuery('body').addClass('hideScaytButtons');
+            jQuery('.cke_button__scayt').each( function() {
+
+                jQuery(this).click();
+
+                // SetTimeout to wait for the IFrame to be created (this IFrame creation was triggered from the .click() above)
+                setTimeout( function () {
+                    var contextMenueIframeBody = jQuery('.cke_panel_frame').contents().find('body');
+                    //contextMenueIframeBody.css('background-color', 'green');
+                    var enableScaytButton = contextMenueIframeBody.find('a[title="Enable SCAYT"]');
+                    enableScaytButton.click();
+                }, 500);
+                
+            });
+            jQuery('body').removeClass('hideScaytButtons');
         }, 1000);
 
     });
