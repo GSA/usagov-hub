@@ -1,5 +1,5 @@
 (function ($) {
-
+   
     $( document ).ready(function() {
         // site structure taxonomy report
         if ($('.view-display-id-summarized_report_page').length > 0) {
