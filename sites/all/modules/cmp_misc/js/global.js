@@ -84,11 +84,13 @@
 
             });
 
-            // Turn on spellchecker
+            // Turn on spellchecker by default in the wysiwyg editors
+            scaytSemaphore = 0;
             jQuery('body').addClass('hideScaytButtons');
             jQuery('.cke_button__scayt').each( function() {
 
                 jQuery(this).click();
+                scaytSemaphore++;
 
                 // SetTimeout to wait for the IFrame to be created (this IFrame creation was triggered from the .click() above)
                 setTimeout( function () {
@@ -96,10 +98,14 @@
                     //contextMenueIframeBody.css('background-color', 'green');
                     var enableScaytButton = contextMenueIframeBody.find('a[title="Enable SCAYT"]');
                     enableScaytButton.click();
+                    scaytSemaphore--;
+                    if ( scaytSemaphore == 0 ) {
+                        jQuery('body').removeClass('hideScaytButtons');
+                    }
                 }, 500);
                 
             });
-            jQuery('body').removeClass('hideScaytButtons');
+            
         }, 1000);
 
     });

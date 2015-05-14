@@ -24,7 +24,7 @@ body.page-node-edit div#edit-field-workflow-state-search {
 	display: none;
 }
 
-body.hideScaytButtons .cke_panel_frame{
-	position:absolute !important;
-	left:9999px !important;
+/* hide menu flyouts for the autoload spellcheck on wysiwyg editors */
+body.hideScaytButtons .cke_menu_panel{
+	display:none;
 }
