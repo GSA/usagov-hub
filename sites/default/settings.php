@@ -102,18 +102,13 @@ $envToDrupalMap = array(
         'CMP_DRUPAL_S3FS_USE_RELATIVE_URLS' => 's3fs_use_relative_urls',
 
         /* Drupal variables, strings, used by the smtp module */
-        'CMP_DRUPAL_SMTP_ON' => 'smtp_on',
-        'CMP_DRUPAL_SMTP_QUEUE' => 'smtp_queue',
         'CMP_DRUPAL_SMTP_HOST' => 'smtp_host',
         'CMP_DRUPAL_SMTP_HOSTBACKUP' => 'smtp_hostbackup',
-        'CMP_DRUPAL_SMTP_PORT' => 'smtp_port',
         'CMP_DRUPAL_SMTP_PROTOCOL' => 'smtp_protocol',
         'CMP_DRUPAL_SMTP_USERNAME' => 'smtp_username',
         'CMP_DRUPAL_SMTP_PASSWORD' => 'smtp_password',
         'CMP_DRUPAL_SMTP_FROM' => 'smtp_from',
         'CMP_DRUPAL_SMTP_FROMNAME' => 'smtp_fromname',
-        'CMP_DRUPAL_SMTP_DEBUGGING' => 'smtp_debugging',
-        'CMP_DRUPAL_MAIL_SYSTEM' => 'mail_system',
     ),
 
     /* Add Env->Drupal vars here, to be typecast into INTEGERS */
@@ -135,6 +130,12 @@ $envToDrupalMap = array(
 
         /* Drupal variables, integers, used by the s3fs module */
         'CMP_DRUPAL_S3FS_ALLOW_RELATIVE' => 's3fs_allow_relative',
+
+        /* Drupal variables, strings, used by the smtp module */
+        'CMP_DRUPAL_SMTP_ON' => 'smtp_on',
+        'CMP_DRUPAL_SMTP_QUEUE' => 'smtp_queue',
+        'CMP_DRUPAL_SMTP_PORT' => 'smtp_port',
+        'CMP_DRUPAL_SMTP_DEBUGGING' => 'smtp_debugging',
 
     ),
 
