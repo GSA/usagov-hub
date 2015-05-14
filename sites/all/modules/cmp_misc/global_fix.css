@@ -28,3 +28,7 @@ body.page-node-edit div#edit-field-workflow-state-search {
 body.hideScaytButtons .cke_menu_panel{
 	display:none;
 }
+
+input[name$="[value][time]"] + .description::after{
+	content: " - Use 24 Hour Format";
+}
