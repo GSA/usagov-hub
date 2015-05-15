@@ -1,8 +1,12 @@
 <?php
 /*
-	Version 1.8
+	Version 1.10
 	
 	ChangeLog
+        1.10
+            2015-5-15
+            hooks_reaction_add() to support multiple hooks (first parameter) - either as a space-seperated list (string), or an array of hook-names.
+            hooks_reaction_add() to not bother parsing for function-SourceCode for non-admin users ( this improves performance / dosn't waste time )
         1.9
             2015-5-12
             Only admins to have access to the admin interface 
@@ -153,55 +157,69 @@ if ( function_exists('connectMySQL') === false ) {
  *				if given FALSE:	Places this instance to the bottom of the stack of hooks (fire last)
  *			It is NOT recommended to use booleans for this parameter.
  */
-function hooks_reaction_add($drupalHookName, $functionObj, $groupName = "", $priorityWeight = 0) {
+function hooks_reaction_add($drupalHookNames, $functionObj, $groupName = "", $priorityWeight = 0) {
 
-	// Make sure $drupalHookName dosnt start with hook_
-	if ( strtolower(substr($drupalHookName, 0, 5)) === 'hook' ) {
-		$drupalHookName = substr($drupalHookName, 5);
-	}
+    // Support multiple-hooks for one function
+    if ( is_string($drupalHookNames) ) {
+        $drupalHookNames = explode(' ', $drupalHookNames);
+    }
 
-	// Get the source code of this function if possible (we are going to assume the previous call in stack has this)
-	if ( variable_get('hooks_reaction_sourcescan', 'enabeled') === 'enabeled' ) {
-		$backtrace = debug_backtrace();
-		$thisCaller = $backtrace[0];
-		if ( file_exists($thisCaller["file"]) ) {
-			$sourceFile = file_get_contents($thisCaller["file"]);
-			include_once('sites/all/libraries/PHPParser/bootstrap.php');
-			$parser = new PHPParser_Parser;
-			$statements = $parser->parse(new PHPParser_Lexer($sourceFile));
-			$functSource ="";
-			for ( $x = 0 ; $x < count($statements) ; $x++ ) {
-				if ( $statements[$x]->line > $thisCaller['line'] ) {
-					$prettyPrinter = new PHPParser_PrettyPrinter_Zend;
-					if ($x !== 0) { $x--; }
-					$thisCallerCode = $statements[$x];
-					$functSource = $prettyPrinter->prettyPrintExpr($thisCallerCode);
-					break;
-				}
-			}
-		} else {
-			$functSource = "(Unable to obtain source-code)";
-		}
-	}
-	
-	// Setup hookReactions array if it is not already
-	global $hookReactions;
-	if ( !isset($hookReactions) ) {
-		$hookReactions = new HookListenerCollection();
-	}
-	
-	// Setup a Hook Listener for this Drupal hook if it is not setup already
-	$hookReactions->addHookListener($drupalHookName);
-	
-	// Add this function associated under this Hook Listener
-	$hookReactions->getListener($drupalHookName)->addReaction(
-		$functionObj, 
-		$functSource, 
-		$thisCaller["file"], 
-		$thisCaller['line'], 
-		$groupName, 
-		$priorityWeight
-	);
+    foreach ( $drupalHookNames as $drupalHookName ) {
+
+    	// Make sure $drupalHookName dosnt start with hook_
+    	if ( strtolower(substr($drupalHookName, 0, 5)) === 'hook_' ) {
+    		$drupalHookName = substr($drupalHookName, 5);
+    	}
+
+    	// Get the source code of this function if possible (we are going to assume the previous call in stack has this)
+        if ( intval($GLOBALS['user']->uid) !== 1 ) {
+            $thisCaller = array('file' => 'no-admin-no-debug', 'line' => 'no-admin-no-debug');
+            $functSource = 'no-admin-no-debug';
+        } else {
+        	if ( variable_get('hooks_reaction_sourcescan', 'enabeled') === 'enabeled' ) {
+        		$backtrace = debug_backtrace();
+        		$thisCaller = $backtrace[0];
+        		if ( file_exists($thisCaller["file"]) ) {
+        			$sourceFile = file_get_contents($thisCaller["file"]);
+        			include_once('sites/all/libraries/PHPParser/bootstrap.php');
+        			$parser = new PHPParser_Parser;
+        			$statements = $parser->parse(new PHPParser_Lexer($sourceFile));
+        			$functSource ="";
+        			for ( $x = 0 ; $x < count($statements) ; $x++ ) {
+        				if ( $statements[$x]->line > $thisCaller['line'] ) {
+        					$prettyPrinter = new PHPParser_PrettyPrinter_Zend;
+        					if ($x !== 0) { $x--; }
+        					$thisCallerCode = $statements[$x];
+        					$functSource = $prettyPrinter->prettyPrintExpr($thisCallerCode);
+        					break;
+        				}
+        			}
+        		} else {
+        			$functSource = "(Unable to obtain source-code)";
+        		}
+        	}
+        }
+    	
+    	// Setup hookReactions array if it is not already
+    	global $hookReactions;
+    	if ( !isset($hookReactions) ) {
+    		$hookReactions = new HookListenerCollection();
+    	}
+    	
+    	// Setup a Hook Listener for this Drupal hook if it is not setup already
+    	$hookReactions->addHookListener($drupalHookName);
+    	
+    	// Add this function associated under this Hook Listener
+    	$hookReactions->getListener($drupalHookName)->addReaction(
+    		$functionObj, 
+    		$functSource, 
+    		$thisCaller["file"], 
+    		$thisCaller['line'], 
+    		$groupName, 
+    		$priorityWeight
+    	);
+
+    }
 }
 
 /**
