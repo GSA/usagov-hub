@@ -40,13 +40,13 @@ function cmp_misc_menu() {
 }
 
 function _get_region_node_count_by_tid($tids) {
-/*
-| field_data_field_asset_order_bottom             |
-| field_data_field_asset_order_carousel           |
-| field_data_field_asset_order_content            |
-| field_data_field_asset_order_menu               |
-| field_data_field_asset_order_sidebar            |
- * */
+    /*
+    | field_data_field_asset_order_bottom             |
+    | field_data_field_asset_order_carousel           |
+    | field_data_field_asset_order_content            |
+    | field_data_field_asset_order_menu               |
+    | field_data_field_asset_order_sidebar            |
+     * */
 
     /*$sql_b = 'SELECT COUNT(*) FROM node n
         INNER JOIN field_data_field_asset_order_bottom t ON n.nid = t.field_asset_order_bottom_target_id
@@ -68,19 +68,39 @@ function _get_region_node_count_by_tid($tids) {
         WHERE t.entity_id IN (' . implode(',', $tids) . ') AND n.status = 1';
     $res_m = db_query($sql_m)->fetchField();
 */
-    $sql_s = 'SELECT field_asset_topic_taxonomy_tid FROM field_data_field_asset_topic_taxonomy t
-        WHERE t.entity_id IN (' . implode(',', $tids) . ')';
+    if ( empty($tids) ) { return 0; }
+    $tid_list = implode(',',$tids);
+    if ( empty($tid_list) ) { return 0; }
+
+    $sql_s = "SELECT field_asset_topic_taxonomy_tid FROM field_data_field_asset_topic_taxonomy t
+        WHERE t.entity_id IN ( $tid_list )";
     $res_s = db_query($sql_s)->fetchField();
-   // if (!empty($res_s_))
+    // if (!empty($res_s_))
     //return _get_node_count_by_tid(array($res_s));
     return $res_s;
 }
 
-function _get_node_count_by_tid($tids, $not_include_nids = null){
+function _get_node_count_by_tid($tids, $not_include_nids = null)
+{
+    if ( empty($tids) ) { return 0; }
+    $tid_list = implode(',',$tids);
+    if ( empty($tid_list) ) { return 0; }
 
-    $sql = 'SELECT COUNT(*) FROM node n
-        INNER JOIN taxonomy_index t ON n.nid = t.nid
-        WHERE t.tid IN (' . implode(',', $tids) . ') AND n.status = 1 ' . (($not_include_nids != null && is_array($not_include_nids))? ' AND n.nid NOT IN (' . implode(',', $not_include_nids) . ')' : '');
+    $nid_list = '';
+    if ( is_array($not_include_nids) && !empty($not_include_nids) )
+    {
+        $nids = implode(',',$not_include_nids);
+        if ( !empty($nids) )
+        {
+            $nid_list = " AND n.nid NOT IN ( $nid_list )";
+        }
+    }
+    $sql = "
+        SELECT COUNT(*)
+        FROM node n
+            INNER JOIN taxonomy_index t ON n.nid = t.nid
+        WHERE t.tid IN ( $tid_list )
+              AND n.status = 1 $nid_list";
 
     $res = db_query($sql)->fetchField();
 
@@ -214,11 +234,11 @@ function cmp_misc_views_pre_render(&$view) {
 
         $new_result = array();
         foreach($view->result as $row) {
-                if ($row->users_node_uid != $row->users_node_revision_uid
-                    && $row->users_node_revision_uid != 0
-                    && $row->users_node_uid != 0) {
-                    $new_result[] = $row;
-                }
+            if ($row->users_node_uid != $row->users_node_revision_uid
+                && $row->users_node_revision_uid != 0
+                && $row->users_node_uid != 0) {
+                $new_result[] = $row;
+            }
 
         }
         $view->result = $new_result;
@@ -232,7 +252,6 @@ function cmp_misc_form_views_exposed_form_alter(&$form, $form_state) {
         $form['stamp']['max']['#date_format'] = 'm/d/Y';
         dpm($form);
     }*/
-
 
 }
 
@@ -248,22 +267,22 @@ function cmp_misc_form_views_exposed_form_alter(&$form, $form_state) {
  */
 /**/
 function cmp_misc_node_ever_published($node) {
-  global $user;
+    global $user;
 
-  if (isset($node->workbench_moderation) && !empty($node->workbench_moderation['published'])) {
-    return true;
-  }
+    if (isset($node->workbench_moderation) && !empty($node->workbench_moderation['published'])) {
+        return true;
+    }
 
-  // Get the moderation history of this node.
-  $query = db_select('workbench_moderation_node_history', 'm');
-  $query->condition('m.nid', $node->nid)
+    // Get the moderation history of this node.
+    $query = db_select('workbench_moderation_node_history', 'm');
+    $query->condition('m.nid', $node->nid)
         ->condition('m.state', 'published')
         ->fields('m',array('stamp'));
 
-  $moderations = $query->execute()->rowCount();
+    $moderations = $query->execute()->rowCount();
 
-  // Make sure it's an array.
-  return !empty($moderations);
+    // Make sure it's an array.
+    return !empty($moderations);
 }
 /**/
 
@@ -313,74 +332,74 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
     // If this is the edit form for any node under the 'Text Asset' content-type
     //if ( $form_id === 'text_content_type_node_form' ) {
 
-        if ( !empty($form['#node']->workbench_moderation) ) {
+    if ( !empty($form['#node']->workbench_moderation) ) {
 
-            global $user;
-            $isAdmin = in_array('administrator', $user->roles);
+        global $user;
+        $isAdmin = in_array('administrator', $user->roles);
 
-            $workflowState = $form['#node']->workbench_moderation['current']->state;
-            $canApproveDelete = user_access('moderate content from awaiting_deletion to deleted',$user);
-            $everPublished = cmp_misc_node_ever_published($form['#node']);
+        $workflowState = $form['#node']->workbench_moderation['current']->state;
+        $canApproveDelete = user_access('moderate content from awaiting_deletion to deleted',$user);
+        $everPublished = cmp_misc_node_ever_published($form['#node']);
 
-            /// if isAdmin : delete button + perm option
-            if ( $isAdmin ) { return; } /// admin can always see delete
-            /// if !ever_published : delete button
-            if ( !$everPublished ) { return; } /// anyone can see delete
-            /// if  ever_published &&  awaiting_deletion && !(state:awaiting->deleted) : disabled delete button + message
-            if ( $workflowState=='awaiting_deletion' && !$canApproveDelete && !empty($form['actions']['delete']) )
-            { /* awaiting deletion approval */
-                $form['actions']['delete']['#value'] = 'Awaiting Deletion';
-                $form['actions']['delete']['#type'] = 'button';
-                unset($form['actions']['delete']['#submit']);
-                $form['actions']['delete']['#attributes'] = array(
-                    'style' => 'background-color: lightgray; color: gray; outline: 1px dashed gray;',
-                    "onclick" => "return (false);"
-                );
-                return;
-            }
-            /// if  ever_published &&  awaiting_deletion &&  (state:awaiting->deleted) : approve soft delete button
-            if ( $workflowState=='awaiting_deletion' &&  $canApproveDelete && !empty($form['actions']['delete']) )
-            { /* approve deletion */
-                $form['actions']['delete']['#value'] = 'Approve Deletion';
-                return;
-            }
-            /// if  ever_published &&  deleted : show state
-            if ( $workflowState=='deleted' && !empty($form['actions']['delete']) )
-            {
-                $form['actions']['delete']['#value'] = 'Already Deleted';
-                $form['actions']['delete']['#type'] = 'button';
-                unset($form['actions']['delete']['#submit']);
-                $form['actions']['delete']['#attributes'] = array(
-                    'style' => 'background-color: lightgray; color: gray; outline: 1px dashed gray;',
-                    "onclick" => "return (false);"
-                );
-                return;
-            }
-            /*
-            $disableDelBtn = false;
-             If this user isn't allowed to hard-delete, disabel the delete button if the node is in the soft-delete process
-            if ( !$isAdmin && ( $workflowState == 'deleted' || $workflowState == 'awaiting_deletion' ) ) {
-                $disableDelBtn = true;
-            }
-
-            if ( $disableDelBtn ) {
-                $form['actions']['delete']['#value'] = 'Already ' . str_replace('_', ' ', $workflowState);
-                $form['actions']['delete']['#type'] = 'button';
-                unset($form['actions']['delete']['#submit']);
-                $form['actions']['delete']['#attributes'] = array(
-                    'style' => 'background-color: lightgray; color: gray; outline: 1px dashed gray;',
-                    "onclick" => "return (false);"
-                );
-            }
-            */
+        /// if isAdmin : delete button + perm option
+        if ( $isAdmin ) { return; } /// admin can always see delete
+        /// if !ever_published : delete button
+        if ( !$everPublished ) { return; } /// anyone can see delete
+        /// if  ever_published &&  awaiting_deletion && !(state:awaiting->deleted) : disabled delete button + message
+        if ( $workflowState=='awaiting_deletion' && !$canApproveDelete && !empty($form['actions']['delete']) )
+        { /* awaiting deletion approval */
+            $form['actions']['delete']['#value'] = 'Awaiting Deletion';
+            $form['actions']['delete']['#type'] = 'button';
+            unset($form['actions']['delete']['#submit']);
+            $form['actions']['delete']['#attributes'] = array(
+                'style' => 'background-color: lightgray; color: gray; outline: 1px dashed gray;',
+                "onclick" => "return (false);"
+            );
+            return;
         }
+        /// if  ever_published &&  awaiting_deletion &&  (state:awaiting->deleted) : approve soft delete button
+        if ( $workflowState=='awaiting_deletion' &&  $canApproveDelete && !empty($form['actions']['delete']) )
+        { /* approve deletion */
+            $form['actions']['delete']['#value'] = 'Approve Deletion';
+            return;
+        }
+        /// if  ever_published &&  deleted : show state
+        if ( $workflowState=='deleted' && !empty($form['actions']['delete']) )
+        {
+            $form['actions']['delete']['#value'] = 'Already Deleted';
+            $form['actions']['delete']['#type'] = 'button';
+            unset($form['actions']['delete']['#submit']);
+            $form['actions']['delete']['#attributes'] = array(
+                'style' => 'background-color: lightgray; color: gray; outline: 1px dashed gray;',
+                "onclick" => "return (false);"
+            );
+            return;
+        }
+        /*
+        $disableDelBtn = false;
+         If this user isn't allowed to hard-delete, disabel the delete button if the node is in the soft-delete process
+        if ( !$isAdmin && ( $workflowState == 'deleted' || $workflowState == 'awaiting_deletion' ) ) {
+            $disableDelBtn = true;
+        }
+
+        if ( $disableDelBtn ) {
+            $form['actions']['delete']['#value'] = 'Already ' . str_replace('_', ' ', $workflowState);
+            $form['actions']['delete']['#type'] = 'button';
+            unset($form['actions']['delete']['#submit']);
+            $form['actions']['delete']['#attributes'] = array(
+                'style' => 'background-color: lightgray; color: gray; outline: 1px dashed gray;',
+                "onclick" => "return (false);"
+            );
+        }
+        */
+    }
     //}
 }
 
 
 /**
-* Implements hook_mail_alter
-*/
+ * Implements hook_mail_alter
+ */
 function cmp_misc_mail_alter(&$message) {
     //Sanitize and decode HTML entities in email subject
     $message['headers']['Content-Type'] = "html/text; charset=UTF-8; format=flowed; delsp=yes";
@@ -488,7 +507,7 @@ function _cmp_misc_auto_publish_content()
 {
     /// trigger a workflow state transition to published, this will aoutomatically trigger a legit publish as well
     $records = db_query(
-             'SELECT
+        'SELECT
                 n.nid, n.vid as pub_rev, c.vid as curr_rev,
                 r.status as curr_rev_status,
                 d.deletion_timestamp,
@@ -550,7 +569,7 @@ function _cmp_misc_auto_archive_content()
 {
     /// Just unplublish any nodes with a previous archive date. archive date trumps publication date
     $records = db_query(
-             'SELECT
+        'SELECT
                 n.nid, n.vid as curr_rev,
                 n.status,
                 d.deletion_timestamp,
@@ -587,7 +606,7 @@ function _cmp_misc_node_past_publication_date($node)
 {
     /// Not deleted, not already published, not archived, has past publish date
     return db_query(
-             'SELECT
+        'SELECT
                 n.nid, n.vid as pub_rev, c.vid as curr_rev,
                 r.status as curr_rev_status,
                 d.deletion_timestamp,
@@ -643,7 +662,7 @@ function _cmp_misc_node_future_publication_date($node)
 {
     /// Not deleted, not already published, not archived, has future publish date
     return db_query(
-             'SELECT
+        'SELECT
                 n.nid, n.vid as pub_rev, c.vid as curr_rev,
                 r.status as curr_rev_status,
                 d.deletion_timestamp,
@@ -750,9 +769,9 @@ function _cmp_misc_get_expiring_nodes()
 function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_state)
 {
     #if ( $new_state == workbench_moderation_state_published()
-        /// allow a user to force a published transition for items already in 'scheduled' state
-        /// so two publish attempts in a row would immediately publish the content
-        # && $previous_state != 'scheduled_for_publication'
+    /// allow a user to force a published transition for items already in 'scheduled' state
+    /// so two publish attempts in a row would immediately publish the content
+    # && $previous_state != 'scheduled_for_publication'
     #      && _cmp_misc_node_future_publication_date($node) )
     #{
     #    workbench_moderation_moderate( $node, 'scheduled_for_publication' );
@@ -761,8 +780,8 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
 
     // any state >>> scheduled_for_publication
     // throw this straight to published if we can
-    if ( $new_state=='scheduled_for_publication' 
-         && ( _cmp_misc_node_past_publication_date($node) >= 1 ) )  
+    if ( $new_state=='scheduled_for_publication'
+        && ( _cmp_misc_node_past_publication_date($node) >= 1 ) )
     {
         workbench_moderation_moderate( $node, workbench_moderation_state_published() );
     }
@@ -813,12 +832,12 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
         loading and saving the node [right here] because the node may be undergoing [an incomplete] alteration
         at this line (in this function) */
         // Schedule helper-function _cmp_misc_setWorkflowStatusSearchTextField() on PHP-thread-termination
-       /* register_shutdown_function(
-            '_cmp_misc_setWorkflowStatusSearchTextField',
-            $node->nid,
-            $node->vid,
-            $new_state
-        );*/
+        /* register_shutdown_function(
+             '_cmp_misc_setWorkflowStatusSearchTextField',
+             $node->nid,
+             $node->vid,
+             $new_state
+         );*/
 
     }
 
@@ -924,7 +943,6 @@ function _cmp_misc_send_last_edited_person($user_to_send, $node) {
 
 function _cmp_misc_notify_ux_team_about_empty_page($term) {
 
-    /*
     $query = 'SELECT DISTINCT(ur.uid) FROM {users_roles} AS ur WHERE ur.rid IN (:rids)';
     $result = db_query($query, array(':rids' => array(27)));
     $uids = $result->fetchCol();
@@ -933,11 +951,8 @@ function _cmp_misc_notify_ux_team_about_empty_page($term) {
     foreach($users as $u) {
         $ux_members_emails[] = $u->mail;
     }
+    $ux_members_emails[] = 'achuluunkhuu@ctacorp.com';
     $to = (join(',', $ux_members_emails));
-
-     */
-
-    $to = "achuluunkhuu@ctacorp.com, lkhon@ctacorp.com";
 
     // Subject
     $params['subject'] = "Empty Page: ".$term->name;
