@@ -1,5 +1,5 @@
 (function ($) {
-   
+
     $( document ).ready(function() {
         // site structure taxonomy report
         if ($('.view-display-id-summarized_report_page').length > 0) {
@@ -57,7 +57,6 @@
         });
 
         setTimeout( function () {
-
             // When someone clicks on any element within a WYSIWYG UI...
             jQuery('.cke a').bind('mousedown', function () {
 
@@ -103,9 +102,8 @@
                         jQuery('body').removeClass('hideScaytButtons');
                     }
                 }, 500);
-                
+
             });
-            
         }, 1000);
 
     });
