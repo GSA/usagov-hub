@@ -127,6 +127,28 @@ function replaceOwners($string) {
 }
 
 /**
+ * Add a validation handler/function to the form.
+ *
+ * Validates the searchReplaceOwnerForm form.
+ */
+function searchReplaceOwnerForm_validate($form, &$form_state) {
+
+    
+    $ownerToReplace = $form_state['input']['ownersearch'];
+    $replaceWith = $form_state['input']['ownerreplace'];
+    
+    $replaceWithUserId = db_query("SELECT uid FROM users WHERE name LIKE '%{$ownerToReplace}%' LIMIT 1")->fetchColumn();
+    if ( intval($replaceWithUserId) === 0 ) {
+        form_set_error('Form Error', 'Invalid user supplied for the "Search for Owner" field.');
+    }
+
+    $replaceWithUserId = db_query("SELECT uid FROM users WHERE name LIKE '%{$replaceWith}%' LIMIT 1")->fetchColumn();
+    if ( intval($replaceWithUserId) === 0 ) {
+        form_set_error('Form Error', 'Invalid user supplied for the "Replace With" field.');
+    }
+}
+
+/**
  * Add a submit handler/function to the form.
  *
  * This will add a completion message to the screen when the
