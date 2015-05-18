@@ -128,7 +128,6 @@ function _check_empty_page($term=null, $node=null) {
             }
         }
     }
-
 }
 
 function cmp_site_structure_taxonomy_form_alter(&$form,&$form_state){

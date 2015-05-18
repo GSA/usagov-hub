@@ -1,0 +1,4 @@
+name = CMP Universal Search and Replace
+description = Module will be used for universally search and replace string in the CMP data
+package = CTAC Custom
+core = 7.x
