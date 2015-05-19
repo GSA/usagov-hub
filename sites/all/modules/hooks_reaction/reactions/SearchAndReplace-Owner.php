@@ -137,12 +137,12 @@ function searchReplaceOwnerForm_validate($form, &$form_state) {
     $ownerToReplace = $form_state['input']['ownersearch'];
     $replaceWith = $form_state['input']['ownerreplace'];
     
-    $replaceWithUserId = db_query("SELECT uid FROM users WHERE name LIKE '%{$ownerToReplace}%' LIMIT 1")->fetchColumn();
+    $replaceWithUserId = db_query("SELECT uid FROM users WHERE name = '{$ownerToReplace}' LIMIT 1")->fetchColumn();
     if ( intval($replaceWithUserId) === 0 ) {
         form_set_error('Form Error', 'Invalid user supplied for the "Search for Owner" field.');
     }
 
-    $replaceWithUserId = db_query("SELECT uid FROM users WHERE name LIKE '%{$replaceWith}%' LIMIT 1")->fetchColumn();
+    $replaceWithUserId = db_query("SELECT uid FROM users WHERE name = '{$replaceWith}' LIMIT 1")->fetchColumn();
     if ( intval($replaceWithUserId) === 0 ) {
         form_set_error('Form Error', 'Invalid user supplied for the "Replace With" field.');
     }
@@ -159,16 +159,12 @@ function searchReplaceOwnerForm_submit($form, &$form_state) {
     $ownerToReplace = $form_state['input']['ownersearch'];
     $replaceWith = $form_state['input']['ownerreplace'];
 
-    if(!empty($ownerToReplace) && strlen($ownerToReplace) != 0 && !empty($replaceWith) && strlen($replaceWith) != 0 ){
+     $result = db_query("UPDATE {field_data_field_owner}
+                        SET {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name LIKE '%$replaceWith%' LIMIT 1)
+                        WHERE {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name LIKE '%$ownerToReplace%' LIMIT 1);");
 
-         $result = db_query("UPDATE {field_data_field_owner}
-                            SET {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name LIKE '%$replaceWith%' LIMIT 1)
-                            WHERE {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name LIKE '%$ownerToReplace%' LIMIT 1);");
+    drupal_set_message("'{$ownerToReplace}' has been replaced with '{$replaceWith}'", 'status');      
 
-        drupal_set_message("'{$ownerToReplace}' has been replaced with '{$replaceWith}'", 'status');      
-     
-    } else {
-        drupal_set_message("Please fill out both fields", 'status'); 
-    }
 }
+
 ?>
