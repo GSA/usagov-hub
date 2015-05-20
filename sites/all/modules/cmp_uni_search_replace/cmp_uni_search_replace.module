@@ -149,7 +149,7 @@ function search_result_form_submit($form, $form_state) {
                             $node->title = str_ireplace(variable_get('search_text'), $form_state['values']['replace_str'], $node->title);
                         }
                     }
-                    elseif($field == 'body_value' || $field == 'body_summary') {
+                    elseif($field == 'body_value') {
                         if (variable_get('case_sensitive')) {
                             $node->body['und'][0]['value'] = str_replace(variable_get('search_text'), $form_state['values']['replace_str'], $node->body['und'][0]['value']);
                         }
@@ -234,6 +234,7 @@ function unset_global_variables_used() {
     variable_del('replace_text');
     variable_del('search_table_fields_mapping');
     variable_del('search_result');
+    variable_get('case_sensitive');
 }
 
 function searchReplaceForm() {
@@ -392,7 +393,7 @@ function searchReplaceForm_validate($form, $form_state) {
         // If this form item is describing a field in Drupal, AND it's a ticked-checkbox...
         if ($formItemName == 'body' && intval($formItemValue) === 1) {
             $queryJoins[] = "LEFT JOIN field_data_body ON field_data_body.entity_id = n.nid ";
-            $queryWhere[] = "(InStr({$case_sensitive} body_value, :search_str) <> 0 OR InStr( {$case_sensitive} body_summary, :search_str) <> 0 )";
+            $queryWhere[] = "(InStr({$case_sensitive} body_value, :search_str) <> 0)"; //
             $search_field_tables['field_data_body'] = array('body_summary', 'body_value');
         }
         elseif($formItemName == 'title' && intval($formItemValue) === 1) {
