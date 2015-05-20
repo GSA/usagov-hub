@@ -2,23 +2,9 @@
 
     [--] PURPOSE [--]
     
-    The purpose of this script is to provide an example on how to create reactions files in 
-    this "reactions" directory. In your [newly created] reactions file(s), please follow this file as a template - please 
-    include a "PURPOSE" section at the top of your file.
-    
-    Generally this area should contain a high-level, non-technical, description as to why this script/file was made. 
-
-    [--] TECHNICAL NOTES [--]
-
-    In your [newly created] reactions file(s), please also include this area in the first comment block as well.
-    This is the same thing as the "purpose" section, but should be more technical.
-
-    [!!] WARNING [!!]
-
-    If you have any important information that that other developers must know about this script, please 
-    include it in a [!!] WARNING [!!] section, also, please list this section ABOVE the "purpose" and 
-    "technical notes" section.
-        
+    The purpose of this script is to create a page that allows users to search and replace the owner field value
+    with another user.
+            
 */
 
 /**
@@ -160,8 +146,8 @@ function searchReplaceOwnerForm_submit($form, &$form_state) {
     $replaceWith = $form_state['input']['ownerreplace'];
 
      $result = db_query("UPDATE {field_data_field_owner}
-                        SET {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name LIKE '%$replaceWith%' LIMIT 1)
-                        WHERE {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name LIKE '%$ownerToReplace%' LIMIT 1);");
+                        SET {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '%$replaceWith%' LIMIT 1)
+                        WHERE {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '%$ownerToReplace%' LIMIT 1);");
 
     drupal_set_message("'{$ownerToReplace}' has been replaced with '{$replaceWith}'", 'status');      
 
