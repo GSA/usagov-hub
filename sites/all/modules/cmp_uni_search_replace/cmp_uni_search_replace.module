@@ -234,7 +234,7 @@ function unset_global_variables_used() {
     variable_del('replace_text');
     variable_del('search_table_fields_mapping');
     variable_del('search_result');
-    variable_get('case_sensitive');
+    variable_del('case_sensitive');
 }
 
 function searchReplaceForm() {
