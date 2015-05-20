@@ -2,11 +2,8 @@
 
     [--] PURPOSE [--]
     
-    
-
-    [--] TECHNICAL NOTES [--]
-
-    * 
+    This script will inject a "Export to Excel" link into the "Site Structure Taxonomy" report.
+    This report is located at: /content-tag-report?machine_name=site_strucutre_taxonomy
 
     [--] TICKET HISTORY [--]
 
@@ -16,14 +13,17 @@
 
 /**
  * Implements HOOK_menu().
+ *
+ * Registers the URL-path: /content-tag-report/export-site-strucutre-taxonomy to return a 
+ * page generated from exportSiteStructureTaxonomyReportToCSV()
  */
 hooks_reaction_add("menu",
     function () {
 
         $menuArr = array();
 
-        // Register the URL-path: /content-tag-report/export to return a page generated from exportSiteStructureTaxonomyReportToCSV()
-        $menuArr['content-tag-report/export'] = array(
+        // Register the URL-path: /content-tag-report/export-site-strucutre-taxonomy to return a page generated from exportSiteStructureTaxonomyReportToCSV()
+        $menuArr['content-tag-report/export-site-strucutre-taxonomy'] = array(
             'title' => '',
             'description' => 'CSV export for the Site-Structure-Taxonomy report at /content-tag-report/export',
             'page callback' => 'exportSiteStructureTaxonomyReportToCSV',
@@ -35,10 +35,22 @@ hooks_reaction_add("menu",
     }
 );
 
+hooks_reaction_add("HOOK_views_post_render",
+    function (&$view, &$output, &$cache) {
+
+        if ( $view->name === 'content_taxonomy_report' && strpos(request_uri(), 'machine_name=site_strucutre_taxonomy') !== false ) {
+            $thisFile = basename(__FILE__);
+            $prependMarkup = '<a style="float: right" rendersource="'.$thisFile.'" href="/content-tag-report/export-site-strucutre-taxonomy">Export to Excel</a>';
+            $output = $prependMarkup.$output;
+        }
+    }
+);
+
 /**
  * void exportSiteStructureTaxonomyReportToCSV()
  *
- * A callback function for /content-tag-report/export
+ * A callback function for /content-tag-report/export-site-strucutre-taxonomy
+ * This function will return a file to download, to the browser.
  * WARNING: This function will terminate the PHP thread.
  */
 function exportSiteStructureTaxonomyReportToCSV() {
@@ -47,16 +59,8 @@ function exportSiteStructureTaxonomyReportToCSV() {
     @ob_end_clean();
     while( @ob_end_clean() );
 
-    // Argument validation
-    if ( empty($_REQUEST['machine_name']) ) {
-        exit("Missing machine_name argument in request");
-    }
-
     // Get the vocabulary-id
-    $vocab = taxonomy_vocabulary_machine_name_load($_REQUEST['machine_name']);
-    if ( $vocab === false ) {
-        exit("Bad machine_name argument supplied");
-    }
+    $vocab = taxonomy_vocabulary_machine_name_load('site_strucutre_taxonomy');
 
     // Initalize the row-counter in the CSV
     $counter = -1;
@@ -70,10 +74,10 @@ function exportSiteStructureTaxonomyReportToCSV() {
     }
 
     // Set headers for a CSV download
-    header("Content-type: text/csv");
-    header('Content-Disposition: attachment; filename="report.csv"');
-    header("Pragma: no-cache");
-    header("Expires: 0");
+    @header("Content-type: text/csv");
+    @header('Content-Disposition: attachment; filename="report.csv"');
+    @header("Pragma: no-cache");
+    @header("Expires: 0");
 
     // Print the CSV headers
     print '"counter","Page Title","Parent Title","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",';
@@ -93,6 +97,13 @@ function exportSiteStructureTaxonomyReportToCSV() {
     
 }
 
+/**
+ * void compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$rows, $vid, $tid)
+ *
+ * This function reads through the taxonomy data in this environment, creating a report, which is 
+ * returned into the $rows by-reference variable supplied to this function.
+ * This function works in a recursive manor.
+ */
 function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$rows, $vid, $tid) {
 
     $lvlSemaphore++;
