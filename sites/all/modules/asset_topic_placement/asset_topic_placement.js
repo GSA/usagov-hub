@@ -20,13 +20,25 @@ jQuery(document).ready( function () {
 
 			// Note this helper-script has been applied to this form
 			jQuery('.group-asset-topic-placement').addClass('helper-script-applied');
+
+            if (jQuery("input[name='tid']").length > 0 && jQuery('.field-name-field-page-intro textarea').length > 0) {
+
+                // resriction limit for page intro field except for kids, usa, and gobierno.govs
+                // adding 170 character limit for page creation
+                var tid = jQuery("input[name='tid']").val();
+
+                if (tid != 3062 && tid != 3067 && tid != 3072) {
+
+                    jQuery('.field-name-field-page-intro textarea').attr('maxlength', '170');
+                }
+            }
 		}
 
 		// Bug killer - Sometimes multiple "Show/Hide row weights" links show...
 		jQuery('.field-type-entityreference').each( function () {
 			var jqThis = jQuery(this);
 			var toggleWeights = jqThis.find('a.tabledrag-toggle-weight');
-			if ( toggleWeights.length > 1 ) {
+			if (toggleWeights.length > 1) {
 				toggleWeights.hide();
 				toggleWeights.last().show();
 			}
