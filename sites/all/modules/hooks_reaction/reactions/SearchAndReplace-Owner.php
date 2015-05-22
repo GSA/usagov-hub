@@ -157,12 +157,14 @@ function searchReplaceOwnerForm_submit($form, &$form_state) {
     $replaceWith = $form_state['input']['ownerreplace'];
 
      $result = db_query("UPDATE {field_data_field_owner}
-                        SET {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '$replaceWith' LIMIT 1)
-                        WHERE {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '$ownerToReplace' LIMIT 1);");
+
+                        SET {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$replaceWith}' LIMIT 1)
+                        WHERE {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$ownerToReplace}' LIMIT 1);");
 
     $resultRevision = db_query("UPDATE {field_revision_field_owner}
-                        SET {field_revision_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '$replaceWith' LIMIT 1)
-                        WHERE {field_revision_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '$ownerToReplace' LIMIT 1);");
+                        SET {field_revision_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$replaceWith}' LIMIT 1)
+                        WHERE {field_revision_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$ownerToReplace}' LIMIT 1);");
+    cache_clear_all('*', 'cache_field', TRUE);
 
     drupal_set_message("'{$ownerToReplace}' has been replaced with '{$replaceWith}'", 'status');      
 
