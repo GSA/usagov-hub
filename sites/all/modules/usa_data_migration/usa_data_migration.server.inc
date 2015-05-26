@@ -756,6 +756,16 @@ function usa_data_migration_printNodeDump() {
     $dumpFieldTables = array();
     $fieldTables = usa_data_migration_getAllFieldTables();
     array_unshift($fieldTables, 'field_data_body');
+
+    // Prioritize field_revison_field_* tables first (before field_data_field_* tables)
+    foreach ($fieldTables as $index => $fieldTable) {
+        if ( strpos($fieldTable, 'field_revision_field_') !== false ) {
+            unset( $fieldTables[$index] ); // removes this element [from its current position]
+            array_unshift($fieldTables, $fieldTable); // prepends this element back into the array [at the beginning]
+        }
+    }
+    
+    // If we have nodes to dump, dump each field for this node
     if ( !empty($nidList) ) {
 
         foreach ( $fieldTables as $fieldTable ) {
@@ -769,12 +779,28 @@ function usa_data_migration_printNodeDump() {
                 
                 if ( $doLocalPush ) {
 
+                    // If a nodes has [historically] had information in this field, wipe information for this node in this field
+                    // This is to catch edge-cases where information in a field has been erased in the current/published node-revision
+                    if ( strpos($fieldTable, 'field_revision_field_') !== false ) {
+                        $dataField = str_replace('field_revision_field_', 'field_data_field_', $fieldTable);
+                        $returnData['NodeDump_sqlDump'] .= 
+                            "DELETE IGNORE FROM {$dataField} WHERE entity_type = 'node' AND entity_id IN ({$nidQuery}); \n";
+                    }
+
                     $returnData['NodeDump_sqlDump'] .= 
                         "DELETE FROM {$fieldTable} WHERE entity_type = 'node' AND entity_id IN ({$nidQuery}); \n"
                         ."INSERT INTO {$fieldTable} SELECT * FROM `{$cmpDbName}`.{$fieldTable} cmp WHERE cmp.entity_type = 'node' AND cmp.entity_id IN ({$nidQuery}); \n"
                         ."\n";
 
                 } else {
+
+                    // If a nodes has [historically] had information in this field, wipe information for this node in this field
+                    // This is to catch edge-cases where information in a field has been erased in the current/published node-revision
+                    if ( strpos($fieldTable, 'field_revision_field_') !== false ) {
+                        $dataField = str_replace('field_revision_field_', 'field_data_field_', $fieldTable);
+                        $returnData['NodeDump_sqlDump'] .= 
+                            "DELETE IGNORE FROM {$dataField} WHERE entity_type = 'node' AND entity_id IN ({$nidList});\n";
+                    }
 
                     $returnData['NodeDump_sqlDump'] .= "\nDELETE FROM {$fieldTable} WHERE entity_type = 'node' AND entity_id IN ({$nidList});\n";
                     $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
