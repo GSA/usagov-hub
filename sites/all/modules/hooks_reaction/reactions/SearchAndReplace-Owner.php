@@ -90,10 +90,21 @@ function searchOwners($string) {
                         inner join {field_data_field_owner}
                         on  {users}.uid = {field_data_field_owner}.field_owner_target_id 
                         WHERE {users}.name Like '%$string%' LIMIT 10");
+
+    $resultRevisions = db_query("SELECT DISTINCT {users}.name FROM {users}
+                        inner join {field_revision_field_owner}
+                        on  {users}.uid = {field_revision_field_owner}.field_owner_target_id 
+                        WHERE {users}.name Like '%$string%' LIMIT 10");
     $matches = array();
     foreach($result as $row) {
         $matches[$row->name] = check_plain($row->name);
     }
+
+    foreach($resultRevisions as $row) {
+        if(!in_array(check_plain($row->name), $matches))
+        $matches[$row->name] = check_plain($row->name);
+    }
+
     drupal_json_output($matches);
     exit;
 }
@@ -146,9 +157,15 @@ function searchReplaceOwnerForm_submit($form, &$form_state) {
     $replaceWith = $form_state['input']['ownerreplace'];
 
      $result = db_query("UPDATE {field_data_field_owner}
+
                         SET {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$replaceWith}' LIMIT 1)
                         WHERE {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$ownerToReplace}' LIMIT 1);");
+
+    $resultRevision = db_query("UPDATE {field_revision_field_owner}
+                        SET {field_revision_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$replaceWith}' LIMIT 1)
+                        WHERE {field_revision_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$ownerToReplace}' LIMIT 1);");
     cache_clear_all('*', 'cache_field', TRUE);
+
     drupal_set_message("'{$ownerToReplace}' has been replaced with '{$replaceWith}'", 'status');      
 
 }
