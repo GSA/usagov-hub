@@ -384,7 +384,7 @@ function searchReplaceForm_validate($form, $form_state) {
     $search_field_tables = array();
     $case_sensitive = '';
 
-    if ($form_state['case_sensitivity']){
+    if ( intval($form_state['input']['case_sensitivity']) > 0 ) {
         $case_sensitive = 'binary';
     }
 
