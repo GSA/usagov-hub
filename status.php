@@ -1,12 +1,26 @@
 <?php
+$t = array( 'start'=>microtime(true), 'drupal'=>null, 'fin'=>null );
+
 
 // Register our shutdown function so that no other shutdown functions run before this one.
 // This shutdown function calls exit(), immediately short-circuiting any other shutdown functions,
 // such as those registered by the devel.module for statistics.
 register_shutdown_function('status_shutdown');
-function status_shutdown() {  
+function status_shutdown() {
+  global $t;
+  $t['fin'] = microtime(true);
+  if ( !empty($_GET['timers']) )
+  {
+    echo " start({$t['start']}) drupal({$t['drupal']}) fin({$t['fin']})";
+  }
   exit();
 }
+
+if ( !empty($_GET['php']) )
+{
+    exit();
+}
+
 
 // Build up our list of errors.
 $errors = array();
@@ -18,9 +32,10 @@ require_once './includes/bootstrap.inc';
 try {
     drupal_bootstrap(DRUPAL_BOOTSTRAP_VARIABLES);
 }
-catch (Exception $e) {  
+catch (Exception $e) {
     $errors[]= $e->getMessage();
 }
+$t['drupal'] = microtime(true);
 
 
 //  Check that the Drupal site is in  Maintenance Mode
@@ -29,12 +44,12 @@ if (variable_get('maintenance_mode', 0)) {
 }
 
 // Print all errors.
-if ($errors) {   
-  $errors[] = 'Errors on this server will cause it to be removed from the load balancer.';    
+if ($errors) {
+  $errors[] = 'Errors on this server will cause it to be removed from the load balancer.';
   header('HTTP/1.1 503 Internal Server Error');
   print implode("<br />\n", $errors);
 }
-else {  
+else {
   print 'Status Ok';
 }
 

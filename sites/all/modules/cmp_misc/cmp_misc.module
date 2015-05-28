@@ -32,6 +32,14 @@ function cmp_misc_init()
 {
     drupal_add_js(drupal_get_path('module', 'cmp_misc') .'/js/global.js');
     drupal_add_css(drupal_get_path('module', 'cmp_misc') .'/global_fix.css');
+
+    // redirect users on '/search-content-items' page to '/search-content-items?items_per_page=20' 
+    $currentURL = request_uri();
+    if($currentURL == '/search-content-items'){
+        $options = array('query' => array('items_per_page' => '20'));
+        drupal_goto('/search-content-items', $options);
+    }
+
 }
 
 function cmp_misc_menu() {
