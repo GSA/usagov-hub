@@ -292,7 +292,7 @@ function notifyTaxonomyChange_mail($key, &$message, $params) {
             $msg .= "A taxonomy-term by the name of \"{$params['term']->name}\" was deleted from the system.";
             break;
         case SS_CHANGE_ADD:
-            $msg .= "A new taxonomy-term (\"{$params['newValue']}\") has been added to the system.";
+            $msg .= "A new taxonomy-term (\"{$params['newValue']->name}\") has been added to the system.";
             $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
             break;
         case SS_CHANGE_TITLE:
