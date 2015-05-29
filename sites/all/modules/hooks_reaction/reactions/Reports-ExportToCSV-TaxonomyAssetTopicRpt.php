@@ -189,7 +189,9 @@ function findNodeCountAssociatedWithTopic($tid) {
     return db_query("
         SELECT COUNT(entity_id) 
         FROM field_data_field_asset_topic_taxonomy 
-        WHERE field_asset_topic_taxonomy_tid={$tid}
+        WHERE
+            field_asset_topic_taxonomy_tid={$tid}
+            AND entity_type = 'node'
     ")->fetchColumn();
 }
 
