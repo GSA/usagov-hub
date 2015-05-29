@@ -306,7 +306,7 @@ function notifyTaxonomyChange_mail($key, &$message, $params) {
         case SS_CHANGE_ASSET:
             $msg .= "The taxonomy-term \"{$params['term']->name}\" has had its associated assets changed.\n";
             $msg .= "\n";
-            $msg .= "The assigned assets we originally:\n";
+            $msg .= "The assigned assets were originally:\n";
             $msg .= "\n";
             foreach ( getAssetsInSiteStructTerm($params['oldValue'], true) as $node ) {
                 $msg .= "\t* {$node->title} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
