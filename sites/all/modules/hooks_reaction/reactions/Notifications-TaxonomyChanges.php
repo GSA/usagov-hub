@@ -15,6 +15,7 @@
         
 */
 
+define("SS_CHANGE_NOTIFY_ROLE", 'pm team');
 define("SS_CHANGE_DEL", 0);
 define("SS_CHANGE_ADD", 1);
 define("SS_CHANGE_TITLE", 2);
@@ -31,7 +32,7 @@ hooks_reaction_add("menu",
 
         $menuArr['admin/config/notifications/taxonomy-alter'] = array(
             'title' => 'Members who receive taxonomy notifications',
-            'description' => 'Control which Marketing-Team members receive taxonomy-alteration notifications.',
+            'description' => 'Control which users receive taxonomy-alteration notifications.',
             'page callback' => 'drupal_get_form',
             'page arguments' => array('notify_tax_change_form'),
             'access arguments' => array('access administration pages'),
@@ -105,55 +106,74 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
         }
 
         // Get a list of all assets in order to check if the assets are being changed
-        $assetFieldContainers = array(
-            'field_asset_order_carousel',
-            'field_asset_order_content',
-            'field_asset_order_sidebar',
-            'field_asset_order_bottom'
-        );
-        foreach ( $assetFieldContainers as $assetFieldContainer ) {
+        $allAssetsNew = getAssetsInSiteStructTerm($termNew, false);
+        $allAssetsOld = getAssetsInSiteStructTerm($termOld, false);
 
-            $allAssetsNew = array();
-            $allAssetsOld = array();
-
-            if ( !empty($termOld->{$assetFieldContainer}) && !empty($termOld->{$assetFieldContainer}['und']) ) {
-                foreach ( $termOld->{$assetFieldContainer}['und'] as $targetContainer ) {
-                    $allAssetsOld[] = $targetContainer['target_id'];
-                }
-            }
-            if ( !empty($termNew->{$assetFieldContainer}) && !empty($termNew->{$assetFieldContainer}['und']) ) {
-                foreach ( $termNew->{$assetFieldContainer}['und'] as $targetContainer ) {
-                    $allAssetsNew[] = $targetContainer['target_id'];
-                }
-            }
-
-            sort($allAssetsNew);
-            sort($allAssetsOld);
-
-            // Check if the assets are being changed
-            if ( implode(',', $allAssetsNew) !== implode(',', $allAssetsOld) ) {
-                informPmTeamOfPageChange(
-                    SS_CHANGE_ASSET,
-                    $termNew,
-                    $termOld,
-                    $termNew
-                );
-                break;
-            }
+        // Check if the assets are being changed
+        if ( implode(',', $allAssetsNew) !== implode(',', $allAssetsOld) ) {
+            informPmTeamOfPageChange(
+                SS_CHANGE_ASSET,
+                $termNew,
+                $termOld,
+                $termNew
+            );
         }
-
 
     }
 );
+
+/**
+ * array getAssetsInSiteStructTerm($term[, $loadAssets = false])
+ *
+ * Given a loaded Site-Structure taxonomy-term, this function will find all the 
+ * assets assigned to this node.
+ *
+ * Returns an array of node-IDs, or array of loaded nodes (based on the seconds argument).
+ */
+function getAssetsInSiteStructTerm($term, $loadAssets = false) {
+
+    $ret = array();
+
+    // These fields in S.S-taxonomy-terms hold pointers to nodes (assets)
+    $assetFieldContainers = array(
+        'field_asset_order_carousel',
+        'field_asset_order_content',
+        'field_asset_order_sidebar',
+        'field_asset_order_bottom'
+    );
+
+    // Look in each of these fields for node-id references
+    foreach ( $assetFieldContainers as $assetFieldContainer ) {
+        if ( !empty($term->{$assetFieldContainer}) && !empty($term->{$assetFieldContainer}['und']) ) {
+
+            // Look for [multiple] node-id references in this field
+            foreach ( $term->{$assetFieldContainer}['und'] as $targetContainer ) {
+
+                $ret[] = $targetContainer['target_id'];
+            }
+        }
+    }
+
+    sort($ret);
+
+    // Load the assets if requested
+    if ( $loadAssets ) {
+        foreach ($ret as &$n) {
+            $n = node_load($n);
+        }
+    }
+
+    return $ret;
+}
 
 function notify_tax_change_form() {
 
     $form = array();
 
     $form['assetfix'] = array(
-        '#markup' => 'Note: By default, all members with the "Marketing Team" role will receive '
+        '#markup' => 'Note: By default, all members with the "'.SS_CHANGE_NOTIFY_ROLE.'" role will receive '
             .'a notification when a Site-Structure Taxonomy-term is changed.<br/>'
-            .'To ensure a particular user of the Marketing-Team <b>does not</b> receive these '
+            .'To ensure a particular user of this role <b>does not</b> receive these '
             .'messages, tick the appropriate checkbox below.<br/><br/>',
     );
 
@@ -164,9 +184,28 @@ function notify_tax_change_form() {
         '#collapsed' => false,
     );
 
-    $role = user_role_load_by_name('marketing team');
+    // Get the role-id for SS_CHANGE_NOTIFY_ROLE
+    $role = user_role_load_by_name(SS_CHANGE_NOTIFY_ROLE);
+    if ( $role === false ) {
+        drupal_set_message(
+            'The "'.SS_CHANGE_NOTIFY_ROLE.'" role does not exsist in this system. Please create '
+                .'this role and assign users to it.',
+            'error'
+        );
+        return array();
+    }
+
+    // Get all the users assigned to this role
     $uids = db_query("SELECT DISTINCT uid FROM users_roles WHERE rid = {$role->rid}")->fetchCol();
     $mtMembers = user_load_multiple($uids);
+    if ( count($mtMembers) === 0 ) {
+        drupal_set_message(
+            'The "'.SS_CHANGE_NOTIFY_ROLE.'" role does not have any users assigned to it. You can '
+                .'not change any settings here until some users are assigned.',
+            'warning'
+        );
+        return array();
+    }
 
     foreach ( $mtMembers as $mtMember ) {
         $key = "tax_no_notify_".$mtMember->uid;
@@ -187,7 +226,7 @@ function notify_tax_change_form() {
 
 function notify_tax_change_form_submit($form, &$form_state) {
     
-    $role = user_role_load_by_name('marketing team');
+    $role = user_role_load_by_name(SS_CHANGE_NOTIFY_ROLE);
     $uids = db_query("SELECT DISTINCT uid FROM users_roles WHERE rid = {$role->rid}")->fetchCol();
     $mtMembers = user_load_multiple($uids);
 
@@ -202,12 +241,17 @@ function notify_tax_change_form_submit($form, &$form_state) {
 
 function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term = false) {
 
-    // Get a list of users to email
-    $role = user_role_load_by_name('marketing team');
+    // Get the role-id for the SS_CHANGE_NOTIFY_ROLE role
+    $role = user_role_load_by_name(SS_CHANGE_NOTIFY_ROLE);
+    if ( $role === false ) {
+        return;
+    }
+
+    // Get a list of users to email (users in this role)
     $uids = db_query("SELECT DISTINCT uid FROM users_roles WHERE rid = {$role->rid}")->fetchCol();
     $mtMembers = user_load_multiple($uids);
 
-    // Send a message to each member of the Marketing Team
+    // Send a message to each member of the SS_CHANGE_NOTIFY_ROLE role
     foreach ($mtMembers as $uid => $mtMember) {
 
         // Do not send to users marked for no notifications
@@ -227,7 +271,8 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
                     'newValue' => $newValue,
                     'oldValue' => $oldValue,
                     'term' => $term,
-                    'change' => $change
+                    'change' => $change,
+                    'Content-Type' => 'text/plain;'
                 )
             );
 
@@ -248,18 +293,31 @@ function notifyTaxonomyChange_mail($key, &$message, $params) {
             break;
         case SS_CHANGE_ADD:
             $msg .= "A new taxonomy-term (\"{$params['newValue']}\") has been added to the system.";
-            $msg .= "You can edit this term from: http://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
+            $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
             break;
         case SS_CHANGE_TITLE:
             $msg .= "The taxonomy-term \"{$params['oldValue']}\", has been renamed to \"{$params['newValue']}\". ";
-            $msg .= "You can edit this term from: http://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
+            $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
             break;
         case SS_CHANGE_URL:
             $msg .= "The taxonomy-term \"{$params['term']->name}\" has had its Friendly-URL field change from \"{$params['oldValue']}\" to \"{$params['newValue']}\".";
-            $msg .= "You can edit this term from: http://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
+            $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
             break;
         case SS_CHANGE_ASSET:
-            
+            $msg .= "The taxonomy-term \"{$params['term']->name}\" has had its associated assets changed.\n";
+            $msg .= "\n";
+            $msg .= "The assigned assets we originally:\n";
+            $msg .= "\n";
+            foreach ( getAssetsInSiteStructTerm($params['oldValue'], true) as $node ) {
+                $msg .= "\t* {$node->title} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
+            }
+            $msg .= "\n";
+            $msg .= "And now the asset assignment is:\n";
+            foreach ( getAssetsInSiteStructTerm($params['newValue'], true) as $node ) {
+                $msg .= "\t* {$node->title} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
+            }
+            $msg .= "\n";
+            $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
             break;
     }
     $message['body'][] = $msg;
