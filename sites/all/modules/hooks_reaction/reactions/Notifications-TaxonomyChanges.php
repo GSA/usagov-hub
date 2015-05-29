@@ -292,7 +292,7 @@ function notifyTaxonomyChange_mail($key, &$message, $params) {
             $msg .= "A taxonomy-term by the name of \"{$params['term']->name}\" was deleted from the system.";
             break;
         case SS_CHANGE_ADD:
-            $msg .= "A new taxonomy-term (\"{$params['newValue']}\") has been added to the system.";
+            $msg .= "A new taxonomy-term (\"{$params['newValue']->name}\") has been added to the system.";
             $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
             break;
         case SS_CHANGE_TITLE:
@@ -306,7 +306,7 @@ function notifyTaxonomyChange_mail($key, &$message, $params) {
         case SS_CHANGE_ASSET:
             $msg .= "The taxonomy-term \"{$params['term']->name}\" has had its associated assets changed.\n";
             $msg .= "\n";
-            $msg .= "The assigned assets we originally:\n";
+            $msg .= "The assigned assets were originally:\n";
             $msg .= "\n";
             foreach ( getAssetsInSiteStructTerm($params['oldValue'], true) as $node ) {
                 $msg .= "\t* {$node->title} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
