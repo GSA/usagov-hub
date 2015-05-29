@@ -255,7 +255,11 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
     foreach ($mtMembers as $uid => $mtMember) {
 
         // Do not send to users marked for no notifications
-        if ( variable_get("tax_no_notify_".$uid, false) == true ) {
+        if (
+            variable_get("tax_no_notify_".$uid, false) == true 
+            || strpos($mtMember->name, '@') === false
+            || strpos($mtMember->name, '.') === false
+        ) {
             unset($mtMembers[$uid]);
         } else {
 
