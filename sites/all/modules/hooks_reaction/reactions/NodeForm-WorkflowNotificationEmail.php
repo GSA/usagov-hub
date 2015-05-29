@@ -49,6 +49,8 @@ hooks_reaction_add(
         "form_multimedia_content_type_node_form_alter",
         "form_html_content_type_node_form_alter",
         "form_directory_record_content_type_node_form_alter",
+        "form_file_content_type_node_form_alter",
+        "form_state_details_node_form_alter",
     ),
     function (&$form, &$form_state, $form_id) {
         
@@ -73,7 +75,7 @@ function ajaxRespondWorkflowNotificationEmail($string) {
 
     // Get a list of users based on the search string
     $ret = array();
-    foreach( db_query("SELECT name FROM users WHERE name LIKE '%{$string}%' LIMIT 10") as $row ) {
+    foreach( db_query("SELECT name FROM users WHERE InStr(name, '{$string}')=1 LIMIT 10") as $row ) {
         $ret[$row->name] = check_plain($row->name);
     }
 
