@@ -29,6 +29,7 @@ body.hideScaytButtons .cke_menu_panel{
 	display:none;
 }
 
-input[name$="[value][time]"] + .description::after{
+input[name$="[value][time]"] + .description::after,
+.timeEntry_wrap + .description::after{
 	content: " - Use 24 Hour Format";
 }
