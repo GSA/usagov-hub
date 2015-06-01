@@ -298,7 +298,7 @@ function cmp_misc_node_ever_published($node) {
 function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
 
     // Defaulting the Owner field with the current user if not populated
-    if($form_id === 'text_content_type_node_form' || $form_id === 'state_details_node_form' || $form_id === 'state_details_node_form' ||  $form_id === 'html_content_type_node_form' || $form_id === 'file_content_type_node_form' || $form_id === 'directory_record_content_type_node_form' ){
+    if($form_id === 'text_content_type_node_form' || $form_id === 'state_details_node_form' || $form_id === 'state_details_node_form' ||  $form_id === 'html_content_type_node_form' || $form_id === 'file_content_type_node_form' || $form_id === 'directory_record_content_type_node_form' || $form_id === 'multimedia_content_type_node_form'){
         if(empty($form['field_owner']['und'][0]['target_id']['#default_value']) && strlen($form['field_owner']['und'][0]['target_id']['#default_value']) == 0){
             global $user;
             $currentUserStr = $user->name . " (" . $user->uid . ") ";

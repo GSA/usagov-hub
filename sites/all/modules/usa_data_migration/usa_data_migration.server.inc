@@ -332,13 +332,13 @@ function usa_data_migration_printTaxonomyDump() {
         if ( $taxTpLvlParentNameFilter === false ) {
             $tidQuery = "SELECT tid FROM `{$cmpDbName}`.taxonomy_term_data";
         } else {
-            $tidQuery = "SELECT tid FROM `{$cmpDbName}`.taxonomy_tlt_name WHERE tlt_name='{$taxTpLvlParentNameFilter}' ";
+            $tidQuery = "SELECT tid FROM `{$cmpDbName}`.taxonomy_tlt_name WHERE tlt_name='{$taxTpLvlParentNameFilter}' OR tlt_name='ALL' ";
         }
     } else {
         if ( $taxTpLvlParentNameFilter === false ) {
             $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d WHERE d.changed > {$_GET['since']} OR d.created > {$_GET['since']}";
         } else {
-            $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d LEFT JOIN `{$cmpDbName}`.taxonomy_tlt_name tltn ON (tltn.tid=d.tid) WHERE ( d.changed > {$_GET['since']} OR d.created > {$_GET['since']} ) AND tltn.tlt_name = '{$taxTpLvlParentNameFilter}' ";
+            $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d LEFT JOIN `{$cmpDbName}`.taxonomy_tlt_name tltn ON (tltn.tid=d.tid) WHERE ( d.changed > {$_GET['since']} OR d.created > {$_GET['since']} ) AND (tltn.tlt_name = '{$taxTpLvlParentNameFilter}' OR tltn.tlt_name = 'ALL') ";
         }
     }
     // If we are NOT doing a "Local-Push", then we need to work in batches
@@ -1008,13 +1008,23 @@ function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
 
     usa_data_migration_ensureTaxonomyTLTNameTableExsists();
 
+    $siteStructVocab = taxonomy_vocabulary_machine_name_load('site_strucutre_taxonomy');
+    $siteStructVocabId = $siteStructVocab->vid;
+
     foreach ( $tids as $tid ) {
 
         db_query("DELETE FROM taxonomy_tlt_name WHERE tid = {$tid} ");
 
-        $parents = taxonomy_get_parents_all($tid);
-        $topLevelParent = $parents[ count($parents) - 1 ];
-        $tltName = $topLevelParent->name;
+        $vocabId = db_query("SELECT vid FROM taxonomy_term_data WHERE tid={$tid}")->fetchColumn();
+        if ( intval($siteStructVocabId) === intval($vocabId) ) {
+            // then this is a site-structure taxonomy-term
+            $parents = taxonomy_get_parents_all($tid);
+            $topLevelParent = $parents[ count($parents) - 1 ];
+            $tltName = $topLevelParent->name;
+        } else {
+            // then this is NOT a site-structure taxonomy-term, this is under some different vocab
+            $tltName = 'ALL';
+        }
 
         db_query("INSERT INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, '{$tltName}') ");
 
