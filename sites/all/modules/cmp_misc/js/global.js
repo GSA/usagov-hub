@@ -84,26 +84,34 @@
             });
 
             // Turn on spellchecker by default in the wysiwyg editors
-            scaytSemaphore = 0;
-            jQuery('body').addClass('hideScaytButtons');
-            jQuery('.cke_button__scayt').each( function() {
+            var windowActive = setInterval(function(){
+                if(document.hidden == false){
+                    scaytSemaphore = 0;
+                    jQuery('body').addClass('hideScaytButtons');
 
-                jQuery(this).click();
-                scaytSemaphore++;
+                    jQuery('.cke_button__scayt').each( function() {
 
-                // SetTimeout to wait for the IFrame to be created (this IFrame creation was triggered from the .click() above)
-                setTimeout( function () {
-                    var contextMenueIframeBody = jQuery('.cke_panel_frame').contents().find('body');
-                    //contextMenueIframeBody.css('background-color', 'green');
-                    var enableScaytButton = contextMenueIframeBody.find('a[title="Enable SCAYT"]');
-                    enableScaytButton.click();
-                    scaytSemaphore--;
-                    if ( scaytSemaphore == 0 ) {
-                        jQuery('body').removeClass('hideScaytButtons');
-                    }
-                }, 500);
+                        jQuery(this).click();
+                        scaytSemaphore++;
 
-            });
+                        // SetTimeout to wait for the IFrame to be created (this IFrame creation was triggered from the .click() above)
+                        setTimeout( function () {
+                            var contextMenueIframeBody = jQuery('.cke_panel_frame').contents().find('body');
+                            //contextMenueIframeBody.css('background-color', 'green');
+                            var enableScaytButton = contextMenueIframeBody.find('a[title="Enable SCAYT"]');
+                            enableScaytButton.click();
+                            scaytSemaphore--;
+                            if ( scaytSemaphore == 0 ) {
+                                jQuery('body').removeClass('hideScaytButtons');
+                            }
+                        }, 500);
+                    });
+                    clearInterval(windowActive);
+                }
+            }, 500);
+
+
+
         }, 1000);
 
     });
