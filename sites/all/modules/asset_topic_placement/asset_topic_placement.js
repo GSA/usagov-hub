@@ -336,11 +336,13 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 	</tr>';
 
 	var valId = jQuery(fieldSelector+' tr.draggable').length;
+	var valIdCombo = valId + '--' + jQuery('input[name="name"]').attr('id').split('-').pop();
 	var oddOrEven = ( jQuery(fieldSelector+' tr').last().hasClass('even') ? 'odd' : 'even' );
 	var fieldName = String(fieldSelector).replace('#edit-', '');
 	var fieldUnderName = String(fieldName).replace(/-/g, '_');
 	newRowHTML = newRowHTML.replace(/FIELD_UNDER_NAME/g, fieldUnderName);
 	newRowHTML = newRowHTML.replace(/FIELD_HERE/g, fieldName);
+	newRowHTML = newRowHTML.replace(/VALUE_IDCOMBO_HERE/g, valIdCombo);
 	newRowHTML = newRowHTML.replace(/VALUE_ID_HERE/g, valId);
 	newRowHTML = newRowHTML.replace(/NODE_ID_HERE/g, nodeId);
 	newRowHTML = newRowHTML.replace(/NODE_TITLE_HERE/g, nodeTitle);
@@ -406,7 +408,29 @@ function reinitializeDragTables() {
 				hasSetTimer = true;
 			}
 		});
-		
+
+		// Input name fix
+		jQuery('.form-type-checkbox input[name*="__"]').each( function () {
+		    for ( var x = 2 ; x < 20 ; x++ ) {
+		        var jqThis = jQuery(this);
+		        var newInptName = jqThis.attr('name').replace('__'+x, '');
+		        jqThis.attr('name', newInptName);
+		    }
+		});
+
+		// Weight name fix
+		for ( var x = 2 ; x < 20 ; x++ ) {
+			jQuery('.form-type-select select[id*="--'+x+'-und"]').each( function () {
+				var jqThis = jQuery(this);
+				var newId = jqThis.attr('id').replace('--'+x+'-und', '-und').replace('-weight', '--'+x+'-weight');
+				jqThis.attr('id', newId);
+				var newInptName = jqThis.attr('name').replace('__'+x, '');
+				jqThis.attr('name', newInptName);
+				var node = jqThis.get(0);
+				node.className = node.className.replace('--'+x+'-delta-order', '-delta-order');
+			});
+		}
+
 	});
 
 }
