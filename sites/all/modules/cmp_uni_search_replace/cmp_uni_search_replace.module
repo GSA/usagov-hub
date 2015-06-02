@@ -379,6 +379,7 @@ function searchReplaceForm() {
 }
 
 function searchReplaceForm_validate($form, $form_state) {
+
     $queryJoins = array();
     $queryWhere = array();
     $search_field_tables = array();
@@ -407,16 +408,29 @@ function searchReplaceForm_validate($form, $form_state) {
         }
     }
 
-    if (count($queryWhere) > 0) {
+    $fields = field_info_fields();
+    // adding content type filter
+    $selected_content_types = array();
+    foreach ( $fields as $fieldMacName => $fieldInfo ) {
+
+        // Add to contentTypeFields map
+        if ( !empty($fieldInfo['bundles']['node']) ) {
+            foreach ( $fieldInfo['bundles']['node'] as $contTypeMacName ) {
+                if (isset($form_state['values'][$contTypeMacName]) && $form_state['values'][$contTypeMacName]) {
+                    $selected_content_types[$contTypeMacName] = "'".$contTypeMacName."'";
+                }
+            }
+        }
+    }
+
+    if (count($queryWhere) > 0 && count($selected_content_types) > 0) {
         $joins = implode($queryJoins, "\n        ");
         $wheres = implode($queryWhere, "\n            OR ") ;
 
         $grandQuery = "SELECT n.nid, n.title
         FROM node n
         " . ((!empty($joins))? $joins:'') . "
-        WHERE " . ((!empty($wheres))? $wheres:'') . "
-        ";
-
+        WHERE n.type IN (" . join(" , ", $selected_content_types) . ")" . ((!empty($wheres))? " AND (".$wheres.")":'');
         $res = db_query($grandQuery, array(":search_str" => $form_state['values']['search_str']));
 
         foreach ($res as $row) {
