@@ -81,7 +81,12 @@ function exportSiteStructureTaxonomyReportToCSV() {
 
     // Print the CSV headers
     print '"counter","Page Title","Parent Title","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",';
-    print '"Asset 1","Asset 2","Asset 3","Asset 4","Asset 5"';
+    for ( $T = 1 ; $T < intval(variable_get('tssr_lastmaxcolcount', 3)); $T++ ) {
+        if ( $T > 1 ) {
+            print ',';
+        }
+        print '"Asset Title '.$T.'"';
+    }
     print "\n";
 
     // Print the CSV content
@@ -136,6 +141,9 @@ function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$ro
     if ( !empty($term->field_asset_order_sidebar['und']) ) {
         $assets = array_merge($assets, $term->field_asset_order_sidebar['und']);
     }
+    if ( !empty($term->field_asset_order_bottom['und']) ) {
+        $assets = array_merge($assets, $term->field_asset_order_bottom['und']);
+    }
 
     // Prepare to add a new row into the report
     $newRow = array(
@@ -153,6 +161,11 @@ function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$ro
     foreach ( $assets as $assetId => $assetTargetIdContainer ) {
         // I'm using db_query here rather than node_load because it's faster (and really makes a difference in a recursive loop like this)
         $newRow["Asset ".($assetId+1)] = db_query("SELECT title FROM node WHERE node.nid={$assetTargetIdContainer['target_id']}")->fetchColumn();
+    }
+
+    // Note the number of additional columns (to correct the header-cound for the next report)
+    if ( variable_get('tssr_lastmaxcolcount', 3) < count($assets) ) {
+        variable_set('tssr_lastmaxcolcount', count($assets)+1);
     }
 
     // Add the new row to the report

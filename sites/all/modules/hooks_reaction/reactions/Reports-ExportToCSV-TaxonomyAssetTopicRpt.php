@@ -81,7 +81,12 @@ function exportAssetTopicTaxonomyReportToCSV() {
 
     // Print the CSV headers
     print '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets on Page",';
-    print '"Asset 1","Asset 2","Asset 3","Asset 4","Asset 5"';
+    for ( $T = 1 ; $T < intval(variable_get('tatr_lastmaxcolcount', 3)); $T++ ) {
+        if ( $T > 1 ) {
+            print ',';
+        }
+        print '"Page Title '.$T.'"';
+    }
     print "\n";
 
     // Print the CSV content
@@ -154,6 +159,11 @@ function compileAssetTopicTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$rows,
         $siteStructTaxTerms = tatr_findSiteStructTermsThatReferenceAsset($node->nid);
         foreach ( $siteStructTaxTerms as $siteStructTaxTerm ) {
             $newRow[] = db_query("SELECT name FROM taxonomy_term_data WHERE tid={$siteStructTaxTerm}")->fetchColumn();
+        }
+
+        // Note the number of additional columns (to correct the header-cound for the next report)
+        if ( variable_get('tatr_lastmaxcolcount', 3) < count($siteStructTaxTerms) ) {
+            variable_set('tatr_lastmaxcolcount', count($siteStructTaxTerms)+1);
         }
 
         // Add new row to the report - for this node under this Asset Topic
