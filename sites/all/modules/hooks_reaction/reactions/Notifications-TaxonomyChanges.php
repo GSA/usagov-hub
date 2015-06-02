@@ -135,8 +135,10 @@ function getAssetsInSiteStructTerm($term, $loadAssets = false) {
     $ret = array();
 
     // Get the top-level-term name for this $term
+    if ( empty($term->tid) ) {
+        return;
+    }
     $tltName = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid=".$term->tid)->fetchColumn();
-
     if ( $tltName === false ) {
         return;
     }
