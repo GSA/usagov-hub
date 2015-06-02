@@ -137,6 +137,10 @@ function getAssetsInSiteStructTerm($term, $loadAssets = false) {
     // Get the top-level-term name for this $term
     $tltName = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid=".$term->tid)->fetchColumn();
 
+    if ( $tltName === false ) {
+        return;
+    }
+
     if ( $tltName === 'Kids.gov' ) {
 
         // These fields in S.S-taxonomy-terms hold pointers to nodes (assets)
