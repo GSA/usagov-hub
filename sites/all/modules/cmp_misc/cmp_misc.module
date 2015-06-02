@@ -985,10 +985,16 @@ function _cmp_misc_notify_ux_team_about_empty_page($term) {
     $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
     $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
 
-    $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+    $prodStageDomains = variable_get('udm_prod_domains', array());
+    if ( in_array($_SERVER['HTTP_HOST'], $prodStageDomains) ) {
+        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        if ($res["send"]) {
+            drupal_set_message("Notified about Empty page creation. Notification email has been sent." . $to);
+        }
 
-    if ($res["send"]) {
-        drupal_set_message("Notified about Empty page creation. Notification email has been sent." . $to);
+    } else {
+        // then we are running on someone's local, do NOT send the email
+        drupal_set_message("Notified about Empty page creation. Notification email has NOT been sent because it is NOT STAGE or PROD environment." . $to);
     }
 }
 
