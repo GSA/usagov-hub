@@ -1,5 +1,5 @@
 <?php
-$t = array( 'start'=>microtime(true), 'drupal'=>null, 'fin'=>null );
+$t = array( 'start'=>microtime(true), 'bootstrap'=>null, 'fin'=>null );
 
 
 // Register our shutdown function so that no other shutdown functions run before this one.
@@ -11,12 +11,12 @@ function status_shutdown() {
   $t['fin'] = microtime(true);
   if ( !empty($_GET['timers']) )
   {
-    echo " start({$t['start']}) drupal({$t['drupal']}) fin({$t['fin']})";
+    echo " start({$t['start']}) bootstrap({$t['bootstrap']}) fin({$t['fin']})";
   }
   exit();
 }
 
-if ( !empty($_GET['php']) )
+if ( !empty($_GET['phponly']) )
 {
     exit();
 }
@@ -35,7 +35,7 @@ try {
 catch (Exception $e) {
     $errors[]= $e->getMessage();
 }
-$t['drupal'] = microtime(true);
+$t['bootstrap'] = microtime(true);
 
 
 //  Check that the Drupal site is in  Maintenance Mode
