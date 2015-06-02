@@ -134,24 +134,51 @@ function getAssetsInSiteStructTerm($term, $loadAssets = false) {
 
     $ret = array();
 
-    // These fields in S.S-taxonomy-terms hold pointers to nodes (assets)
-    $assetFieldContainers = array(
-        'field_asset_order_carousel',
-        'field_asset_order_content',
-        'field_asset_order_sidebar',
-        'field_asset_order_bottom'
-    );
+    // Get the top-level-term name for this $term
+    $tltName = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid=".$term->tid)->fetchColumn();
 
-    // Look in each of these fields for node-id references
-    foreach ( $assetFieldContainers as $assetFieldContainer ) {
-        if ( !empty($term->{$assetFieldContainer}) && !empty($term->{$assetFieldContainer}['und']) ) {
+    if ( $tltName === 'Kids.gov' ) {
 
-            // Look for [multiple] node-id references in this field
-            foreach ( $term->{$assetFieldContainer}['und'] as $targetContainer ) {
+        // These fields in S.S-taxonomy-terms hold pointers to nodes (assets)
+        $assetFieldContainers = array(
+            'field_asset_order_carousel',
+            'field_asset_order_content',
+            'field_asset_order_sidebar',
+            'field_asset_order_bottom'
+        );
 
-                $ret[] = $targetContainer['target_id'];
+        // Look in each of these fields for node-id references
+        foreach ( $assetFieldContainers as $assetFieldContainer ) {
+            if ( !empty($term->{$assetFieldContainer}) && !empty($term->{$assetFieldContainer}['und']) ) {
+
+                // Look for [multiple] node-id references in this field
+                foreach ( $term->{$assetFieldContainer}['und'] as $targetContainer ) {
+
+                    $ret[] = $targetContainer['target_id'];
+                }
             }
         }
+
+    } else {
+
+        /* NON-Kids site logic (lookup based on Asset-Topic assignment) */
+
+        // Get all topic-ids this $term references
+        $arrTopicIds = array();
+        foreach ( $term->field_asset_topic_taxonomy['und'] as $topicIdContainer ) {
+            $arrTopicIds[] = $topicIdContainer['tid'];
+        }
+        $strTopicIds = implode(',', $arrTopicIds);
+
+        // Get all node-IDs that reference these $strTermIds
+        $ret = db_query("
+            SELECT entity_id
+            FROM field_data_field_asset_topic_taxonomy 
+            WHERE 
+                field_asset_topic_taxonomy_tid in ({$strTopicIds}) 
+                AND entity_type='node'
+        ")->fetchCol();
+
     }
 
     sort($ret);
@@ -313,12 +340,14 @@ function notifyTaxonomyChange_mail($key, &$message, $params) {
             $msg .= "The assigned assets were originally:\n";
             $msg .= "\n";
             foreach ( getAssetsInSiteStructTerm($params['oldValue'], true) as $node ) {
-                $msg .= "\t* {$node->title} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
+                $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
+                $msg .= "\t* {$nodeTitle} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
             }
             $msg .= "\n";
             $msg .= "And now the asset assignment is:\n";
             foreach ( getAssetsInSiteStructTerm($params['newValue'], true) as $node ) {
-                $msg .= "\t* {$node->title} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
+                $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
+                $msg .= "\t* {$nodeTitle} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
             }
             $msg .= "\n";
             $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
