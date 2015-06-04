@@ -27,7 +27,7 @@ hooks_reaction_add("menu",
             'title' => '',
             'description' => 'CSV export for the Site-Structure-Taxonomy report at /content-tag-report/export',
             'page callback' => 'exportSiteStructureTaxonomyReportToCSV',
-            'access arguments' => array(true),
+            'access callback' => 'user_is_logged_in',
             'type' => MENU_NORMAL_ITEM,
         );
 
