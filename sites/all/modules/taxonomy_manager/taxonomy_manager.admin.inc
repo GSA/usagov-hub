@@ -910,7 +910,8 @@ function taxonomy_manager_term_data_form(&$form, &$form_state, $tid = 0, $vid1, 
         'wrapper' => 'taxonomy-term-data-replace',
         'progress' => array('type' => ''),
       ),
-      '#weight' => 20,
+      '#prefix' => '<br/><br/>',
+      '#weight' => 100,
     );
     // i18n integration
     if (module_exists('i18n_taxonomy')) {
