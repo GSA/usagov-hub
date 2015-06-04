@@ -128,86 +128,160 @@ function search_result_form_validate($form, $form_state) {
 }
 
 function search_result_form_submit($form, $form_state) {
-    /*dsm(variable_get('search_text'));
-    dsm(variable_get('replacing_nids'));
-    dsm(variable_get('search_table_fields_mapping'));
-*/
-    // go through table
-    foreach (variable_get('search_table_fields_mapping') as $table => $fields) {
-        foreach($fields as $field) {
-            foreach (variable_get('replacing_nids') as $nid) {
-                // update sql
-                if ($table == 'node' || $table == 'field_data_body') {
-                    //$sql = "UPDATE {$table} SET {$field} = REPLACE({$field}, :search_str, :replace_str) WHERE nid = :nid";
-                    // somereason, above update statement does the job but it doesn't affect on UI. So had to load node and node save
-                    $node = node_load($nid);
-                    if ($field == 'title') {
-                        if (variable_get('case_sensitive')) {
-                            $node->title = str_replace(variable_get('search_text'), $form_state['values']['replace_str'], $node->title);
-                        }
-                        else {
-                            $node->title = str_ireplace(variable_get('search_text'), $form_state['values']['replace_str'], $node->title);
-                        }
-                    }
-                    elseif($field == 'body_value') {
-                        if (variable_get('case_sensitive')) {
-                            $node->body['und'][0]['value'] = str_replace(variable_get('search_text'), $form_state['values']['replace_str'], $node->body['und'][0]['value']);
-                        }
-                        else {
-                            $node->body['und'][0]['value'] = str_ireplace(variable_get('search_text'), $form_state['values']['replace_str'], $node->body['und'][0]['value']);
-                        }
-                    }
-                    node_save($node);
+
+    //dsm(variable_get('search_text'));
+    //dsm(variable_get('replacing_nids'));
+    //dsm(variable_get('search_table_fields_mapping'));
+
+    $caseSensitive = variable_get('case_sensitive');
+    $replacingNids = variable_get('replacing_nids');
+    _cmp_uni_search_replace_ensureSpecialMysqlFunctExsists();
+
+    dsm( $replacingNids );
+
+    foreach ( variable_get('search_table_fields_mapping') as $table => $fields ) {
+
+        foreach( $fields as $field ) {
+
+            foreach ( $replacingNids as $nid ) {
+
+                $entityColumn = ( $table === 'node' ? 'nid' : 'entity_id' );
+
+                // Based on the data-table we are touching, determine the revision-table to touch
+                switch ( $table ) {
+                    case 'node':
+                        $revisionTable = 'node_revision';
+                        break;
+                    case 'field_data_body':
+                        $revisionTable = 'field_revision_body';
+                        break;
+                    default:
+                        $revisionTable = str_replace('field_data_field_', 'field_revision_field_', $table);
                 }
-                else {
-                    if (variable_get('case_sensitive')) {
-                        $sql = "UPDATE {$table} SET {$field} = REPLACE({$field}, :search_str, :replace_str) WHERE entity_id = :nid";
-                    }
-                    else {
-                        // replace_ci is custom function
-                        /*
-DELIMITER $$
 
-DROP FUNCTION IF EXISTS `replace_ci`$$
-CREATE FUNCTION `replace_ci` ( str TEXT,needle CHAR(255),str_rep CHAR(255))
-RETURNS TEXT
-DETERMINISTIC
-BEGIN
-DECLARE return_str TEXT DEFAULT '';
-DECLARE lower_str TEXT;
-DECLARE lower_needle TEXT;
-DECLARE pos INT DEFAULT 1;
-DECLARE old_pos INT DEFAULT 1;
-
-IF needle = '' THEN
-RETURN str;
-END IF;
-
-SELECT lower(str) INTO lower_str;
-SELECT lower(needle) INTO lower_needle;
-SELECT locate(lower_needle, lower_str, pos) INTO pos;
-WHILE pos > 0 DO
-SELECT concat(return_str, substr(str, old_pos, pos-old_pos), str_rep) INTO return_str;
-SELECT pos + char_length(needle) INTO pos;
-SELECT pos INTO old_pos;
-SELECT locate(lower_needle, lower_str, pos) INTO pos;
-END WHILE;
-SELECT concat(return_str, substr(str, old_pos, char_length(str))) INTO return_str;
-RETURN return_str;
-END$$
-
-DELIMITER ;
-                         */
-                        $sql = "UPDATE {$table} SET {$field} = replace_ci({$field}, :search_str, :replace_str) WHERE entity_id = :nid";
-                    }
-                    db_query($sql, array(':search_str' => variable_get('search_text'), ':replace_str' => $form_state['values']['replace_str'], ':nid' => $nid));
+                // Determine the queries based on weather or not the replacement should be done with case sensitivity
+                if ( $caseSensitive ) {
+                    $sqlData = "UPDATE {$table} SET {$field} = REPLACE({$field}, :search_str, :replace_str) WHERE {$entityColumn} = :nid";
+                    $sqlRevision = "UPDATE {$revisionTable} SET {$field} = REPLACE({$field}, :search_str, :replace_str) WHERE {$entityColumn} = :nid";
+                } else {
+                    $sqlData = "UPDATE {$table} SET {$field} = replace_ci({$field}, :search_str, :replace_str) WHERE {$entityColumn} = :nid";
+                    $sqlRevision = "UPDATE {$revisionTable} SET {$field} = replace_ci({$field}, :search_str, :replace_str) WHERE {$entityColumn} = :nid";
                 }
+
+                // Run the query to update the field_data_* table
+                db_query(
+                    $sqlData,
+                    array(
+                        ':search_str' => variable_get('search_text'),
+                        ':replace_str' => $form_state['values']['replace_str'],
+                        ':nid' => $nid
+                    )
+                );
+
+                // Run the query to update the field_revision_* table
+                db_query(
+                    $sqlRevision,
+                    array(
+                        ':search_str' => variable_get('search_text'),
+                        ':replace_str' => $form_state['values']['replace_str'],
+                        ':nid' => $nid
+                    )
+                );
+
             }
         }
     }
+
+    // Clear the field cache
+    field_cache_clear();
+    entity_get_controller('node')->resetCache( $replacingNids );
+
+    // Pushed the effected nodes up into the Elastic search-index
+    foreach ( $replacingNids as $nid ) {
+        _cmp_uni_search_replace_pushNodesLatestRevisionIntoSearchIndex($nid);
+    }
+
     variable_set('replace_text', $form_state['values']['replace_str']);
-    // we might need partial drupal cache clear
     drupal_goto("admin/search_replace/final");
+}
+
+function _cmp_uni_search_replace_pushNodesLatestRevisionIntoSearchIndex($nid) {
+
+    // Get the latest revision-id for this node
+    $n = node_load($nid);
+    $nodeRevisions = array_keys( node_revision_list($n) );
+    $latestRevisonId = $nodeRevisions[0];
+
+    // Load the correct revision of this entity
+    $entities = array_values(entity_load(
+        'node',
+        array($nid),
+        array('vid' => $latestRevisonId)
+    ));
+    $entity = $entities[0];
+
+    /* Trigger HOOK_entity_update() within the search_api module. Effectively making 
+    the search_api module think that THIS $entity has been modified and that this $entity
+    should be pushed into the search index. */
+    search_api_entity_update($entity, 'node');
+}
+
+function _cmp_uni_search_replace_ensureSpecialMysqlFunctExsists() {
+
+    $link = _cmp_uni_search_replace_connectMySQL();
+    mysql_query("DROP FUNCTION IF EXISTS replace_ci");
+    mysql_query(
+        "CREATE FUNCTION `replace_ci` ( str TEXT,needle CHAR(255),str_rep CHAR(255))
+            RETURNS TEXT
+            DETERMINISTIC
+            BEGIN
+            DECLARE return_str TEXT DEFAULT '';
+            DECLARE lower_str TEXT;
+            DECLARE lower_needle TEXT;
+            DECLARE pos INT DEFAULT 1;
+            DECLARE old_pos INT DEFAULT 1;
+
+            IF needle = '' THEN
+            RETURN str;
+            END IF;
+
+            SELECT lower(str) INTO lower_str;
+            SELECT lower(needle) INTO lower_needle;
+            SELECT locate(lower_needle, lower_str, pos) INTO pos;
+            WHILE pos > 0 DO
+            SELECT concat(return_str, substr(str, old_pos, pos-old_pos), str_rep) INTO return_str;
+            SELECT pos + char_length(needle) INTO pos;
+            SELECT pos INTO old_pos;
+            SELECT locate(lower_needle, lower_str, pos) INTO pos;
+            END WHILE;
+            SELECT concat(return_str, substr(str, old_pos, char_length(str))) INTO return_str;
+            RETURN return_str;
+            END
+        ",
+        $link
+    );
+    mysql_close($link);
+}
+
+/*
+ * resource _cmp_uni_search_replace_connectMySQL()
+*
+ * Connects to the MySQL database that this Drupal instance is/will-be using
+ * This is meant to create a connection to the database that bypasses Drupal's db_query() and query alter hooks
+ */
+function _cmp_uni_search_replace_connectMySQL() {
+    $dbAuth = $GLOBALS["databases"]["default"]["default"];
+    $host = $dbAuth["host"];
+    $user = $dbAuth["username"];
+    $pass = $dbAuth["password"];
+    $port = $dbAuth["port"];
+    $db = $dbAuth["database"];
+    if ( !empty($port) ) {
+        $host .= ":" . $port;
+    }
+    $link = mysql_connect($host, $user, $pass);
+    mysql_select_db($db, $link);
+    return $link;
 }
 
 function _cmp_uni_search_replace_final() {
