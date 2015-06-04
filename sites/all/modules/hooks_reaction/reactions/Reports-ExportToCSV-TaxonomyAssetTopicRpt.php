@@ -27,7 +27,7 @@ hooks_reaction_add("menu",
             'title' => '',
             'description' => 'CSV export for the Asset-Topic-Taxonomy report at /content-tag-report/export',
             'page callback' => 'exportAssetTopicTaxonomyReportToCSV',
-            'access arguments' => array(true),
+            'access callback' => 'user_is_logged_in',
             'type' => MENU_NORMAL_ITEM,
         );
 
