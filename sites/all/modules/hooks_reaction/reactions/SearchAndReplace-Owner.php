@@ -194,7 +194,6 @@ function searchReplaceOwnerForm_submit($form, &$form_state) {
 
 }
 
-
 function searchReplaceOwner_pushNodesLatestRevisionIntoSearchIndex($nid) {
 
     // Get the latest revision-id for this node
