@@ -152,22 +152,68 @@ function searchReplaceOwnerForm_validate($form, &$form_state) {
  * form successfully processes
  */
 function searchReplaceOwnerForm_submit($form, &$form_state) {
+
+    $nidsEffected = array();
     
-    $ownerToReplace = $form_state['input']['ownersearch'];
-    $replaceWith = $form_state['input']['ownerreplace'];
+    // Get the data to find
+    $ownerToReplaceUserName = $form_state['input']['ownersearch'];
+    $ownerToReplaceUserId = db_query("SELECT uid FROM users WHERE name = '{$ownerToReplaceUserName}' LIMIT 1")->fetchColumn();
 
-     $result = db_query("UPDATE {field_data_field_owner}
+    // Get the data to replace with
+    $replaceWithUserName = $form_state['input']['ownerreplace'];
+    $replaceWithUserId = db_query("SELECT uid FROM users WHERE name = '{$replaceWithUserName}' LIMIT 1")->fetchColumn();
 
-                        SET {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$replaceWith}' LIMIT 1)
-                        WHERE {field_data_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$ownerToReplace}' LIMIT 1);");
+    // We shall search/replace across these tables
+    $tableFields = array(
+        'field_data_field_owner' => 'field_owner_target_id',
+        'field_revision_field_owner' => 'field_owner_target_id',
+    );
 
-    $resultRevision = db_query("UPDATE {field_revision_field_owner}
-                        SET {field_revision_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$replaceWith}' LIMIT 1)
-                        WHERE {field_revision_field_owner}.field_owner_target_id = (SELECT uid FROM {users} WHERE name = '{$ownerToReplace}' LIMIT 1);");
+    // Run through the nessesary tables
+    foreach ( $tableFields as $table => $field ) {
+
+        // First we want to node what node-IDs will be effected
+        $foundTargets = db_query("SELECT entity_id FROM {$table} WHERE {$field} = {$ownerToReplaceUserId}")->fetchCol();
+        foreach ( $foundTargets as $foundTarget ) {
+            $nidsEffected[$foundTarget] = $foundTarget;
+        }
+
+        // Do the actual find/replace
+        db_query("UPDATE {$table} SET {$field} = {$replaceWithUserId} WHERE {$field} = {$ownerToReplaceUserId}");
+    }
+
+    // Clear the Drupal cache so the database changes show up on the UI
     cache_clear_all('*', 'cache_field', TRUE);
 
-    drupal_set_message("'{$ownerToReplace}' has been replaced with '{$replaceWith}'", 'status');      
+    // For each node effected, push it up to the elastic-search index
+    foreach ( $nidsEffected as $nidEffected ) {
+        searchReplaceOwner_pushNodesLatestRevisionIntoSearchIndex($nidEffected);
+    }
 
+    drupal_set_message("'{$ownerToReplaceUserName}' has been replaced with '{$replaceWithUserName}'", 'status');      
+
+}
+
+
+function searchReplaceOwner_pushNodesLatestRevisionIntoSearchIndex($nid) {
+
+    // Get the latest revision-id for this node
+    $n = node_load($nid);
+    $nodeRevisions = array_keys( node_revision_list($n) );
+    $latestRevisonId = $nodeRevisions[0];
+
+    // Load the correct revision of this entity
+    $entities = array_values(entity_load(
+        'node',
+        array($nid),
+        array('vid' => $latestRevisonId)
+    ));
+    $entity = $entities[0];
+
+    /* Trigger HOOK_entity_update() within the search_api module. Effectively making 
+    the search_api module think that THIS $entity has been modified and that this $entity
+    should be pushed into the search index. */
+    search_api_entity_update($entity, 'node');
 }
 
 ?>
