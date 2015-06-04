@@ -177,13 +177,22 @@ function getAssetsInSiteStructTerm($term, $loadAssets = false) {
         $strTopicIds = implode(',', $arrTopicIds);
 
         // Get all node-IDs that reference these $strTermIds
-        $ret = db_query("
-            SELECT entity_id
-            FROM field_data_field_asset_topic_taxonomy 
-            WHERE 
-                field_asset_topic_taxonomy_tid in ({$strTopicIds}) 
-                AND entity_type='node'
-        ")->fetchCol();
+        if ( trim($strTopicIds) === '' ) {
+
+            // There are no Topics selected, so there can't be any assets associated
+            $ret  = array();
+
+        } else {
+
+            // Query MySQL to get all node-IDs that reference these $strTermIds
+            $ret = db_query("
+                SELECT entity_id
+                FROM field_data_field_asset_topic_taxonomy 
+                WHERE 
+                    field_asset_topic_taxonomy_tid in ({$strTopicIds}) 
+                    AND entity_type='node'
+            ")->fetchCol();
+        }
 
     }
 
@@ -345,15 +354,25 @@ function notifyTaxonomyChange_mail($key, &$message, $params) {
             $msg .= "\n";
             $msg .= "The assigned assets were originally:\n";
             $msg .= "\n";
-            foreach ( getAssetsInSiteStructTerm($params['oldValue'], true) as $node ) {
-                $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
-                $msg .= "\t* {$nodeTitle} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
+            $assets = getAssetsInSiteStructTerm($params['oldValue'], true);
+            if ( count($assets) === 0 ) {
+                $msg .= "\n\t(empty)\n";
+            } else {
+                foreach ( $assets as $node ) {
+                    $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
+                    $msg .= "\t* {$nodeTitle} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
+                }
             }
             $msg .= "\n";
             $msg .= "And now the asset assignment is:\n";
-            foreach ( getAssetsInSiteStructTerm($params['newValue'], true) as $node ) {
-                $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
-                $msg .= "\t* {$nodeTitle} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
+            $assets = getAssetsInSiteStructTerm($params['newValue'], true);
+            if ( count($assets) === 0 ) {
+                $msg .= "\n\t(empty)\n";
+            } else {
+                foreach ( $assets as $node ) {
+                    $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
+                    $msg .= "\t* {$nodeTitle} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
+                }
             }
             $msg .= "\n";
             $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
