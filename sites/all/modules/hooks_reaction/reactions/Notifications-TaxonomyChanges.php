@@ -130,82 +130,84 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
  *
  * Returns an array of node-IDs, or array of loaded nodes (based on the seconds argument).
  */
-function getAssetsInSiteStructTerm($term, $loadAssets = false) {
+if ( !function_exists('getAssetsInSiteStructTerm') ) {
+    function getAssetsInSiteStructTerm($term, $loadAssets = false) {
+        
+        $ret = array();
 
-    $ret = array();
+        // Get the top-level-term name for this $term
+        if ( empty($term->tid) ) {
+            return;
+        }
+        $tltName = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid=".$term->tid)->fetchColumn();
+        if ( $tltName === false ) {
+            return;
+        }
 
-    // Get the top-level-term name for this $term
-    if ( empty($term->tid) ) {
-        return;
-    }
-    $tltName = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid=".$term->tid)->fetchColumn();
-    if ( $tltName === false ) {
-        return;
-    }
+        if ( $tltName === 'Kids.gov' ) {
 
-    if ( $tltName === 'Kids.gov' ) {
+            // These fields in S.S-taxonomy-terms hold pointers to nodes (assets)
+            $assetFieldContainers = array(
+                'field_asset_order_carousel',
+                'field_asset_order_content',
+                'field_asset_order_sidebar',
+                'field_asset_order_bottom'
+            );
 
-        // These fields in S.S-taxonomy-terms hold pointers to nodes (assets)
-        $assetFieldContainers = array(
-            'field_asset_order_carousel',
-            'field_asset_order_content',
-            'field_asset_order_sidebar',
-            'field_asset_order_bottom'
-        );
+            // Look in each of these fields for node-id references
+            foreach ( $assetFieldContainers as $assetFieldContainer ) {
+                if ( !empty($term->{$assetFieldContainer}) && !empty($term->{$assetFieldContainer}['und']) ) {
 
-        // Look in each of these fields for node-id references
-        foreach ( $assetFieldContainers as $assetFieldContainer ) {
-            if ( !empty($term->{$assetFieldContainer}) && !empty($term->{$assetFieldContainer}['und']) ) {
+                    // Look for [multiple] node-id references in this field
+                    foreach ( $term->{$assetFieldContainer}['und'] as $targetContainer ) {
 
-                // Look for [multiple] node-id references in this field
-                foreach ( $term->{$assetFieldContainer}['und'] as $targetContainer ) {
-
-                    $ret[] = $targetContainer['target_id'];
+                        $ret[] = $targetContainer['target_id'];
+                    }
                 }
             }
-        }
-
-    } else {
-
-        /* NON-Kids site logic (lookup based on Asset-Topic assignment) */
-
-        // Get all topic-ids this $term references
-        $arrTopicIds = array();
-        foreach ( $term->field_asset_topic_taxonomy['und'] as $topicIdContainer ) {
-            $arrTopicIds[] = $topicIdContainer['tid'];
-        }
-        $strTopicIds = implode(',', $arrTopicIds);
-
-        // Get all node-IDs that reference these $strTermIds
-        if ( trim($strTopicIds) === '' ) {
-
-            // There are no Topics selected, so there can't be any assets associated
-            $ret  = array();
 
         } else {
 
-            // Query MySQL to get all node-IDs that reference these $strTermIds
-            $ret = db_query("
-                SELECT entity_id
-                FROM field_data_field_asset_topic_taxonomy 
-                WHERE 
-                    field_asset_topic_taxonomy_tid in ({$strTopicIds}) 
-                    AND entity_type='node'
-            ")->fetchCol();
+            /* NON-Kids site logic (lookup based on Asset-Topic assignment) */
+
+            // Get all topic-ids this $term references
+            $arrTopicIds = array();
+            foreach ( $term->field_asset_topic_taxonomy['und'] as $topicIdContainer ) {
+                $arrTopicIds[] = $topicIdContainer['tid'];
+            }
+            $strTopicIds = implode(',', $arrTopicIds);
+
+            // Get all node-IDs that reference these $strTermIds
+            if ( trim($strTopicIds) === '' ) {
+
+                // There are no Topics selected, so there can't be any assets associated
+                $ret  = array();
+
+            } else {
+
+                // Query MySQL to get all node-IDs that reference these $strTermIds
+                $ret = db_query("
+                    SELECT entity_id
+                    FROM field_data_field_asset_topic_taxonomy 
+                    WHERE 
+                        field_asset_topic_taxonomy_tid in ({$strTopicIds}) 
+                        AND entity_type='node'
+                ")->fetchCol();
+            }
+
         }
 
-    }
+        sort($ret);
 
-    sort($ret);
-
-    // Load the assets if requested
-    if ( $loadAssets ) {
-        foreach ($ret as &$n) {
-            $n = node_load($n);
+        // Load the assets if requested
+        if ( $loadAssets ) {
+            foreach ($ret as &$n) {
+                $n = node_load($n);
+            }
         }
-    }
 
-    return $ret;
+        return $ret;
+    }
 }
 
 function notify_tax_change_form() {
