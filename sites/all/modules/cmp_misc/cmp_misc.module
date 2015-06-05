@@ -959,46 +959,6 @@ function _cmp_misc_send_last_edited_person($user_to_send, $node) {
     }
 }
 
-function _cmp_misc_notify_ux_team_about_empty_page($term) {
-
-    $query = 'SELECT DISTINCT(ur.uid) FROM {users_roles} AS ur WHERE ur.rid IN (:rids)';
-    $result = db_query($query, array(':rids' => array(27)));
-    $uids = $result->fetchCol();
-    $users = user_load_multiple($uids);
-    $ux_members_emails = array();
-    foreach($users as $u) {
-        $ux_members_emails[] = $u->mail;
-    }
-    $ux_members_emails[] = 'achuluunkhuu@ctacorp.com';
-    $to = (join(',', $ux_members_emails));
-
-    // Subject
-    $params['subject'] = "Empty Page: ".$term->name;
-
-    $alias = drupal_get_path_alias("/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy");
-    // body
-    $params['body'] = '<b>Page becomes empty</b> - <a href="' . $alias . '">' . $term->name . '</a> <br/>';
-    $params['body'] .= '<b>Summary</b> - ' . $term->field_page_intro['und'][0]['value'] . ' <br/>';
-    $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i');
-
-    $from = variable_get('site_mail', '');
-
-    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
-    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
-
-    $prodStageDomains = variable_get('udm_prod_domains', array());
-    if ( in_array($_SERVER['HTTP_HOST'], $prodStageDomains) ) {
-        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
-        if ($res["send"]) {
-            drupal_set_message("Notified about Empty page creation. Notification email has been sent." . $to);
-        }
-
-    } else {
-        // then we are running on someone's local, do NOT send the email
-        drupal_set_message("Notified about Empty page creation. Notification email has NOT been sent because it is NOT STAGE or PROD environment." . $to);
-    }
-}
-
 function _cmp_misc_send_report() {
 
     watchdog('cron',"STARTED >> DAILY SCANNING CONTENT: " . date('Y-m-d H:i:s'));
