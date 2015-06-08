@@ -310,11 +310,9 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
             && strpos($mtMember->name, '@') !== false
             && strpos($mtMember->name, '.') !== false
         ) {
-            $arrTo[] = $mtMembers->name;
+            $arrTo[] = $mtMember->name;
         }
     }
-    $arrTo[] = 'achuluunkhuu@ctacorp.com';
-    $arrTo[] = 'dfrey@ctacorp.com';
     $strTo = trim(implode(',', $arrTo), ',');
 
     // Email Subject
