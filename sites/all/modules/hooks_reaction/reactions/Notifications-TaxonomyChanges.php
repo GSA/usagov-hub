@@ -110,7 +110,9 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
 
         // Get a list of all assets in order to check if the assets are being changed
         $allAssetsNew = getAssetsInSiteStructTerm($termNew, false);
+        $allAssetsNew = ( is_null($allAssetsNew) ? array() : $allAssetsNew );
         $allAssetsOld = getAssetsInSiteStructTerm($termOld, false);
+        $allAssetsOld = ( is_null($allAssetsOld) ? array() : $allAssetsOld );
 
         // Check if the assets are being changed
         if ( implode(',', $allAssetsNew) !== implode(',', $allAssetsOld) ) {
@@ -140,11 +142,11 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
 
         // Get the top-level-term name for this $term
         if ( empty($term->tid) ) {
-            return;
+            return array();
         }
         $tltName = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid=".$term->tid)->fetchColumn();
         if ( $tltName === false ) {
-            return;
+            return array();
         }
 
         if ( $tltName === 'Kids.gov' ) {
@@ -209,7 +211,7 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
             }
         }
 
-        return $ret;
+        return ( is_null($ret) ? array() : $ret);
     }
 }
 
@@ -299,89 +301,105 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
     $mtMembers = user_load_multiple($uids);
 
     // Send a message to each member of the SS_CHANGE_NOTIFY_ROLE role
+    $arrTo = array();
     foreach ($mtMembers as $uid => $mtMember) {
 
         // Do not send to users marked for no notifications
         if (
-            variable_get("tax_no_notify_".$uid, false) == true 
-            || strpos($mtMember->name, '@') === false
-            || strpos($mtMember->name, '.') === false
+            variable_get("tax_no_notify_".$uid, false) !== true 
+            && strpos($mtMember->name, '@') !== false
+            && strpos($mtMember->name, '.') !== false
         ) {
-            unset($mtMembers[$uid]);
-        } else {
-
-            /* Based on the first parameter to drupal_mail(), notifyTaxonomyChange_mail() will 
-            be called and used to determin the email-message to send. */
-            error_log("Sending email to {$mtMember->name}");
-            drupal_mail(
-                'notifyTaxonomyChange',
-                'taxnotice',
-                $mtMember->name,
-                'und',
-                array(
-                    'newValue' => $newValue,
-                    'oldValue' => $oldValue,
-                    'term' => $term,
-                    'change' => $change,
-                    'Content-Type' => 'text/plain;'
-                )
-            );
-
+            $arrTo[] = $mtMembers->name;
         }
-
     }
+    $arrTo[] = 'achuluunkhuu@ctacorp.com';
+    $arrTo[] = 'dfrey@ctacorp.com';
+    $strTo = trim(implode(',', $arrTo), ',');
 
-}
+    // Email Subject
+    $params['subject'] = 'CMP: Site-Taxonomy Alteration Notifications';
 
-function notifyTaxonomyChange_mail($key, &$message, $params) {
-
-    $message['subject'] = 'CMP: Site-Taxonomy Alteration Notifications';
-
-    $msg = "This is an automated message to inform you that a taxonomy-change has been applied on the CMP.\n\n";
-    switch ($params['change']) {
+    // Email message body
+    $linkToTerm = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$term->tid."/edit";
+    $msg = "This is an automated message to inform you that a taxonomy-change has been applied on the CMP.\n<br/>\n<br/>";
+    switch ($change) {
         case SS_CHANGE_DEL:
-            $msg .= "A taxonomy-term by the name of \"{$params['term']->name}\" was deleted from the system.";
+            $msg .= "A taxonomy-term by the name of \"{$term->name}\" was deleted from the system.<br/>";
             break;
         case SS_CHANGE_ADD:
-            $msg .= "A new taxonomy-term (\"{$params['newValue']->name}\") has been added to the system.";
-            $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
+            $msg .= "A new taxonomy-term (\"{$newValue->name}\") has been added to the system. <br/>";
+            $msg .= "You can edit this taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a>";
             break;
         case SS_CHANGE_TITLE:
-            $msg .= "The taxonomy-term \"{$params['oldValue']}\", has been renamed to \"{$params['newValue']}\". ";
-            $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
+            $msg .= "The taxonomy-term \"{$oldValue}\", has been renamed to \"{$newValue}\". <br/>";
+            $msg .= "You can edit this taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a>";
             break;
         case SS_CHANGE_URL:
-            $msg .= "The taxonomy-term \"{$params['term']->name}\" has had its Friendly-URL field change from \"{$params['oldValue']}\" to \"{$params['newValue']}\".";
-            $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
+            $msg .= "The taxonomy-term \"{$term->name}\" has had its Friendly-URL field change from \"{$oldValue}\" to \"{$newValue}\".<br/>";
+            $msg .= "You can edit this taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a>";
             break;
         case SS_CHANGE_ASSET:
-            $msg .= "The taxonomy-term \"{$params['term']->name}\" has had its associated assets changed.\n";
-            $msg .= "\n";
-            $msg .= "The assigned assets were originally:\n";
-            $msg .= "\n";
-            $assets = getAssetsInSiteStructTerm($params['oldValue'], true);
+            $msg .= "The taxonomy-term \"<a href=\"{$linkToTerm}\">{$term->name}</a>\" has had its associated assets changed.\n<br/>";
+            $msg .= "\n<br/>";
+            $msg .= "The assigned assets were originally:\n<br/>";
+            $msg .= "\n<br/>";
+            $assets = getAssetsInSiteStructTerm($oldValue, true);
             if ( count($assets) === 0 ) {
-                $msg .= "\n\t(empty)\n";
+                $msg .= "<ul><li><i>empty</i></li></ul>";
             } else {
+                $msg .= "<ul>";
                 foreach ( $assets as $node ) {
                     $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
-                    $msg .= "\t* {$nodeTitle} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
+                    $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
                 }
+                $msg .= "</ul>";
             }
             $msg .= "\n";
             $msg .= "And now the asset assignment is:\n";
-            $assets = getAssetsInSiteStructTerm($params['newValue'], true);
+            $assets = getAssetsInSiteStructTerm($newValue, true);
             if ( count($assets) === 0 ) {
-                $msg .= "\n\t(empty)\n";
+                $msg .= "<ul><li><i>empty</i></li></ul>";
             } else {
+                $msg .= "<ul>";
                 foreach ( $assets as $node ) {
                     $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
-                    $msg .= "\t* {$nodeTitle} ( https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit )\n";
+                    $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
                 }
+                $msg .= "</ul>";
             }
-            $msg .= "\n";
-            $msg .= "You can edit this taxonomy-term from: https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$params['term']->tid."/edit";
+            $msg .= "<br/>";
+            $msg .= "You can edit this taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a>";
             break;
     }
-    $message['body'][] = $msg;
+    $params['body'] = $msg;
+
+    // Email headers
+    $from = variable_get('site_mail', '');
+    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+
+    // We check and prevent developer's locals from sending emails here
+    $prodStageDomains = variable_get('udm_prod_domains', array());
+    if ( in_array($_SERVER['HTTP_HOST'], $prodStageDomains) ) {
+
+        /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will 
+        be called and used to determine the email-message to send. */
+        $res = drupal_mail(
+            'cmp_misc',
+            'scanning_content',
+            $strTo,
+            language_default(),
+            $params,
+            $params['from']
+        );
+        if ($res["send"]) {
+            drupal_set_message("Send taxonomy-update notification emails to: " . $strTo);
+        }
+
+    } else {
+        // then we are running on someone's local, do NOT send the email
+        drupal_set_message("Notified about Empty page creation. Notification email has NOT been sent because it is NOT STAGE or PROD environment." . $to);
+    }
+
 }

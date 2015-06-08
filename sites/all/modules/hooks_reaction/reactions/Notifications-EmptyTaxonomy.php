@@ -171,7 +171,7 @@ function informPmTeamOfEmptyPage($term) {
     }
     $arrTo[] = 'achuluunkhuu@ctacorp.com';
     $arrTo[] = 'dfrey@ctacorp.com';
-    $strTo = implode(',', $arrTo);
+    $strTo = trim(implode(',', $arrTo), ',');
 
     // Email Subject
     $params['subject'] = "Empty Page: ".$term->name;
