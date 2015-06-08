@@ -399,7 +399,7 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
 
     } else {
         // then we are running on someone's local, do NOT send the email
-        drupal_set_message("Notified about Empty page creation. Notification email has NOT been sent because it is NOT STAGE or PROD environment." . $to);
+        drupal_set_message("Notification email has NOT been sent because this environment is neither STAGE nor PROD.");
     }
 
 }

@@ -40,8 +40,10 @@ hooks_reaction_add("HOOK_views_post_render",
 
         if ( $view->name === 'content_taxonomy_report' && strpos(request_uri(), 'machine_name=asset_topic_taxonomy') !== false ) {
             $thisFile = basename(__FILE__);
-            $prependMarkup = '<a style="float: right" rendersource="'.$thisFile.'" href="/content-tag-report/export-asset-topic-taxonomy">Export to Excel</a>';
+            $prependMarkup = '<a style="float: right" rendersource="'.$thisFile.'" href="javascript: getReport(\''.uniqid().'\'); void(0);">Export to Excel</a>';
             $output = $prependMarkup.$output;
+
+            drupal_add_js('sites/all/modules/hooks_reaction/reactions/Reports-ExportToCSV-TaxonomyAssetTopicRpt.js');
         }
     }
 );
@@ -55,9 +57,52 @@ hooks_reaction_add("HOOK_views_post_render",
  */
 function exportAssetTopicTaxonomyReportToCSV() {
 
+    $reportsTATR = variable_get('reports_tatr', array());
+
     // Clear anything Drupal has tried printing/rendering so far    
     @ob_end_clean();
     while( @ob_end_clean() );
+
+    // Argument validation
+    if ( empty($_REQUEST['reqid']) ) {
+        exit('Missing reqid argument');
+    }
+    $reqid = $_REQUEST['reqid'];
+
+    // Check to see if another thread is working on this report already
+    if ( isset($reportsTATR[$reqid]) && $reportsTATR[$reqid] === 'working' ) {
+        exit('working');
+    }
+
+    // Check to see if another thread has already completed this report [of report-id reqid]
+    if ( isset($reportsTATR[$reqid]) && $reportsTATR[$reqid] === 'complete' ) {
+
+        // So this report must be completed now - but~ is the report saved on THIS server?
+        if ( !file_exists("sites/default/files/report_tatr_{$reqid}.csv") ) {
+
+            /* Nope, so tell the client its still in the works, it's next request will
+            probably hit a different server (the one where the report is saved) */
+            exit('working');
+
+        } else {
+        
+            /* it is, so read this out to the client - JavaScript will take it from there (it 
+            will simulate the download) */
+            readfile("sites/default/files/report_tatr_{$reqid}.csv");
+            exit();
+        }
+    }
+
+    /*  ==================================================
+        FROM THIS POINT ON WE ASSUME WE ARE THE FIRST CALL FOR THIS $reqid, FROM 
+        HERE WE WILL BUILD THE ACTUAL REPORT.
+        ==================================================
+    */
+
+    /* Place a flag in the database, visible to all servers and PHP-threads that 
+    this reqid is in the works */
+    $reportsTATR[$reqid] = 'working';
+    variable_set('reports_tatr', $reportsTATR);
 
     // Get the vocabulary-id
     $vocab = taxonomy_vocabulary_machine_name_load('asset_topic_taxonomy');
@@ -73,35 +118,41 @@ function exportAssetTopicTaxonomyReportToCSV() {
         compileAssetTopicTaxonomyReportToCSV($counter, $hierarchyLevelSemaphore, $rows, $vocab->vid, $topTerm->tid);
     }
 
-    // Set headers for a CSV download
-    @header("Content-type: text/csv");
-    @header('Content-Disposition: attachment; filename="report.csv"');
-    @header("Pragma: no-cache");
-    @header("Expires: 0");
+    // Open the file for writing
+    $h = fopen("sites/default/files/report_tatr_{$reqid}.csv", 'w');
+    if ( $h === false ) {
+        exit('error');
+    }
 
-    // Print the CSV headers
-    print '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets on Page",';
+    // Write the CSV headers
+    fwrite($h, '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets on Page",');
     for ( $T = 1 ; $T < intval(variable_get('tatr_lastmaxcolcount', 3)); $T++ ) {
         if ( $T > 1 ) {
-            print ',';
+            fwrite($h, ',');
         }
-        print '"Page Title '.$T.'"';
+        fwrite($h, '"Page Title '.$T.'"');
     }
-    print "\n";
+    fwrite($h, "\n");
 
-    // Print the CSV content
+    // Write the CSV content
     foreach ( $rows as $row ) {
         foreach ( array_values($row) as $cellId => $cellValue) {
             if ( $cellId != 0 ) {
-                print ",";
+                fwrite($h, ",");
             }
-            print "\"".$cellValue."\"";
+            fwrite($h, "\"".$cellValue."\"");
         }
-        print "\n";
+        fwrite($h, "\n");
     }
+    fclose($h);
 
-    exit();
-    
+    error_log('done dude');
+    /* Place a flag in the database, visible to all servers and PHP-threads that 
+    this reqid is created and complete */
+    $reportsTATR[$reqid] = 'complete';
+    variable_set('reports_tatr', $reportsTATR);
+
+    exit('working');
 }
 
 /**
