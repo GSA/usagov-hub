@@ -23,7 +23,7 @@
         
 */
 
-define("SS_EMPTY_NOTIFY_ROLE", 'pm team');
+define("SS_EMPTY_NOTIFY_ROLE", 'ux member');
 
 /**
  * Implements hook_taxonomy_term_presave
@@ -161,16 +161,10 @@ function informPmTeamOfEmptyPage($term) {
     foreach ($mtMembers as $uid => $mtMember) {
 
         // Do not send to users marked for no notifications
-        if (
-            variable_get("tax_no_notify_".$uid, false) !== true 
-            && strpos($mtMember->name, '@') !== false
-            && strpos($mtMember->name, '.') !== false
-        ) {
-            $arrTo[] = $mtMembers->name;
+        if ( strpos($mtMember->name, '@') !== false && strpos($mtMember->name, '.') !== false ) {
+            $arrTo[] = $mtMember->name;
         }
     }
-    $arrTo[] = 'achuluunkhuu@ctacorp.com';
-    $arrTo[] = 'dfrey@ctacorp.com';
     $strTo = trim(implode(',', $arrTo), ',');
 
     // Email Subject
