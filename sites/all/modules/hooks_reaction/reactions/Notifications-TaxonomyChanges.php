@@ -95,14 +95,17 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
             empty($termOld->field_friendly_url) !== empty($termNew->field_friendly_url)
             || empty($termOld->field_friendly_url['und']) !== empty($termNew->field_friendly_url['und'])
             || empty($termOld->field_friendly_url['und'][0]) !== empty($termNew->field_friendly_url['und'][0])
-            || $termOld->field_friendly_url['und'][0]['value'] !== $termNew->field_friendly_url['und'][0]['value']
         ) {
-            informPmTeamOfPageChange(
-                SS_CHANGE_URL,
-                $termNew->field_friendly_url['und'][0]['value'],
-                $termOld->field_friendly_url['und'][0]['value'],
-                $termNew
-            );
+
+            if ( $termOld->field_friendly_url['und'][0]['value'] !== $termNew->field_friendly_url['und'][0]['value'] ) {
+                
+                informPmTeamOfPageChange(
+                    SS_CHANGE_URL,
+                    $termNew->field_friendly_url['und'][0]['value'],
+                    $termOld->field_friendly_url['und'][0]['value'],
+                    $termNew
+                );
+            }
         }
 
         // Get a list of all assets in order to check if the assets are being changed
