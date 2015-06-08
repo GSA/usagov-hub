@@ -146,7 +146,6 @@ function exportAssetTopicTaxonomyReportToCSV() {
     }
     fclose($h);
 
-    error_log('done dude');
     /* Place a flag in the database, visible to all servers and PHP-threads that 
     this reqid is created and complete */
     $reportsTATR[$reqid] = 'complete';
