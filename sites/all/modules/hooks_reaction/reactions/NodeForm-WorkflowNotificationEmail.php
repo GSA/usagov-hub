@@ -73,10 +73,21 @@ hooks_reaction_add(
  */
 function ajaxRespondWorkflowNotificationEmail($string) {
 
+    $pre = '';
+    if ( strpos($string, ',') !== false ) {
+        $parts = explode(',', $string);
+        $string = trim( array_pop($parts) );
+        foreach ($parts as &$part ) {
+            $part = trim($part);
+        }
+        $pre = implode($parts, ', ');
+        $pre.= ', ';
+    }
+
     // Get a list of users based on the search string
     $ret = array();
     foreach( db_query("SELECT name FROM users WHERE InStr(name, '{$string}')=1 LIMIT 10") as $row ) {
-        $ret[$row->name] = check_plain($row->name);
+        $ret[$pre . $row->name] = check_plain($row->name);
     }
 
     // Kill anything Drupal has tried printing so far (if anything at all)
