@@ -49,10 +49,12 @@
     <?php
 
       $curPage = $view->query->pager->current_page + 1;
-      $total =  $view->total_rows;
       $dispRslts = count($view->result);
+      $curPageStart =  ($curPage * $dispRslts) - $dispRslts + 1;
+      $curPageTotal = $curPage * $dispRslts;
+      $total =  $view->total_rows;
 
-      print "Displaying $curPage - $dispRslts of $total results";
+      print "Displaying $curPageStart - $curPageTotal of $total results";
 
     ?>
   </div>
