@@ -164,7 +164,8 @@ function informPmTeamOfEmptyPage($term) {
 
     // Email message body
     $alias = drupal_get_path_alias("/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy");
-    $params['body'] = '<b>Page has becomes empty</b> - <a href="' . $alias . '">' . $term->name . '</a> <br/>';
+    $params['body'] = 'This is an automated message to inform/remind you that the following '
+        .'page is empty: <a href="' . $alias . '">' . $term->name . '</a> <br/>';
     if ( !empty($term->field_page_intro['und'][0]['value']) ) {
         $params['body'] .= '<b>Summary</b> - ' . $term->field_page_intro['und'][0]['value'] . ' <br/>';
     }
