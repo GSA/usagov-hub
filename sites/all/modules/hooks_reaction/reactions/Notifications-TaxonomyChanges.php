@@ -80,14 +80,17 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
             empty($termOld->field_page_title) !== empty($termNew->field_page_title)
             || empty($termOld->field_page_title['und']) !== empty($termNew->field_page_title['und'])
             || empty($termOld->field_page_title['und'][0]) !== empty($termNew->field_page_title['und'][0])
-            || $termOld->field_page_title['und'][0]['value'] !== $termNew->field_page_title['und'][0]['value']
         ) {
-            informPmTeamOfPageChange(
-                SS_CHANGE_TITLE,
-                $termNew->field_page_title['und'][0]['value'],
-                $termOld->field_page_title['und'][0]['value'],
-                $termNew
-            );
+
+            if ( trim($termOld->field_page_title['und'][0]['value']) !== trim($termNew->field_page_title['und'][0]['value']) ) {
+
+                informPmTeamOfPageChange(
+                    SS_CHANGE_TITLE,
+                    $termNew->field_page_title['und'][0]['value'],
+                    $termOld->field_page_title['und'][0]['value'],
+                    $termNew
+                );
+            }
         }
 
         // Check if the URL is being changed
