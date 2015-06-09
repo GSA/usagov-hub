@@ -39,14 +39,6 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
             return;
         }
 
-        /* We don't want to spam the user's, we should only send a message if the 
-        term PREVIOUSLY wasn't already empty */
-        $oldTerm = taxonomy_term_load($term->tid); // This works because we are hooking into PRE-save
-        $oldAssets = getAssetsInSiteStructTerm($oldTerm);
-        if ( count($oldAssets) === 0 ) {
-            return;
-        }
-
         // If there are no assets assigned to this term, them message the PM team
         $assets = getAssetsInSiteStructTerm($term);
         if ( count($assets) === 0 ) {
