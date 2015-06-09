@@ -80,6 +80,7 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
             empty($termOld->field_page_title) !== empty($termNew->field_page_title)
             || empty($termOld->field_page_title['und']) !== empty($termNew->field_page_title['und'])
             || empty($termOld->field_page_title['und'][0]) !== empty($termNew->field_page_title['und'][0])
+            || trim($termOld->field_page_title['und'][0]['value']) !== trim($termNew->field_page_title['und'][0]['value'])
         ) {
 
             if ( trim($termOld->field_page_title['und'][0]['value']) !== trim($termNew->field_page_title['und'][0]['value']) ) {
@@ -98,6 +99,7 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
             empty($termOld->field_friendly_url) !== empty($termNew->field_friendly_url)
             || empty($termOld->field_friendly_url['und']) !== empty($termNew->field_friendly_url['und'])
             || empty($termOld->field_friendly_url['und'][0]) !== empty($termNew->field_friendly_url['und'][0])
+            || $termOld->field_friendly_url['und'][0]['value'] !== $termNew->field_friendly_url['und'][0]['value']
         ) {
 
             if ( $termOld->field_friendly_url['und'][0]['value'] !== $termNew->field_friendly_url['und'][0]['value'] ) {
