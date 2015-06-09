@@ -1260,9 +1260,10 @@ function usa_data_migration_postSynch_s3translate($strNids = '') {
 
         } else {
 
+            $s3conf = variable_get('cmp_s3_config');
             $s3url = $entity->field_file_media['und'][0]['uri'];
             $s3url = str_replace('s3:///', 's3://', $s3url);
-            $realURL = str_replace('s3://', '//gsa-cmp-fileupload.s3.amazonaws.com/', $s3url);
+            $realURL = str_replace('s3://', '//'.$s3conf['bucket'].'.s3.amazonaws.com/', $s3url);
 
             // then plug the URL to the file into the "" field
             $entity->field_file_media_url = array(
