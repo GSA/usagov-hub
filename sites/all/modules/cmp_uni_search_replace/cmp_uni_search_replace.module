@@ -31,8 +31,16 @@ function _cmp_uni_search_replace_access(){
     global $user;
     if ( !empty($user->roles) ) {
         foreach ( $user->roles as $role ) {
-            if ( $role === 'administrator' || $role === 'editor' || $role === 'usa administrator' ) {
-                return true;
+            switch ( $role ) {
+                case 'administrator':
+                case 'editor':
+                case 'usa administrator':
+                case 'content author':
+                case 'html author':
+                case 'ux member':
+                    return true;
+                default:
+                    // we dont return true here
             }
         }
     }
