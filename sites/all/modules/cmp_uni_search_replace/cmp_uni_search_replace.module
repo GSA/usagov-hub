@@ -31,7 +31,7 @@ function _cmp_uni_search_replace_access(){
     global $user;
     if ( !empty($user->roles) ) {
         foreach ( $user->roles as $role ) {
-            if ( $role === 'administrator' || $role === 'editor' ) {
+            if ( $role === 'administrator' || $role === 'editor' || $role === 'usa administrator' ) {
                 return true;
             }
         }
