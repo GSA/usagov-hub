@@ -49,10 +49,14 @@
     <?php
 
       $curPage = $view->query->pager->current_page + 1;
-      $dispRslts = count($view->result);
-      $curPageStart =  ($curPage * $dispRslts) - $dispRslts + 1;
-      $curPageTotal = $curPage * $dispRslts;
+      $itemsPerPage = $view->query->pager->options['items_per_page'];
+      $curPageStart =  ($curPage * $itemsPerPage) - $itemsPerPage + 1;
+      $curPageTotal = $curPage * $itemsPerPage;
       $total =  $view->total_rows;
+
+      if ( $curPageTotal > $total ) {
+        $curPageTotal = $total;
+      }
 
       print "Displaying $curPageStart - $curPageTotal of $total results";
 
