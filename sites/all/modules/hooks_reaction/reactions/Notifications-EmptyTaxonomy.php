@@ -39,6 +39,17 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
             return;
         }
 
+        // We don't want to fire this functionality on non-"Content Page"s
+        if (
+            empty($term->field_type_of_page_to_generate)
+            || empty($term->field_type_of_page_to_generate['und'])
+            || empty($term->field_type_of_page_to_generate['und'][0])
+            || empty($term->field_type_of_page_to_generate['und'][0]['value'])
+            || $term->field_type_of_page_to_generate['und'][0]['value'] !== 'generic-content-page'
+        ) {
+            return;
+        }
+
         // If there are no assets assigned to this term, them message the PM team
         $assets = getAssetsInSiteStructTerm($term);
         if ( count($assets) === 0 ) {
