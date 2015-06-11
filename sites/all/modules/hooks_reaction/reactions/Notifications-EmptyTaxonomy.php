@@ -57,17 +57,17 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
  * Returns an array of node-IDs, or array of loaded nodes (based on the seconds argument).
  */
 if ( !function_exists('getAssetsInSiteStructTerm') ) {
-    function getAssetsInSiteStructTerm($term, $loadAssets = false) {
-
+    function getAssetsInSiteStructTerm($term, $loadAssets = false, $maintainSections = false) {
+        
         $ret = array();
 
         // Get the top-level-term name for this $term
         if ( empty($term->tid) ) {
-            return;
+            return array();
         }
         $tltName = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid=".$term->tid)->fetchColumn();
         if ( $tltName === false ) {
-            return;
+            return array();
         }
 
         if ( $tltName === 'Kids.gov' ) {
@@ -87,7 +87,15 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
                     // Look for [multiple] node-id references in this field
                     foreach ( $term->{$assetFieldContainer}['und'] as $targetContainer ) {
 
-                        $ret[] = $targetContainer['target_id'];
+                        if ( $maintainSections ) {
+                            $regionName = strrev(strtok(strrev($assetFieldContainer), '_'));
+                            if ( !isset($ret[$regionName]) ) {
+                                $ret[$regionName] = array();
+                            }
+                            $ret[$regionName][] = $targetContainer['target_id'];
+                        } else {
+                            $ret[] = $targetContainer['target_id'];
+                        }
                     }
                 }
             }
@@ -123,16 +131,26 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
 
         }
 
-        sort($ret);
+        if ( !$maintainSections ) {
+            sort($ret);
+        }
 
         // Load the assets if requested
         if ( $loadAssets ) {
-            foreach ($ret as &$n) {
-                $n = node_load($n);
+            if ( $maintainSections ) {
+                foreach ($ret as &$section) {
+                    foreach ( $section as &$n ) {
+                        $n = node_load($n);
+                    }
+                }
+            } else {
+                foreach ($ret as &$n) {
+                    $n = node_load($n);
+                }
             }
         }
 
-        return $ret;
+        return ( is_null($ret) ? array() : $ret);
     }
 }
 
@@ -163,13 +181,15 @@ function informPmTeamOfEmptyPage($term) {
     $params['subject'] = "Empty Page: ".$term->name;
 
     // Email message body
-    $alias = drupal_get_path_alias("/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy");
+    $linkToTerm = $linkToTerm = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$term->tid."/edit";
     $params['body'] = 'This is an automated message to inform/remind you that the following '
-        .'page is empty: <a href="' . $alias . '">' . $term->name . '</a> <br/>';
+        .'page is empty: <a href="' . $linkToTerm . '">' . $term->name . '</a> <br/>';
     if ( !empty($term->field_page_intro['und'][0]['value']) ) {
         $params['body'] .= '<b>Summary</b> - ' . $term->field_page_intro['und'][0]['value'] . ' <br/>';
     }
-    $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i');
+    $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i').'<br/>';
+    $params['body'] .= "<br/>";
+    $params['body'] .= "You can edit this taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a>";
 
     // Email headers
     $from = variable_get('site_mail', '');
