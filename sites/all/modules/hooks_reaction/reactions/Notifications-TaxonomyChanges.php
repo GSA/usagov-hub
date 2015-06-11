@@ -342,26 +342,29 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
     $params['subject'] = 'CMP: Site-Taxonomy Alteration Notifications';
 
     // Email message body
+    global $user;
     $linkToTerm = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$term->tid."/edit";
     $msg = "This is an automated message to inform you that a taxonomy-change has been applied on the CMP.\n<br/>\n<br/>";
     switch ($change) {
         case SS_CHANGE_DEL:
-            $msg .= "A taxonomy-term by the name of \"{$term->name}\" was deleted from the system.<br/>";
+            $msg .= "A taxonomy-term by the name of \"{$term->name}\" was deleted from the system by {$user->name}.<br/>";
             break;
         case SS_CHANGE_ADD:
-            $msg .= "A new taxonomy-term (\"{$newValue->name}\") has been added to the system. <br/>";
+            $msg .= "A new taxonomy-term (\"{$newValue->name}\") has been added to the system by {$user->name}. <br/>";
             $msg .= "You can edit this taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a>";
             break;
         case SS_CHANGE_TITLE:
-            $msg .= "The taxonomy-term \"{$oldValue}\", has been renamed to \"{$newValue}\". <br/>";
+            $msg .= "The taxonomy-term \"{$oldValue}\", has been renamed to \"{$newValue}\" by {$user->name}. <br/>";
             $msg .= "You can edit this taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a>";
             break;
         case SS_CHANGE_URL:
-            $msg .= "The taxonomy-term \"{$term->name}\" has had its Friendly-URL field change from \"{$oldValue}\" to \"{$newValue}\".<br/>";
+            $msg .= "The taxonomy-term \"{$term->name}\" has had its Friendly-URL field change ";
+            $msg .= "from \"{$oldValue}\" to \"{$newValue}\" by {$user->name}.<br/>";
             $msg .= "You can edit this taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a>";
             break;
         case SS_CHANGE_ASSET:
-            $msg .= "The taxonomy-term \"<a href=\"{$linkToTerm}\">{$term->name}</a>\" has had its associated assets changed.\n<br/>";
+            $msg .= "The taxonomy-term \"<a href=\"{$linkToTerm}\">{$term->name}</a>\" has had its ";
+            $msg .= "associated assets changed by {$user->name}.\n<br/>";
             $msg .= "\n<br/>";
             $msg .= "The assigned assets were originally:\n<br/>";
             $msg .= "\n<br/>";
