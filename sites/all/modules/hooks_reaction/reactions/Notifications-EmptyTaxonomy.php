@@ -117,8 +117,10 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
 
             // Get all topic-ids this $term references
             $arrTopicIds = array();
-            foreach ( $term->field_asset_topic_taxonomy['und'] as $topicIdContainer ) {
-                $arrTopicIds[] = $topicIdContainer['tid'];
+            if ( !empty($term->field_asset_topic_taxonomy) && !empty($term->field_asset_topic_taxonomy['und']) ) {
+                foreach ( $term->field_asset_topic_taxonomy['und'] as $topicIdContainer ) {
+                    $arrTopicIds[] = $topicIdContainer['tid'];
+                }
             }
             $strTopicIds = implode(',', $arrTopicIds);
 
