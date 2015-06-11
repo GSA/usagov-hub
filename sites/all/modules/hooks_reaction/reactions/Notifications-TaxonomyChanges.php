@@ -141,7 +141,7 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
  * Returns an array of node-IDs, or array of loaded nodes (based on the seconds argument).
  */
 if ( !function_exists('getAssetsInSiteStructTerm') ) {
-    function getAssetsInSiteStructTerm($term, $loadAssets = false) {
+    function getAssetsInSiteStructTerm($term, $loadAssets = false, $maintainSections = false) {
         
         $ret = array();
 
@@ -171,7 +171,15 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
                     // Look for [multiple] node-id references in this field
                     foreach ( $term->{$assetFieldContainer}['und'] as $targetContainer ) {
 
-                        $ret[] = $targetContainer['target_id'];
+                        if ( $maintainSections ) {
+                            $regionName = strrev(strtok(strrev($assetFieldContainer), '_'));
+                            if ( !isset($ret[$regionName]) ) {
+                                $ret[$regionName] = array();
+                            }
+                            $ret[$regionName][] = $targetContainer['target_id'];
+                        } else {
+                            $ret[] = $targetContainer['target_id'];
+                        }
                     }
                 }
             }
@@ -207,12 +215,22 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
 
         }
 
-        sort($ret);
+        if ( !$maintainSections ) {
+            sort($ret);
+        }
 
         // Load the assets if requested
         if ( $loadAssets ) {
-            foreach ($ret as &$n) {
-                $n = node_load($n);
+            if ( $maintainSections ) {
+                foreach ($ret as &$section) {
+                    foreach ( $section as &$n ) {
+                        $n = node_load($n);
+                    }
+                }
+            } else {
+                foreach ($ret as &$n) {
+                    $n = node_load($n);
+                }
             }
         }
 
@@ -347,27 +365,39 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
             $msg .= "\n<br/>";
             $msg .= "The assigned assets were originally:\n<br/>";
             $msg .= "\n<br/>";
-            $assets = getAssetsInSiteStructTerm($oldValue, true);
+            $assets = getAssetsInSiteStructTerm($oldValue, true, true);
             if ( count($assets) === 0 ) {
                 $msg .= "<ul><li><i>empty</i></li></ul>";
             } else {
                 $msg .= "<ul>";
-                foreach ( $assets as $node ) {
-                    $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
-                    $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
+                foreach ( $assets as $section => $nodes ) {
+                    $msg .= ucwords($section)." region:";
+                    $msg .= "<ol>";
+                    foreach ( $nodes as $node ) {
+                        $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
+                        $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
+                    }
+                    $msg .= "</ol>";
+                    $msg .= "<br/>";
                 }
                 $msg .= "</ul>";
             }
             $msg .= "\n";
             $msg .= "And now the asset assignment is:\n";
-            $assets = getAssetsInSiteStructTerm($newValue, true);
+            $assets = getAssetsInSiteStructTerm($newValue, true, true);
             if ( count($assets) === 0 ) {
                 $msg .= "<ul><li><i>empty</i></li></ul>";
             } else {
                 $msg .= "<ul>";
-                foreach ( $assets as $node ) {
-                    $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
-                    $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
+                foreach ( $assets as $section => $nodes ) {
+                    $msg .= ucwords($section)." region:";
+                    $msg .= "<ol>";
+                    foreach ( $nodes as $node ) {
+                        $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
+                        $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
+                    }
+                    $msg .= "</ol>";
+                    $msg .= "<br/>";
                 }
                 $msg .= "</ul>";
             }
