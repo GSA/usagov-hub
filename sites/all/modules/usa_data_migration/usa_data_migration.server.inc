@@ -30,11 +30,18 @@ function usa_data_migration_triggerUpdatePullOnAllChildSites($killThreadOnComple
         // Run through each child-site
         $targets = explode("\n", variable_get('udm_push_targets', ''));
         foreach ($targets as $target) {
+
+            $arrContextOptions=array(
+                "ssl"=>array(
+                    "verify_peer"=>false,
+                    "verify_peer_name"=>false,
+                ),
+            ); 
             
             $ret .= "Invoked site: {$target}\n";
 
             // This next line is what triggers a child-site to do an update pull
-            $ret .= "Its response was: ".file_get_contents($target)."\n";
+            $ret .= "Its response was: ".file_get_contents($target, false, stream_context_create($arrContextOptions))."\n";
         }
     }
 
