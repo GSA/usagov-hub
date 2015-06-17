@@ -272,6 +272,10 @@ function findNodesAssociatedWithTopic($tid) {
  *
  * Searches MySQL to find all taxonomy terms that reference 
  * $assetNid in any of the "Asset Placement" fields.
+ *
+ * This will also scan for non-Kids.gov terms that associate 
+ * with the same Asset Topic that this node associates with.
+ *
  * Returns an array of term-ids.
  */
 function tatr_findSiteStructTermsThatReferenceAsset($assetNid) {
@@ -286,13 +290,41 @@ function tatr_findSiteStructTermsThatReferenceAsset($assetNid) {
         "field_data_field_asset_order_bottom",
     );
 
+    // Search the assets tables (on the S.S.-tax-terms)
     foreach ( $tables as $table ) {
         $valueColumn = str_replace('field_data_', '', $table);
         $results = db_query("SELECT entity_id FROM {$table} WHERE {$valueColumn}_target_id={$assetNid}");
         foreach ( $results as $result ) {
-            $nid = $result->entity_id;
-            $ret[$nid] = $nid;
+            $tid = $result->entity_id;
+            $ret[$tid] = $tid;
         }
+    }
+
+    // Get the "Asset Topic"(s) this node is associated with
+    // And use db_query() since its faster than node_load()
+    $topicIds = db_query("
+        SELECT field_asset_topic_taxonomy_tid
+        FROM field_data_field_asset_topic_taxonomy
+        WHERE
+            entity_type = 'node'
+            AND entity_id = {$assetNid}
+    ")->fetchCol();
+    $topicIds = implode(',', $topicIds);
+
+    /* For each "Asset Topic" this node is associated with;
+    Get all S.S.-taxonomy-terms that are associated with 
+    these Asset-Topic(s). Only get non-Kids terms */
+    $terms = db_query("
+        SELECT entity_id
+        FROM field_data_field_asset_topic_taxonomy att
+        LEFT JOIN taxonomy_tlt_name tlt ON ( tlt.tid = att.entity_id )
+        WHERE
+            entity_type = 'taxonomy_term'
+            AND field_asset_topic_taxonomy_tid IN ($topicIds)
+            AND tlt.tlt_name <> 'Kids.gov'
+    ")->fetchColumn();
+    foreach ($terms as $tid ) {
+        $ret[$tid] = $tid;
     }
 
     return array_values($ret);
