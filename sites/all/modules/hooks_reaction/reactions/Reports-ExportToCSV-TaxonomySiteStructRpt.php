@@ -187,8 +187,8 @@ function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$ro
     // Prepare to add a new row into the report
     $newRow = array(
         'counter' => $counter,
-        'Page Title' => ( !empty($term->field_page_title['und'][0]['value']) ? $term->field_page_title['und'][0]['value'] : 'NOT SET IN CMP' ),
-        'Parent Title' => $termParentPageTitle,
+        'Page Title' => tssr_sanitzie( !empty($term->field_page_title['und'][0]['value']) ? $term->field_page_title['und'][0]['value'] : 'NOT SET IN CMP' ),
+        'Parent Title' => tssr_sanitzie($termParentPageTitle),
         'Hierarchy Level' => $lvlSemaphore,
         'Page Type' => ( !empty($term->field_type_of_page_to_generate['und'][0]['value']) ? $term->field_type_of_page_to_generate['und'][0]['value'] : 'NOT SET IN CMP' ),
         'Friendly URL' => ( !empty($term->field_friendly_url['und'][0]['value']) ? $term->field_friendly_url['und'][0]['value'] : 'NOT SET IN CMP' ),
@@ -199,7 +199,7 @@ function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$ro
     // For each asset associated with this term, add a new cell (column) with the asset's title
     foreach ( $assets as $assetId => $nid ) {
         // I'm using db_query here rather than node_load because it's faster (and really makes a difference in a recursive loop like this)
-        $newRow["Asset ".($assetId+1)] = db_query("SELECT title FROM node WHERE node.nid={$nid}")->fetchColumn();
+        $newRow["Asset ".($assetId+1)] = tssr_sanitzie( db_query("SELECT title FROM node WHERE node.nid={$nid}")->fetchColumn() );
     }
 
     // Note the number of additional columns (to correct the header-cound for the next report)
@@ -293,4 +293,20 @@ function tssr_getAssetsInSiteStructTerm($term) {
     }
 
     return ( is_null($ret) || !is_array($ret) ? array() : $ret );
+}
+
+function tssr_sanitzie($str) {
+
+    $table = array(
+        'Š'=>'S', 'š'=>'s', 'Ð'=>'Dj', 'Ž'=>'Z', 'ž'=>'z', 'C'=>'C', 'c'=>'c', 'C'=>'C', 'c'=>'c',
+        'À'=>'A', 'Á'=>'A', 'Â'=>'A', 'Ã'=>'A', 'Ä'=>'A', 'Å'=>'A', 'Æ'=>'A', 'Ç'=>'C', 'È'=>'E', 'É'=>'E',
+        'Ê'=>'E', 'Ë'=>'E', 'Ì'=>'I', 'Í'=>'I', 'Î'=>'I', 'Ï'=>'I', 'Ñ'=>'N', 'Ò'=>'O', 'Ó'=>'O', 'Ô'=>'O',
+        'Õ'=>'O', 'Ö'=>'O', 'Ø'=>'O', 'Ù'=>'U', 'Ú'=>'U', 'Û'=>'U', 'Ü'=>'U', 'Ý'=>'Y', 'Þ'=>'B', 'ß'=>'Ss',
+        'à'=>'a', 'á'=>'a', 'â'=>'a', 'ã'=>'a', 'ä'=>'a', 'å'=>'a', 'æ'=>'a', 'ç'=>'c', 'è'=>'e', 'é'=>'e',
+        'ê'=>'e', 'ë'=>'e', 'ì'=>'i', 'í'=>'i', 'î'=>'i', 'ï'=>'i', 'ð'=>'o', 'ñ'=>'n', 'ò'=>'o', 'ó'=>'o',
+        'ô'=>'o', 'õ'=>'o', 'ö'=>'o', 'ø'=>'o', 'ù'=>'u', 'ú'=>'u', 'û'=>'u', 'ý'=>'y', 'ý'=>'y', 'þ'=>'b',
+        'ÿ'=>'y', 'R'=>'R', 'r'=>'r', "'"=>'-', '"'=>'-'
+    );
+
+    return strtr($str, $table);
 }
