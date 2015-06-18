@@ -125,7 +125,7 @@ function exportAssetTopicTaxonomyReportToCSV() {
     }
 
     // Write the CSV headers
-    fwrite($h, '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets on Page","For Use By",');
+    fwrite($h, '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets-Nodes Associated (cumulative)","For Use By",');
     for ( $T = 1 ; $T < intval(variable_get('tatr_lastmaxcolcount', 3)); $T++ ) {
         if ( $T > 1 ) {
             fwrite($h, ',');
@@ -323,7 +323,7 @@ function tatr_findSiteStructTermsThatReferenceAsset($assetNid) {
     /* For each "Asset Topic" this node is associated with;
     Get all S.S.-taxonomy-terms that are associated with 
     these Asset-Topic(s). Only get non-Kids terms */
-    $terms = db_query("
+    $results = db_query("
         SELECT entity_id
         FROM field_data_field_asset_topic_taxonomy att
         LEFT JOIN taxonomy_tlt_name tlt ON ( tlt.tid = att.entity_id )
@@ -331,9 +331,9 @@ function tatr_findSiteStructTermsThatReferenceAsset($assetNid) {
             entity_type = 'taxonomy_term'
             AND field_asset_topic_taxonomy_tid IN ($topicIds)
             AND tlt.tlt_name <> 'Kids.gov'
-    ")->fetchColumn();
-    foreach ($terms as $tid ) {
-        $ret[$tid] = $tid;
+    ");
+    foreach ($results as $record ) {
+        $ret[$record->entity_id] = $record->entity_id;
     }
 
     return array_values($ret);
