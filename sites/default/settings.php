@@ -72,7 +72,7 @@ $envToDrupalMap = array(
 
         /* Drupal variables, strings, used by the cmp_misc module */
         'CMP_DRUPAL_FORWARD_SENDER_ADDRESS' => 'forward_sender_address',
-        'CMP_DRUPAL_FORWARD_SENDER_ADDRESS' => 'mail_line_endings',
+        'CMP_DRUPAL_MAIL_LINE_ENDINGS' => 'mail_line_endings',
 
         /* Drupal variables, strings, used by the usa_data_migration module */
         'CMP_DRUPAL_UDM_PULL_SECURITY_KEY' => 'udm_pull_security_key',
@@ -163,6 +163,9 @@ foreach ($envToDrupalMap as $typecastAs => $varToVarMap) {
                     break;
                 case 'booleans':
                     $envVarName = boolval($envVarName);
+                    break;
+                case 'serialize':
+                    $envVarName = unserialize($envVarName);
                     break;
             }
 
