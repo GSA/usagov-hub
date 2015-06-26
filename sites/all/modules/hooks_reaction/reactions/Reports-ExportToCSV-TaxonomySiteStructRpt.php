@@ -124,7 +124,7 @@ function exportSiteStructureTaxonomyReportToCSV() {
     }
 
     // Print the CSV headers
-    fwrite($h, '"counter","Page Title","Parent Title","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",');
+    fwrite($h, '"counter","Site","Page Title","Parent Title","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",');
     for ( $T = 1 ; $T < intval(variable_get('tssr_lastmaxcolcount', 3)); $T++ ) {
         if ( $T > 1 ) {
             fwrite($h, ',');
@@ -182,25 +182,14 @@ function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$ro
     }
 
     // Get all assets associated with this term
-    $assets = array();
-    if ( !empty($term->field_asset_order_carousel['und']) ) {
-        $assets = array_merge($assets, $term->field_asset_order_carousel['und']);
-    }
-    if ( !empty($term->field_asset_order_content['und']) ) {
-        $assets = array_merge($assets, $term->field_asset_order_content['und']);
-    }
-    if ( !empty($term->field_asset_order_sidebar['und']) ) {
-        $assets = array_merge($assets, $term->field_asset_order_sidebar['und']);
-    }
-    if ( !empty($term->field_asset_order_bottom['und']) ) {
-        $assets = array_merge($assets, $term->field_asset_order_bottom['und']);
-    }
+    $assets = tssr_getAssetsInSiteStructTerm($term);
 
     // Prepare to add a new row into the report
     $newRow = array(
         'counter' => $counter,
-        'Page Title' => ( !empty($term->field_page_title['und'][0]['value']) ? $term->field_page_title['und'][0]['value'] : 'NOT SET IN CMP' ),
-        'Parent Title' => $termParentPageTitle,
+        'Site' => db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid={$term->tid}")->fetchColumn(),
+        'Page Title' => tssr_sanitzie( !empty($term->field_page_title['und'][0]['value']) ? $term->field_page_title['und'][0]['value'] : 'NOT SET IN CMP' ),
+        'Parent Title' => tssr_sanitzie($termParentPageTitle),
         'Hierarchy Level' => $lvlSemaphore,
         'Page Type' => ( !empty($term->field_type_of_page_to_generate['und'][0]['value']) ? $term->field_type_of_page_to_generate['und'][0]['value'] : 'NOT SET IN CMP' ),
         'Friendly URL' => ( !empty($term->field_friendly_url['und'][0]['value']) ? $term->field_friendly_url['und'][0]['value'] : 'NOT SET IN CMP' ),
@@ -209,9 +198,9 @@ function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$ro
     );
 
     // For each asset associated with this term, add a new cell (column) with the asset's title
-    foreach ( $assets as $assetId => $assetTargetIdContainer ) {
+    foreach ( $assets as $assetId => $nid ) {
         // I'm using db_query here rather than node_load because it's faster (and really makes a difference in a recursive loop like this)
-        $newRow["Asset ".($assetId+1)] = db_query("SELECT title FROM node WHERE node.nid={$assetTargetIdContainer['target_id']}")->fetchColumn();
+        $newRow["Asset ".($assetId+1)] = tssr_sanitzie( db_query("SELECT title FROM node WHERE node.nid={$nid}")->fetchColumn() );
     }
 
     // Note the number of additional columns (to correct the header-cound for the next report)
@@ -229,4 +218,96 @@ function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$ro
     }
 
     $lvlSemaphore--;
+}
+
+/**
+ * array tssr_getAssetsInSiteStructTerm(object $term)
+ *
+ * This function finds all assets associated to the given Site-Structure taxonomy
+ * term, and returns an array. The array returned is an array of nod-IDs.
+ */
+function tssr_getAssetsInSiteStructTerm($term) {
+    
+    $ret = array();
+
+    // Get the top-level-term name for this $term
+    if ( empty($term->tid) ) {
+        return array();
+    }
+    $tltName = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid=".$term->tid)->fetchColumn();
+    if ( $tltName === false ) {
+        return array();
+    }
+
+    if ( $tltName === 'Kids.gov' ) {
+
+        // These fields in S.S-taxonomy-terms hold pointers to nodes (assets)
+        $assetFieldContainers = array(
+            'field_asset_order_carousel',
+            'field_asset_order_content',
+            'field_asset_order_sidebar',
+            'field_asset_order_bottom'
+        );
+
+        // Look in each of these fields for node-id references
+        foreach ( $assetFieldContainers as $assetFieldContainer ) {
+            if ( !empty($term->{$assetFieldContainer}) && !empty($term->{$assetFieldContainer}['und']) ) {
+
+                // Look for [multiple] node-id references in this field
+                foreach ( $term->{$assetFieldContainer}['und'] as $targetContainer ) {
+                    $ret[] = $targetContainer['target_id'];
+                }
+            }
+        }
+
+    } else {
+
+        /* NON-Kids site logic (lookup based on Asset-Topic assignment) */
+
+        // Get all topic-ids this $term references
+        $arrTopicIds = array();
+        if ( !empty($term->field_asset_topic_taxonomy) && !empty($term->field_asset_topic_taxonomy['und']) ) {
+            foreach ( $term->field_asset_topic_taxonomy['und'] as $topicIdContainer ) {
+                $arrTopicIds[] = $topicIdContainer['tid'];
+            }
+        }
+        $strTopicIds = implode(',', $arrTopicIds);
+
+        // Get all node-IDs that reference these $strTermIds
+        if ( trim($strTopicIds) === '' ) {
+
+            // There are no Topics selected, so there can't be any assets associated
+            $ret  = array();
+
+        } else {
+
+            // Query MySQL to get all node-IDs that reference these $strTermIds
+            $ret = db_query("
+                SELECT entity_id
+                FROM field_data_field_asset_topic_taxonomy 
+                WHERE 
+                    field_asset_topic_taxonomy_tid in ({$strTopicIds}) 
+                    AND entity_type='node'
+            ")->fetchCol();
+        }
+
+    }
+
+    return ( is_null($ret) || !is_array($ret) ? array() : $ret );
+}
+
+function tssr_sanitzie($str) {
+
+    $table = array(
+        'Š'=>'S', 'š'=>'s', 'Ð'=>'Dj', 'Ž'=>'Z', 'ž'=>'z', 'C'=>'C', 'c'=>'c', 'C'=>'C', 'c'=>'c',
+        'À'=>'A', 'Á'=>'A', 'Â'=>'A', 'Ã'=>'A', 'Ä'=>'A', 'Å'=>'A', 'Æ'=>'A', 'Ç'=>'C', 'È'=>'E', 'É'=>'E',
+        'Ê'=>'E', 'Ë'=>'E', 'Ì'=>'I', 'Í'=>'I', 'Î'=>'I', 'Ï'=>'I', 'Ñ'=>'N', 'Ò'=>'O', 'Ó'=>'O', 'Ô'=>'O',
+        'Õ'=>'O', 'Ö'=>'O', 'Ø'=>'O', 'Ù'=>'U', 'Ú'=>'U', 'Û'=>'U', 'Ü'=>'U', 'Ý'=>'Y', 'Þ'=>'B', 'ß'=>'Ss',
+        'à'=>'a', 'á'=>'a', 'â'=>'a', 'ã'=>'a', 'ä'=>'a', 'å'=>'a', 'æ'=>'a', 'ç'=>'c', 'è'=>'e', 'é'=>'e',
+        'ê'=>'e', 'ë'=>'e', 'ì'=>'i', 'í'=>'i', 'î'=>'i', 'ï'=>'i', 'ð'=>'o', 'ñ'=>'n', 'ò'=>'o', 'ó'=>'o',
+        'ô'=>'o', 'õ'=>'o', 'ö'=>'o', 'ø'=>'o', 'ù'=>'u', 'ú'=>'u', 'û'=>'u', 'ý'=>'y', 'ý'=>'y', 'þ'=>'b',
+        'ÿ'=>'y', 'R'=>'R', 'r'=>'r', "'"=>'-', '"'=>'-'
+    );
+
+    return strtr($str, $table);
 }

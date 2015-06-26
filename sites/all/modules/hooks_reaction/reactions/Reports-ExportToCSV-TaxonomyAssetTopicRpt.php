@@ -125,7 +125,7 @@ function exportAssetTopicTaxonomyReportToCSV() {
     }
 
     // Write the CSV headers
-    fwrite($h, '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets on Page",');
+    fwrite($h, '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets-Nodes Associated (cumulative)","For Use By",');
     for ( $T = 1 ; $T < intval(variable_get('tatr_lastmaxcolcount', 3)); $T++ ) {
         if ( $T > 1 ) {
             fwrite($h, ',');
@@ -187,11 +187,19 @@ function compileAssetTopicTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$rows,
         'Type' => 'Asset Topic (taxonomy-term)',
         'CMP Edit Link' => "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/{$tid}/edit",
         'Assets-Nodes Associated (cumulative)' => findNodeCountAssociatedWithTopicCumulatively($vid, $tid),
+        'For Use By' => '',
     );
 
     // Get the nodes associated with this Topic
     $nodes = findNodesAssociatedWithTopic($tid);
     foreach ($nodes as $node ) {
+
+        // Get the 'For Use By' text for this node
+        $forUseBy = array();
+        foreach ( $node->field_for_use_by_text['und'] as $valCont ) {
+            $forUseBy[] = $valCont['value'];
+        }
+        $forUseBy = implode(', ', $forUseBy);
 
         // Prepare to add new row to the report - for this node under this Asset Topic
         $counter++;
@@ -203,6 +211,7 @@ function compileAssetTopicTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$rows,
             'Type' => 'Asset (node)',
             'CMP Edit Link' => "https://".$_SERVER['HTTP_HOST']."/node/{$node->nid}/edit",
             'Assets-Nodes Associated (cumulative)' => '',
+            'For Use By' => $forUseBy,
         );
 
         // For each page this node apears on, add a new column
@@ -272,6 +281,10 @@ function findNodesAssociatedWithTopic($tid) {
  *
  * Searches MySQL to find all taxonomy terms that reference 
  * $assetNid in any of the "Asset Placement" fields.
+ *
+ * This will also scan for non-Kids.gov terms that associate 
+ * with the same Asset Topic that this node associates with.
+ *
  * Returns an array of term-ids.
  */
 function tatr_findSiteStructTermsThatReferenceAsset($assetNid) {
@@ -286,13 +299,41 @@ function tatr_findSiteStructTermsThatReferenceAsset($assetNid) {
         "field_data_field_asset_order_bottom",
     );
 
+    // Search the assets tables (on the S.S.-tax-terms)
     foreach ( $tables as $table ) {
         $valueColumn = str_replace('field_data_', '', $table);
         $results = db_query("SELECT entity_id FROM {$table} WHERE {$valueColumn}_target_id={$assetNid}");
         foreach ( $results as $result ) {
-            $nid = $result->entity_id;
-            $ret[$nid] = $nid;
+            $tid = $result->entity_id;
+            $ret[$tid] = $tid;
         }
+    }
+
+    // Get the "Asset Topic"(s) this node is associated with
+    // And use db_query() since its faster than node_load()
+    $topicIds = db_query("
+        SELECT field_asset_topic_taxonomy_tid
+        FROM field_data_field_asset_topic_taxonomy
+        WHERE
+            entity_type = 'node'
+            AND entity_id = {$assetNid}
+    ")->fetchCol();
+    $topicIds = implode(',', $topicIds);
+
+    /* For each "Asset Topic" this node is associated with;
+    Get all S.S.-taxonomy-terms that are associated with 
+    these Asset-Topic(s). Only get non-Kids terms */
+    $results = db_query("
+        SELECT entity_id
+        FROM field_data_field_asset_topic_taxonomy att
+        LEFT JOIN taxonomy_tlt_name tlt ON ( tlt.tid = att.entity_id )
+        WHERE
+            entity_type = 'taxonomy_term'
+            AND field_asset_topic_taxonomy_tid IN ($topicIds)
+            AND tlt.tlt_name <> 'Kids.gov'
+    ");
+    foreach ($results as $record ) {
+        $ret[$record->entity_id] = $record->entity_id;
     }
 
     return array_values($ret);
