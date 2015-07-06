@@ -34,6 +34,8 @@ define("SS_EMPTY_NOTIFY_ROLE", 'ux member');
 hooks_reaction_add("HOOK_taxonomy_term_presave",
     function ($term) {
 
+        error_log('test');
+
         // We don't want to fire this functionality on newly created terms [I am assuming]
         if ( empty($term->tid) || taxonomy_term_load($term->tid) === false ) {
             return;
