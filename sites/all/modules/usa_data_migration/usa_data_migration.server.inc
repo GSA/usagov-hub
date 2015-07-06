@@ -581,6 +581,9 @@ function usa_data_migration_printNodeDump() {
     $batch = intval($_REQUEST['batch']);
     $size = intval($_REQUEST['size']);
 
+    // Tell the child-site the name of this CMP database (used in the "Local Push" mode)
+    $returnData['database_name'] = $cmpDbName;
+
     // Obtain code used with the "Bundle Copy" module, to export/import taxonomy fields STRUCTURE (struct only, no field data)
     if ( $batch === 1 ) {
         $returnData['nodeFieldStructure_BundleImportCode'] = usa_data_migration_getExportNodeStructureCode();
@@ -822,36 +825,6 @@ function usa_data_migration_printNodeDump() {
 
             }
         }
-    }
-
-    /* Now we need to watch out for a certain edge-case where: 
-       If someone were to create an Asset with the "For Use By" field set to X, and make a few revisions...
-       the Asset will get synced to site X
-       If someone were then to change the "For Use By" field to Y for this given Asset, it needs to be 
-       removed from site-X. But so far in our code we have no way of telling site-X that this Asset only 
-       belongs to site-Y.
-       ----------
-       So here we will sync the /entire/ "For Use By" table, so site-X has the ability to filter itself.
-    */
-    if ( $doLocalPush && $filter !== false ) {
-
-        $returnData['NodeDump_sqlDump'] .= "\n";
-        $returnData['NodeDump_sqlDump'] .= "# Now we need to watch out for a certain edge-case where: \n";
-        $returnData['NodeDump_sqlDump'] .= "# If someone were to create an Asset with the For-Use-By field set to X, and make a few revisions... \n";
-        $returnData['NodeDump_sqlDump'] .= "# the Asset will get synced to site X \n";
-        $returnData['NodeDump_sqlDump'] .= "# If someone were then to change the For-Use-By field to Y for this given Asset, it needs to be  \n";
-        $returnData['NodeDump_sqlDump'] .= "# removed from site-X. But so far in our code we have no way of telling site-X that this Asset only  \n";
-        $returnData['NodeDump_sqlDump'] .= "# belongs to site-Y. \n";
-        $returnData['NodeDump_sqlDump'] .= "# ---------- \n";
-        $returnData['NodeDump_sqlDump'] .= "# So here we will sync the ENTIRE For-Use-By table, so site-X has the ability to filter itself. \n";
-        $returnData['NodeDump_sqlDump'] .= "TRUNCATE field_data_field_for_use_by_text;\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO field_data_field_for_use_by_text SELECT * FROM `{$cmpDbName}`.field_data_field_for_use_by_text;\n";
-        $returnData['NodeDump_sqlDump'] .= "DELETE FROM field_data_field_for_use_by_text WHERE entity_id NOT IN (SELECT nid FROM node);\n";
-        $returnData['NodeDump_sqlDump'] .= "DROP TABLE IF EXISTS udm_nids_dont_belong;\n";
-        $returnData['NodeDump_sqlDump'] .= "CREATE TEMPORARY TABLE udm_nids_dont_belong (nid int) ENGINE=MEMORY;\n";
-        $returnData['NodeDump_sqlDump'] .= "INSERT INTO udm_nids_dont_belong SELECT n.nid FROM node n WHERE type IN ('text_content_type','multimedia_content_type','html_content_type') AND (SELECT COUNT(*) FROM field_data_field_for_use_by_text WHERE entity_id = n.nid AND field_for_use_by_text_value = '{$filter}') = 0 AND (SELECT COUNT(*) FROM field_data_field_for_use_by WHERE entity_id = n.nid AND field_for_use_by_value = '{$filter}') = 0;\n";
-        $returnData['NodeDump_sqlDump'] .= "DELETE FROM node WHERE nid IN (SELECT nid FROM udm_nids_dont_belong);\n";
-        $returnData['NodeDump_sqlDump'] .= "DROP TABLE udm_nids_dont_belong;\n";
     }
 
     // Debug
