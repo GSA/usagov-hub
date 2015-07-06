@@ -67,12 +67,12 @@
 
                     var jqThis = jQuery(this);
                     console.log(jqThis);
-                    var wysiwygSource = jqThis.contents().find('body').html();
+                    var wysiwygSource = jqThis.contents();
+                    var jqWysiwygSource = jQuery(wysiwygSource);
                     var sourceAltered = false;
 
-                    while ( wysiwygSource.substring(wysiwygSource.length - 11) == '<p><br></p>' ) {
-                        wysiwygSource = wysiwygSource.substring(0, wysiwygSource.length - 11);
-                        sourceAltered = true;
+                    while ( jqWysiwygSource.find('p').length > 0 && jqWysiwygSource.find('p').last().text().replace(String.fromCharCode(8203), '') === '' ) {
+                        jqWysiwygSource.find('p').last().remove();
                     }
 
                     if ( sourceAltered === true ) {
