@@ -40,6 +40,9 @@ function cmp_misc_init()
         drupal_goto('/search-content-items', $options);
     }
 
+    // Add Anti-Clickjacking security
+    header('X-Frame-Options: SAMEORIGIN');
+
 }
 
 function cmp_misc_menu() {
