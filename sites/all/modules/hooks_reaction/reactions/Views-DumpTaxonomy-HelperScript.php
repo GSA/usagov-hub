@@ -2,15 +2,14 @@
 
     [--] PURPOSE [--]
     
-    The purpose of this script is to assist the dump_nodes View with rendering - this View uses 
+    The purpose of this script is to assist the dump_taxonomy View with rendering - this View uses 
     some custom functions that must be defined outside of the View.
 
     This helper script also assists in altering the query sent to MySQL for this View,
 
-    This View is located at: https://<site>/admin/structure/views/view/dump_nodes/edit/views_data_export_1
+    This View is located at: https://<site>/admin/structure/views/view/dump_taxonomy/edit/views_data_export_1
 
 */
-
 
 /**
  * Implements HOOK_views_pre_execute
@@ -21,7 +20,7 @@ hooks_reaction_add("HOOK_views_pre_execute",
 
         // Query edits to the dump_nodes and dump_taxonomy Views
         // I'm not using HOOK_views_query_alter() due to technical difficulty/reasons
-        if ( $view->name === 'dump_nodes' ) {
+        if ( $view->name === 'dump_taxonomy' ) {
 
             $query = $view->build_info['query'];
 
@@ -53,30 +52,28 @@ if ( !class_exists('SimpleXMLExtended') ) {
     }
 }
 
-function nidToXML($nid) {
+function tidToXML($tid) {
 
     // initializing or creating array
-    $n = node_load($nid);
-    // override deleted, deletion_uid, deletion_timestamp
-    if (isset($n) && is_object($n)) {
-        $del = (db_query("SELECT deletion_uid, deletion_timestamp FROM node_deleted WHERE nid = :nid", array(":nid"=>$nid))->fetchAssoc());
-        if (isset($del) && !empty($del) && is_array($del)) {
-            $n->deleted=1;
-            $n->deletion_uid = $del['deletion_uid'];
-            $n->deletion_timestamp = $del['deletion_timestamp'];
-        }
+    $t = taxonomy_term_load($tid);
+    $t->parentTerm = array();
+    foreach ( taxonomy_get_parents($tid) as $pTerm ) {
+        $t->parentTerm = array(
+            'tid' => $pTerm->tid,
+            'vid' => $pTerm->vid,
+            'uuid' => $pTerm->uuid
+        );
     }
-
-    $arrNodeData = json_decode( json_encode($n), true );
+    $arrTermData = json_decode( json_encode($t), true );
 
     // creating object of SimpleXMLElement
-    $nodeXML = new SimpleXMLExtended("<?xml version=\"1.0\"?><NodeDataXML></NodeDataXML>");
+    $taxXML = new SimpleXMLExtended("<?xml version=\"1.0\"?><NodeDataXML></NodeDataXML>");
 
     // function call to convert array to xml
-    array_to_xml($arrNodeData, $nodeXML);
+    array_to_xml($arrTermData, $taxXML);
 
     //saving generated xml file
-    $str = substr($nodeXML->asXML(), 35);
+    $str = substr($taxXML->asXML(), 35);
     $str = substr($str, 0, -15);
     return $str;
 }
@@ -95,12 +92,12 @@ if ( !function_exists('array_to_xml') ) {
                 }
             }
             else {
-            if ( is_numeric($value) || trim($value) === '' ) {
-            $xml->addChild("$key",htmlspecialchars("$value"));
-            } else {
-              $xml->{$key} = null;
-              $xml->{$key}->addCData(htmlspecialchars("$value"));
-            }
+                if ( is_numeric($value) ) {
+                    $xml->addChild("$key",htmlspecialchars("$value"));
+                } else {
+                    $xml->{$key} = null;
+                    $xml->{$key}->addCData(htmlspecialchars("$value"));
+                }
             }
         }
     }
