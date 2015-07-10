@@ -17,62 +17,56 @@
  {
   "ARTICLE": "CONTENT FLAG SET TO NO",
   "LASTUPDATE": "01/12/2015",
-  "TITLE": "Weekly Feature - Federal Tax Filing Season",
-  "URL": "http://www.usa.gov/Citizen/Topics/Money/Taxes.shtml"
+  "TITLE": "Jobs",
+  "URL": "https://www.usa.gov/job-search"
  },
  {
   "ARTICLE": "CONTENT FLAG SET TO NO",
   "LASTUPDATE": "12/01/2014",
-  "TITLE": "Affordable Care Act (ACA)",
-  "URL": "http://www.usa.gov/Citizen/Topics/Health/HealthInsurance.shtml"
+  "TITLE": "Passports",
+  "URL": "https://www.usa.gov/passport"
  },
  {
   "ARTICLE": "CONTENT FLAG SET TO NO",
   "LASTUPDATE": "12/12/2014",
-  "TITLE": "Find out if the Government Owes You Money",
-  "URL": "http://www.usa.gov/Citizen/Topics/Government-Unclaimed-Money.shtml"
+  "TITLE": "Unclaimed Money",
+  "URL": "https://www.usa.gov/unclaimed-money"
  },
  {
   "ARTICLE": "CONTENT FLAG SET TO NO",
   "LASTUPDATE": "12/18/2014",
-  "TITLE": "Find a Post Office Near You",
-  "URL": "http://www.usa.gov/Citizen/Topics/Family-Community.shtml"
+  "TITLE": "Government Auctions",
+  "URL": "https://www.usa.gov/buy-from-government"
  },
  {
   "ARTICLE": "CONTENT FLAG SET TO NO",
   "LASTUPDATE": "12/15/2014",
-  "TITLE": "Housing Help: Home Repairs/Modifications",
-  "URL": "http://www.usa.gov//Citizen/Topics/Family/Homeowners/Home-Repairs.shtml"
+  "TITLE": "Health Insurance",
+  "URL": "https://www.usa.gov/health-insurance"
  },
  {
   "ARTICLE": "CONTENT FLAG SET TO NO",
   "LASTUPDATE": "12/19/2014",
-  "TITLE": "Passports",
-  "URL": "http://www.usa.gov/topics/travel/international/passports.shtml"
+  "TITLE": "Address Change",
+  "URL": "https://www.usa.gov/post-office"
  },
  {
   "ARTICLE": "CONTENT FLAG SET TO NO",
   "LASTUPDATE": "12/18/2014",
-  "TITLE": "Government Grants and Loans for Individuals",
-  "URL": "http://www.usa.gov/Citizen/Topics/Benefits.shtml"
+  "TITLE": "Federal Taxes",
+  "URL": "https://www.usa.gov/taxes"
  },
  {
   "ARTICLE": "CONTENT FLAG SET TO NO",
   "LASTUPDATE": "01/07/2015",
-  "TITLE": "Government Jobs",
-  "URL": "http://www.usa.gov/Citizen/Topics/Government-Jobs.shtml"
+  "TITLE": "Telemarketing and Unwanted Mail",
+  "URL": "https://www.usa.gov/telemarketing"
  },
  {
   "ARTICLE": "CONTENT FLAG SET TO NO",
   "LASTUPDATE": "12/11/2014",
-  "TITLE": "Address Change",
-  "URL": "http://www.usa.gov/Citizen/Services/Change-Of-Address.shtml"
- },
- {
-  "ARTICLE": "CONTENT FLAG SET TO NO",
-  "LASTUPDATE": "11/26/2014",
-  "TITLE": "Replacing Birth, Marriage, Death Certificates, and other Vital Documents ",
-  "URL": "http://www.usa.gov/Citizen/Topics/Family-Issues/Vital-Docs.shtml"
+  "TITLE": "Social Security Benefits",
+  "URL": "https://www.usa.gov/about-social-security"
  }
 ]});';
 
