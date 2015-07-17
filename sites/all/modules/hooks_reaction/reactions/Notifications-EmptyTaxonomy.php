@@ -71,7 +71,7 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
  */
 if ( !function_exists('getAssetsInSiteStructTerm') ) {
     function getAssetsInSiteStructTerm($term, $loadAssets = false, $maintainSections = false) {
-        
+
         $ret = array();
 
         // Get the top-level-term name for this $term
@@ -142,6 +142,12 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
                         field_asset_topic_taxonomy_tid in ({$strTopicIds}) 
                         AND entity_type='node'
                 ")->fetchCol();
+            }
+
+            if ( $maintainSections ) {
+                $ret = array(
+                    'content' => $ret
+                );
             }
 
         }
