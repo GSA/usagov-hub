@@ -384,9 +384,13 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
                 foreach ( $assets as $section => $nodes ) {
                     $msg .= ucwords($section)." region:";
                     $msg .= "<ol>";
-                    foreach ( $nodes as $node ) {
-                        $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
-                        $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
+                    if ( count($nodes) === 0 ) {
+                        $msg .= '<li><i>empty</i></li>';
+                    } else {
+                        foreach ( $nodes as $node ) {
+                            $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
+                            $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
+                        }
                     }
                     $msg .= "</ol>";
                     $msg .= "<br/>";
@@ -403,9 +407,13 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
                 foreach ( $assets as $section => $nodes ) {
                     $msg .= ucwords($section)." region:";
                     $msg .= "<ol>";
-                    foreach ( $nodes as $node ) {
-                        $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
-                        $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
+                    if ( count($nodes) === 0 ) {
+                        $msg .= '<li><i>empty</i></li>';
+                    } else {
+                        foreach ( $nodes as $node ) {
+                            $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
+                            $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
+                        }
                     }
                     $msg .= "</ol>";
                     $msg .= "<br/>";

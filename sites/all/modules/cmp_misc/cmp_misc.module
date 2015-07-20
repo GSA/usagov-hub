@@ -895,6 +895,17 @@ function _cmp_misc_send_last_edited_person($user_to_send, $node) {
 
 function _cmp_misc_send_report() {
 
+    // We check and prevent developer's locals from sending emails here
+    $prodStageDomains = variable_get('udm_prod_domains', array());
+    if ( !in_array($_SERVER['HTTP_HOST'], $prodStageDomains) ) {
+        drupal_set_message(
+            __FUNCTION__.'() blocked from execution as this appears to NOT be a Dev nor Stage environment.',
+            'warning',
+            false
+        );
+        return;
+    }
+
     watchdog('cron',"STARTED >> DAILY SCANNING CONTENT: " . date('Y-m-d H:i:s'));
 
     $ret = _cmp_misc_get_expiring_nodes();
