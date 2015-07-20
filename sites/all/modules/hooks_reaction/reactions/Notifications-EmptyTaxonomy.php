@@ -34,8 +34,6 @@ define("SS_EMPTY_NOTIFY_ROLE", 'ux member');
 hooks_reaction_add("HOOK_taxonomy_term_presave",
     function ($term) {
 
-        error_log('test');
-
         // We don't want to fire this functionality on newly created terms [I am assuming]
         if ( empty($term->tid) || taxonomy_term_load($term->tid) === false ) {
             return;
@@ -56,6 +54,134 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
         $assets = getAssetsInSiteStructTerm($term);
         if ( count($assets) === 0 ) {
             informPmTeamOfEmptyPage($term);
+        }
+
+    }
+);
+
+/**
+ * Implements hook_node_submit
+ *
+ * Checks if a node is being removed from an Asset-Topic, and if/when so, 
+ * checks to see if the Asset-Topic has become empty.
+ */
+hooks_reaction_add("HOOK_node_submit",
+    function ($node, $form, &$form_state) {
+
+        // We don't want to fire this functionality on newly created terms
+        if ( empty($node->nid) || node_load($node->nid) === false ) {
+            return;
+        }
+
+        // We don't want to fire this functionality on nodes that don't have an Asset-Topic field
+        if ( !isset($node->field_asset_topic_taxonomy) ) {
+            return;
+        }
+
+        // Get the old and new version of this node
+        $nodeOld = node_load($node->nid); // within a presave HOOK, this obtains the most recent revision of this node that is PUBLISHED, not including the current revision being made
+        $nodeNew = $node;
+
+        // Get the Asset topics this node is associated with (before save)
+        $nodeOldTopics = array();
+        if ( !empty($nodeOld->field_asset_topic_taxonomy['und']) ) {
+            foreach ($nodeOld->field_asset_topic_taxonomy['und'] as $tidContainer ) {
+                $nodeOldTopics[] = $tidContainer['tid'];
+            }
+        }
+
+        // Get the Asset topics this node is associated with (after save)
+        $nodeNewTopics = array();
+        if ( !empty($nodeNew->field_asset_topic_taxonomy['und']) ) {
+            foreach ($nodeNew->field_asset_topic_taxonomy['und'] as $tidContainer ) {
+                $nodeNewTopics[] = $tidContainer['tid'];
+            }
+        }
+
+        // If no topics are being removed, we are done here
+        if ( count($nodeOldTopics) <= count($nodeNewTopics) ) {
+            return;
+        }
+
+        // Get the topic(s) that just lost this asset
+        $loosingTopics = array_diff($nodeOldTopics, $nodeNewTopics);
+
+        // Now get a list of which of these topic(s) have become empty
+        foreach ($loosingTopics as $index => $loosingTopicId ) {
+
+            // Get a count of how many assets are assigned to this topic
+            // (minus this node)
+            $topicContainsAssetCount = db_query("
+                SELECT COUNT(entity_id)
+                FROM field_data_field_asset_topic_taxonomy 
+                WHERE
+                    entity_type = 'node' 
+                    AND field_asset_topic_taxonomy_tid = {$loosingTopicId}
+                    AND entity_id <> {$node->nid}
+            ")->fetchColumn();
+
+            // If this topic still contains assets...
+            if ( intval($topicContainsAssetCount) > 0 ) {
+
+                // ...then it is not going to be empty and we dont care about it
+                unset($loosingTopics[$index]);
+            }
+
+        }
+
+        // If none of the $loosingTopics [Asset-Topics] are empty, then we are fine, bail
+        if ( count($loosingTopics) === 0 ) {
+            return;
+        }
+
+        // At this point, the $loosingTopics array contains topics that are becoming empty
+        foreach ($loosingTopics as $loosingTopicId ) {
+            error_log("Asset-topic {$loosingTopicId} has become empty with the disassociation of node {$node->nid}");
+        }
+
+        // Find all pages (SS-tax-terms) associated with these [now-empty] topics
+        $strLoosingTopics = implode(',', $loosingTopics);
+        $loosingPages = db_query("
+            SELECT entity_id
+            FROM field_data_field_asset_topic_taxonomy 
+            WHERE
+                entity_type = 'taxonomy_term' 
+                AND field_asset_topic_taxonomy_tid = {$strLoosingTopics}
+        ")->fetchCol();
+        $loosingPages = ( $loosingPages === false ? array() : $loosingPages );
+
+        // Filter $loosingPages to find pages that are now empty
+        foreach ( $loosingPages as $index => $loosingPageTid ) {
+
+            // Get the assets associated with this given page (assets assoc w/ SS-tax-term $loosingPageTid)
+            $ssTerm = taxonomy_term_load($loosingPageTid);
+            $assetsOnThisPage = getAssetsInSiteStructTerm($ssTerm, false, false);
+
+            // But ignore a node asset with the node-ID of {$node->nid} since it is being removed
+            $killIndex = array_search($node->nid, $assetsOnThisPage);
+            if ( $killIndex !== false ) {
+                unset($assetsOnThisPage[$killIndex]);
+            }
+
+            // If this SS-term still has assets associated with it...
+            if ( count($assetsOnThisPage) > 0 ) {
+
+                // ...then we don't care about it anymore.
+                unset($loosingPages[$index]);
+            }
+
+            unset( $ssTerm ); // free memory
+        }
+
+        // At this point, the $loosingPages array contains term-IDs to ChildSite pages that are now empty
+        foreach ($loosingPages as $loosingPageTid ) {
+
+            error_log("Site-Structure taxonomy-term {$loosingPageTid} no longer has any assets assigned to "
+                ."it, with the disassociation of node {$node->nid}");
+
+            // Dispatch a notification email about this page now being emptied
+            $ssTerm = taxonomy_term_load($loosingPageTid);
+            informPmTeamOfEmptyPage($ssTerm, $node);
         }
 
     }
@@ -175,7 +301,7 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
     }
 }
 
-function informPmTeamOfEmptyPage($term) {
+function informPmTeamOfEmptyPage($term, $pendingChange = false) {
 
     // Get the role-id for the SS_CHANGE_NOTIFY_ROLE role
     $role = user_role_load_by_name(SS_EMPTY_NOTIFY_ROLE);
@@ -202,15 +328,29 @@ function informPmTeamOfEmptyPage($term) {
     $params['subject'] = "Empty Page: ".$term->name;
 
     // Email message body
-    $linkToTerm = $linkToTerm = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$term->tid."/edit";
-    $params['body'] = 'This is an automated message to inform/remind you that the following '
-        .'page is empty: <a href="' . $linkToTerm . '">' . $term->name . '</a> <br/>';
+    $linkToTerm = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$term->tid."/edit";
+    if ( $pendingChange === false ) {
+        $params['body'] = 'This is an automated message to inform/remind you that the following '
+            .'page is empty: <a href="' . $linkToTerm . '">' . $term->name . '</a> <br/><br/>';
+    } else {
+        $linkToPending = "https://".$_SERVER['HTTP_HOST']."/node/".$pendingChange->nid."/edit";
+
+        $params['body'] =
+            'This is an automated message to inform you that the "<a href="' . $linkToTerm . '">' . 
+            $term->name . '</a>" page will become empty upon the approval/publishing '
+            .'of the "' . l($pendingChange->title, $linkToPending) . '" asset, (<small>which is drafted as '
+            .'being removed from this page</small>).<br/><br/>';
+    }
     if ( !empty($term->field_page_intro['und'][0]['value']) ) {
         $params['body'] .= '<b>Summary</b> - ' . $term->field_page_intro['und'][0]['value'] . ' <br/>';
     }
     $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i').'<br/>';
     $params['body'] .= "<br/>";
-    $params['body'] .= "You can edit this taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a>";
+    $params['body'] .= "You can edit this taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a><br/>";
+
+    if ( $pendingChange !== false ) {
+        $params['body'] .= "You can edit the Asset being removed from: <a href=\"{$linkToPending}\">{$linkToPending}</a><br/>";
+    }
 
     // Email headers
     $from = variable_get('site_mail', '');
@@ -232,7 +372,7 @@ function informPmTeamOfEmptyPage($term) {
             $params['from']
         );
         if ($res["send"]) {
-            drupal_set_message("Notified about Empty page creation. Notification email has been sent to: " . $strTo);
+            drupal_set_message("Empty-Page notification has been sent to: " . $strTo);
         }
 
     } else {
