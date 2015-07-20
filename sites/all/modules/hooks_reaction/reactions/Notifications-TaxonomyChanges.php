@@ -133,6 +133,98 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
 );
 
 /**
+ * Implements hook_node_submit
+ *
+ * Checks if a node is being removed from an Asset-Topic, and if/when so, 
+ * send a notifications about which pages are effected by this
+ */
+hooks_reaction_add("HOOK_node_submit",
+    function ($node, $form, &$form_state) {
+
+        // We don't want to fire this functionality on newly created nodes
+        if ( empty($node->nid) || node_load($node->nid) === false ) {
+            return;
+        }
+
+        // We don't want to fire this functionality on nodes that don't have an Asset-Topic field
+        if ( !isset($node->field_asset_topic_taxonomy) ) {
+            return;
+        }
+
+        // Get the old and new version of this node
+        $nodeOld = node_load($node->nid); // within a presave HOOK, this obtains the most recent revision of this node that is PUBLISHED, not including the current revision being made
+        $nodeNew = $node;
+
+        // Get the Asset topics this node is associated with (before save)
+        $nodeOldTopics = array();
+        if ( !empty($nodeOld->field_asset_topic_taxonomy['und']) ) {
+            foreach ($nodeOld->field_asset_topic_taxonomy['und'] as $tidContainer ) {
+                $nodeOldTopics[] = $tidContainer['tid'];
+            }
+        }
+
+        // Get the Asset topics this node is associated with (after save)
+        $nodeNewTopics = array();
+        if ( !empty($nodeNew->field_asset_topic_taxonomy['und']) ) {
+            foreach ($nodeNew->field_asset_topic_taxonomy['und'] as $tidContainer ) {
+                $nodeNewTopics[] = $tidContainer['tid'];
+            }
+        }
+
+        // If no topics are being changed, there is no notifications to send about this
+        if ( implode(',', $nodeOldTopics) == implode(',', $nodeNewTopics) ) {
+            return;
+        }
+
+        // Get the topic(s) that just lost, and gained, this asset
+        $loosingTopics = array_diff($nodeOldTopics, $nodeNewTopics);
+        $gainingTopics = array_diff($nodeNewTopics, $nodeOldTopics);
+
+        // Debug reporting
+        foreach ($loosingTopics as $loosingTopicId ) {
+            error_log("Asset-topic {$loosingTopicId} has just lost the association of node {$node->nid}");
+        }
+        foreach ($gainingTopics as $gainingTopicId ) {
+            error_log("Asset-topic {$gainingTopicId} has just gained the association of node {$node->nid}");
+        }
+
+        // Find all pages (SS-tax-terms) associated with these loosing topics
+        if ( count($loosingTopics) == 0 ) {
+            $loosingPages = array();
+        } else {
+            $strLoosingTopics = implode(',', $loosingTopics);
+            $loosingPages = db_query("
+                SELECT entity_id
+                FROM field_data_field_asset_topic_taxonomy 
+                WHERE
+                    entity_type = 'taxonomy_term' 
+                    AND field_asset_topic_taxonomy_tid IN ({$strLoosingTopics})
+            ")->fetchCol();
+            $loosingPages = ( $loosingPages === false ? array() : $loosingPages );
+        }
+
+        // Find all pages (SS-tax-terms) associated with these gaining topics
+        if ( count($gainingTopics) == 0 ) {
+            $gainingPages = array();
+        } else {
+            $strGainingTopics = implode(',', $gainingTopics);
+            $gainingPages = db_query("
+                SELECT entity_id
+                FROM field_data_field_asset_topic_taxonomy 
+                WHERE
+                    entity_type = 'taxonomy_term' 
+                    AND field_asset_topic_taxonomy_tid IN ({$strGainingTopics})
+            ")->fetchCol();
+            $gainingPages = ( $gainingPages === false ? array() : $gainingPages );
+        }
+
+        // Inform the SS_CHANGE_NOTIFY_ROLE team that the $loosingPages pages has lost $node
+        informPmTeamAssetLoss($node, $loosingTopics, $gainingTopics, $loosingPages, $gainingPages);
+
+    }
+);
+
+/**
  * array getAssetsInSiteStructTerm($term[, $loadAssets = false])
  *
  * Given a loaded Site-Structure taxonomy-term, this function will find all the 
@@ -317,6 +409,137 @@ function notify_tax_change_form_submit($form, &$form_state) {
     }
 
     drupal_set_message('Your settings have been saved', 'status');
+}
+
+/**
+ * void informPmTeamAssetLoss()
+ *
+ * This function dispatches an email informing the SS_CHANGE_NOTIFY_ROLE users that 
+ * the given $node was altered in such a way that the given pages will gain/loose 
+ * this asset on them.
+ */
+function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossTids, $pageGainTids) {
+
+    // Get the role-id for the SS_CHANGE_NOTIFY_ROLE role
+    $role = user_role_load_by_name(SS_CHANGE_NOTIFY_ROLE);
+    if ( $role === false ) {
+        return;
+    }
+
+    // Get a list of users to email (users in this role)
+    $uids = db_query("SELECT DISTINCT uid FROM users_roles WHERE rid = {$role->rid}")->fetchCol();
+    $mtMembers = user_load_multiple($uids);
+
+    // Send a message to each member of the SS_CHANGE_NOTIFY_ROLE role
+    $arrTo = array();
+    foreach ($mtMembers as $uid => $mtMember) {
+
+        // Do not send to users marked for no notifications
+        if (
+            variable_get("tax_no_notify_".$uid, false) !== true 
+            && strpos($mtMember->name, '@') !== false
+            && strpos($mtMember->name, '.') !== false
+        ) {
+            $arrTo[] = $mtMember->name;
+        }
+    }
+    $strTo = trim(implode(',', $arrTo), ',');
+
+    // Email Subject
+    $params['subject'] = 'CMP: Asset-Topic Alteration Notification, and pages effected';
+
+    // Email body
+    $nodeHref = "https://".$_SERVER['HTTP_HOST']."/node/".$node->nid."/edit";
+    $nodeAnchor = l($node->title, $nodeHref);
+    $msg = "This is an automated message to inform you that an asset has had its associated-topic(s) changed on "
+        ."the CMP, which will effect certain page(s) unpon approval/publishing.<br/><br/>";
+
+    // EMail body - topics lost
+    if ( count($topicLossTids) > 0 ) {
+        
+        $msg .= "The asset \"{$nodeAnchor}\" was disassociated with the topic(s): <br/>";
+        $msg .= "<ul>";
+        foreach ( $topicLossTids as $topicLossTid ) {
+            $topicTerm = taxonomy_term_load($topicLossTid);
+            $termHref = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$topicTerm->tid."/edit";
+            $msg .= "<li>".l($topicTerm->name, $termHref)."</li>";
+        }
+        $msg .= "</ul><br/>";
+    }
+
+    // EMail body - topics gained
+    if ( count($topicGainTids) > 0 ) {
+        
+        $msg .= "The asset \"{$nodeAnchor}\" was associated with the topic(s): <br/>";
+        $msg .= "<ul>";
+        foreach ( $topicGainTids as $topicGainTid ) {
+            $topicTerm = taxonomy_term_load($topicGainTid);
+            $termHref = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$topicTerm->tid."/edit";
+            $msg .= "<li>".l($topicTerm->name, $termHref)."</li>";
+        }
+        $msg .= "</ul><br/>";
+    }
+
+    // EMail body - pages gained
+    if ( count($pageLossTids) > 0 ) {
+        
+        $msg .= "This actions removes \"{$nodeAnchor}\" from the page(s): <br/>";
+        $msg .= "<ul>";
+        foreach ( $pageLossTids as $pageLossTid ) {
+            $ssTerm = taxonomy_term_load($pageLossTid);
+            $termHref = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$ssTerm->tid."/edit";
+            $msg .= "<li>".l($ssTerm->name, $termHref)."</li>";
+        }
+        $msg .= "</ul><br/>";
+    }
+
+    // EMail body - pages gained
+    if ( count($pageGainTids) > 0 ) {
+        
+        $msg .= "This actions adds \"{$nodeAnchor}\" to the page(s): <br/>";
+        $msg .= "<ul>";
+        foreach ( $pageGainTids as $pageGainTid ) {
+            $ssTerm = taxonomy_term_load($pageGainTid);
+            $termHref = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$ssTerm->tid."/edit";
+            $msg .= "<li>".l($ssTerm->name, $termHref)."</li>";
+        }
+        $msg .= "</ul><br/>";
+    }
+
+    // EMail body
+    $msg .= "<br/>You can edit this asset from: " . l($nodeHref, $nodeHref);
+    $params['body'] = $msg;
+
+    // Email headers
+    $from = variable_get('site_mail', '');
+    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+
+    dsm( $params );
+
+    // We check and prevent developer's locals from sending emails here
+    $prodStageDomains = variable_get('udm_prod_domains', array());
+    if ( in_array($_SERVER['HTTP_HOST'], $prodStageDomains) ) {
+
+        /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will 
+        be called and used to determine the email-message to send. */
+        $res = drupal_mail(
+            'cmp_misc',
+            'scanning_content',
+            $strTo,
+            language_default(),
+            $params,
+            $params['from']
+        );
+        if ($res["send"]) {
+            drupal_set_message("Send taxonomy-update notification emails to: " . $strTo);
+        }
+
+    } else {
+        // then we are running on someone's local, do NOT send the email
+        drupal_set_message("Notification email has NOT been sent because this environment is neither STAGE nor PROD.");
+    }
+
 }
 
 function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term = false) {
