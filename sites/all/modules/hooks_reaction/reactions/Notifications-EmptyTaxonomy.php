@@ -146,7 +146,7 @@ hooks_reaction_add("HOOK_node_submit",
             FROM field_data_field_asset_topic_taxonomy 
             WHERE
                 entity_type = 'taxonomy_term' 
-                AND field_asset_topic_taxonomy_tid = {$strLoosingTopics}
+                AND field_asset_topic_taxonomy_tid IN ({$strLoosingTopics})
         ")->fetchCol();
         $loosingPages = ( $loosingPages === false ? array() : $loosingPages );
 
