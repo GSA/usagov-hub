@@ -60,6 +60,58 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
 );
 
 /**
+ * Implements hook_taxonomy_term_delete
+ *
+ * Checks if an Asset-Topic taxonomy-term is being deleted, and if so, checks
+ * to see if this empties any pages - sends a notification when so.
+ */
+hooks_reaction_add("HOOK_taxonomy_term_delete",
+    function ($term) {
+
+        // We only carte about Asset-Topic tax-terms here
+        if ( $term->vocabulary_machine_name !== 'asset_topic_taxonomy' ) {
+            return;
+        }
+
+        // Find all S.S-tax-terms that were using this Topic
+        $loosingPages = db_query("
+            SELECT entity_id
+            FROM field_data_field_asset_topic_taxonomy 
+            WHERE
+                entity_type = 'taxonomy_term' 
+                AND field_asset_topic_taxonomy_tid IN ({$term->tid})
+        ")->fetchCol();
+
+        // We only care about pages that will BECOME empty due to this action
+        foreach ($loosingPages as $loosingPageTid ) {
+
+            $ssTerm = taxonomy_term_load($loosingPageTid);
+            $assetsBefore = getAssetsInSiteStructTerm($ssTerm, false, false);
+            $assetsAfter = getAssetsInSiteStructTerm($ssTerm, false, false, array($term->tid));
+
+            dsm($assetsBefore);
+            dsm($assetsAfter);
+
+            // If this page was empty before, or it still has assets with this action...
+            if ( count($assetsBefore) == 0 || count($assetsAfter) > 0 ) {
+                // ...then we dont care about this page
+                unset($loosingPages[$loosingPageTid]);
+            }
+        }
+
+        // At this point $loosingPages should be a list of pages that are now empty with this action
+        foreach ($loosingPages as $loosingPageTid) {
+
+            error_log("S.S.taxonomy-term {$loosingPageTid} no longer has any assets with the "
+                ."deletion of Asset-Topic {$term->tid}");
+
+            informPmTeamOfEmptyPage( $term );
+        }
+
+    }
+);
+
+/**
  * Implements hook_node_submit
  *
  * Checks if a node is being removed from an Asset-Topic, and if/when so, 
@@ -196,7 +248,7 @@ hooks_reaction_add("HOOK_node_submit",
  * Returns an array of node-IDs, or array of loaded nodes (based on the seconds argument).
  */
 if ( !function_exists('getAssetsInSiteStructTerm') ) {
-    function getAssetsInSiteStructTerm($term, $loadAssets = false, $maintainSections = false) {
+    function getAssetsInSiteStructTerm($term, $loadAssets = false, $maintainSections = false, $ignoreTopicIds = array()) {
 
         $ret = array();
 
@@ -247,7 +299,9 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
             $arrTopicIds = array();
             if ( !empty($term->field_asset_topic_taxonomy) && !empty($term->field_asset_topic_taxonomy['und']) ) {
                 foreach ( $term->field_asset_topic_taxonomy['und'] as $topicIdContainer ) {
-                    $arrTopicIds[] = $topicIdContainer['tid'];
+                    if ( !in_array($topicIdContainer['tid'], $ignoreTopicIds) ) {
+                        $arrTopicIds[] = $topicIdContainer['tid'];
+                    }
                 }
             }
             $strTopicIds = implode(',', $arrTopicIds);
