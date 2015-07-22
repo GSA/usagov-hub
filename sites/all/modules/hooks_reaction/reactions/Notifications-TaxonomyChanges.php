@@ -61,6 +61,93 @@ hooks_reaction_add("HOOK_taxonomy_term_insert",
     }
 );
 
+
+/**
+ * Implements hook_taxonomy_term_delete
+ *
+ * Checks if an Asset-Topic taxonomy-term is being deleted, and if so, checks to see
+ * which pages were altered by this action, and informs the appropriate users.
+ */
+hooks_reaction_add("HOOK_taxonomy_term_delete",
+    function ($term) {
+
+        // We only carte about Asset-Topic tax-terms here
+        if ( $term->vocabulary_machine_name !== 'asset_topic_taxonomy' ) {
+            return;
+        }
+
+        // Find all S.S-tax-terms that were using this Topic
+        $loosingPages = db_query("
+            SELECT entity_id
+            FROM field_data_field_asset_topic_taxonomy 
+            WHERE
+                entity_type = 'taxonomy_term' 
+                AND field_asset_topic_taxonomy_tid IN ({$term->tid})
+        ")->fetchCol();
+
+        // We only care about pages that will loose some assets due to this action
+        foreach ($loosingPages as $loosingPageTid ) {
+
+            // We need to get the before and after snapshot of the S.S.-tax-term (of $loosingPageTid)
+            /* It is important to note here that while the A-Topic term is deleted already, the 
+            S.S.-term still points to it (because that cleanup hasten happened yet)
+            We will use this as an advantage to get the before&after asset associations */
+
+            $ssTermBefore = taxonomy_term_load($loosingPageTid);
+            $assetsBefore = getAssetsInSiteStructTerm($ssTermBefore, false, false);
+
+            $ssTermAfter = taxonomy_term_load($loosingPageTid);
+            $ssTermAfter = cleanSiteStructTerm_clearDeletedTopics($ssTermAfter); // this cleans out pointers to A-Topics that don't exist
+            $assetsAfter = getAssetsInSiteStructTerm($ssTermAfter, false, false);
+
+            // If this page did not loose any assets, OR, if it lost ALL of its assets...
+            // NOTE: We don't care about a total-loss to assets because the Notifications-EmptyTaxonomy.php script will get that
+            // We only care about pages that loose some, but NOT ALL assets here
+            if ( count($assetsBefore) == count($assetsAfter) && count($assetsAfter) !== 0 ) {
+                // ...then we dont care about this page
+                unset($loosingPages[$loosingPageTid]);
+            }
+        }
+
+        // At this point $loosingPages should be a list of pages that are now empty with this action
+        foreach ($loosingPages as $loosingPageTid) {
+
+            error_log("S.S.taxonomy-term {$loosingPageTid} has lost some assets due to the "
+                ."deletion of Asset-Topic {$term->tid}");
+
+            informPmTeamOfPageChange(SS_CHANGE_ASSET, $ssTermAfter, $ssTermBefore, $ssTermAfter);
+        }
+
+    }
+);
+
+/**
+ * void cleanSiteStructTerm_clearDeletedTopics(&$term)
+ *
+ * Given a loaded taxonomy-term, this function will check for Asset-Topics that 
+ * no longer exist anymore in the database, and remove them from the term
+ */
+function cleanSiteStructTerm_clearDeletedTopics($term) {
+
+    foreach ( $term->field_asset_topic_taxonomy['und'] as $index => $tidContainer) {
+
+        $checkTid = $tidContainer['tid'];
+
+        // If this Topic-taxonomy-term dosnt exist...
+        $tidExsists = db_query("SELECT COUNT(tid) FROM taxonomy_term_data WHERE tid={$checkTid}")->fetchColumn();
+        if ( intval($tidExsists) === 0 ) {
+
+            // ...then remove it from this S.S.-tax-term
+            unset( $term->field_asset_topic_taxonomy['und'][$index] );
+        }
+    }
+
+    // Because we may have dissected elements out of the array - it may have skipping array keys
+    $term->field_asset_topic_taxonomy['und'] = array_values($term->field_asset_topic_taxonomy['und']); // reset array keys
+
+    return $term;
+}
+
 /**
  * Implements hook_taxonomy_term_presave
  *
@@ -233,8 +320,8 @@ hooks_reaction_add("HOOK_node_submit",
  * Returns an array of node-IDs, or array of loaded nodes (based on the seconds argument).
  */
 if ( !function_exists('getAssetsInSiteStructTerm') ) {
-    function getAssetsInSiteStructTerm($term, $loadAssets = false, $maintainSections = false) {
-        
+    function getAssetsInSiteStructTerm($term, $loadAssets = false, $maintainSections = false, $ignoreTopicIds = array()) {
+
         $ret = array();
 
         // Get the top-level-term name for this $term
@@ -284,7 +371,9 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
             $arrTopicIds = array();
             if ( !empty($term->field_asset_topic_taxonomy) && !empty($term->field_asset_topic_taxonomy['und']) ) {
                 foreach ( $term->field_asset_topic_taxonomy['und'] as $topicIdContainer ) {
-                    $arrTopicIds[] = $topicIdContainer['tid'];
+                    if ( !in_array($topicIdContainer['tid'], $ignoreTopicIds) ) {
+                        $arrTopicIds[] = $topicIdContainer['tid'];
+                    }
                 }
             }
             $strTopicIds = implode(',', $arrTopicIds);
