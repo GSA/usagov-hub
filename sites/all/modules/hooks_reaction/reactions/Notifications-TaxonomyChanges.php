@@ -764,7 +764,7 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
             $params['from']
         );
         if ($res["send"]) {
-            drupal_set_message("Send taxonomy-update notification emails to: " . $strTo);
+            drupal_set_message("Sent taxonomy-update notification emails to: " . $strTo);
         }
 
     } else {
