@@ -663,7 +663,7 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
 
     // Determin the human-friendly term's vocab-name
     $termVocab = ucwords( str_replace('_', ' ', $term->vocabulary_machine_name) );
-    $termVocab = trim( str_replace('taxonomy', '', $termVocab) );
+    $termVocab = trim( str_replace('Taxonomy', '', $termVocab) );
     $termVocab = str_replace(' ', '-', $termVocab);
 
     // Email message body
