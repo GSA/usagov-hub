@@ -378,6 +378,11 @@ function informPmTeamOfEmptyPage($term, $pendingChange = false) {
     }
     $strTo = trim(implode(',', $arrTo), ',');
 
+    // Determin the human-friendly term's vocab-name
+    $termVocab = ucwords( str_replace('_', ' ', $term->vocabulary_machine_name) );
+    $termVocab = trim( str_replace('taxonomy', '', $termVocab) );
+    $termVocab = str_replace(' ', '-', $termVocab);
+
     // Email Subject
     $params['subject'] = "Empty Page: ".$term->name;
 
@@ -400,7 +405,7 @@ function informPmTeamOfEmptyPage($term, $pendingChange = false) {
     }
     $params['body'] .= '<b>Last updated on </b>' . date('Y-m-d - H:i').'<br/>';
     $params['body'] .= "<br/>";
-    $params['body'] .= "You can edit this taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a><br/>";
+    $params['body'] .= "You can edit this {$termVocab} taxonomy-term from: <a href=\"{$linkToTerm}\">{$linkToTerm}</a><br/>";
 
     if ( $pendingChange !== false ) {
         $params['body'] .= "You can edit the Asset being removed from: <a href=\"{$linkToPending}\">{$linkToPending}</a><br/>";
