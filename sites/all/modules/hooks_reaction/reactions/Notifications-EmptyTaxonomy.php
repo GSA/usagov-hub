@@ -413,9 +413,9 @@ function informPmTeamOfEmptyPage($term, $pendingChange = false) {
 
         $params['body'] =
             'This is an automated message to inform you that the "<a href="' . $linkToTerm . '">' . 
-            $term->name . '</a>" page will become empty upon the approval/publishing '
-            .'of the "' . l($pendingChange->title, $linkToPending) . '" asset, (<small>which is drafted as '
-            .'being removed from this page</small>).<br/><br/>';
+            $term->name . '</a>" page has become empty since its last asset, "' 
+            .l($pendingChange->title, $linkToPending) . '", has been removed from this page.'
+            .'<br/><br/>';
     }
     if ( !empty($term->field_page_intro['und'][0]['value']) ) {
         $params['body'] .= '<b>Summary</b> - ' . $term->field_page_intro['und'][0]['value'] . ' <br/>';
