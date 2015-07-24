@@ -220,16 +220,21 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
 );
 
 /**
- * Implements hook_node_submit
+ * Implements hook_workbench_moderation_transition
  *
  * Checks if a node is being removed from an Asset-Topic, and if/when so, 
  * send a notifications about which pages are effected by this
  */
-hooks_reaction_add("HOOK_node_submit",
-    function ($node, $form, &$form_state) {
+hooks_reaction_add("HOOK_workbench_moderation_transition",
+    function ($node, $previous_state, $new_state) {
 
         // We don't want to fire this functionality on newly created nodes
         if ( empty($node->nid) || node_load($node->nid) === false ) {
+            return;
+        }
+
+        // We only want to send a notifications out when a node become published
+        if ( $new_state !== 'scheduled_for_publication' ) {
             return;
         }
 
@@ -238,22 +243,33 @@ hooks_reaction_add("HOOK_node_submit",
             return;
         }
 
-        // Get the old and new version of this node
-        $nodeOld = node_load($node->nid); // within a presave HOOK, this obtains the most recent revision of this node that is PUBLISHED, not including the current revision being made
-        $nodeNew = $node;
+        // Get the vid of the last node-revision that was published (but not including this one)
+        $lastPubVid = db_query("
+            SELECT vid
+            FROM workbench_moderation_node_history 
+            WHERE 
+                InStr(state, 'pub') <> 0
+                AND nid = {$node->nid}
+                AND vid <> {$node->vid}
+                ORDER BY stamp desc
+                LIMIT 1;
+        ")->fetchColumn();
+
+        $nodeBefore = node_load($node->nid, $lastPubVid);
+        $nodeAfter = $node;
 
         // Get the Asset topics this node is associated with (before save)
         $nodeOldTopics = array();
-        if ( !empty($nodeOld->field_asset_topic_taxonomy['und']) ) {
-            foreach ($nodeOld->field_asset_topic_taxonomy['und'] as $tidContainer ) {
+        if ( !empty($nodeBefore->field_asset_topic_taxonomy['und']) ) {
+            foreach ($nodeBefore->field_asset_topic_taxonomy['und'] as $tidContainer ) {
                 $nodeOldTopics[] = $tidContainer['tid'];
             }
         }
 
         // Get the Asset topics this node is associated with (after save)
         $nodeNewTopics = array();
-        if ( !empty($nodeNew->field_asset_topic_taxonomy['und']) ) {
-            foreach ($nodeNew->field_asset_topic_taxonomy['und'] as $tidContainer ) {
+        if ( !empty($nodeAfter->field_asset_topic_taxonomy['und']) ) {
+            foreach ($nodeAfter->field_asset_topic_taxonomy['und'] as $tidContainer ) {
                 $nodeNewTopics[] = $tidContainer['tid'];
             }
         }
@@ -540,8 +556,8 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
     // Email body
     $nodeHref = "https://".$_SERVER['HTTP_HOST']."/node/".$node->nid."/edit";
     $nodeAnchor = l($node->title, $nodeHref);
-    $msg = "This is an automated message to inform you that an asset has had its associated-topic(s) changed on "
-        ."the CMP, which will effect certain page(s) unpon approval/publishing.<br/><br/>";
+    $msg = "This is an automated message to inform you that an asset has had its "
+        ."associated-topic(s) changed on the CMP.<br/><br/>";
 
     // EMail body - topics lost
     if ( count($topicLossTids) > 0 ) {
@@ -603,8 +619,6 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
     $from = variable_get('site_mail', '');
     $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
     $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
-
-    dsm( $params );
 
     // We check and prevent developer's locals from sending emails here
     $prodStageDomains = variable_get('udm_prod_domains', array());

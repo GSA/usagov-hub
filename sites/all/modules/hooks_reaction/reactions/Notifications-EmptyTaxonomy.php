@@ -112,16 +112,21 @@ hooks_reaction_add("HOOK_taxonomy_term_delete",
 );
 
 /**
- * Implements hook_node_submit
+ * Implements hook_workbench_moderation_transition
  *
  * Checks if a node is being removed from an Asset-Topic, and if/when so, 
  * checks to see if the Asset-Topic has become empty.
  */
-hooks_reaction_add("HOOK_node_submit",
-    function ($node, $form, &$form_state) {
+hooks_reaction_add("HOOK_workbench_moderation_transition",
+    function ($node, $previous_state, $new_state) {
 
-        // We don't want to fire this functionality on newly created terms
+        // We don't want to fire this functionality on newly created nodes
         if ( empty($node->nid) || node_load($node->nid) === false ) {
+            return;
+        }
+
+        // We only want to send a notifications out when a node become published
+        if ( $new_state !== 'scheduled_for_publication' ) {
             return;
         }
 
@@ -130,22 +135,33 @@ hooks_reaction_add("HOOK_node_submit",
             return;
         }
 
-        // Get the old and new version of this node
-        $nodeOld = node_load($node->nid); // within a presave HOOK, this obtains the most recent revision of this node that is PUBLISHED, not including the current revision being made
-        $nodeNew = $node;
+        // Get the vid of the last node-revision that was published (but not including this one)
+        $lastPubVid = db_query("
+            SELECT vid
+            FROM workbench_moderation_node_history 
+            WHERE 
+                InStr(state, 'pub') <> 0
+                AND nid = {$node->nid}
+                AND vid <> {$node->vid}
+                ORDER BY stamp desc
+                LIMIT 1;
+        ")->fetchColumn();
+
+        $nodeBefore = node_load($node->nid, $lastPubVid);
+        $nodeAfter = $node;
 
         // Get the Asset topics this node is associated with (before save)
         $nodeOldTopics = array();
-        if ( !empty($nodeOld->field_asset_topic_taxonomy['und']) ) {
-            foreach ($nodeOld->field_asset_topic_taxonomy['und'] as $tidContainer ) {
+        if ( !empty($nodeBefore->field_asset_topic_taxonomy['und']) ) {
+            foreach ($nodeBefore->field_asset_topic_taxonomy['und'] as $tidContainer ) {
                 $nodeOldTopics[] = $tidContainer['tid'];
             }
         }
 
         // Get the Asset topics this node is associated with (after save)
         $nodeNewTopics = array();
-        if ( !empty($nodeNew->field_asset_topic_taxonomy['und']) ) {
-            foreach ($nodeNew->field_asset_topic_taxonomy['und'] as $tidContainer ) {
+        if ( !empty($nodeAfter->field_asset_topic_taxonomy['und']) ) {
+            foreach ($nodeAfter->field_asset_topic_taxonomy['und'] as $tidContainer ) {
                 $nodeNewTopics[] = $tidContainer['tid'];
             }
         }
