@@ -58,7 +58,7 @@
 
         setTimeout( function () {
             // When someone clicks on any element within a WYSIWYG UI...
-            jQuery('.cke a').bind('mousedown', function () {
+            jQuery('form').bind('submit', function () {
 
                 // Look at all WYSIWYG IFrames (source-containers) on the page...
                 jQuery('.cke_wysiwyg_frame').each( function () {
