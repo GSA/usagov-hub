@@ -85,9 +85,9 @@ hooks_reaction_add(
             );
 
             // Add in a place-marker for the Ext-Login @TODO
-            $form['saml_sp_drupal_login_links']['#items'][] = array(
+            /*$form['saml_sp_drupal_login_links']['#items'][] = array(
                 'data' => '<a href="#">Log in for users external to GSA</a>'
-            );
+            );*/
             
             // Hide the breadcrumb, and "Log in / Req. new password" tabs
             drupal_add_css(".breadcrumb, ul.tabs.primary { display: none !important; }", "inline");
