@@ -40,6 +40,9 @@ function cmp_misc_init()
         drupal_goto('/search-content-items', $options);
     }
 
+    // Add Anti-Clickjacking security
+    header('X-Frame-Options: SAMEORIGIN');
+
 }
 
 function cmp_misc_menu() {
@@ -275,47 +278,6 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
             global $user;
             $currentUserStr = $user->name . " (" . $user->uid . ") ";
             $form['field_owner']['und'][0]['target_id']['#default_value'] = $currentUserStr;
-        }
-    }
-
-    // Kill any way for someone to reset the admin password - we can do this in the database if we need to
-    // Or we can: drush uli
-    if ( $form_id === 'user_pass' || $form_id === 'user_pass_block' ) {
-        $form = array();
-        exit('Service disabled');
-    }
-
-    // Disable the user log-in form, force SecureAuth
-    if ( $form_id === 'user_login' || $form_id === 'user_login_block' ) {
-
-        // Force the login process to only be accessible over HTTPS
-        if ( empty($_SERVER['HTTPS']) ) {
-            @ob_end_clean();
-            while(@ob_end_clean());
-            header('Location: https://'.$_SERVER['HTTP_HOST'].request_uri());
-            http_response_code(301);
-            drupal_add_http_header('Location', 'https://'.$_SERVER['HTTP_HOST'].request_uri());
-            exit();
-        }
-
-        // Only show the SecureAuth login link, unless the right key is provided
-        if ( strpos($_SERVER['REQUEST_URI'], 'Q8RWOD4HQ4') === false ) {
-            unset($form['name']);
-            unset($form['pass']);
-            unset($form['actions']);
-            unset($form['links']);
-            unset($form['#submit']);
-            drupal_add_js(
-                "
-                    jQuery(document).ready( function () {
-                        jQuery('.saml-link a').text('Log in through GSA Secure-Auth');
-                    });
-                ",
-                'inline'
-            );
-            drupal_add_css("ul.tabs.primary { display: none !important; }", "inline");
-        } else {
-            // do nothing, show the Drupal login form
         }
     }
 
@@ -932,6 +894,17 @@ function _cmp_misc_send_last_edited_person($user_to_send, $node) {
 }
 
 function _cmp_misc_send_report() {
+
+    // We check and prevent developer's locals from sending emails here
+    $prodStageDomains = variable_get('udm_prod_domains', array());
+    if ( !in_array($_SERVER['HTTP_HOST'], $prodStageDomains) ) {
+        drupal_set_message(
+            __FUNCTION__.'() blocked from execution as this appears to NOT be a Dev nor Stage environment.',
+            'warning',
+            false
+        );
+        return;
+    }
 
     watchdog('cron',"STARTED >> DAILY SCANNING CONTENT: " . date('Y-m-d H:i:s'));
 

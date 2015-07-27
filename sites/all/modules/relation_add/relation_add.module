@@ -103,9 +103,12 @@ function relation_add_autocomplete($type = '', $direction = 'target', $field = '
       elseif ('crm_core_contact' == $entity_type) {
         $label_key = 'crm_core_contact_search';
       }
+      elseif ('field_collection_item' == $entity_type) {
+        $label_key = $entity_infos[$entity_type]['entity keys']['id'];
+      }
       else {
         // Can't find a label to search over, give up.
-        break;
+        continue;
       }
     }
 
@@ -337,7 +340,11 @@ function relation_add_field_load($entity_type, $entities, $field, $instances, $l
         // or have their relation type in the field settings.
         if (isset($relation)) {
           $directional = $types[$relation->relation_type]->directional;
-          $relation_reverse = ($relation->endpoints[LANGUAGE_NONE][0]['entity_id'] == $id ? FALSE : TRUE);
+          $relation_reverse = TRUE;
+          if (($relation->endpoints[LANGUAGE_NONE][0]['entity_id'] == $id) && ($relation->endpoints[LANGUAGE_NONE][0]['entity_type'] == $entity_type)) {
+            $relation_reverse = FALSE;
+          }
+
           if (!$directional
             || ($relation_reverse && in_array($relation->relation_type . ':reverse', $type_settings))
             || (!$relation_reverse && in_array($relation->relation_type, $type_settings))) {
@@ -412,7 +419,7 @@ function _relation_add_field_instance_settings_form($form, $form_state) {
     ),
   );
 
-  $relation_selected_types = $instance['settings']['relation_type'];
+  $relation_selected_types = !empty($instance['settings']['relation_type']) ? $instance['settings']['relation_type'] : array();
   $relation_relevant_bundles = array();
   foreach ($relation_selected_types as $rel_type) {
     $type_array = explode(':', $rel_type);
@@ -750,7 +757,7 @@ function relation_add_field_widget_form(&$form, &$form_state, $field, $instance,
           $label = entity_label($endpoint['entity_type'], $entity);
 
           $bundle = '';
-          if ($instance['widget']['settings']['relation_endpoint_bundle_display']) {
+          if (isset($instance['widget']['settings']['relation_endpoint_bundle_display'])) {
             list(, , $bundle) = entity_extract_ids($endpoint['entity_type'], $entity);
             if (!empty($bundle)) {
               $bundle = ' - (' . $bundle . ')';
@@ -791,7 +798,7 @@ function relation_add_field_widget_form(&$form, &$form_state, $field, $instance,
         break;
     }
 
-    $target_bundles = '';
+    $target_bundles = 'all';
     if (!empty($instance['settings']['relation_target_bundles'])) {
       $target_bundles = implode('-', $instance['settings']['relation_target_bundles']);
     }
