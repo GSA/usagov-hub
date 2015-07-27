@@ -6,9 +6,9 @@ dependencies[] = relation_add
 dependencies[] = block
 stylesheets[all][] = relation_add_block.css
 
-; Information added by Drupal.org packaging script on 2015-01-20
-version = "7.x-1.4"
+; Information added by Drupal.org packaging script on 2015-07-14
+version = "7.x-1.5"
 core = "7.x"
 project = "relation_add"
-datestamp = "1421760470"
+datestamp = "1436863748"
 
