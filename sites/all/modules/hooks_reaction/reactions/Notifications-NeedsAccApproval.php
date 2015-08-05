@@ -89,7 +89,7 @@ function informAccTeamOfMultNeedingApproval($node) {
 
     /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will 
     be called and used to determine the email-message to send. */
-    /*$res = drupal_mail(
+    $res = drupal_mail(
         'cmp_misc',
         'scanning_content',
         $strTo,
@@ -100,6 +100,6 @@ function informAccTeamOfMultNeedingApproval($node) {
     if ($res["send"]) {
         drupal_set_message('Notified the Accessibility-Team that this content needs Accessibility-Approval. '
             .'Notification email has been sent to: ' . $strTo);
-    }*/
+    }
 
 }
