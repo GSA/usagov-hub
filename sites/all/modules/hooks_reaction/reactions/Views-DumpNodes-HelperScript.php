@@ -98,8 +98,8 @@ if ( !function_exists('array_to_xml') ) {
             if ( is_numeric($value) || trim($value) === '' ) {
             $xml->addChild("$key",htmlspecialchars("$value"));
             } else {
-              $xml->{$key} = null;
-              $xml->{$key}->addCData(htmlspecialchars("$value"));
+              @$xml->{$key} = null;
+              @$xml->{$key}->addCData(htmlspecialchars("$value"));
             }
             }
         }

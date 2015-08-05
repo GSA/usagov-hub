@@ -29,7 +29,7 @@
 hooks_reaction_add("module_implements_alter",
     function (&$implementations, $hook) {
 
-        if ( $hook === 'form_alter' ) {
+        if ( $hook === 'form_alter' && isset($implementations['hooks_reaction']) ) {
 
             /* Move my HOOK_form_user_login_alter implementation to the end of the list.
              module_implements() iterates through $implementations with a foreach 
