@@ -10,7 +10,7 @@ hooks_reaction_add(
     function (&$form, &$form_state, $form_id) {
 
         global $user;
-        $allowed_roles = array("ux member", "usa administrator");
+        $allowed_roles = array("ux member", "usa administrator", "administrator");
         $user_roles = array_values($user->roles);
 
         if (!(array_intersect($allowed_roles, $user_roles))
