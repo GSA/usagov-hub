@@ -10,13 +10,13 @@ hooks_reaction_add(
     function (&$form, &$form_state, $form_id) {
 
         global $user;
-        $allowed_roles = array("ux member", "usa administrator", "administrator");
+        $allowed_roles = array("ux member", "usa administrator");
         $user_roles = array_values($user->roles);
 
         if (!(array_intersect($allowed_roles, $user_roles))
             && ((isset($form['voc']['#value']->machine_name) && $form['voc']['#value']->machine_name == 'site_strucutre_taxonomy')
-                || (isset( $form['#vocabulary']->machine_name ) && $form['#vocabulary']->machine_name == 'site_strucutre_taxonomy')
-                || ($form['#form_id'] == 'taxonomy_overview_vocabularies'))){
+                || (isset($form['#vocabulary']->machine_name ) && $form['#vocabulary']->machine_name == 'site_strucutre_taxonomy')
+                || ($form_id == 'taxonomy_overview_vocabularies'))){
 
             drupal_add_js(drupal_get_path('module', 'hooks_reaction') . '/js/SetRestriction-SSTaxTerm.js');
 
