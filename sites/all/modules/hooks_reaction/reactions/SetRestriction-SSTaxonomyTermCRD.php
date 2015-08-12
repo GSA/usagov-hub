@@ -1,15 +1,16 @@
 <?php
 hooks_reaction_add(
     array(
-        'HOOK_form_taxonomy_manager_form_alter', 
+        'HOOK_form_taxonomy_manager_form_alter',
         'HOOK_form_taxonomy_form_term_alter',
-        'HOOK_form_taxonomy_overview_terms_form_alter'
+        'HOOK_form_taxonomy_overview_terms_alter',
+        'HOOK_form_taxonomy_overview_vocabularies_alter',
+
     ),
 
     function (&$form, &$form_state, $form_id) {
 
         global $user;
-
         $allowed_roles = array("ux member", "usa administrator", "administrator");
         $user_roles = array_values($user->roles);
 
@@ -19,6 +20,7 @@ hooks_reaction_add(
                )){
 
             drupal_add_js(drupal_get_path('module', 'hooks_reaction') . '/js/SetRestriction-SSTaxTerm.js');
+
             if (isset($form['toolbar']['add_show'])) {
                 unset($form['toolbar']['add_show']);
                 unset($form['toolbar']['delete_confirm']);
