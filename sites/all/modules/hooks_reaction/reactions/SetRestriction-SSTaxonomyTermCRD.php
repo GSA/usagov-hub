@@ -5,7 +5,6 @@ hooks_reaction_add(
         'HOOK_form_taxonomy_form_term_alter',
         'HOOK_form_taxonomy_overview_terms_alter',
         'HOOK_form_taxonomy_overview_vocabularies_alter',
-
     ),
 
     function (&$form, &$form_state, $form_id) {
@@ -16,8 +15,8 @@ hooks_reaction_add(
 
         if (!(array_intersect($allowed_roles, $user_roles))
             && ((isset($form['voc']['#value']->machine_name) && $form['voc']['#value']->machine_name == 'site_strucutre_taxonomy')
-                || (isset( $form['#vocabulary']->machine_name )&&  $form['#vocabulary']->machine_name == 'site_strucutre_taxonomy')
-               )){
+                || (isset( $form['#vocabulary']->machine_name ) && $form['#vocabulary']->machine_name == 'site_strucutre_taxonomy')
+                || ($form['#form_id'] == 'taxonomy_overview_vocabularies'))){
 
             drupal_add_js(drupal_get_path('module', 'hooks_reaction') . '/js/SetRestriction-SSTaxTerm.js');
 
