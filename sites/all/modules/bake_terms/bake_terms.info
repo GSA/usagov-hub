@@ -1,0 +1,4 @@
+name = S.S.-term Asset Baker
+description = A utility to mass set pointers in S.S.-tax-terms to their associated assets, and sort them accordingly.
+package = CTAC Custom
+core = 7.x
