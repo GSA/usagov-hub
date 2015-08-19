@@ -553,6 +553,7 @@ function processSticky() {
 				jqDragHandle.hide().addClass('element-invisible');
 				jqRow.addClass('sticky-processed');
 				jqParentTableNode.addClass('needsZebraReprocessing');
+				jqParentTableNode.addClass('needsStickySorting');
 
 				// By relocating this <tr> up one level, it becomes unmovable
 				jqRow.detach().insertBefore(jqParentTableBodyNode);
@@ -567,6 +568,7 @@ function processSticky() {
 
 	});
 
+	processStickySorting();
 
 	jQuery('table.needsZebraReprocessing').each(function () {
 		jqThis = jQuery(this);
@@ -574,6 +576,39 @@ function processSticky() {
 		jqThis.removeClass('needsZebraReprocessing');
 	});
 
+}
+
+function processStickySorting() {
+
+	jQuery('table.needsStickySorting').each( function () {
+
+		var jqTable = jQuery(this);
+		var jqTableBody = jqTable.find('tbody');
+
+		// Get all the sticky-rows and detach them from the DOM
+		var stickyRows = [];
+		var sortableArray = [];
+		jqTable.children('tr').each( function () {
+			var jqRow = jQuery(this);
+			var rowText = jqRow.find('label').eq(0).text();
+			var sortableString = rowText+'-'+sortableArray.length;
+			sortableArray.push( sortableString.toLowerCase() );
+			stickyRows.push( jqRow.detach() );
+		});
+
+		// Sort the array
+		sortableArray.sort();
+
+		// Reattach the sticky-elements in order
+		for ( var x = 0 ; x < sortableArray.length ; x++ ) {
+
+			srId = sortableArray[x].split('-');
+			srId = srId[ srId.length - 1 ];
+
+			stickyRows[srId].insertBefore(jqTableBody);
+		}
+
+	});
 }
 
 function reprocessZebraPattern(jqTable) {
