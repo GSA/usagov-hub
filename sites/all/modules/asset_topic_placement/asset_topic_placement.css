@@ -19,3 +19,6 @@
 .group-homepage-container.term-processing .fieldset-wrapper {
   opacity: 0;
 }
+span.warning.tabledrag-changed {
+  display: none;
+}
