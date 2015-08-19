@@ -545,7 +545,7 @@ function processSticky() {
 			// Determine weather this is a sticky-item or not
 			var nodesInfo = atp_getNodeInfoFromCache([nodeId]);
 			var nodeData = nodesInfo[nodeId];
-			if ( nodeData['field_priority_value'] == 'sticky' ) {
+			if ( nodeData['priority'] == 'sticky' ) {
 
 				var newLabelHtml = jqLabel.html()+' (<small><b>sticky</b></small>)';
 				jqLabel.html(newLabelHtml);
