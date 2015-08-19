@@ -44,6 +44,31 @@ function asset_topic_placement_menu() {
     return $items;
 }
 
+function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id) {
+
+    if ( !empty($form['#term']['field_asset_order_content']['und']) ) {
+
+        drupal_add_js('NodeInfoCache = ( typeof NodeInfoCache != "undefined" ? NodeInfoCache : {} )', 'inline');
+
+        $assets = $form['#term']['field_asset_order_content']['und'];
+        foreach ( $assets as $assetNidContainer ) {
+
+            $nid = $assetNidContainer['target_id'];
+
+            $nodeInfo = db_query("
+                SELECT nid, title, type, field_priority_value AS 'priority'
+                FROM node n 
+                LEFT JOIN field_data_field_priority p ON ( p.entity_id = n.nid )
+                WHERE n.nid = {$nid}
+            ")->fetchAll();
+            $nodeInfo = $nodeInfo[0];
+
+            drupal_add_js("NodeInfoCache['n{$nid}'] = ".json_encode($nodeInfo), 'inline');
+        }
+    }
+
+}
+
 function asset_topic_placement_ajaxReturnNodesUnderTopics() {
 
     @ob_end_clean();
