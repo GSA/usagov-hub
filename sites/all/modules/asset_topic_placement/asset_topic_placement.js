@@ -287,6 +287,11 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 		NodeUnderTopicCache = {};
 	}
 
+	// Initialize NodeUnderTopicCache
+	if ( typeof NodeInfoCache === 'undefined' ) {
+		NodeInfoCache = {};
+	}
+
 	// Get selected Asset-Topic Taxonomy terms
 	var terms = [];
 	jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
@@ -299,11 +304,41 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 		alterTermsInAssetPlacementField_callInjectRows(fieldSelector, NodeUnderTopicCache[nutCacheKey], callback);
 	} else {
 		jQuery.get('/atm/get-nodes-under-topics?terms='+terms.join(','), function (nodes) {
+
+			// Cache what nodes are under this topic
 			NodeUnderTopicCache[nutCacheKey] = nodes;
+
+			// Cache all node information (by nid)
+			for ( var n = 0 ; n < nodes.length ; n++ ) {
+				NodeInfoCache['n'+nodes[n].nid] = nodes[n];
+			}
+
 			alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback);
 		});
 	}
+}
 
+function atp_getNodeInfoFromCache(arrNids) {
+
+	// Initialize NodeUnderTopicCache
+	if ( typeof NodeInfoCache === 'undefined' ) {
+		NodeInfoCache = {};
+	}
+
+	// 
+	var nodesFromCache = {};
+	for ( var n = 0 ; n < arrNids.length ; n++ ) {
+		var nid = arrNids[n];
+		var nnid = 'n'+nid;
+		if ( typeof NodeInfoCache[nnid] == 'undefined' ) {
+			debugger; // this line should never hit!
+			return false;
+		} else {
+			nodesFromCache[nid] = NodeInfoCache[nnid];
+		}
+	}
+
+	return nodesFromCache;
 }
 
 function alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback) {
@@ -419,6 +454,7 @@ function reinitializeDragTables() {
 				setTimeout( function () {
 					dragTblObj.hideColumns();
 					ensureEditAssetLinksExsist();
+					processSticky();
 				}, 200);
 				hasSetTimer = true;
 			}
@@ -490,4 +526,68 @@ function ensureEditAssetLinksExsist() {
 			jQuery(linkHTML).insertAfter(jqLabel);
 		}
 	});
+}
+
+function processSticky() {
+
+	jQuery('.tabledrag-processed tr').not('.sticky-processed').each( function () {
+
+		var jqRow = jQuery(this);
+		if ( jqRow.find('input').length > 0 ) {
+
+			var jqInput = jqRow.find('input');
+			var nodeId = jqInput.attr('value');
+			var jqLabel = jqInput.parent().find('label');
+			var jqDragHandle = jqRow.find('.tabledrag-handle');
+			var jqParentTableNode = jqRow.parents('table');
+			var jqParentTableBodyNode = jqParentTableNode.find('tbody');
+
+			// Determine weather this is a sticky-item or not
+			var nodesInfo = atp_getNodeInfoFromCache([nodeId]);
+			var nodeData = nodesInfo[nodeId];
+			if ( nodeData['field_priority_value'] == 'sticky' ) {
+
+				var newLabelHtml = jqLabel.html()+' (<small><b>sticky</b></small>)';
+				jqLabel.html(newLabelHtml);
+
+				jqDragHandle.hide().addClass('element-invisible');
+				jqRow.addClass('sticky-processed');
+				jqParentTableNode.addClass('needsZebraReprocessing');
+
+				// By relocating this <tr> up one level, it becomes unmovable
+				jqRow.detach().insertBefore(jqParentTableBodyNode);
+
+			} else {
+				jqRow.addClass('sticky-processed');
+			}
+
+		} else {
+			jqRow.addClass('sticky-processed');
+		}
+
+	});
+
+
+	jQuery('table.needsZebraReprocessing').each(function () {
+		jqThis = jQuery(this);
+		reprocessZebraPattern(jqThis);
+		jqThis.removeClass('needsZebraReprocessing');
+	});
+
+}
+
+function reprocessZebraPattern(jqTable) {
+
+	// Remove all even/odd classes
+	jqTable.find('tr.even, tr.odd').each( function () {
+		jQuery(this).removeClass('even').removeClass('odd');
+	});
+
+	// Re-apply even/odd classes
+	var jqRows = jqTable.find('tr');
+	for ( var r = 0 ; r < jqRows.length ; r++ ) {
+		var newClass = ( r%2 == 1 ? 'odd' : 'even' );
+		jqRows.eq(r).addClass(newClass);
+	}
+
 }
