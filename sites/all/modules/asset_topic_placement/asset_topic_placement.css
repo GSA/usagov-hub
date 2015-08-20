@@ -13,7 +13,7 @@
 .group-homepage-container.term-processing {
   background: url('/sites/all/modules/asset_topic_placement/spinner.gif') no-repeat 50% 51%;
   height: 150px;
-  display: block !important;
+  display: block;
 }
 .group-asset-topic-placement.term-processing .fieldset-wrapper,
 .group-homepage-container.term-processing .fieldset-wrapper {
