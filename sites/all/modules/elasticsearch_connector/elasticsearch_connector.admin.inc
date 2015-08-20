@@ -46,13 +46,16 @@ function elasticsearch_connector_status_page() {
 
     if (!empty($cluster_info['info']) && elasticsearch_connector_check_status($cluster_info['info'])) {
       $info = $cluster_info['health']['status'];
+      $version = $cluster_info['info']['version']['number'];
     }
     else {
       $info = t('Not available');
+      $version = '';
     }
 
+
     $row = array();
-    $row[] = $cluster->name;
+    $row[] = $cluster->name . ($version ? ' (' . t('server version: @ver', array('@ver' => $version)) . ')' : '');
     $row[] = (!empty($cluster->status) ? t('Active') : t('Inactive'));
     $row[] = $info;
     $row[] = $operations;
@@ -226,7 +229,8 @@ function elasticsearch_connector_info_cluster($cluster) {
       'active_shards'         => t('Active shards'),
       'relocating_shards'     => t('Relocating shards'),
       'initializing_shards'   => t('Initializing shards'),
-      'unassigned_shards'     => t('Unassigned shards')
+      'unassigned_shards'     => t('Unassigned shards'),
+      'number_of_pending_tasks' => t('Number of pending tasks'),
     );
 
     foreach ($cluster_status['health'] as $health_key => $health_value) {
@@ -297,9 +301,9 @@ function elasticsearch_connector_edit_cluster($form, $form_state, $cluster = NUL
 
   $form['name'] = array(
     '#type' => 'textfield',
-    '#title' => t('Cluster name'),
+    '#title' => t('Administrative cluster name'),
     '#default_value' => empty($cluster->name) ? '' : $cluster->name,
-    '#description' => t('Example: ElasticaCluster'),
+    '#description' => t('Enter the administrative cluster name that will uniquely define your Elasticsearch cluster'),
     '#required' => TRUE,
   );
 
@@ -320,27 +324,14 @@ function elasticsearch_connector_edit_cluster($form, $form_state, $cluster = NUL
     '#type' => 'textfield',
     '#title' => t('Server URL'),
     '#default_value' => !empty($cluster->url) ? $cluster->url : '',
-    '#description' => t('Enter the URL of a node in the cluster. Example: http://localhost:9200.'),
+    '#description' => t('Enter the URL and the port of a server (node) in the cluster. Example: http://localhost:9200. Please enter the port also even it is the default one e.g. https://localhost:443'),
     '#required' => TRUE,
     //'#limit_validation_errors' => array(array('url')),
-    '#ajax' => array(
-      'method' => 'replace',
-      'callback' => 'elasticsearch_connector_edit_cluster_ajax',
-      'effect' => 'fade',
-      'event'  => 'blur'
-    ),
   );
 
   $cluster_info = NULL;
   $form_state_active = FALSE;
-  if (isset($form_state['values'])) {
-    $values = (object)$form_state['values'];
-    if (!empty($values->url)) {
-      $cluster_info = elasticsearch_connector_get_cluster_info($values);
-      $form_state_active = TRUE;
-    }
-  }
-  elseif (isset($cluster->url)) {
+  if (isset($cluster->url) && empty($form_state['input'])) {
     $cluster_info = elasticsearch_connector_get_cluster_info($cluster);
     $form_state_active = TRUE;
   }
@@ -401,12 +392,6 @@ function elasticsearch_connector_edit_cluster($form, $form_state, $cluster = NUL
         ':input[name="options[use_authentication]"]' => array('checked' => TRUE),
       ),
     ),
-    '#ajax' => array(
-      'method' => 'replace',
-      'callback' => 'elasticsearch_connector_edit_cluster_ajax',
-      'effect' => 'fade',
-      'event'  => 'blur'
-    ),
   );
 
   $form['options']['username'] = array(
@@ -418,12 +403,6 @@ function elasticsearch_connector_edit_cluster($form, $form_state, $cluster = NUL
       'visible' => array(
         ':input[name="options[use_authentication]"]' => array('checked' => TRUE),
       ),
-    ),
-    '#ajax' => array(
-      'method' => 'replace',
-      'callback' => 'elasticsearch_connector_edit_cluster_ajax',
-      'effect' => 'fade',
-      'event'  => 'blur'
     ),
   );
 
@@ -437,12 +416,6 @@ function elasticsearch_connector_edit_cluster($form, $form_state, $cluster = NUL
         ':input[name="options[use_authentication]"]' => array('checked' => TRUE),
       ),
     ),
-    '#ajax' => array(
-      'method' => 'replace',
-      'callback' => 'elasticsearch_connector_edit_cluster_ajax',
-      'effect' => 'fade',
-      'event'  => 'blur'
-    ),
   );
 
   $form['options']['timeout'] = array(
@@ -451,7 +424,7 @@ function elasticsearch_connector_edit_cluster($form, $form_state, $cluster = NUL
     '#size'  => 20,
     '#required' => TRUE,
     '#element_validate' => array('element_validate_number'),
-    '#description' => t('Set the connection timeout in seconds.'),
+    '#description' => t('The seconds in which the connection will timeout if no connection with Elasticsearch.'),
     '#default_value' => (!empty($cluster->options['timeout']) ? $cluster->options['timeout'] : ELASTICSEARCH_CONNECTOR_DEFAULT_TIMEOUT),
   );
 
@@ -616,15 +589,6 @@ function elasticsearch_connector_cluster_indices_add_submit($form, &$form_state)
       }
     }
   }
-}
-
-function elasticsearch_connector_edit_cluster_ajax($form, $form_state) {
-  return array(
-    '#type' => 'ajax',
-    '#commands' => array(
-      ajax_command_replace("#cluster-info",  render($form['status_info'])),
-    )
-  );
 }
 
 /**
@@ -810,7 +774,7 @@ function elasticsearch_connector_cluster_indices_delete_submit($form, &$form_sta
 }
 
 /**
- * Form constructor for the clluster deletion confirmation form.
+ * Form constructor for the cluster deletion confirmation form.
  *
  * @see elasticsearch_connector_delete_cluster_submit()
  */
