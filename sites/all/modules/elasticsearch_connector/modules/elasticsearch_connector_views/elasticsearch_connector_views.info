@@ -22,9 +22,9 @@ files[] = handlers/elasticsearch_connector_views_handler_filter_string_autocompl
 files[] = handlers/elasticsearch_connector_views_keyword_handler_filter.inc
 files[] = handlers/elasticsearch_connector_views_handler_filter_numeric.inc
 files[] = handlers/elasticsearch_connector_views_handler_argument.inc
-; Information added by Drupal.org packaging script on 2014-10-01
-version = "7.x-1.0-alpha7"
+; Information added by Drupal.org packaging script on 2015-08-13
+version = "7.x-1.0-alpha8"
 core = "7.x"
 project = "elasticsearch_connector"
-datestamp = "1412173783"
+datestamp = "1439497750"
 

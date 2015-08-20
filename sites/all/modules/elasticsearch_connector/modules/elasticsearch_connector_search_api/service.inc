@@ -370,11 +370,23 @@ class SearchApiElasticsearchConnector extends SearchApiAbstractService {
     try {
       $this->elasticsearchClient->indices()->deleteMapping($params);
 
+      // Check if there are any other types in the index before deleting it.
+      $safe_delete = FALSE;
       $result = $this->elasticsearchClient->indices()->getMapping(array(
         'index' => $params['index'],
       ));
 
-      if (empty($result)) {
+      // The 'get mapping' API response changed in version 1.4.0.beta1
+      // @see http://www.elasticsearch.org/guide/en/elasticsearch/reference/1.4/indices-get-mapping.html
+      $version = $this->getClusterVersion();
+      if (version_compare($version, '1.4.0', '<')) {
+        $safe_delete = empty($result[$params['index']]);
+      }
+      else {
+        $safe_delete = empty($result[$params['index']]['mappings']);
+      }
+
+      if ($safe_delete) {
         $response = $this->elasticsearchClient->indices()->delete(array(
           'index' => $params['index'],
         ));
@@ -424,9 +436,12 @@ class SearchApiElasticsearchConnector extends SearchApiAbstractService {
         $data[$field_id] = $field_data['value'];
       }
 
-      $params['body'][] = array('index' => array('_id' => $data['id']));
+      $params['body'][] = array('index' => array('_id' => $this->getSafeId($data['id'])));
       $params['body'][] = $data;
     }
+
+    // Let other modules alter params before sending them to Elasticsearch.
+    drupal_alter('elasticsearch_connector_search_api_index_items', $index, $params, $items);
 
     try {
       $response = $this->elasticsearchClient->bulk($params);
@@ -459,13 +474,19 @@ class SearchApiElasticsearchConnector extends SearchApiAbstractService {
       }
     }
     elseif ($ids === 'all') {
+      $site_id = $this->getSiteHash();
       $params = $this->getIndexParam($index, TRUE);
-      $params['body'] = array('query' => array('match_all' => array()));
+      if ($site_id) {
+        $params['body'] = array('query' => array('match' => array('search_api_site_hash' => $site_id)));
+      }
+      else {
+        $params['body'] = array('query' => array('match_all' => array()));
+      }
 
       // The 'delete by query' API request changed in version 1.0.0RC1.
       // @see http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/docs-delete-by-query.html
-      $info = $this->elasticsearchClient->info();
-      if ($info['version']['number'] < '1.0.0') {
+      $version = $this->getClusterVersion();
+      if (version_compare($version, '1.0.0', '<')) {
         $params['body'] = $params['body']['query'];
       }
 
@@ -503,7 +524,7 @@ class SearchApiElasticsearchConnector extends SearchApiAbstractService {
       $params['body'][] = array(
         'delete' => array(
           '_type'   => $params['type'],
-          '_id'     => $id,
+          '_id'     => $this->getSafeId($id),
         )
       );
     }
@@ -1101,6 +1122,10 @@ class SearchApiElasticsearchConnector extends SearchApiAbstractService {
     }
   }
 
+  /**
+   * Get the Elasticsearch server version.
+   * @return string
+   */
   protected function getClusterVersion() {
     static $version;
 
@@ -1196,12 +1221,18 @@ class SearchApiElasticsearchConnector extends SearchApiAbstractService {
         // );
 
         // Geo Distance filter.
-        $query_options['query_search_filter'] = array(
+        $geo_distance_filter = array(
           'geo_distance' => array(
             'distance' => $radius . 'km',
             $spatial['field'] => $point,
           ),
         );
+        if (empty($query_options['query_search_filter']['and'])) {
+          $query_options['query_search_filter'] = $geo_distance_filter;
+        }
+        else {
+          $query_options['query_search_filter']['and'][] = $geo_distance_filter;
+        }
 
         // // Geo distance range filter.
         // $query_options['query_search_filter'] = array(
@@ -1501,7 +1532,7 @@ class SearchApiElasticsearchConnector extends SearchApiAbstractService {
       $mlt_query['more_like_this'] = array();
       $version = $this->getClusterVersion();
       if (version_compare($version, '1.3.0', '>=')) {
-        $mlt_query['more_like_this']['ids'] = $mlt['id'];
+        $mlt_query['more_like_this']['ids'] = array($mlt['id']);
         $mlt_query['more_like_this']['fields'] = array_values($mlt['fields']);
         $mlt_query['more_like_this']['max_query_terms']   = $mlt['max_query_terms'];
         $mlt_query['more_like_this']['min_doc_freq']      = $mlt['min_doc_freq'];
@@ -1602,11 +1633,32 @@ class SearchApiElasticsearchConnector extends SearchApiAbstractService {
 
     $index_fields = $this->getIndexFields($query);
     $sort = array();
+
+    // Extract Search API Location fields.
+    $search_api_location = $query->getOption('search_api_location');
+    $spatials = array();
+    if ($search_api_location) {
+      foreach ($search_api_location as $spatial) {
+        $spatials[$spatial['field']] = $spatial;
+      }
+    }
+
     foreach ($query->getSort() as $field_id => $direction) {
       $direction = drupal_strtolower($direction);
 
       if ($field_id === 'search_api_relevance') {
         $sort['_score'] = $direction;
+      }
+      elseif (isset($spatials[$field_id])) {
+        $sort['_geo_distance'] = array(
+          $field_id => array(
+            'lat' => $spatials[$field_id]['lat'],
+            'lon' => $spatials[$field_id]['lon'],
+          ),
+          'order' => $direction,
+          'unit' => 'km',
+          'distance_type' => 'plane',
+        );
       }
       elseif (isset($index_fields[$field_id])) {
         $sort[$field_id] = $direction;
@@ -1957,6 +2009,25 @@ class SearchApiElasticsearchConnector extends SearchApiAbstractService {
 
       return $matches;
     }
+  }
+
+  /**
+   * Provides support for search_api_site hashes to add to IDs.
+   * See https://www.drupal.org/files/1776534.patch for Solr version.
+   */
+  public function getSiteHash() {
+    if (function_exists('search_api_site_hash')) {
+      return search_api_site_hash();
+    }
+    return FALSE;
+  }
+
+  /**
+   * Create document ID using site hash, if available.
+   */
+  public function getSafeId($id) {
+    $site_id = $this->getSiteHash();
+    return $site_id ? "{$site_id}-{$id}" : $id;
   }
 
 }
