@@ -19,6 +19,16 @@
 .group-homepage-container.term-processing .fieldset-wrapper {
   opacity: 0;
 }
+div.tabledrag-changed-warning.messages.warning,
 span.warning.tabledrag-changed {
-  display: none;
+  display: none !important;
+}
+.drag-previous.odd {
+  background: #fff;
+}
+.drag-previous.even {
+  background: #f3f4ee;
+}
+.is-sticky a {
+  display: none !important;
 }

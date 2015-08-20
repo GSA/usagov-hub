@@ -77,6 +77,28 @@ jQuery(document).ready( function () {
 
 });
 
+function untickAssetTopic(term) {
+
+    console.log("Uncheck firing" + term.value);
+	jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
+	jQuery('.group-homepage-container').addClass('term-processing'); // This shows a spinner
+
+    jQuery.get('/atm/get-nodes-under-topics?terms='+term.value, function (nodes) {
+
+        for ( var x = 0 ; x < nodes.length ; x++ ) {
+            console.log(nodes[x].nid + nodes[x].title + " NEEDs TO BE REMOVED");
+            jQuery("#field-asset-order-sidebar-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+            jQuery("#field-asset-order-content-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+            jQuery("#field-asset-order-carousel-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+            jQuery("#field-asset-order-bottom-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+            jQuery("#field-asset-order-menu-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+        }
+
+		jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+		jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+    });
+}
+
 function initAssetTopicPlacementHelperScript() {
 
 	updateAssetTopicPlacementCountClasses();
@@ -109,6 +131,7 @@ function initAssetTopicPlacementHelperScript() {
 					jQuery('.group-asset-topic-placement input[value=' + tThis.value + ']').parents('tr').remove();
 					updateAssetTopicPlacementCountClasses();
 					jQuery('.group-asset-topic-placement').dequeue();
+                    untickAssetTopic(tThis);
 				});
 			}
 
@@ -417,7 +440,7 @@ function reinitializeDragTables() {
 		}
 
 		// Break bindings
-		jQuery(fieldSelector).html( jQuery(fieldSelector).html() )
+		jQuery(fieldSelector+' *').unbind();
 
 		// Remove all drag-handles in the table
 		jQuery(fieldSelector+' a.tabledrag-handle .handle').remove();
@@ -537,6 +560,7 @@ function processSticky() {
 
 				jqDragHandle.hide().addClass('element-invisible');
 				jqRow.addClass('sticky-processed');
+				jqRow.addClass('is-sticky');
 				jqParentTableNode.addClass('needsZebraReprocessing');
 				jqParentTableNode.addClass('needsStickySorting');
 
