@@ -8,9 +8,11 @@ hooks_reaction_add(
     ),
 
     function (&$form, &$form_state, $form_id) {
+        //dsm($form);
+        //dsm($form_state);
 
         global $user;
-        $allowed_roles = array("ux member", "usa administrator", "administrator");
+        $allowed_roles = array("ux member", "usa administrator");
         $user_roles = array_values($user->roles);
 
         if (!(array_intersect($allowed_roles, $user_roles))
@@ -20,12 +22,18 @@ hooks_reaction_add(
 
             drupal_add_js(drupal_get_path('module', 'hooks_reaction') . '/js/SetRestriction-SSTaxTerm.js');
 
+            // hidden toolbars
             if (isset($form['toolbar']['add_show'])) {
                 unset($form['toolbar']['add_show']);
                 unset($form['toolbar']['delete_confirm']);
                 unset($form['toolbar']['weight_up']);
-                unset($form['toolbar']['weight_down']);
+                unset($form['toolbar']['weight-down']);
                 unset($form['toolbar']['move_show']);
+                unset($form['toolbar']['showbatchopts']);
+                unset($form['toolbar']['batchoptsform']);
+                unset($form['toolbar']['double_tree_show']);
+                unset($form['toolbar']['export_show']);
+                unset($form['toolbar']['wrapper']);
             }
 
         }
