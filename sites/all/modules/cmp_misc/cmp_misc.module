@@ -270,15 +270,23 @@ function cmp_misc_node_ever_published($node) {
 /**/
 
 
-function cmp_misc_form_alter(&$form, &$form_state, $form_id) {
-
-    // Defaulting the Owner field with the current user if not populated
-    if($form_id === 'text_content_type_node_form' || $form_id === 'state_details_node_form' || $form_id === 'state_details_node_form' ||  $form_id === 'html_content_type_node_form' || $form_id === 'file_content_type_node_form' || $form_id === 'directory_record_content_type_node_form' || $form_id === 'multimedia_content_type_node_form'){
-        if(empty($form['field_owner']['und'][0]['target_id']['#default_value']) && strlen($form['field_owner']['und'][0]['target_id']['#default_value']) == 0){
-            global $user;
-            $currentUserStr = $user->name . " (" . $user->uid . ") ";
-            $form['field_owner']['und'][0]['target_id']['#default_value'] = $currentUserStr;
-        }
+function cmp_misc_form_alter(&$form, &$form_state, $form_id) 
+{
+    /// check to see if this is a new piece of content
+    if ( (  empty($form_state['node'])
+        || !isset($form_state['node']->nid)
+        ||  isset($form_state['node']->is_new)
+        && in_array($form_id,array(
+                'text_content_type_node_form',  'state_details_node_form',
+                'state_details_node_form',      'html_content_type_node_form',
+                'file_content_type_node_form',  'directory_record_content_type_node_form',
+                'multimedia_content_type_node_form' ))
+        &&  empty($form['field_owner']['und'][0]['target_id']['#default_value'])
+        && strlen($form['field_owner']['und'][0]['target_id']['#default_value']) == 0 ) )
+    {
+        global $user;
+        $currentUserStr = $user->name . " (" . $user->uid . ") ";
+        $form['field_owner']['und'][0]['target_id']['#default_value'] = $currentUserStr;
     }
 
     // If this is the edit form for any node under the 'Text Asset' content-type
@@ -739,8 +747,9 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
     }
 
 
-    // needs approval >>> needs discussion
-    if ($previous_state == 'needs_review' && $new_state == 'needs_discussion') {
+    // needs approval or needs_acc_approval >>> needs discussion
+    // || $previous_state == 'needs_acc_approval'
+    if (($previous_state == 'needs_review' ) && $new_state == 'needs_discussion') {
         $node_vs = node_revision_list($node);
         $node_vs_index = array_keys($node_vs);
         //dsm($node_vs);
