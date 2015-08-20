@@ -188,7 +188,11 @@ function initAssetTopicPlacementHelperScript() {
 			var targId = jQuery('.field-name-field-asset-order-menu').attr('id');
 			injectRowIntoAssetPlacementField('#'+targId, this.value, jQuery(this).parent().find('label').text());
 		});
-	}	
+	}
+
+	/* When the page first loads, we want to make sure that any Asset associated with this term that
+	does NOT exist under any of the selected Asset-Topics are removed */
+	assetByTopicFullCheck();
 
 }
 
@@ -633,5 +637,69 @@ function reprocessZebraPattern(jqTable) {
 		var newClass = ( r%2 == 1 ? 'odd' : 'even' );
 		jqRows.eq(r).addClass(newClass);
 	}
+
+}
+
+// Based on the selected Asset-Topics, remove any asset that dosnt belong
+function assetByTopicFullCheck() {
+
+	// This shows a spinner
+	jQuery('.group-asset-topic-placement').addClass('term-processing');
+	jQuery('.group-homepage-container').addClass('term-processing');
+
+	// Get the selected-Asset-Topic term-IDs
+	var tidAssetTopics = [];
+	jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
+		tidAssetTopics.push( jQuery(this).val() );
+	});
+
+	// Initalize NodeUnderTopicCache
+	if ( typeof NodeUnderTopicCache === 'undefined' ) {
+		NodeUnderTopicCache = {};
+	}
+
+	// Initialize NodeUnderTopicCache
+	if ( typeof NodeInfoCache === 'undefined' ) {
+		NodeInfoCache = {};
+	}
+
+	// Get all node/assets under these Asset-Topics
+	var nutCacheKey = 't' + tidAssetTopics.join('t', tidAssetTopics);
+	jQuery.get('/atm/get-nodes-under-topics?terms='+tidAssetTopics.join(','), function (nodes) {
+
+		// Cache what nodes are under this/these topic(s)
+		NodeUnderTopicCache[nutCacheKey] = nodes;
+
+		// Cache all node information (by nid)
+		for ( var n = 0 ; n < nodes.length ; n++ ) {
+			NodeInfoCache['n'+nodes[n].nid] = nodes[n];
+		}
+
+        // Get a list of nodes that are allowed to show in the regions
+        var allowedNids = {};
+        for ( var n = 0 ; n < nodes.length ; n++ ) {
+        	var thisNodeId = nodes[n].nid;
+        	allowedNids['n'+thisNodeId] = true;
+        }
+
+        // Scan for rows in Asset-Drag tables, for rows containing node-references that dont belong
+        jQuery('.group-asset-placement tr').each( function () {
+        	var jqRow = jQuery(this);
+        	var thisRowInput = jqRow.find('input');
+        	var thisRowNidRef = thisRowInput.val();
+        	if ( thisRowInput.length > 0 ) { // basically: skip over rows that dont contain an input-element
+        		if ( typeof allowedNids['n'+thisRowNidRef] == 'undefined' ) {
+        			jqRow.remove();
+        		}
+        	}
+        });
+
+        updateAssetTopicPlacementCountClasses();
+
+        // This removes the spinner
+		jQuery('.group-asset-topic-placement').removeClass('term-processing');
+		jQuery('.group-homepage-container').removeClass('term-processing');
+
+	});
 
 }
