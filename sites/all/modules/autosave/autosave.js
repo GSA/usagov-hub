@@ -71,6 +71,12 @@ Drupal.behaviors.autosave.attach = function (context, settings) {
           editor.on('saveSnapshot', function () {
             editor.updateElement();
           });
+          editor.on('getSnapshot', function () {
+            editor.updateElement();
+          });
+          editor.on('updateSnapshot', function () {
+            editor.updateElement();
+          });
         });
       }
 
