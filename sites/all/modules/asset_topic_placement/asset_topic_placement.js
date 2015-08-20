@@ -432,7 +432,7 @@ function reinitializeDragTables() {
 		}
 
 		// Break bindings
-		jQuery(fieldSelector).html( jQuery(fieldSelector).html() )
+		jQuery(fieldSelector+' *').unbind();
 
 		// Remove all drag-handles in the table
 		jQuery(fieldSelector+' a.tabledrag-handle .handle').remove();
@@ -552,6 +552,7 @@ function processSticky() {
 
 				jqDragHandle.hide().addClass('element-invisible');
 				jqRow.addClass('sticky-processed');
+				jqRow.addClass('is-sticky');
 				jqParentTableNode.addClass('needsZebraReprocessing');
 				jqParentTableNode.addClass('needsStickySorting');
 
