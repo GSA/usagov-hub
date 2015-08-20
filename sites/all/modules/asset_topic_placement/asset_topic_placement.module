@@ -23,7 +23,7 @@ function asset_topic_placement_init() {
 function asset_topic_placement_menu() {
     $items = array();
     
-    // Ajax handeler for getting nodes under given Asset-Topic(s)
+    // Configuration page
     $items['atm/get-nodes-under-topics'] = array(
         'title' => 'Get Nodes Under Topics',
         'description' => 'AJAX return for nodes under given Asset-Topics',
@@ -32,41 +32,7 @@ function asset_topic_placement_menu() {
         'type' => MENU_CALLBACK
     );
 
-    // Ajax handeler for getting node data by nid
-    $items['atm/get-nodes-data'] = array(
-        'title' => 'Get Data for Nodes-IDs',
-        'description' => 'AJAX return',
-        'page callback' => 'asset_topic_placement_ajaxReturnNodesInfo',
-        'access callback' => 'user_is_logged_in',
-        'type' => MENU_CALLBACK
-    );
-
     return $items;
-}
-
-function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id) {
-
-    if ( !empty($form['#term']['field_asset_order_content']['und']) ) {
-
-        drupal_add_js('NodeInfoCache = ( typeof NodeInfoCache != "undefined" ? NodeInfoCache : {} )', 'inline');
-
-        $assets = $form['#term']['field_asset_order_content']['und'];
-        foreach ( $assets as $assetNidContainer ) {
-
-            $nid = $assetNidContainer['target_id'];
-
-            $nodeInfo = db_query("
-                SELECT nid, title, type, field_priority_value AS 'priority'
-                FROM node n 
-                LEFT JOIN field_data_field_priority p ON ( p.entity_id = n.nid )
-                WHERE n.nid = {$nid}
-            ")->fetchAll();
-            $nodeInfo = $nodeInfo[0];
-
-            drupal_add_js("NodeInfoCache['n{$nid}'] = ".json_encode($nodeInfo), 'inline');
-        }
-    }
-
 }
 
 function asset_topic_placement_ajaxReturnNodesUnderTopics() {
@@ -103,42 +69,9 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
 
     // Get information on these nodes
     $nodes = db_query("
-        SELECT nid, title, type, field_priority_value AS 'priority'
+        SELECT nid, title, type
         FROM node n 
-        LEFT JOIN field_data_field_priority p ON ( p.entity_id = n.nid )
         WHERE n.nid IN ($nids)
-    ")->fetchAll();
-
-    print json_encode($nodes);
-
-    exit();
-}
-
-function asset_topic_placement_ajaxReturnNodesInfo() {
-
-    @ob_end_clean();
-    while (@ob_end_clean());
-    header('Content-Type: application/json');
-
-    // Obtain nids argument
-    if ( empty($_REQUEST['nids']) ) {
-        exit('Error - no nids argument supplied');
-    }
-
-    // MySQL string sanitization 
-    $nids = explode(',', $_REQUEST['nids']);
-    $msqlNids = array();
-    foreach ( $nids as $nid ) {
-        $msqlNids[] = intval($nid);
-    }
-    $msqlNids = implode(',', $msqlNids);
-
-    // Get information on these nodes
-    $nodes = db_query("
-        SELECT nid, title, type, field_priority_value AS 'priority'
-        FROM node n 
-        LEFT JOIN field_data_field_priority p ON ( p.entity_id = n.nid )
-        WHERE n.nid IN ($msqlNids)
     ")->fetchAll();
 
     print json_encode($nodes);
