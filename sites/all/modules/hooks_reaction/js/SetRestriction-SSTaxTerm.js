@@ -11,6 +11,7 @@
             $("input[value='Reset to alphabetical']").remove();
             $(".overflow-fix:contains('Parents')").hide();
             $(".form-type-textfield:contains('Terms are displayed in ascending order by weight.')").hide();
+            $(".form-item-field-type-of-page-to-generate-und").hide();
         }, 500);
     });
 })(jQuery);
