@@ -129,9 +129,9 @@ function initAssetTopicPlacementHelperScript() {
 			} else {
 				jQuery('.group-asset-topic-placement').queue( function () {
 					jQuery('.group-asset-topic-placement input[value=' + tThis.value + ']').parents('tr').remove();
+                    untickAssetTopic(tThis);
 					updateAssetTopicPlacementCountClasses();
 					jQuery('.group-asset-topic-placement').dequeue();
-                    untickAssetTopic(tThis);
 				});
 			}
 
