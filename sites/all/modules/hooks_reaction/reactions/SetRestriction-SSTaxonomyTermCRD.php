@@ -12,7 +12,7 @@ hooks_reaction_add(
         //dsm($form_state);
 
         global $user;
-        $allowed_roles = array("ux member", "usa administrator");
+        $allowed_roles = array("ux member", "usa administrator", "administrator");
         $user_roles = array_values($user->roles);
 
         if (!(array_intersect($allowed_roles, $user_roles))
