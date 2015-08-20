@@ -748,7 +748,7 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
 
 
     // needs approval or needs_acc_approval >>> needs discussion
-    if (($previous_state == 'needs_review') && $new_state == 'needs_discussion') {
+    if (($previous_state == 'needs_review' || $previous_state == 'needs_acc_approval') && $new_state == 'needs_discussion') {
         $node_vs = node_revision_list($node);
         $node_vs_index = array_keys($node_vs);
         //dsm($node_vs);
