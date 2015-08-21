@@ -1,5 +1,5 @@
 <?php
-/*hooks_reaction_add(
+hooks_reaction_add(
     array(
         'HOOK_form_taxonomy_manager_form_alter',
         'HOOK_form_taxonomy_form_term_alter',
