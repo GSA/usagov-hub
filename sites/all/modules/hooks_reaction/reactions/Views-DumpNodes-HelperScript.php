@@ -32,12 +32,15 @@ hooks_reaction_add("HOOK_views_pre_execute",
             $limit = ( empty($view->args[1]) ? 1 : intval($view->args[1]) );
             $query->range(($page)*$limit, $limit);
 
-            // The "Recent Data export" display should only show taxonomy-terms that have been modded in the last 15mins
-            if ( $view->current_display === 'views_data_export_2' ) {
-                $query->leftJoin('taxonomy_dates', 'd', '(taxonomy_term_data.tid=d.tid)');
-                $recentTime = time() - 901; // 900 == seconds in 15 minutes
-                $query->where(" d.created > {$recentTime} OR d.changed > {$recentTime} ");
-            }
+            /* COMMENTING OUT AS THIS CODE DOES NOT BELONG HERE?
+            
+                // The "Recent Data export" display should only show taxonomy-terms that have been modded in the last 15mins
+                if ( $view->current_display === 'views_data_export_2' ) {
+                    $query->leftJoin('taxonomy_dates', 'd', '(taxonomy_term_data.tid=d.tid)');
+                    $recentTime = time() - 901; // 900 == seconds in 15 minutes
+                    $query->where(" d.created > {$recentTime} OR d.changed > {$recentTime} ");
+                }
+            */
 
         }
     }
