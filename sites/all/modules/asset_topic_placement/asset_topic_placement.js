@@ -177,6 +177,12 @@ function initAssetTopicPlacementHelperScript() {
 		alterTermsInAssetPlacementFields(function () {
 			updateAssetTopicPlacementCountClasses();
 		});
+	} else {
+		/* There are no Asset-Topics selected, so we shall just show 
+		everything under the "Asset Placement" area now */
+		jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+		jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+		updateAssetTopicPlacementCountClasses();
 	}
 
 	/* When the page first loads, we want to make sure any [currently] selected term under 
@@ -652,6 +658,17 @@ function assetByTopicFullCheck() {
 	jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
 		tidAssetTopics.push( jQuery(this).val() );
 	});
+
+	// SPECIAL CASE - If there are no Asset-Topics selected, then there should be no Assets available
+	if ( tidAssetTopics.length == 0 ) {
+		// Remove all rows from the drag tables that contain inputs (an asset-referencer)
+		jQuery('.group-asset-placement tr input[type=checkbox]').parents('tr').remove();
+		// Update things and return
+        updateAssetTopicPlacementCountClasses();
+		jQuery('.group-asset-topic-placement').removeClass('term-processing'); // remove the spinner
+		jQuery('.group-homepage-container').removeClass('term-processing'); // remove the spinner
+		return;
+	}
 
 	// Initalize NodeUnderTopicCache
 	if ( typeof NodeUnderTopicCache === 'undefined' ) {
