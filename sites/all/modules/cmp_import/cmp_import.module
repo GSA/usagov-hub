@@ -155,7 +155,7 @@ function _parse_html_asset() {
                 $multimedia_node->field_description['und'][0] = $node->field_description['und'][0];
                 $multimedia_node->field_date_last_reviewed['und'] = $node->field_date_last_reviewed['und'];
                 $multimedia_node->field_workflow_state_search['und'] = $node->field_workflow_state_search['und'];
-                $multimedia_node->field_embed_code['und'][0]['value'] = $contents[0] . '</iframe>';
+                $multimedia_node->field_embed_code['und'][0]['value'] = str_replace("http://", "https://", $contents[0]) . '</iframe>';
                 $multimedia_node->field_media_type['und'][0]['value'] = 'Video';
 
                 // save multimedia node
