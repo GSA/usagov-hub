@@ -95,7 +95,29 @@ function cmp_import_menu() {
         'access callback' => TRUE
     );
 
+    $items['html-converted-pages'] = array(
+        'title' => 'Category #1 html assets are converted to multimedia and text',
+        'page callback' => '_cat1_result',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+
     return $items;
+}
+
+function _cat1_result () {
+    $ret = '';
+
+    $sql = "SELECT h.*, f.field_friendly_url_value AS url FROM html_to_multimedia_log h INNER JOIN field_data_field_friendly_url f ON f.entity_id = h.term_id ";
+    $res = db_query($sql);
+    $i =0;
+    foreach($res as $row)
+    {
+        $i++;
+        $ret .= $i . " - HTML NID: " . $row->html_nid . ' - TERM ID: ' . $row->term_id . " - ".  l('https://stage-kidsgov.ctacdev.com'.$row->url, 'https://stage-kidsgov.ctacdev.com'.$row->url, array('attributes' => array('target' => '_blank')))  . "<hr/>";
+    }
+
+    return $ret;
 }
 
 function _parse_html_asset() {
