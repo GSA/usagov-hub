@@ -105,13 +105,12 @@ function _parse_html_asset() {
             WHERE h.field_html_value NOT LIKE '%class=\"rght-hdr%'
             AND h.field_html_value LIKE '%<div class=\"rxbodyfield\">%'
             AND h.field_html_value LIKE '%<iframe width=\"560\" %'
-            AND n.type = 'html_content_type' AND n.status = 1
-            ORDER BY RAND() LIMIT 1;"; // ORDER BY RAND() LIMIT 10;
+            AND n.type = 'html_content_type' AND n.status = 1"; // ORDER BY RAND() LIMIT 10;
 
     $res = db_query($sql);
     $ret = '';
     $i = 0;
-
+    db_query("CREATE TABLE IF NOT EXISTS html_to_multimedia_log(id INT PRIMARY KEY AUTO_INCREMENT, html_nid INT, text_nid INT, multimedia_nid INT, term_id INT, status INT); ");
     foreach($res as $row) {
         $node = node_load($row->nid);
         for($j=0; $j < count($node->field_asset_topic_taxonomy['und']); $j++) {
@@ -130,90 +129,92 @@ function _parse_html_asset() {
         $i++;
 
         if ($is_kids_asset) {
-            $ret .= $i .' - '. l($node->title, "/node/" . $node->nid . '/edit');
-            //dsm($node);
 
-            $contents = explode("</iframe>",$node->field_html['und'][0]['value']);
+            // find out where this nodes are linked in site structure taxonomy
+            $sst_sql = "SELECT entity_id as tid FROM field_data_field_asset_order_content WHERE field_asset_order_content_target_id = " . $node->nid;
+            $sst_res = db_query($sst_sql)->fetchField();
 
-            if (count($contents) > 0) {
+            if (isset($sst_res) && $sst_res > 0) {
 
-                $multimedia_node = new StdClass();
-                $multimedia_node->type = 'multimedia_content_type';
-                $multimedia_node->comment = 0;
-                $multimedia_node->status = 1;
-                $multimedia_node->promote = 0;
-                $multimedia_node->language = 'en';
-                $multimedia_node->uid = $node->uid;
-                node_object_prepare($multimedia_node);
-                $multimedia_node->title = 'Video for: ' . $node->title;
-                $multimedia_node->field_for_use_by['und'][0]['value'] = $node->field_for_use_by['und'][0]['value'];
-                $multimedia_node->field_asset_topic_taxonomy['und'][0]['tid'] = $node->field_asset_topic_taxonomy['und'][0]['tid'];
-                $multimedia_node->field_owner['und'][0]['target_id'] = $node->field_owner['und'][0]['target_id'];
-                $multimedia_node->field_notify_marketing_team['und'][0]['value'] = $node->field_notify_marketing_team['und'][0]['value'];
-                $multimedia_node->field_priority['und'][0] = $node->field_priority['und'][0];
-                $multimedia_node->field_language['und'][0]['value'] = $node->field_language['und'][0]['value'];
-                $multimedia_node->field_description['und'][0] = $node->field_description['und'][0];
-                $multimedia_node->field_date_last_reviewed['und'] = $node->field_date_last_reviewed['und'];
-                $multimedia_node->field_workflow_state_search['und'] = $node->field_workflow_state_search['und'];
-                $multimedia_node->field_embed_code['und'][0]['value'] = str_replace("http://", "https://", $contents[0]) . '</iframe>';
-                $multimedia_node->field_media_type['und'][0]['value'] = 'Video';
+                $ret .= $i .' - '. l($node->title, "/node/" . $node->nid . '/edit');
+                $contents = explode("</iframe>",$node->field_html['und'][0]['value']);
 
-                // save multimedia node
-                node_save($multimedia_node);
-                dsm($contents);
+                if (count($contents) > 0) {
 
-                if (count($contents) > 2) {
-                    $tmp = $contents;
-                    unset($tmp[0]);
-                    $ret .= '<h3 style="color:red">MULTIPLE IFRAME FOUND</h3>';
-                }
+                    $multimedia_node = new StdClass();
+                    $multimedia_node->type = 'multimedia_content_type';
+                    $multimedia_node->comment = 0;
+                    $multimedia_node->status = 1;
+                    $multimedia_node->promote = 0;
+                    $multimedia_node->language = 'en';
+                    $multimedia_node->uid = $node->uid;
+                    node_object_prepare($multimedia_node);
+                    $multimedia_node->title = 'Video for: ' . $node->title;
+                    $multimedia_node->field_for_use_by['und'][0]['value'] = $node->field_for_use_by['und'][0]['value'];
+                    $multimedia_node->field_asset_topic_taxonomy['und'][0]['tid'] = $node->field_asset_topic_taxonomy['und'][0]['tid'];
+                    $multimedia_node->field_owner['und'][0]['target_id'] = (isset($node->field_owner['und'][0]['target_id'])? $node->field_owner['und'][0]['target_id']:1);
+                    $multimedia_node->field_notify_marketing_team['und'][0]['value'] = $node->field_notify_marketing_team['und'][0]['value'];
+                    $multimedia_node->field_priority['und'][0] = $node->field_priority['und'][0];
+                    $multimedia_node->field_language['und'][0]['value'] = $node->field_language['und'][0]['value'];
+                    $multimedia_node->field_description['und'][0] = $node->field_description['und'][0];
+                    $multimedia_node->field_date_last_reviewed['und'] = $node->field_date_last_reviewed['und'];
+                    $multimedia_node->field_workflow_state_search['und'] = $node->field_workflow_state_search['und'];
+                    $multimedia_node->field_embed_code['und'][0]['value'] = str_replace("http://", "https://", $contents[0]) . '</iframe>';
+                    $multimedia_node->field_media_type['und'][0]['value'] = 'Video';
 
-                $text_node = new StdClass();
-                $text_node->type = 'text_content_type';
-                $text_node->comment = 0;
-                $text_node->status = 1;
-                $text_node->promote = 0;
-                $text_node->language = 'en';
-                $text_node->uid = $node->uid;
-                node_object_prepare($text_node);
-                $text_node->title = $node->title;
-                $text_node->field_for_use_by_text['und'][0]['value'] = $node->field_for_use_by['und'][0]['value'];
-                $text_node->field_asset_topic_taxonomy['und'][0]['tid'] = $node->field_asset_topic_taxonomy['und'][0]['tid'];
-                $text_node->field_owner['und'][0]['target_id'] = $node->field_owner['und'][0]['target_id'];
-                $text_node->field_notify_marketing_team['und'][0]['value'] = $node->field_notify_marketing_team['und'][0]['value'];
-                $text_node->field_priority['und'][0] = $node->field_priority['und'][0];
-                $text_node->field_language['und'][0]['value'] = $node->field_language['und'][0]['value'];
-                $text_node->field_description['und'][0] = $node->field_description['und'][0];
-                $text_node->field_date_last_reviewed['und'] = $node->field_date_last_reviewed['und'];
-                $text_node->field_workflow_state_search['und'] = $node->field_workflow_state_search['und'];
-                unset($contents[0]);
-                $text_node->body['und'][0]['format'] = 'filtered_html';
-                $text_node->body['und'][0]['summary'] = '';
-                $text_node->body['und'][0]['value'] = (count($contents) > 0)? implode('</iframe>', $contents) : $contents[0];
+                    // save multimedia node
+                    node_save($multimedia_node);
 
+                    if (count($contents) > 2) {
+                        $tmp = $contents;
+                        unset($tmp[0]);
+                        $ret .= '<h3 style="color:red">MULTIPLE IFRAME FOUND</h3>';
+                    }
 
-                $ret .= (count($contents) > 0)? implode('</iframe>', $contents) : $contents[0];
+                    $text_node = new StdClass();
+                    $text_node->type = 'text_content_type';
+                    $text_node->comment = 0;
+                    $text_node->status = 1;
+                    $text_node->promote = 0;
+                    $text_node->language = 'en';
+                    $text_node->uid = $node->uid;
+                    node_object_prepare($text_node);
+                    $text_node->title = $node->title;
+                    $text_node->field_for_use_by_text['und'][0]['value'] = $node->field_for_use_by['und'][0]['value'];
+                    $text_node->field_asset_topic_taxonomy['und'][0]['tid'] = $node->field_asset_topic_taxonomy['und'][0]['tid'];
+                    $text_node->field_owner['und'][0]['target_id'] = (isset($node->field_owner['und'][0]['target_id'])? $node->field_owner['und'][0]['target_id']:1);
+                    $text_node->field_notify_marketing_team['und'][0]['value'] = $node->field_notify_marketing_team['und'][0]['value'];
+                    $text_node->field_priority['und'][0] = $node->field_priority['und'][0];
+                    $text_node->field_language['und'][0]['value'] = $node->field_language['und'][0]['value'];
+                    $text_node->field_description['und'][0] = $node->field_description['und'][0];
+                    $text_node->field_date_last_reviewed['und'] = $node->field_date_last_reviewed['und'];
+                    $text_node->field_workflow_state_search['und'] = $node->field_workflow_state_search['und'];
+                    unset($contents[0]);
+                    $text_node->body['und'][0]['format'] = 'filtered_html';
+                    $text_node->body['und'][0]['summary'] = '';
+                    $text_node->body['und'][0]['value'] = (count($contents) > 0)? implode('</iframe>', $contents) : $contents[0];
 
-                // need to be related multimedia id
-                $text_node->field_related_multimedia_two['und'][0]['target_id'] = $multimedia_node->nid;
-                node_save($text_node);
+                   // $ret .= (count($contents) > 0)? implode('</iframe>', $contents) : $contents[0];
 
-                // find out where this nodes are linked in site structure taxonomy
-                $sst_sql = "SELECT entity_id as tid FROM field_data_field_asset_order_content WHERE field_asset_order_content_target_id = " . $node->nid;
-                $sst_res = db_query($sst_sql)->fetchField();
-                $ssterm = taxonomy_term_load($sst_res);
-                $ssterm->field_asset_order_content['und'][0]['target_id'] = $text_node->nid;
-                taxonomy_term_save($ssterm);
+                    // need to be related multimedia id
+                    $text_node->field_related_multimedia_two['und'][0]['target_id'] = $multimedia_node->nid;
+                    node_save($text_node);
 
-                if ($sst_res > 0) {
-                    $ret .= '<br/>' . l($ssterm->name, "/taxonomy/term/" . $sst_res . '/edit');
+                    $ssterm = taxonomy_term_load($sst_res);
+                    $ssterm->field_asset_order_content['und'][0]['target_id'] = $text_node->nid;
+                    taxonomy_term_save($ssterm);
+
+                    $ret .= '<br/>' . l($ssterm->name . "/taxonomy/term/" . $sst_res, "/taxonomy/term/" . $sst_res . '/edit');
+                    // need log tables
+                    db_query("INSERT INTO html_to_multimedia_log(html_nid, text_nid, multimedia_nid, term_id, status) VALUES(".$node->nid.", " . $text_node->nid . ", " . $multimedia_node->nid . ", " . $sst_res . ",1); ");
+
                 }
                 else {
-                    $ret .= '<br/>' . '<h4 style="color:red">ASSOCIATED TAXONOMY NOT FOUND</h4>';
+                    $ret .= '<br/>' . '<h4 style="color:red">' . l($node->title, "/node/" . $node->nid . '/edit') . 'NO iFRAME FOUND</h4>';
                 }
             }
             else {
-                $ret .= '<h3 style="color:red">NO IFRAME FOUND</h3>';
+                $ret .= '<br/>' . '<h4 style="color:red">' . l($node->title, "/node/" . $node->nid . '/edit'). ' >> ASSOCIATED TAXONOMY NOT FOUND</h4>';
             }
             $ret .= '<hr/>';
         }
