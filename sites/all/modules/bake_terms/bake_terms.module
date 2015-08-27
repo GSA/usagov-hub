@@ -158,6 +158,8 @@ function queryAssetsByTopicsAndSort($topicIds = array()) {
         return array();
     }
 
+    $topicIds = implode(',', $topicIds);
+
     $query = db_query("
         SELECT att.entity_id AS entity_id
         FROM field_data_field_asset_topic_taxonomy att
@@ -165,7 +167,7 @@ function queryAssetsByTopicsAndSort($topicIds = array()) {
         LEFT JOIN field_data_field_priority p ON ( p.entity_id = att.entity_id )
         LEFT JOIN field_data_field_archive_date ad ON ( ad.entity_id = att.entity_id )
         WHERE 
-            field_asset_topic_taxonomy_tid IN (531) 
+            field_asset_topic_taxonomy_tid IN ({$topicIds}) 
             AND att.entity_type = 'node'
         ORDER BY
             IF( field_priority_value = 'Sticky', 1, 0 ) DESC, 
