@@ -274,14 +274,17 @@ function alterTermsInAssetPlacementFields(callback) {
 											var targId = jQuery('.field-name-field-home-quickfindcont-asset').attr('id');
 											alterTermsInAssetPlacementField('#'+targId, function () {
 
-												reinitializeDragTables();
-												jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
-												jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+												atp_buildNodeInfoCache( function () {
 
-												// Trigger callback
-												if ( typeof callback === 'function' ) {
-													callback();
-												}
+													reinitializeDragTables();
+													jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+													jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+
+													// Trigger callback
+													if ( typeof callback === 'function' ) {
+														callback();
+													}
+												});
 												
 											})
 										})
@@ -334,6 +337,41 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 			alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback);
 		});
 	}
+}
+
+/* This function builds the JavaScript node-cache, which contains information about 
+what nodes are "sticky", etc. */
+function atp_buildNodeInfoCache(callback) {
+
+	var uniqNids = [];
+	jQuery('.tabledrag-processed tr input').each( function () {
+		var thisNid = jQuery(this).val();
+		if ( uniqNids.indexOf(thisNid) == -1 ) {
+			uniqNids.push(thisNid);
+		}
+	})
+
+	var nidsNotCached = [];
+	for ( var x = 0 ; x < uniqNids.length ; x++ ) {
+		if ( typeof NodeInfoCache['n'+uniqNids[x]] == 'undefined' ) {
+			nidsNotCached.push(uniqNids[x]);
+		}
+	}
+
+	if ( nidsNotCached.length == 0 ) {
+		callback();
+		return;
+	}
+
+	jQuery.get('/atm/get-nodes-data?nids='+nidsNotCached.join(','), function (nodes) {
+
+		for ( var n = 0 ; n < nodes.length ; n++ ) {
+			NodeInfoCache['n'+nodes[n].nid] = nodes[n];
+		}
+
+		callback();
+	});
+
 }
 
 function atp_getNodeInfoFromCache(arrNids) {
