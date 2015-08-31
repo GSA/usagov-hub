@@ -258,7 +258,15 @@ function _cat2_result() {
     foreach($res as $row)
     {
         $i++;
-        $ret .= $i . " - HTML NID: " . $row->html_nid . ' - TERM ID: ' . $row->term_id . " - ".  l('https://stage-kidsgov.ctacdev.com'.$row->url, 'https://stage-kidsgov.ctacdev.com'.$row->url, array('attributes' => array('target' => '_blank')))  . "<hr/>";
+        $node = node_load($row->text_nid);
+
+        preg_match('#<script(.*?)>(.*?)</script>#is', $node->body['und'][0]['value'], $body_matches);
+        if (count($body_matches) > 0) {
+            $node->body['und'][0]['value'] = str_replace($body_matches[0], '', $node->body['und'][0]['value']);
+            node_save($node);
+        }
+
+        $ret .= $i . " - HTML NID: " . $row->html_nid . ' - TERM ID: ' . $row->term_id . " - ".  l('https://stage-kidsgov.ctacdev.com'.$row->url, 'https://stage-kidsgov.ctacdev.com'.$row->url, array('attributes' => array('target' => '_blank'))) . "<hr/>";
     }
 
     return $ret;
@@ -273,7 +281,7 @@ function _cat1_result () {
     foreach($res as $row)
     {
         $i++;
-        $ret .= $i . " - HTML NID: " . $row->html_nid . ' - TERM ID: ' . $row->term_id . " - ".  l('https://stage-kidsgov.ctacdev.com'.$row->url, 'https://stage-kidsgov.ctacdev.com'.$row->url, array('attributes' => array('target' => '_blank')))  . "<hr/>";
+        $ret .= $i . " - HTML NID: " . $row->html_nid . ' - TERM ID: ' . $row->term_id . " - ". l('https://stage-kidsgov.ctacdev.com'.$row->url, 'https://stage-kidsgov.ctacdev.com'.$row->url, array('attributes' => array('target' => '_blank')))  . "<hr/>";
     }
 
     return $ret;
