@@ -22,11 +22,15 @@ function repo_sync_menu() {
         'title' => 'Repo-Sync Trigger',
         'description' => 'Setup and manage a Git Repository sync',
         'page callback' => 'repo_sync_triggerSyncMenuCallback',
-        'access arguments' => array('access administration pages'),
+        'access callback' => 'repo_sync_true',
         'type' => MENU_CALLBACK
     );
 
     return $items;
+}
+
+function repo_sync_true() {
+    return true;
 }
 
 function repo_sync_form() {
