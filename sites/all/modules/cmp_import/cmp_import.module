@@ -121,7 +121,7 @@ function _cat2_parse() {
                 WHERE h.field_html_value NOT LIKE '%class=\"rght-hdr%'
                 AND h.field_html_value LIKE '%<div class=\"rxbodyfield\">%'
                 AND h.field_html_value LIKE '%<img %'
-                AND n.type = 'html_content_type' AND n.status = 1 ORDER BY RAND() LIMIT 1";
+                AND n.type = 'html_content_type' AND n.status = 1";
 
     $res = db_query($sql);
     $i =0;
@@ -161,7 +161,7 @@ function _cat2_parse() {
             preg_match('#<div class="feeds clearfix"(.*?)</div>#i', $row->content, $matches);
             $ret .= $i . ' - TERM ID: ' . $row->term_id . " - " . l('https://stage-kidsgov.ctacdev.com' . $row->url, 'https://stage-kidsgov.ctacdev.com' . $row->url, array('attributes' => array('target' => '_blank'))) . "<br/>";
 
-            if (count($matches) == 2) {
+            if (count($matches) == 2 && isset($sst_res) && is_numeric($sst_res)) {
                 //dsm($row->content);
                 //dsm($matches);
                 $social_icon_block = $matches[0];
@@ -230,7 +230,7 @@ function _cat2_parse() {
                         $ssterm->field_show_social_media_icon['und'][0]['value'] = 'Yes';
                         taxonomy_term_save($ssterm);
 
-                        $ret .= '<br/>' . $social_icon_block . '<br />' . l($ssterm->name . " - /taxonomy/term/" . $sst_res, "/taxonomy/term/" . $sst_res . '/edit');
+                        $ret .= '<br/>' . l($ssterm->name . " - /taxonomy/term/" . $sst_res, "/taxonomy/term/" . $sst_res . '/edit');
 
                         db_query("INSERT INTO html_to_img_text_log(html_nid, text_nid, multimedia_nid, term_id, status) VALUES(".$node->nid.", " . $text_node->nid . ", " . $multimedia_node->nid . ", " . $sst_res . ",1); ");
                     }
