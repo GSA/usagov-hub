@@ -121,10 +121,12 @@ function _cat2_parse() {
                 WHERE h.field_html_value NOT LIKE '%class=\"rght-hdr%'
                 AND h.field_html_value LIKE '%<div class=\"rxbodyfield\">%'
                 AND h.field_html_value LIKE '%<img %'
-                AND n.type = 'html_content_type' AND n.status = 1 limit 2";
+                AND n.type = 'html_content_type' AND n.status = 1 ORDER BY RAND() LIMIT 1";
 
     $res = db_query($sql);
     $i =0;
+
+    db_query("CREATE TABLE IF NOT EXISTS html_to_img_text_log(id INT PRIMARY KEY AUTO_INCREMENT, html_nid INT, text_nid INT, multimedia_nid INT, term_id INT, status INT); ");
 
     $multiple_images = array();
     $multiple_images[] = '/teachers/social-studies/winter-holidays/index.shtml';
@@ -145,6 +147,7 @@ function _cat2_parse() {
     $text_assets[] = '/teens/jobs/a-z-list/index.shtml';
     $text_assets[] = '/social-studies/countries-and-cultures/index.shtml';
 
+    // Add log table
     foreach($res as $row)
     {
         $i++;
@@ -224,9 +227,12 @@ function _cat2_parse() {
 
                         $ssterm = taxonomy_term_load($sst_res);
                         $ssterm->field_asset_order_content['und'][0]['target_id'] = $text_node->nid;
+                        $ssterm->field_show_social_media_icon['und'][0]['value'] = 'Yes';
                         taxonomy_term_save($ssterm);
 
-                        $ret .= '<br/>' . l($ssterm->name . "/taxonomy/term/" . $sst_res, "/taxonomy/term/" . $sst_res . '/edit');
+                        $ret .= '<br/>' . $social_icon_block . '<br />' . l($ssterm->name . " - /taxonomy/term/" . $sst_res, "/taxonomy/term/" . $sst_res . '/edit');
+
+                        db_query("INSERT INTO html_to_img_text_log(html_nid, text_nid, multimedia_nid, term_id, status) VALUES(".$node->nid.", " . $text_node->nid . ", " . $multimedia_node->nid . ", " . $sst_res . ",1); ");
                     }
                 }
             }
