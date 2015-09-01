@@ -346,6 +346,7 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
         repo_sync_printAndLog("Error - Could not read white-list file, are permissions set correctly?");
         return;
     }
+    $whiteList = repo_sync_resolveWildcards($wdir, $whiteList);
 
     // Copy over white-listed files
     foreach ( $whiteList as $lineNumb => &$entry ) {
@@ -362,14 +363,6 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
         // Security
         if ( strpos($filePathSrc, '..') !== false || strpos($filePathDest, '..') !== false ) {
             repo_sync_printAndLog("Warning - White-list entry contains unacceptable \"..\" in row {$lineNumb}");
-            continue;
-        }
-
-        if ( strpos($fileRelDest, '*')  !== false) {
-            $starFiles = explode("\n",`ls $filePathDest`);
-            foreach ( $starfiles as $starFile ) {
-                $whiteList[] = trim($starFile);
-            }
             continue;
         }
 
@@ -411,6 +404,32 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     // Clean up
     `rm -r {$wdir}`;
 
+}
+
+function repo_sync_resolveWildcards($wdir, $whiteList) {
+
+    $ret = array();
+    
+    foreach ( $whiteList as $lineNumb => $entry ) {
+
+        $entry = trim(trim($entry), "\"'");
+        $filePathSrc = $wdir.'/src/'.$entry;
+
+        if ( strpos($filePathSrc, '*')  === false) {
+            $ret[] = $entry;
+        } else {
+
+            $starFiles = explode("\n",`ls -Ad $filePathSrc`);
+
+            foreach ( $starFiles as $starFile ) {
+                $starFile = str_replace($wdir.'/src/', '', $starFile);
+                $starFile = str_replace('//', '/', $starFile);
+                $ret[] = trim($starFile);
+            }
+        }
+    }
+
+    return $ret;
 }
 
 function repo_sync_printAndLog($strMessage) {
