@@ -417,4 +417,3 @@ function repo_sync_printAndLog($strMessage) {
 
     //@TODO - add to a log watchdog-API/syslog
 }
-}
