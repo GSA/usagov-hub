@@ -348,7 +348,7 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     }
 
     // Copy over white-listed files
-    foreach ( $whiteList as $lineNumb => $entry ) {
+    foreach ( $whiteList as $lineNumb => &$entry ) {
 
         // Get entry information
         $entry = trim(trim($entry), "\"'");
@@ -364,6 +364,16 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
             repo_sync_printAndLog("Warning - White-list entry contains unacceptable \"..\" in row {$lineNumb}");
             continue;
         }
+
+	if ( strstr('*',$fileRelDest) )
+	{
+		$starFiles = explode("\n",`ls $filePathDest`);
+		foreach ( $starfiles as $starFile )
+		{
+			$whiteList[] = trim($starFile);
+		}
+		continue;
+	}
 
         // Existence check
         if ( !file_exists($filePathSrc) ) {
