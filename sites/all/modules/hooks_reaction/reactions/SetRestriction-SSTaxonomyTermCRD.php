@@ -8,8 +8,6 @@ hooks_reaction_add(
     ),
 
     function (&$form, &$form_state, $form_id) {
-        //dsm($form);
-        //dsm($form_state);
 
         global $user;
         $allowed_roles = array("ux member", "usa administrator", "administrator");
@@ -33,9 +31,7 @@ hooks_reaction_add(
                 unset($form['toolbar']['batchoptsform']);
                 unset($form['toolbar']['double_tree_show']);
                 unset($form['toolbar']['export_show']);
-                unset($form['toolbar']['wrapper']);
             }
-
         }
     }
 );
