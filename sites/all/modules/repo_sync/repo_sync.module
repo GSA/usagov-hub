@@ -348,7 +348,7 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     }
 
     // Copy over white-listed files
-    foreach ( $whiteList as $lineNumb => $entry ) {
+    foreach ( $whiteList as $lineNumb => &$entry ) {
 
         // Get entry information
         $entry = trim(trim($entry), "\"'");
@@ -357,11 +357,19 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
 
         // Determine paths
         $filePathSrc = $wdir.'/src/'.$fileRelSrc;
-        $filePathDest = $wdir.'/dest/sites/all/themes/usa/css/'.$fileRelDest;
+        $filePathDest = $wdir.'/dest/sites/all/themes/usa/'.$fileRelDest;
 
         // Security
         if ( strpos($filePathSrc, '..') !== false || strpos($filePathDest, '..') !== false ) {
             repo_sync_printAndLog("Warning - White-list entry contains unacceptable \"..\" in row {$lineNumb}");
+            continue;
+        }
+
+        if ( strpos($fileRelDest, '*')  !== false) {
+            $starFiles = explode("\n",`ls $filePathDest`);
+            foreach ( $starfiles as $starFile ) {
+                $whiteList[] = trim($starFile);
+            }
             continue;
         }
 
