@@ -115,7 +115,43 @@ function cmp_import_menu() {
         'type' => MENU_NORMAL_ITEM,
         'access callback' => TRUE
     );
+
+    $items['unpublish-converted-html-assets'] = array(
+        'title' => 'Category #2 html assets are converted to multimedia(Image) and text',
+        'page callback' => '_unpublish_converted_html_assets',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
     return $items;
+}
+
+function _unpublish_converted_html_assets() {
+
+    if (isset($_REQUEST["k"]) && $_REQUEST["k"] == 'img') {
+        $sql = "SELECT html_nid FROM html_to_img_text_log ";
+        $res = db_query($sql);
+        $i = 0;
+        foreach ($res as $row) {
+            $node = node_load($row->html_nid);
+            $node->status = 0;
+            node_save($node);
+            $i++;
+        }
+        return $i.' html assets unpublished.';
+    }
+
+    if (isset($_REQUEST["k"]) && $_REQUEST["k"] == 'video') {
+        $sql = "SELECT html_nid FROM html_to_multimedia_log ";
+        $res = db_query($sql);
+        $i = 0;
+        foreach ($res as $row) {
+            $node = node_load($row->html_nid);
+            $node->status = 0;
+            node_save($node);
+            $i++;
+        }
+        return $i.' html assets unpublished.';
+    }
 }
 
 function _cat2_parse() {
