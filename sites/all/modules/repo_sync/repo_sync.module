@@ -40,8 +40,6 @@ function repo_sync_true() {
 
 function repo_sync_form() {
 
-    //dsm('@TODO - White-list directory-jail');
-
     $triggerUrl = 'https://'.$_SERVER['HTTP_HOST'].'/admin/repo-sync/trigger-sync';
 
     $form = array();
@@ -50,7 +48,7 @@ function repo_sync_form() {
         '#type' => 'fieldset',
         '#title' => 'Actions',
         '#collapsible' => true,
-        '#collapsed' => true,
+        '#collapsed' => false,
     );
 
     $form['actions']['dosyncnow'] = array(
@@ -80,7 +78,8 @@ function repo_sync_form() {
         '#title' => 'SyncTrigger-URL shall return:',
         '#default_value' => ( $trigForceSilent ? 1 : repo_sync_settings('triggersilent') ),
         '#disabled' => $trigForceSilent,
-        '#description' => ( $trigForceSilent ? 'Not an option since fastcgi_finish_request() is unsupported.' : '' ),
+        '#description' =>
+            ( $trigForceSilent ? 'Not an option since fastcgi_finish_request() is unsupported in this environment.' : '' ),
         '#options' => array(
             0 => 'Immediately, with no data (close the web-socket connection and then run the sync logic)',
             1 => 'Debug data (which will keep the web-socket open/lagging until the sync logic has fully run)',
@@ -91,14 +90,14 @@ function repo_sync_form() {
         '#type' => 'fieldset',
         '#title' => 'Source Repository',
         '#collapsible' => true,
-        '#collapsed' => false,
+        '#collapsed' => true,
     );
 
     $form['reposdest'] = array(
         '#type' => 'fieldset',
         '#title' => 'Destination Repository',
         '#collapsible' => true,
-        '#collapsed' => false,
+        '#collapsed' => true,
     );
 
     $form['reposrc']['src'] = array(
@@ -212,6 +211,48 @@ function repo_sync_form() {
         '#required' => TRUE,
     );
 
+    $form['logging'] = array(
+        '#type' => 'fieldset',
+        '#title' => 'Logging',
+        '#collapsible' => true,
+        '#collapsed' => false,
+    );
+
+    if ( !function_exists('slack_send_message') ) {
+
+        $form['logging']['noslacksupport'] = array(
+            '#markup' => '<b>[!!] NOTICE [!!]</b> - You do not have the Slack Drupal module installed '
+                .'in this site! Thus there are no Slack options here.<br/><br/>'
+        );
+
+    } else {
+
+        $form['logging']['useslack'] = array(
+            '#type' => 'checkbox', 
+            '#title' => 'Send general debug information into Slack', 
+            '#default_value' => repo_sync_settings('useslack'),
+        );
+
+        $form['logging']['slackchannel'] = array(
+            '#type' => 'textfield', 
+            '#title' => 'Slack Channel (for general debug info)', 
+            '#default_value' => repo_sync_settings('slackchannel'),
+        );
+
+        $form['logging']['useslackverbose'] = array(
+            '#type' => 'checkbox', 
+            '#title' => 'Send verbose debug information into Slack', 
+            '#default_value' => repo_sync_settings('useslackverbose'),
+        );
+
+        $form['logging']['slackchannelverbose'] = array(
+            '#type' => 'textfield', 
+            '#title' => 'Slack Channel (for verbose debug info)', 
+            '#default_value' => repo_sync_settings('slackchannelverbose'),
+        );
+
+    }
+
     $form['submitsave'] = array(
         '#prefix' => '<br/>',
         '#type' => 'submit',
@@ -267,7 +308,9 @@ function repo_sync_form_submit($form, $form_state) {
 
     // Action processing
     if ( $form_state['input']['op'] === 'Trigger Sync Now' ) {
+        ob_start();
         repo_sync_triggerSync();
+        ob_end_clean();
         return;
     }
 
@@ -310,14 +353,14 @@ function repo_sync_triggerSyncMenuCallback() {
 
     // Don't continue if we are not ready yet
     if ( count(repo_sync_settings()) === 0 ) {
-        repo_sync_printAndLog('Error - This service is not yet setup');
-        exit();
+        repo_sync_logEvent(false, 'Rejected a request to sync since the servie is not yet setup');
+        exit('Error - This service is not yet setup');
     }
 
     // Verify security key
     $expectKey = repo_sync_settings('secret');
     if ( empty($expectKey) || empty($_REQUEST['key']) || $_REQUEST['key'] !== $expectKey ) {
-        repo_sync_printAndLog('Error - Incorrect security key provided.');
+        repo_sync_logEvent(true, 'Error - Incorrect security key provided by requester. No sync triggered.');
         exit();
     }
 
@@ -328,7 +371,12 @@ function repo_sync_triggerSyncMenuCallback() {
     }
 
     // Fire the function that does the real logic
-    repo_sync_triggerSync();
+    repo_sync_logEvent(false, 'A request for a sync has occurred - now syncing.', false);
+    if ( repo_sync_triggerSync() === false ) {
+        repo_sync_logEvent(false, 'Repo-Sync failure!', false);
+    } else {
+        repo_sync_logEvent(false, 'Repo-Sync Complete', false);
+    }
 }
 
 /**
@@ -345,65 +393,69 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     // Create a working directory
     $wdir = '/tmp/gitsync'.time();
     if ( !@mkdir($wdir) ) {
-        repo_sync_printAndLog('ERROR - Could not create directory '.$wdir);
-        return;
+        repo_sync_logEvent(true, 'ERROR - Could not create directory '.$wdir, true);
+        return false;
     }
     if ( !@mkdir($wdir.'/src') ) {
-        repo_sync_printAndLog('ERROR - Could not create directory '.$wdir);
-        return;
+        repo_sync_logEvent(true, 'ERROR - Could not create directory '.$wdir, true);
+        return false;
     }
     if ( !@mkdir($wdir.'/dest') ) {
-        repo_sync_printAndLog('ERROR - Could not create directory '.$wdir);
-        return;
+        repo_sync_logEvent(true, 'ERROR - Could not create directory '.$wdir, true);
+        return false;
     }
 
     // Pull down the source-repo
     $cloneUrl = 'https://'.$settings['srcuser'].':'.$settings['srcpass'].'@'.$settings['src'];
     $rslt = `git clone '{$cloneUrl}' {$wdir}/src 2>&1`;
     if ( strpos($rslt, 'Authentication failed') !== false ) {
-        repo_sync_printAndLog('Error - Could not pull down source-repository due to authentication-error.');
-        return;
+        repo_sync_logEvent(true, 'Error - Could not pull down source-repository due to authentication-error.', true);
+        return false;
     }
     
     // Switch to target branch (source repo)
     $rslt = `cd {$wdir}/src; git checkout {$settings['srcbranch']} 2>&1`;
     if ( strpos($rslt, 'error') === 0 ) {
-        repo_sync_printAndLog(
+        repo_sync_logEvent(
+            true,
             "Error - Could not switch to branch \"{$settings['srcbranch']}\" in source-repo. "
-                ."Are you sure this branch exsist on the server?"
+                ."Are you sure this branch exsist on the server?",
+            true
         );
-        return;
+        return false;
     }
 
     // Pull down the destination repo
     $cloneUrl = 'https://'.$settings['destuser'].':'.$settings['destpass'].'@'.$settings['dest'];
     $rslt = `git clone '{$cloneUrl}' {$wdir}/dest 2>&1`;
     if ( strpos($rslt, 'Authentication failed') !== false ) {
-        repo_sync_printAndLog('Error - Could not pull down source-repository due to authentication-error.');
-        return;
+        repo_sync_logEvent(true, 'Error - Could not pull down destination-repository due to authentication-error.', true);
+        return false;
     }
 
     // Switch to target branch (source repo)
     $rslt = `cd {$wdir}/dest; git checkout {$settings['destbranch']} 2>&1`;
     if ( strpos($rslt, 'error') === 0 ) {
-        repo_sync_printAndLog(
+        repo_sync_logEvent(
+            true,
             "Error - Could not switch to branch \"{$settings['destbranch']}\" in destination-repo. "
-                ."Are you sure this branch exsist on the server?"
+                ."Are you sure this branch exsist on the server?",
+            true
         );
-        return;
+        return false;
     }
 
     // Get while-list targets
     $wlPath = $wdir . '/src/' . $settings['srcwlistpath'];
     $whiteList = array();
     if ( !file_exists($wlPath) ) {
-        repo_sync_printAndLog("Error - No white-list found at {$settings['srcwlistpath']} in the source-repository.");
+        repo_sync_logEvent(true, "Error - No white-list found at {$settings['srcwlistpath']} in the source-repository.", true);
         return;
     }
     $whiteList = file($wlPath, FILE_SKIP_EMPTY_LINES + FILE_IGNORE_NEW_LINES);
     if ( $whiteList === false ) {
-        repo_sync_printAndLog("Error - Could not read white-list file, are permissions set correctly?");
-        return;
+        repo_sync_logEvent(true, "Error - Could not read white-list file, are permissions set correctly?", true);
+        return false;
     }
     $whiteList = repo_sync_resolve($wdir, $whiteList);
 
@@ -446,14 +498,14 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
 
         // Security
         if ( strpos($filePathSrc, '..') !== false || strpos($filePathDest, '..') !== false ) {
-            repo_sync_printAndLog("Warning - White-list entry contains unacceptable \"..\" in row {$lineNumb}");
+            repo_sync_logEvent(true, "Warning - White-list entry contains unacceptable \"..\" in row {$lineNumb}");
             continue;
         }
 
         // Security - Directory-Jail
         $dirTarget = realpath( dirname($filePathDest) );
         if ( !in_array($dirTarget, $allowedDirs) ) {
-            repo_sync_printAndLog("Warning - White-listed file '{$fileRelSrc}' is not allwed to be written "
+            repo_sync_logEvent(true, "Warning - White-listed file '{$fileRelSrc}' is not allwed to be written "
                 ."to '{$fileRelDest}' as per the directory-jail rules, skipping...");
             continue;
         }
@@ -462,7 +514,7 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
         $fileExt = pathinfo($filePathSrc, PATHINFO_EXTENSION);
         $fileExt = strtolower($fileExt);
         if ( !in_array($fileExt, $arrAllowedExt) ) {
-            repo_sync_printAndLog("Warning - White-listed file '{$fileRelSrc}' is not allowed to be written "
+            repo_sync_logEvent(true, "Warning - White-listed file '{$fileRelSrc}' is not allowed to be written "
                 ."to the target-repo since .{$fileExt} files are not granted xfer permission, skipping...");
             continue;
         }
@@ -470,7 +522,7 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
         // Existence check
         if ( !file_exists($filePathSrc) ) {
             $msg = "Warning - White-listed file {$fileRelSrc} does not exist in source-repo, skipping...";
-            repo_sync_printAndLog($msg);
+            repo_sync_logEvent(true, $msg);
             continue;
         }
 
@@ -478,10 +530,10 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
         @unlink($filePathDest);
         if ( !copy($filePathSrc, $filePathDest) ) {
             $msg = "Error - Failed to copy \"{$filePathSrc}\" to \"{$filePathDest}\". Permissions? Skipping...";
-            repo_sync_printAndLog($msg);
+            repo_sync_logEvent(true, $msg);
             continue;
         } else {
-            repo_sync_printAndLog("Notice: Copied \"{$filePathSrc}\" to \"{$filePathDest}\" successfully.");
+            // Not logging this event here anymore since constant-pings to Slack can lag things...
         }
     }
 
@@ -491,14 +543,14 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     // Push up the new files
     $rslt = `cd {$wdir}/dest; git commit -m 'test'; git push`;
     if ( strpos($rslt, 'nothing to commit') !== false ) {
-        repo_sync_printAndLog("Warning: Nothing was pushed in repo-sync, no files appear to be updated.");
+        repo_sync_logEvent(true, "Warning: Nothing was pushed in repo-sync, no files appear to be updated.");
     } else {
         if ( strpos($rslt, 'error') !== false ) {
-            repo_sync_printAndLog("Error: An unexpected error occurred during git-push.");
+            repo_sync_logEvent(true, "Error: An unexpected error occurred during git-push.");
             return;
         } else {
             $retLines = explode("\n", trim($rslt));
-            repo_sync_printAndLog("Notice: Repo-sync completed successfully. Git returned: ".$retLines[count($retLines)-1]);
+            repo_sync_logEvent(true, "Notice: Repo-sync completed successfully. Git returned: ".$retLines[count($retLines)-1]);
         }
     }
 
@@ -540,15 +592,29 @@ function repo_sync_resolve($wdir, $whiteList) {
     return $ret;
 }
 
-function repo_sync_printAndLog($strMessage) {
-
-    print $strMessage;
-
-    error_log($strMessage);
-
-    dsm( $strMessage );
+function repo_sync_logEvent($print, $strMessage, $isVerbose = true) {
 
     //@TODO - add to a log specific log file or table
 
-    //@TODO - add to a log watchdog-API/syslog
+    // Print the string if requested
+    if ( $print ) {
+        print $strMessage;
+    }
+
+    // Log to PHP's error-log (which should in tern, log to Splunk)
+    error_log( 'Repo-Sync: ' . $strMessage );
+
+    // Log to Slack
+    $settings = repo_sync_settings('ALL');
+    $msg = "Repo-Sync Message: ".$strMessage;
+    if ( $isVerbose ) {
+        if ( intval($settings['useslackverbose']) === 1 ) {
+            slack_send_message($msg, $settings['slackchannelverbose']);
+        }
+    } else {
+        if ( intval($settings['useslack']) === 1 ) {
+            slack_send_message($msg, $settings['slackchannel']);
+        }
+    }
+
 }
