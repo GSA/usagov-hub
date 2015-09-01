@@ -18,7 +18,7 @@ function repo_sync_menu() {
         'description' => 'Setup and manage a Git Repository sync',
         'page callback' => 'drupal_get_form',
         'page arguments' => array('repo_sync_form'),
-        'access arguments' => array('access administration pages'),
+        'access callback' => 'repo_sync_isAdmin',
         'type' => MENU_NORMAL_ITEM
     );
 
@@ -36,6 +36,15 @@ function repo_sync_menu() {
 
 function repo_sync_true() {
     return true;
+}
+
+function repo_sync_isAdmin() {
+    global $user;
+    if ( empty($user->uid) ) {
+        return false;
+    } else {
+        return ( intval($user->uid) === 1 ? true : false );
+    }
 }
 
 function repo_sync_form() {
