@@ -35,7 +35,7 @@ function repo_sync_true() {
 
 function repo_sync_form() {
 
-    dsm('@TODO - White-list directory-jail');
+    //dsm('@TODO - White-list directory-jail');
 
     $triggerUrl = 'https://'.$_SERVER['HTTP_HOST'].'/admin/repo-sync/trigger-sync';
 
@@ -187,8 +187,8 @@ function repo_sync_form_validate($form, $form_state) {
         form_set_error('dest', 'Please remove any username or passwords from the target-URL.');
     }
 
-    if ( substr(strtolower($form_state['input']['srcwlistpath']), -4) !== '.csv' ) {
-        form_set_error('srcwlistpath', 'The white-list is expected to be a <b>.csv</b> file.');
+    if ( substr(strtolower($form_state['input']['srcwlistpath']), -4) !== '.txt' ) {
+        form_set_error('srcwlistpath', 'The white-list is expected to be a <b>.txt</b> file.');
     }
 
 }
@@ -351,13 +351,13 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     foreach ( $whiteList as $lineNumb => $entry ) {
 
         // Get entry information
-        $entry = explode(',', trim($entry));
-        $fileRelSrc = trim($entry[0], "\"'");
-        $fileRelDest = trim($entry[1], "\"'");
+        $entry = trim(trim($entry), "\"'");
+        $fileRelSrc = $entry;
+        $fileRelDest = $entry;
 
         // Determine paths
         $filePathSrc = $wdir.'/src/'.$fileRelSrc;
-        $filePathDest = $wdir.'/dest/'.$fileRelDest;
+        $filePathDest = $wdir.'/dest/sites/all/themes/usa/css/'.$fileRelDest;
 
         // Security
         if ( strpos($filePathSrc, '..') !== false || strpos($filePathDest, '..') !== false ) {
