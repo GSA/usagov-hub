@@ -35,3 +35,14 @@ hooks_reaction_add(
         }
     }
 );
+
+
+hooks_reaction_add(
+    array(
+        'HOOK_menu_alter'
+    ),
+
+    function (&$items) {
+        $items['taxonomy_manager/autocomplete']['access callback'] = TRUE;
+    }
+);
