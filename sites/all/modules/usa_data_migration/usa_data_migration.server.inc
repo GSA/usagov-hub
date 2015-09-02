@@ -634,6 +634,9 @@ function usa_data_migration_printNodeDump() {
         /* Unless batch is == 1. This is because we want to push at least 1 batch out, just in case 
         nothing has been added/changed but there are deleted items to push. */
         if ( $batch === 1 ) {
+            if ( !isset($returnData['NodeDump_sqlDump']) ) {
+                $returnData['NodeDump_sqlDump'] = '';
+            }
             $returnData['NodeDump_sqlDump'] .= "# No new entity data in this batch, not blocking because "
                 ."this is the first batch (and the first batch is special)\n\n";
         } else {
