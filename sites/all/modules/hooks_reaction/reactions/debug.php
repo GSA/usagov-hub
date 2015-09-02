@@ -3,7 +3,7 @@
 hooks_reaction_add('HOOK_node_presave', 
     function ($node) {
 
-        if ( empty($node) || strpos($node, 'dale') === false ) {
+        if ( empty($node) || strpos($node->title, 'dale') === false ) {
             return;
         }
 
