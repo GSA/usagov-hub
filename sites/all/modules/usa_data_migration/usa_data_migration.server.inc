@@ -1025,8 +1025,6 @@ function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
 
     foreach ( $tids as $tid ) {
 
-        db_query("DELETE FROM taxonomy_tlt_name WHERE tid = {$tid} ");
-
         $vocabId = db_query("SELECT vid FROM taxonomy_term_data WHERE tid={$tid}")->fetchColumn();
         if ( intval($siteStructVocabId) === intval($vocabId) ) {
             // then this is a site-structure taxonomy-term
@@ -1038,7 +1036,8 @@ function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
             $tltName = 'ALL';
         }
 
-        db_query("INSERT INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, '{$tltName}') ");
+        db_query("DELETE FROM taxonomy_tlt_name WHERE tid = {$tid}; "
+            ."INSERT IGNORE INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, '{$tltName}') ");
 
     }
 
