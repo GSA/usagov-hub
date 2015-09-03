@@ -770,7 +770,7 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
 
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will 
         be called and used to determine the email-message to send. */
-        $res = drupal_mail(
+       /* $res = drupal_mail(
             'cmp_misc',
             'scanning_content',
             $strTo,
@@ -780,7 +780,7 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
         );
         if ($res["send"]) {
             drupal_set_message("Sent taxonomy-update notification emails to: " . $strTo);
-        }
+        }*/
 
     } else {
         // then we are running on someone's local, do NOT send the email
