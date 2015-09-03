@@ -275,14 +275,14 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
     /// check to see if this is a new piece of content
     if ( (  empty($form_state['node'])
         || !isset($form_state['node']->nid)
-        ||  isset($form_state['node']->is_new)
+        ||  isset($form_state['node']->is_new) )
         && in_array($form_id,array(
                 'text_content_type_node_form',  'state_details_node_form',
                 'state_details_node_form',      'html_content_type_node_form',
                 'file_content_type_node_form',  'directory_record_content_type_node_form',
                 'multimedia_content_type_node_form' ))
         &&  empty($form['field_owner']['und'][0]['target_id']['#default_value'])
-        && strlen($form['field_owner']['und'][0]['target_id']['#default_value']) == 0 ) )
+        && strlen($form['field_owner']['und'][0]['target_id']['#default_value']) == 0 )
     {
         global $user;
         $currentUserStr = $user->name . " (" . $user->uid . ") ";
