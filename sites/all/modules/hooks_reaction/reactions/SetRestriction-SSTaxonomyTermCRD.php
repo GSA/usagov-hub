@@ -1,5 +1,5 @@
 <?php
-/*hooks_reaction_add(
+hooks_reaction_add(
     array(
         'HOOK_form_taxonomy_manager_form_alter',
         'HOOK_form_taxonomy_form_term_alter',
@@ -8,8 +8,6 @@
     ),
 
     function (&$form, &$form_state, $form_id) {
-        //dsm($form);
-        //dsm($form_state);
 
         global $user;
         $allowed_roles = array("ux member", "usa administrator", "administrator");
@@ -33,9 +31,18 @@
                 unset($form['toolbar']['batchoptsform']);
                 unset($form['toolbar']['double_tree_show']);
                 unset($form['toolbar']['export_show']);
-                unset($form['toolbar']['wrapper']);
             }
-
         }
+    }
+);
+
+
+hooks_reaction_add(
+    array(
+        'HOOK_menu_alter'
+    ),
+
+    function (&$items) {
+        $items['taxonomy_manager/autocomplete']['access callback'] = TRUE;
     }
 );

@@ -77,6 +77,28 @@ jQuery(document).ready( function () {
 
 });
 
+function untickAssetTopic(term) {
+
+    console.log("Uncheck firing" + term.value);
+	jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
+	jQuery('.group-homepage-container').addClass('term-processing'); // This shows a spinner
+
+    jQuery.get('/atm/get-nodes-under-topics?terms='+term.value, function (nodes) {
+
+        for ( var x = 0 ; x < nodes.length ; x++ ) {
+            console.log(nodes[x].nid + nodes[x].title + " NEEDs TO BE REMOVED");
+            jQuery("#field-asset-order-sidebar-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+            jQuery("#field-asset-order-content-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+            jQuery("#field-asset-order-carousel-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+            jQuery("#field-asset-order-bottom-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+            jQuery("#field-asset-order-menu-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+        }
+
+		jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+		jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+    });
+}
+
 function initAssetTopicPlacementHelperScript() {
 
 	updateAssetTopicPlacementCountClasses();
@@ -107,6 +129,7 @@ function initAssetTopicPlacementHelperScript() {
 			} else {
 				jQuery('.group-asset-topic-placement').queue( function () {
 					jQuery('.group-asset-topic-placement input[value=' + tThis.value + ']').parents('tr').remove();
+                    untickAssetTopic(tThis);
 					updateAssetTopicPlacementCountClasses();
 					jQuery('.group-asset-topic-placement').dequeue();
 				});
@@ -154,6 +177,12 @@ function initAssetTopicPlacementHelperScript() {
 		alterTermsInAssetPlacementFields(function () {
 			updateAssetTopicPlacementCountClasses();
 		});
+	} else {
+		/* There are no Asset-Topics selected, so we shall just show 
+		everything under the "Asset Placement" area now */
+		jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+		jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+		updateAssetTopicPlacementCountClasses();
 	}
 
 	/* When the page first loads, we want to make sure any [currently] selected term under 
@@ -165,7 +194,11 @@ function initAssetTopicPlacementHelperScript() {
 			var targId = jQuery('.field-name-field-asset-order-menu').attr('id');
 			injectRowIntoAssetPlacementField('#'+targId, this.value, jQuery(this).parent().find('label').text());
 		});
-	}	
+	}
+
+	/* When the page first loads, we want to make sure that any Asset associated with this term that
+	does NOT exist under any of the selected Asset-Topics are removed */
+	assetByTopicFullCheck();
 
 }
 
@@ -241,14 +274,17 @@ function alterTermsInAssetPlacementFields(callback) {
 											var targId = jQuery('.field-name-field-home-quickfindcont-asset').attr('id');
 											alterTermsInAssetPlacementField('#'+targId, function () {
 
-												reinitializeDragTables();
-												jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
-												jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+												atp_buildNodeInfoCache( function () {
 
-												// Trigger callback
-												if ( typeof callback === 'function' ) {
-													callback();
-												}
+													reinitializeDragTables();
+													jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+													jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+
+													// Trigger callback
+													if ( typeof callback === 'function' ) {
+														callback();
+													}
+												});
 												
 											})
 										})
@@ -272,6 +308,11 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 		NodeUnderTopicCache = {};
 	}
 
+	// Initialize NodeUnderTopicCache
+	if ( typeof NodeInfoCache === 'undefined' ) {
+		NodeInfoCache = {};
+	}
+
 	// Get selected Asset-Topic Taxonomy terms
 	var terms = [];
 	jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
@@ -284,11 +325,76 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 		alterTermsInAssetPlacementField_callInjectRows(fieldSelector, NodeUnderTopicCache[nutCacheKey], callback);
 	} else {
 		jQuery.get('/atm/get-nodes-under-topics?terms='+terms.join(','), function (nodes) {
+
+			// Cache what nodes are under this topic
 			NodeUnderTopicCache[nutCacheKey] = nodes;
+
+			// Cache all node information (by nid)
+			for ( var n = 0 ; n < nodes.length ; n++ ) {
+				NodeInfoCache['n'+nodes[n].nid] = nodes[n];
+			}
+
 			alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback);
 		});
 	}
+}
 
+/* This function builds the JavaScript node-cache, which contains information about 
+what nodes are "sticky", etc. */
+function atp_buildNodeInfoCache(callback) {
+
+	var uniqNids = [];
+	jQuery('.tabledrag-processed tr input').each( function () {
+		var thisNid = jQuery(this).val();
+		if ( uniqNids.indexOf(thisNid) == -1 ) {
+			uniqNids.push(thisNid);
+		}
+	})
+
+	var nidsNotCached = [];
+	for ( var x = 0 ; x < uniqNids.length ; x++ ) {
+		if ( typeof NodeInfoCache['n'+uniqNids[x]] == 'undefined' ) {
+			nidsNotCached.push(uniqNids[x]);
+		}
+	}
+
+	if ( nidsNotCached.length == 0 ) {
+		callback();
+		return;
+	}
+
+	jQuery.get('/atm/get-nodes-data?nids='+nidsNotCached.join(','), function (nodes) {
+
+		for ( var n = 0 ; n < nodes.length ; n++ ) {
+			NodeInfoCache['n'+nodes[n].nid] = nodes[n];
+		}
+
+		callback();
+	});
+
+}
+
+function atp_getNodeInfoFromCache(arrNids) {
+
+	// Initialize NodeUnderTopicCache
+	if ( typeof NodeInfoCache === 'undefined' ) {
+		NodeInfoCache = {};
+	}
+
+	// 
+	var nodesFromCache = {};
+	for ( var n = 0 ; n < arrNids.length ; n++ ) {
+		var nid = arrNids[n];
+		var nnid = 'n'+nid;
+		if ( typeof NodeInfoCache[nnid] == 'undefined' ) {
+			debugger; // this line should never hit!
+			return false;
+		} else {
+			nodesFromCache[nid] = NodeInfoCache[nnid];
+		}
+	}
+
+	return nodesFromCache;
 }
 
 function alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback) {
@@ -382,7 +488,7 @@ function reinitializeDragTables() {
 		}
 
 		// Break bindings
-		jQuery(fieldSelector).html( jQuery(fieldSelector).html() )
+		jQuery(fieldSelector+' *').unbind();
 
 		// Remove all drag-handles in the table
 		jQuery(fieldSelector+' a.tabledrag-handle .handle').remove();
@@ -404,6 +510,7 @@ function reinitializeDragTables() {
 				setTimeout( function () {
 					dragTblObj.hideColumns();
 					ensureEditAssetLinksExsist();
+					processSticky();
 				}, 200);
 				hasSetTimer = true;
 			}
@@ -475,4 +582,195 @@ function ensureEditAssetLinksExsist() {
 			jQuery(linkHTML).insertAfter(jqLabel);
 		}
 	});
+}
+
+function processSticky() {
+
+	jQuery('.tabledrag-processed tr').not('.sticky-processed').each( function () {
+
+		var jqRow = jQuery(this);
+		if ( jqRow.find('input').length > 0 ) {
+
+			var jqInput = jqRow.find('input');
+			var nodeId = jqInput.attr('value');
+			var jqLabel = jqInput.parent().find('label');
+			var jqDragHandle = jqRow.find('.tabledrag-handle');
+			var jqParentTableNode = jqRow.parents('table');
+			var jqParentTableBodyNode = jqParentTableNode.find('tbody');
+
+			// Determine weather this is a sticky-item or not
+			var nodesInfo = atp_getNodeInfoFromCache([nodeId]);
+			var nodeData = nodesInfo[nodeId];
+			if ( nodeData['priority'] == 'sticky' || nodeData['haspubrevision'] == '0' ) {
+
+				// Determin what "tags" to show next to this element's title
+				var arrLabelTags = [];
+				if ( nodeData['priority'] == 'sticky' ) {
+					arrLabelTags.push('sticky');
+				}
+				if ( nodeData['haspubrevision'] == '0' ) {
+					arrLabelTags.push('no-published-revision');
+				}
+				var strLabelTags = arrLabelTags.join(', ');
+
+				// Set the new label tabs into the row
+				var newLabelHtml = jqLabel.html()+' (<small><b>'+strLabelTags+'</b></small>)';
+				jqLabel.html(newLabelHtml);
+
+				// Further sticky processing
+				if ( nodeData['priority'] == 'sticky' ) {
+
+					jqDragHandle.hide().addClass('element-invisible');
+					jqRow.addClass('is-sticky');
+					jqParentTableNode.addClass('needsZebraReprocessing');
+					jqParentTableNode.addClass('needsStickySorting');
+
+					// By relocating this <tr> up one level, it becomes unmovable
+					jqRow.detach().insertBefore(jqParentTableBodyNode);
+				}
+
+				jqRow.addClass('sticky-processed');
+
+			} else {
+				jqRow.addClass('sticky-processed');
+			}
+
+		} else {
+			jqRow.addClass('sticky-processed');
+		}
+
+	});
+
+	processStickySorting();
+
+	jQuery('table.needsZebraReprocessing').each(function () {
+		jqThis = jQuery(this);
+		reprocessZebraPattern(jqThis);
+		jqThis.removeClass('needsZebraReprocessing');
+	});
+
+}
+
+function processStickySorting() {
+
+	jQuery('table.needsStickySorting').each( function () {
+
+		var jqTable = jQuery(this);
+		var jqTableBody = jqTable.find('tbody');
+
+		// Get all the sticky-rows and detach them from the DOM
+		var stickyRows = [];
+		var sortableArray = [];
+		jqTable.children('tr').each( function () {
+			var jqRow = jQuery(this);
+			var rowText = jqRow.find('label').eq(0).text();
+			var sortableString = rowText+'-'+sortableArray.length;
+			sortableArray.push( sortableString.toLowerCase() );
+			stickyRows.push( jqRow.detach() );
+		});
+
+		// Sort the array
+		sortableArray.sort();
+
+		// Reattach the sticky-elements in order
+		for ( var x = 0 ; x < sortableArray.length ; x++ ) {
+
+			srId = sortableArray[x].split('-');
+			srId = srId[ srId.length - 1 ];
+
+			stickyRows[srId].insertBefore(jqTableBody);
+		}
+
+	});
+}
+
+function reprocessZebraPattern(jqTable) {
+
+	// Remove all even/odd classes
+	jqTable.find('tr.even, tr.odd').each( function () {
+		jQuery(this).removeClass('even').removeClass('odd');
+	});
+
+	// Re-apply even/odd classes
+	var jqRows = jqTable.find('tr');
+	for ( var r = 0 ; r < jqRows.length ; r++ ) {
+		var newClass = ( r%2 == 1 ? 'odd' : 'even' );
+		jqRows.eq(r).addClass(newClass);
+	}
+
+}
+
+// Based on the selected Asset-Topics, remove any asset that dosnt belong
+function assetByTopicFullCheck() {
+
+	// This shows a spinner
+	jQuery('.group-asset-topic-placement').addClass('term-processing');
+	jQuery('.group-homepage-container').addClass('term-processing');
+
+	// Get the selected-Asset-Topic term-IDs
+	var tidAssetTopics = [];
+	jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
+		tidAssetTopics.push( jQuery(this).val() );
+	});
+
+	// SPECIAL CASE - If there are no Asset-Topics selected, then there should be no Assets available
+	if ( tidAssetTopics.length == 0 ) {
+		// Remove all rows from the drag tables that contain inputs (an asset-referencer)
+		jQuery('.group-asset-placement tr input[type=checkbox]').parents('tr').remove();
+		// Update things and return
+        updateAssetTopicPlacementCountClasses();
+		jQuery('.group-asset-topic-placement').removeClass('term-processing'); // remove the spinner
+		jQuery('.group-homepage-container').removeClass('term-processing'); // remove the spinner
+		return;
+	}
+
+	// Initalize NodeUnderTopicCache
+	if ( typeof NodeUnderTopicCache === 'undefined' ) {
+		NodeUnderTopicCache = {};
+	}
+
+	// Initialize NodeUnderTopicCache
+	if ( typeof NodeInfoCache === 'undefined' ) {
+		NodeInfoCache = {};
+	}
+
+	// Get all node/assets under these Asset-Topics
+	var nutCacheKey = 't' + tidAssetTopics.join('t', tidAssetTopics);
+	jQuery.get('/atm/get-nodes-under-topics?terms='+tidAssetTopics.join(','), function (nodes) {
+
+		// Cache what nodes are under this/these topic(s)
+		NodeUnderTopicCache[nutCacheKey] = nodes;
+
+		// Cache all node information (by nid)
+		for ( var n = 0 ; n < nodes.length ; n++ ) {
+			NodeInfoCache['n'+nodes[n].nid] = nodes[n];
+		}
+
+        // Get a list of nodes that are allowed to show in the regions
+        var allowedNids = {};
+        for ( var n = 0 ; n < nodes.length ; n++ ) {
+        	var thisNodeId = nodes[n].nid;
+        	allowedNids['n'+thisNodeId] = true;
+        }
+
+        // Scan for rows in Asset-Drag tables, for rows containing node-references that dont belong
+        jQuery('.group-asset-placement tr').each( function () {
+        	var jqRow = jQuery(this);
+        	var thisRowInput = jqRow.find('input');
+        	var thisRowNidRef = thisRowInput.val();
+        	if ( thisRowInput.length > 0 ) { // basically: skip over rows that dont contain an input-element
+        		if ( typeof allowedNids['n'+thisRowNidRef] == 'undefined' ) {
+        			jqRow.remove();
+        		}
+        	}
+        });
+
+        updateAssetTopicPlacementCountClasses();
+
+        // This removes the spinner
+		jQuery('.group-asset-topic-placement').removeClass('term-processing');
+		jQuery('.group-homepage-container').removeClass('term-processing');
+
+	});
+
 }

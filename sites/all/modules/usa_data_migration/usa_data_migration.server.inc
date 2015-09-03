@@ -634,6 +634,9 @@ function usa_data_migration_printNodeDump() {
         /* Unless batch is == 1. This is because we want to push at least 1 batch out, just in case 
         nothing has been added/changed but there are deleted items to push. */
         if ( $batch === 1 ) {
+            if ( !isset($returnData['NodeDump_sqlDump']) ) {
+                $returnData['NodeDump_sqlDump'] = '';
+            }
             $returnData['NodeDump_sqlDump'] .= "# No new entity data in this batch, not blocking because "
                 ."this is the first batch (and the first batch is special)\n\n";
         } else {
@@ -1022,8 +1025,6 @@ function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
 
     foreach ( $tids as $tid ) {
 
-        db_query("DELETE FROM taxonomy_tlt_name WHERE tid = {$tid} ");
-
         $vocabId = db_query("SELECT vid FROM taxonomy_term_data WHERE tid={$tid}")->fetchColumn();
         if ( intval($siteStructVocabId) === intval($vocabId) ) {
             // then this is a site-structure taxonomy-term
@@ -1035,7 +1036,8 @@ function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
             $tltName = 'ALL';
         }
 
-        db_query("INSERT INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, '{$tltName}') ");
+        db_query("DELETE FROM taxonomy_tlt_name WHERE tid = {$tid}; "
+            ."INSERT IGNORE INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, '{$tltName}') ");
 
     }
 

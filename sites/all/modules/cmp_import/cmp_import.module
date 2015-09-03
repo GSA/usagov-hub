@@ -88,7 +88,364 @@ function cmp_import_menu() {
         'page arguments' => array(1)
     );
 
+    $items['parse-html-asset'] = array(
+        'title' => 'Parse HTML Asset',
+        'page callback' => '_parse_html_asset',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+
+    $items['html-converted-pages'] = array(
+        'title' => 'Category #1 html assets are converted to multimedia(Video) and text',
+        'page callback' => '_cat1_result',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+
+    $items['parse-html-with-image-asset'] = array(
+        'title' => 'Category #2 and #3 html assets are converted to multimedia and text',
+        'page callback' => '_cat2_parse',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+
+    $items['html-converted-pages2'] = array(
+        'title' => 'Category #2 html assets are converted to multimedia(Image) and text',
+        'page callback' => '_cat2_result',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
+
+    $items['unpublish-converted-html-assets'] = array(
+        'title' => 'Category #2 html assets are converted to multimedia(Image) and text',
+        'page callback' => '_unpublish_converted_html_assets',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => TRUE
+    );
     return $items;
+}
+
+function _unpublish_converted_html_assets() {
+
+    if (isset($_REQUEST["k"]) && $_REQUEST["k"] == 'img') {
+        $sql = "SELECT html_nid FROM html_to_img_text_log ";
+        $res = db_query($sql);
+        $i = 0;
+        foreach ($res as $row) {
+            $node = node_load($row->html_nid);
+            $node->status = 0;
+            node_save($node);
+            $i++;
+        }
+        return $i.' html assets unpublished.';
+    }
+
+    if (isset($_REQUEST["k"]) && $_REQUEST["k"] == 'video') {
+        $sql = "SELECT html_nid FROM html_to_multimedia_log ";
+        $res = db_query($sql);
+        $i = 0;
+        foreach ($res as $row) {
+            $node = node_load($row->html_nid);
+            $node->status = 0;
+            node_save($node);
+            $i++;
+        }
+        return $i.' html assets unpublished.';
+    }
+}
+
+function _cat2_parse() {
+    $ret = '';
+    $sql = "SELECT n.nid, t.entity_id AS term_id, field_friendly_url_value AS url, h.field_html_value AS content FROM node n
+                INNER JOIN field_data_field_html h ON h.entity_id = n.nid
+                INNER JOIN field_data_field_asset_order_content t ON field_asset_order_content_target_id = n.nid
+                INNER JOIN field_data_field_friendly_url f ON f.entity_id = t.entity_id
+                WHERE h.field_html_value NOT LIKE '%class=\"rght-hdr%'
+                AND h.field_html_value LIKE '%<div class=\"rxbodyfield\">%'
+                AND h.field_html_value LIKE '%<img %'
+                AND n.type = 'html_content_type' AND n.status = 1";
+
+    $res = db_query($sql);
+    $i =0;
+
+    db_query("CREATE TABLE IF NOT EXISTS html_to_img_text_log(id INT PRIMARY KEY AUTO_INCREMENT, html_nid INT, text_nid INT, multimedia_nid INT, term_id INT, status INT); ");
+
+    $multiple_images = array();
+    $multiple_images[] = '/teachers/social-studies/winter-holidays/index.shtml';
+    $multiple_images[] = '/teens/goverment/how-a-bill-becomes-a-law/index.shtml';
+    $multiple_images[] = '/government/how-a-bill-becomes-a-law/index.shtml';
+    $multiple_images[] = '/three-branches-of-government/index.shtml';
+    $multiple_images[] = '/learn-about-the-states/index.shtml';
+    $multiple_images[] = '/money/10-holiday-tips/index.shtml';
+    $multiple_images[] = '/about-us/link-to-us/index.shtml';
+    $multiple_images[] = '/president/index.shtml';
+
+    $text_assets = array();
+    $text_assets[] = '/teens/health-and-safety/general-health/index.shtml';
+    $text_assets[] = '/teens/science/environment/index.shtml';
+    $text_assets[] = '/teens/history/us-history/index.shtml';
+    $text_assets[] = '/teens/science/space/index.shtml';
+    $text_assets[] = '/teens/online-safety/index.shtml';
+    $text_assets[] = '/teens/jobs/a-z-list/index.shtml';
+    $text_assets[] = '/social-studies/countries-and-cultures/index.shtml';
+
+    // Add log table
+    foreach($res as $row)
+    {
+        $i++;
+        if (!in_array($row->url, $multiple_images) && !in_array($row->url, $text_assets)) {
+
+            $node = node_load($row->nid);
+
+            $sst_sql = "SELECT entity_id as tid FROM field_data_field_asset_order_content WHERE field_asset_order_content_target_id = " . $node->nid;
+            $sst_res = db_query($sst_sql)->fetchField();
+
+            preg_match('#<div class="feeds clearfix"(.*?)</div>#i', $row->content, $matches);
+            $ret .= $i . ' - TERM ID: ' . $row->term_id . " - " . l('https://stage-kidsgov.ctacdev.com' . $row->url, 'https://stage-kidsgov.ctacdev.com' . $row->url, array('attributes' => array('target' => '_blank'))) . "<br/>";
+
+            if (count($matches) == 2 && isset($sst_res) && is_numeric($sst_res)) {
+                //dsm($row->content);
+                //dsm($matches);
+                $social_icon_block = $matches[0];
+                $content = str_replace($social_icon_block, "", $row->content);
+                preg_match('#<img (.*?)>#i', $content, $img_matches);
+
+                if(count($img_matches) == 2) {
+                    $img = $img_matches[0];
+                    $content = str_replace($img, "", $content);
+
+                    preg_match('#src="s3:(.*?)"#i', $img, $s3_matches);
+                    if (count($s3_matches) == 2 ) {
+                        $img_path = 's3:'.$s3_matches[1];
+                        $ret .= 's3:'.$s3_matches[1];
+                        $s3_fid = db_query("SELECT fid FROM file_managed WHERE uri = '" . $img_path . "'")->fetchField();
+                        $ret .= ' >>> '.$s3_fid;
+
+                        $multimedia_node = new StdClass();
+                        $multimedia_node->type = 'multimedia_content_type';
+                        $multimedia_node->comment = 0;
+                        $multimedia_node->status = 1;
+                        $multimedia_node->promote = 0;
+                        $multimedia_node->language = 'en';
+                        $multimedia_node->uid = $node->uid;
+                        node_object_prepare($multimedia_node);
+                        $multimedia_node->title = 'Image for: ' . $node->title;
+                        $multimedia_node->field_for_use_by['und'][0]['value'] = $node->field_for_use_by['und'][0]['value'];
+                        $multimedia_node->field_asset_topic_taxonomy['und'][0]['tid'] = $node->field_asset_topic_taxonomy['und'][0]['tid'];
+                        $multimedia_node->field_owner['und'][0]['target_id'] = (isset($node->field_owner['und'][0]['target_id'])? $node->field_owner['und'][0]['target_id']:1);
+                        $multimedia_node->field_notify_marketing_team['und'][0]['value'] = $node->field_notify_marketing_team['und'][0]['value'];
+                        $multimedia_node->field_priority['und'][0] = $node->field_priority['und'][0];
+                        $multimedia_node->field_language['und'][0]['value'] = $node->field_language['und'][0]['value'];
+                        $multimedia_node->field_description['und'][0] = $node->field_description['und'][0];
+                        $multimedia_node->field_date_last_reviewed['und'] = $node->field_date_last_reviewed['und'];
+                        $multimedia_node->field_workflow_state_search['und'] = $node->field_workflow_state_search['und'];
+                        $multimedia_node->field_file_media['und'][0]['fid'] = $s3_fid;
+                        $multimedia_node->field_media_type['und'][0]['value'] = 'Image';
+                        node_save($multimedia_node);
+
+                        $text_node = new StdClass();
+                        $text_node->type = 'text_content_type';
+                        $text_node->comment = 0;
+                        $text_node->status = 1;
+                        $text_node->promote = 0;
+                        $text_node->language = 'en';
+                        $text_node->uid = $node->uid;
+                        node_object_prepare($text_node);
+                        $text_node->title = $node->title;
+                        $text_node->field_for_use_by_text['und'][0]['value'] = $node->field_for_use_by['und'][0]['value'];
+                        $text_node->field_asset_topic_taxonomy['und'][0]['tid'] = $node->field_asset_topic_taxonomy['und'][0]['tid'];
+                        $text_node->field_owner['und'][0]['target_id'] = (isset($node->field_owner['und'][0]['target_id'])? $node->field_owner['und'][0]['target_id']:1);
+                        $text_node->field_notify_marketing_team['und'][0]['value'] = $node->field_notify_marketing_team['und'][0]['value'];
+                        $text_node->field_priority['und'][0] = $node->field_priority['und'][0];
+                        $text_node->field_language['und'][0]['value'] = $node->field_language['und'][0]['value'];
+                        $text_node->field_description['und'][0] = $node->field_description['und'][0];
+                        $text_node->field_date_last_reviewed['und'] = $node->field_date_last_reviewed['und'];
+                        $text_node->field_workflow_state_search['und'] = $node->field_workflow_state_search['und'];
+                        $text_node->body['und'][0]['format'] = 'filtered_html';
+                        $text_node->body['und'][0]['summary'] = '';
+                        $text_node->body['und'][0]['value'] = $content;
+                        $text_node->field_related_multimedia_two['und'][0]['target_id'] = $multimedia_node->nid;
+                        node_save($text_node);
+
+                        $ssterm = taxonomy_term_load($sst_res);
+                        $ssterm->field_asset_order_content['und'][0]['target_id'] = $text_node->nid;
+                        $ssterm->field_show_social_media_icon['und'][0]['value'] = 'Yes';
+                        taxonomy_term_save($ssterm);
+
+                        $ret .= '<br/>' . l($ssterm->name . " - /taxonomy/term/" . $sst_res, "/taxonomy/term/" . $sst_res . '/edit');
+
+                        db_query("INSERT INTO html_to_img_text_log(html_nid, text_nid, multimedia_nid, term_id, status) VALUES(".$node->nid.", " . $text_node->nid . ", " . $multimedia_node->nid . ", " . $sst_res . ",1); ");
+                    }
+                }
+            }
+            $ret .= "<hr/>";
+        }
+    }
+
+    return $ret;
+}
+
+function _cat2_result() {
+    $ret = '';
+
+    $sql = "SELECT h.*, f.field_friendly_url_value AS url FROM html_to_img_text_log h INNER JOIN field_data_field_friendly_url f ON f.entity_id = h.term_id ";
+    $res = db_query($sql);
+    $i =0;
+    foreach($res as $row)
+    {
+        $i++;
+        $node = node_load($row->text_nid);
+
+        preg_match('#<script(.*?)>(.*?)</script>#is', $node->body['und'][0]['value'], $body_matches);
+        if (count($body_matches) > 0) {
+            $node->body['und'][0]['value'] = str_replace($body_matches[0], '', $node->body['und'][0]['value']);
+            node_save($node);
+        }
+
+        $ret .= $i . " - HTML NID: " . $row->html_nid . ' - TERM ID: ' . $row->term_id . " - ".  l('https://stage-kidsgov.ctacdev.com'.$row->url, 'https://stage-kidsgov.ctacdev.com'.$row->url, array('attributes' => array('target' => '_blank'))) . "<hr/>";
+    }
+
+    return $ret;
+}
+
+function _cat1_result () {
+    $ret = '';
+
+    $sql = "SELECT h.*, f.field_friendly_url_value AS url FROM html_to_multimedia_log h INNER JOIN field_data_field_friendly_url f ON f.entity_id = h.term_id ";
+    $res = db_query($sql);
+    $i =0;
+    foreach($res as $row)
+    {
+        $i++;
+        $ret .= $i . " - HTML NID: " . $row->html_nid . ' - TERM ID: ' . $row->term_id . " - ". l('https://stage-kidsgov.ctacdev.com'.$row->url, 'https://stage-kidsgov.ctacdev.com'.$row->url, array('attributes' => array('target' => '_blank')))  . "<hr/>";
+    }
+
+    return $ret;
+}
+
+function _parse_html_asset() {
+
+    $sql = "SELECT n.nid FROM node n
+            INNER JOIN field_data_field_html h ON h.entity_id = n.nid
+            WHERE h.field_html_value NOT LIKE '%class=\"rght-hdr%'
+            AND h.field_html_value LIKE '%<div class=\"rxbodyfield\">%'
+            AND h.field_html_value LIKE '%<iframe width=\"560\" %'
+            AND n.type = 'html_content_type' AND n.status = 1"; // ORDER BY RAND() LIMIT 10;
+
+    $res = db_query($sql);
+    $ret = '';
+    $i = 0;
+    db_query("CREATE TABLE IF NOT EXISTS html_to_multimedia_log(id INT PRIMARY KEY AUTO_INCREMENT, html_nid INT, text_nid INT, multimedia_nid INT, term_id INT, status INT); ");
+    foreach($res as $row) {
+        $node = node_load($row->nid);
+        for($j=0; $j < count($node->field_asset_topic_taxonomy['und']); $j++) {
+            // to check it has kids asset taxonomy assigned
+            $term_parents = taxonomy_get_parents_all($node->field_asset_topic_taxonomy['und'][$j]['tid']);
+            $is_kids_asset = FALSE;
+
+            $parent_terms = array();
+            foreach ($term_parents as $a_term) {
+                if ($a_term->tid == 3897) { // whether it is kids asset topic taxonomy
+                    $is_kids_asset = TRUE;
+                }
+            }
+        }
+
+        $i++;
+
+        if ($is_kids_asset) {
+
+            // find out where this nodes are linked in site structure taxonomy
+            $sst_sql = "SELECT entity_id as tid FROM field_data_field_asset_order_content WHERE field_asset_order_content_target_id = " . $node->nid;
+            $sst_res = db_query($sst_sql)->fetchField();
+
+            if (isset($sst_res) && $sst_res > 0) {
+
+                $ret .= $i .' - '. l($node->title, "/node/" . $node->nid . '/edit');
+                $contents = explode("</iframe>",$node->field_html['und'][0]['value']);
+
+                if (count($contents) > 0) {
+
+                    $multimedia_node = new StdClass();
+                    $multimedia_node->type = 'multimedia_content_type';
+                    $multimedia_node->comment = 0;
+                    $multimedia_node->status = 1;
+                    $multimedia_node->promote = 0;
+                    $multimedia_node->language = 'en';
+                    $multimedia_node->uid = $node->uid;
+                    node_object_prepare($multimedia_node);
+                    $multimedia_node->title = 'Video for: ' . $node->title;
+                    $multimedia_node->field_for_use_by['und'][0]['value'] = $node->field_for_use_by['und'][0]['value'];
+                    $multimedia_node->field_asset_topic_taxonomy['und'][0]['tid'] = $node->field_asset_topic_taxonomy['und'][0]['tid'];
+                    $multimedia_node->field_owner['und'][0]['target_id'] = (isset($node->field_owner['und'][0]['target_id'])? $node->field_owner['und'][0]['target_id']:1);
+                    $multimedia_node->field_notify_marketing_team['und'][0]['value'] = $node->field_notify_marketing_team['und'][0]['value'];
+                    $multimedia_node->field_priority['und'][0] = $node->field_priority['und'][0];
+                    $multimedia_node->field_language['und'][0]['value'] = $node->field_language['und'][0]['value'];
+                    $multimedia_node->field_description['und'][0] = $node->field_description['und'][0];
+                    $multimedia_node->field_date_last_reviewed['und'] = $node->field_date_last_reviewed['und'];
+                    $multimedia_node->field_workflow_state_search['und'] = $node->field_workflow_state_search['und'];
+                    $multimedia_node->field_embed_code['und'][0]['value'] = str_replace("http://", "https://", $contents[0]) . '</iframe>';
+                    $multimedia_node->field_media_type['und'][0]['value'] = 'Video';
+
+                    // save multimedia node
+                    node_save($multimedia_node);
+
+                    if (count($contents) > 2) {
+                        $tmp = $contents;
+                        unset($tmp[0]);
+                        $ret .= '<h3 style="color:red">MULTIPLE IFRAME FOUND</h3>';
+                    }
+
+                    $text_node = new StdClass();
+                    $text_node->type = 'text_content_type';
+                    $text_node->comment = 0;
+                    $text_node->status = 1;
+                    $text_node->promote = 0;
+                    $text_node->language = 'en';
+                    $text_node->uid = $node->uid;
+                    node_object_prepare($text_node);
+                    $text_node->title = $node->title;
+                    $text_node->field_for_use_by_text['und'][0]['value'] = $node->field_for_use_by['und'][0]['value'];
+                    $text_node->field_asset_topic_taxonomy['und'][0]['tid'] = $node->field_asset_topic_taxonomy['und'][0]['tid'];
+                    $text_node->field_owner['und'][0]['target_id'] = (isset($node->field_owner['und'][0]['target_id'])? $node->field_owner['und'][0]['target_id']:1);
+                    $text_node->field_notify_marketing_team['und'][0]['value'] = $node->field_notify_marketing_team['und'][0]['value'];
+                    $text_node->field_priority['und'][0] = $node->field_priority['und'][0];
+                    $text_node->field_language['und'][0]['value'] = $node->field_language['und'][0]['value'];
+                    $text_node->field_description['und'][0] = $node->field_description['und'][0];
+                    $text_node->field_date_last_reviewed['und'] = $node->field_date_last_reviewed['und'];
+                    $text_node->field_workflow_state_search['und'] = $node->field_workflow_state_search['und'];
+                    unset($contents[0]);
+                    $text_node->body['und'][0]['format'] = 'filtered_html';
+                    $text_node->body['und'][0]['summary'] = '';
+                    $text_node->body['und'][0]['value'] = (count($contents) > 0)? implode('</iframe>', $contents) : $contents[0];
+
+                   // $ret .= (count($contents) > 0)? implode('</iframe>', $contents) : $contents[0];
+
+                    // need to be related multimedia id
+                    $text_node->field_related_multimedia_two['und'][0]['target_id'] = $multimedia_node->nid;
+                    node_save($text_node);
+
+                    $ssterm = taxonomy_term_load($sst_res);
+                    $ssterm->field_asset_order_content['und'][0]['target_id'] = $text_node->nid;
+                    taxonomy_term_save($ssterm);
+
+                    $ret .= '<br/>' . l($ssterm->name . "/taxonomy/term/" . $sst_res, "/taxonomy/term/" . $sst_res . '/edit');
+                    // need log tables
+                    db_query("INSERT INTO html_to_multimedia_log(html_nid, text_nid, multimedia_nid, term_id, status) VALUES(".$node->nid.", " . $text_node->nid . ", " . $multimedia_node->nid . ", " . $sst_res . ",1); ");
+
+                }
+                else {
+                    $ret .= '<br/>' . '<h4 style="color:red">' . l($node->title, "/node/" . $node->nid . '/edit') . 'NO iFRAME FOUND</h4>';
+                }
+            }
+            else {
+                $ret .= '<br/>' . '<h4 style="color:red">' . l($node->title, "/node/" . $node->nid . '/edit'). ' >> ASSOCIATED TAXONOMY NOT FOUND</h4>';
+            }
+            $ret .= '<hr/>';
+        }
+    }
+
+    return $ret;
 }
 
 function _clean_kids_data($type) {
