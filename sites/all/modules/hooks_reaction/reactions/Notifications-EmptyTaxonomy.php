@@ -439,7 +439,7 @@ function informPmTeamOfEmptyPage($term, $pendingChange = false) {
 
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will 
         be called and used to determine the email-message to send. */
-       /* $res = drupal_mail(
+        $res = drupal_mail(
             'cmp_misc',
             'scanning_content',
             $strTo,
@@ -449,8 +449,8 @@ function informPmTeamOfEmptyPage($term, $pendingChange = false) {
         );
         if ($res["send"]) {
             drupal_set_message("Empty-Page notification has been sent to: " . $strTo);
-        }*/
-        drupal_set_message("Turned off taxonomy notification. It has to be turned on after html asset conversion.");
+        }
+        //drupal_set_message("Turned off taxonomy notification. It has to be turned on after html asset conversion.");
 
     } else {
         // then we are running on someone's local, do NOT send the email
