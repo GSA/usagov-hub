@@ -55,14 +55,29 @@ function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_stat
 
             $nid = $assetNidContainer['target_id'];
 
+            // Get the revision of the published version of this node
+            $targetRevId = db_query("
+                SELECT vid 
+                FROM node_revision 
+                WHERE nid = {$nid} AND status = 1
+                ORDER BY vid desc 
+                LIMIT 1;
+            ")->fetchColumn();
+
+            // If the node has never been published yet, then default to the latest revision
+            if ( $targetRevId == false )
+                $targetRevId = db_query("SELECT vid FROM node_revision WHERE nid = ".$nid)->fetchColumn();
+
+            // Obtain node info
             $nodeInfo = db_query("
-                SELECT nid, title, type, field_priority_value AS 'priority'
+                SELECT nid, title, type, field_priority_value AS 'priority', p.revision_id AS 'vid'
                 FROM node n 
-                LEFT JOIN field_data_field_priority p ON ( p.entity_id = n.nid )
+                LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = {$targetRevId} )
                 WHERE n.nid = {$nid}
             ")->fetchAll();
             $nodeInfo = $nodeInfo[0];
 
+            // Note this node info in a global NodeInfoCache JavaScript variable
             drupal_add_js("NodeInfoCache['n{$nid}'] = ".json_encode($nodeInfo), 'inline');
         }
     }
@@ -95,19 +110,42 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
         FROM field_data_field_asset_topic_taxonomy 
         WHERE field_asset_topic_taxonomy_tid IN ({$msqlTerms})
     ")->fetchCol();
-    $nids = implode(',', $nids);
-    if ( trim($nids) === '' ) {
+    if ( count($nids) === 0 ) {
         print '[]';
         exit();
     }
 
     // Get information on these nodes
-    $nodes = db_query("
-        SELECT nid, title, type, field_priority_value AS 'priority'
-        FROM node n 
-        LEFT JOIN field_data_field_priority p ON ( p.entity_id = n.nid )
-        WHERE n.nid IN ($nids)
-    ")->fetchAll();
+    $nodes = array();
+    foreach ($nids as $nid ) {
+
+        // If this is a broken pointer (if this node-id dosnt exist), ignore...
+        if ( db_query("SELECT count(*) FROM node WHERE nid=".$nid)->fetchColumn() == 0 ) {
+            continue;
+        }
+
+        // Get the revision of the published version of this node
+        $targetRevId = db_query("
+            SELECT vid 
+            FROM node_revision 
+            WHERE nid = {$nid} AND status = 1
+            ORDER BY vid desc 
+            LIMIT 1;
+        ")->fetchColumn();
+
+        // If the node has never been published yet, then default to the latest revision
+        if ( $targetRevId == false )
+            $targetRevId = db_query("SELECT vid FROM node_revision WHERE nid = ".$nid)->fetchColumn();
+
+        // Obtain node info
+        $thisNode = db_query("
+            SELECT nid, title, type, field_priority_value AS 'priority', p.revision_id AS 'vid'
+            FROM node n 
+            LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = {$targetRevId} )
+            WHERE n.nid = {$nid}
+        ")->fetchAll();
+        $nodes[] = $thisNode[0];
+    }
 
     print json_encode($nodes);
 
@@ -125,21 +163,39 @@ function asset_topic_placement_ajaxReturnNodesInfo() {
         exit('Error - no nids argument supplied');
     }
 
-    // MySQL string sanitization 
+    // MySQL string sanitization and get Node-IDs
     $nids = explode(',', $_REQUEST['nids']);
     $msqlNids = array();
     foreach ( $nids as $nid ) {
         $msqlNids[] = intval($nid);
     }
-    $msqlNids = implode(',', $msqlNids);
 
     // Get information on these nodes
-    $nodes = db_query("
-        SELECT nid, title, type, field_priority_value AS 'priority'
-        FROM node n 
-        LEFT JOIN field_data_field_priority p ON ( p.entity_id = n.nid )
-        WHERE n.nid IN ($msqlNids)
-    ")->fetchAll();
+    $nodes = array();
+    foreach ($nids as $nid ) {
+
+        // Get the revision of the published version of this node
+        $targetRevId = db_query("
+            SELECT vid 
+            FROM node_revision 
+            WHERE nid = {$nid} AND status = 1
+            ORDER BY vid desc 
+            LIMIT 1;
+        ")->fetchColumn();
+
+        // If the node has never been published yet, then default to the latest revision
+        if ( $targetRevId == false )
+            $targetRevId = db_query("SELECT vid FROM node_revision WHERE nid = ".$nid)->fetchColumn();
+
+        // Obtain node info
+        $thisNode = db_query("
+            SELECT nid, title, type, field_priority_value AS 'priority', p.revision_id AS 'vid'
+            FROM node n 
+            LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = {$targetRevId} )
+            WHERE n.nid = {$nid}
+        ")->fetchAll();
+        $nodes[] = $thisNode[0];
+    }
 
     print json_encode($nodes);
 
