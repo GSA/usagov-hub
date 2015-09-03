@@ -601,19 +601,35 @@ function processSticky() {
 			// Determine weather this is a sticky-item or not
 			var nodesInfo = atp_getNodeInfoFromCache([nodeId]);
 			var nodeData = nodesInfo[nodeId];
-			if ( nodeData['priority'] == 'sticky' ) {
+			if ( nodeData['priority'] == 'sticky' || nodeData['haspubrevision'] == '0' ) {
 
-				var newLabelHtml = jqLabel.html()+' (<small><b>sticky</b></small>)';
+				// Determin what "tags" to show next to this element's title
+				var arrLabelTags = [];
+				if ( nodeData['priority'] == 'sticky' ) {
+					arrLabelTags.push('sticky');
+				}
+				if ( nodeData['haspubrevision'] == '0' ) {
+					arrLabelTags.push('no-published-revision');
+				}
+				var strLabelTags = arrLabelTags.join(', ');
+
+				// Set the new label tabs into the row
+				var newLabelHtml = jqLabel.html()+' (<small><b>'+strLabelTags+'</b></small>)';
 				jqLabel.html(newLabelHtml);
 
-				jqDragHandle.hide().addClass('element-invisible');
-				jqRow.addClass('sticky-processed');
-				jqRow.addClass('is-sticky');
-				jqParentTableNode.addClass('needsZebraReprocessing');
-				jqParentTableNode.addClass('needsStickySorting');
+				// Further sticky processing
+				if ( nodeData['priority'] == 'sticky' ) {
 
-				// By relocating this <tr> up one level, it becomes unmovable
-				jqRow.detach().insertBefore(jqParentTableBodyNode);
+					jqDragHandle.hide().addClass('element-invisible');
+					jqRow.addClass('is-sticky');
+					jqParentTableNode.addClass('needsZebraReprocessing');
+					jqParentTableNode.addClass('needsStickySorting');
+
+					// By relocating this <tr> up one level, it becomes unmovable
+					jqRow.detach().insertBefore(jqParentTableBodyNode);
+				}
+
+				jqRow.addClass('sticky-processed');
 
 			} else {
 				jqRow.addClass('sticky-processed');

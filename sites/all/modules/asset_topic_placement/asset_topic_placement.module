@@ -57,20 +57,28 @@ function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_stat
 
             // Get the revision of the published version of this node
             $targetRevId = db_query("
-                SELECT vid 
-                FROM node_revision 
-                WHERE nid = {$nid} AND status = 1
-                ORDER BY vid desc 
-                LIMIT 1;
+                SELECT r.vid 
+                FROM node n
+                LEFT JOIN node_revision r ON ( r.nid = n.nid AND r.vid= n.vid )
+                WHERE n.nid = {$nid} AND n.status = 1 AND r.status = 1
             ")->fetchColumn();
+            $wasPublished = 1;
 
             // If the node has never been published yet, then default to the latest revision
-            if ( $targetRevId == false )
+            if ( $targetRevId == false ) {
                 $targetRevId = db_query("SELECT vid FROM node_revision WHERE nid = ".$nid)->fetchColumn();
+                $wasPublished = 0;
+            }
 
             // Obtain node info
             $nodeInfo = db_query("
-                SELECT nid, title, type, field_priority_value AS 'priority', p.revision_id AS 'vid'
+                SELECT 
+                    nid, 
+                    title, 
+                    type, 
+                    field_priority_value AS 'priority', 
+                    p.revision_id AS 'vid',
+                    {$wasPublished} AS 'haspubrevision'
                 FROM node n 
                 LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = {$targetRevId} )
                 WHERE n.nid = {$nid}
@@ -126,20 +134,28 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
 
         // Get the revision of the published version of this node
         $targetRevId = db_query("
-            SELECT vid 
-            FROM node_revision 
-            WHERE nid = {$nid} AND status = 1
-            ORDER BY vid desc 
-            LIMIT 1;
+            SELECT r.vid 
+            FROM node n
+            LEFT JOIN node_revision r ON ( r.nid = n.nid AND r.vid= n.vid )
+            WHERE n.nid = {$nid} AND n.status = 1 AND r.status = 1
         ")->fetchColumn();
+        $wasPublished = 1;
 
         // If the node has never been published yet, then default to the latest revision
-        if ( $targetRevId == false )
+        if ( $targetRevId == false ) {
             $targetRevId = db_query("SELECT vid FROM node_revision WHERE nid = ".$nid)->fetchColumn();
+            $wasPublished = 0;
+        }
 
         // Obtain node info
         $thisNode = db_query("
-            SELECT nid, title, type, field_priority_value AS 'priority', p.revision_id AS 'vid'
+            SELECT 
+                nid, 
+                title, 
+                type, 
+                field_priority_value AS 'priority', 
+                p.revision_id AS 'vid', 
+                {$wasPublished} AS 'haspubrevision'
             FROM node n 
             LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = {$targetRevId} )
             WHERE n.nid = {$nid}
@@ -176,20 +192,28 @@ function asset_topic_placement_ajaxReturnNodesInfo() {
 
         // Get the revision of the published version of this node
         $targetRevId = db_query("
-            SELECT vid 
-            FROM node_revision 
-            WHERE nid = {$nid} AND status = 1
-            ORDER BY vid desc 
-            LIMIT 1;
+            SELECT r.vid 
+            FROM node n
+            LEFT JOIN node_revision r ON ( r.nid = n.nid AND r.vid= n.vid )
+            WHERE n.nid = {$nid} AND n.status = 1 AND r.status = 1
         ")->fetchColumn();
+        $wasPublished = 1;
 
         // If the node has never been published yet, then default to the latest revision
-        if ( $targetRevId == false )
+        if ( $targetRevId == false ) {
             $targetRevId = db_query("SELECT vid FROM node_revision WHERE nid = ".$nid)->fetchColumn();
+            $wasPublished = 0;
+        }
 
         // Obtain node info
         $thisNode = db_query("
-            SELECT nid, title, type, field_priority_value AS 'priority', p.revision_id AS 'vid'
+            SELECT 
+                nid, 
+                title, 
+                type, 
+                field_priority_value AS 'priority', 
+                p.revision_id AS 'vid',
+                {$wasPublished} AS 'haspubrevision'
             FROM node n 
             LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = {$targetRevId} )
             WHERE n.nid = {$nid}
