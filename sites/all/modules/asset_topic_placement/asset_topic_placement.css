@@ -29,6 +29,3 @@ span.warning.tabledrag-changed {
 .drag-previous.even {
   background: #f3f4ee;
 }
-.is-sticky a {
-  display: none !important;
-}
