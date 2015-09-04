@@ -223,6 +223,12 @@ function asset_topic_placement_ajaxReturnNodesInfo() {
             $wasPublished = 0;
         }
 
+        /* If we still couldn't find the $targetRevId, then this node doesn't 
+        exists, (this is a broken reference), ignore/skip. */
+        if ( $targetRevId ==- false ) {
+            continue;
+        }
+
         // Obtain node info
         $thisNode = db_query("
             SELECT 
