@@ -203,7 +203,8 @@ function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
   $child_form = form_builder('taxonomy_manager_form', $child_form, $form_state);
 
     foreach ( $child_form['#elements'] as &$element ) {
-        $tid = array_pop(explode('/', $element['checkbox']['#link']));
+        $expLink = explode('/', $element['checkbox']['#link']);
+        $tid = array_pop($expLink);
         $term = taxonomy_term_load($tid);
 
         $genMenu = false;
