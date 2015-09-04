@@ -387,7 +387,7 @@ function atp_getNodeInfoFromCache(arrNids) {
 		var nid = arrNids[n];
 		var nnid = 'n'+nid;
 		if ( typeof NodeInfoCache[nnid] == 'undefined' ) {
-			debugger; // this line should never hit!
+			//debugger; // this line should never hit!
 			return false;
 		} else {
 			nodesFromCache[nid] = NodeInfoCache[nnid];
@@ -600,39 +600,43 @@ function processSticky() {
 
 			// Determine weather this is a sticky-item or not
 			var nodesInfo = atp_getNodeInfoFromCache([nodeId]);
-			var nodeData = nodesInfo[nodeId];
-			if ( nodeData['priority'] == 'sticky' || nodeData['haspubrevision'] == '0' ) {
-
-				// Determin what "tags" to show next to this element's title
-				var arrLabelTags = [];
-				if ( nodeData['priority'] == 'sticky' ) {
-					arrLabelTags.push('sticky');
-				}
-				if ( nodeData['haspubrevision'] == '0' ) {
-					arrLabelTags.push('no-published-revision');
-				}
-				var strLabelTags = arrLabelTags.join(', ');
-
-				// Set the new label tabs into the row
-				var newLabelHtml = jqLabel.html()+' (<small><b>'+strLabelTags+'</b></small>)';
-				jqLabel.html(newLabelHtml);
-
-				// Further sticky processing
-				if ( nodeData['priority'] == 'sticky' ) {
-
-					jqDragHandle.hide().addClass('element-invisible');
-					jqRow.addClass('is-sticky');
-					jqParentTableNode.addClass('needsZebraReprocessing');
-					jqParentTableNode.addClass('needsStickySorting');
-
-					// By relocating this <tr> up one level, it becomes unmovable
-					jqRow.detach().insertBefore(jqParentTableBodyNode);
-				}
-
+			if ( typeof nodesInfo[nodeId] === 'undefined' ) {
 				jqRow.addClass('sticky-processed');
-
 			} else {
-				jqRow.addClass('sticky-processed');
+				var nodeData = nodesInfo[nodeId];
+				if ( nodeData['priority'] == 'sticky' || nodeData['haspubrevision'] == '0' ) {
+
+					// Determin what "tags" to show next to this element's title
+					var arrLabelTags = [];
+					if ( nodeData['priority'] == 'sticky' ) {
+						arrLabelTags.push('sticky');
+					}
+					if ( nodeData['haspubrevision'] == '0' ) {
+						arrLabelTags.push('no-published-revision');
+					}
+					var strLabelTags = arrLabelTags.join(', ');
+
+					// Set the new label tabs into the row
+					var newLabelHtml = jqLabel.html()+' (<small><b>'+strLabelTags+'</b></small>)';
+					jqLabel.html(newLabelHtml);
+
+					// Further sticky processing
+					if ( nodeData['priority'] == 'sticky' ) {
+
+						jqDragHandle.hide().addClass('element-invisible');
+						jqRow.addClass('is-sticky');
+						jqParentTableNode.addClass('needsZebraReprocessing');
+						jqParentTableNode.addClass('needsStickySorting');
+
+						// By relocating this <tr> up one level, it becomes unmovable
+						jqRow.detach().insertBefore(jqParentTableBodyNode);
+					}
+
+					jqRow.addClass('sticky-processed');
+
+				} else {
+					jqRow.addClass('sticky-processed');
+				}
 			}
 
 		} else {
