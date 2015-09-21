@@ -20,31 +20,22 @@
 $GLOBALS['taxSiteStrucTogHelper_updateRefTerm'] = null;
 $GLOBALS['taxSiteStrucTogHelper_noPostProc'] = false;
 
-
 hooks_reaction_add('HOOK_taxonomy_term_presave',
     function ($term) {
-
-        error_log("Hit ".$term->name);
 
         // We only care about Site-Structure taxonomy-terms here
         if ( empty($term->vocabulary_machine_name) || $term->vocabulary_machine_name !== 'site_strucutre_taxonomy' ) {
             return;
         }
 
-        // We only act when there is data supplied in the field_english_spanish_toggle field
-        if ( empty($term->field_english_spanish_toggle) || empty($term->field_english_spanish_toggle['und']) ) {
-            return;
-        }
-        if ( empty($term->field_english_spanish_toggle['und'][0]) || empty($term->field_english_spanish_toggle['und'][0]['relation_type']) ) {
-            return;
-        }
-        if ( empty( $term->field_english_spanish_toggle['und'][0]['relation_options']['targets']['target_2'] ) ) {
-            return;
-        }
-
         // Get the target referenced/toggle term-ID
         $targetRelationId = _taxSiteStructToggleHelper_getRefToggleTerm($term);
 
+        // We only act when there is data supplied in the field_english_spanish_toggle field
+        if ( $targetRelationId == false ) {
+            return;
+        }
+        
         // We now must determin which field we are going to update; the "USA.gov Toggle URL" or "GobiernoUSA.gov Toggle URL".
         $targetIdUnderTree = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid = {$targetRelationId}")->fetchColumn();
         switch ( $targetIdUnderTree ) {
