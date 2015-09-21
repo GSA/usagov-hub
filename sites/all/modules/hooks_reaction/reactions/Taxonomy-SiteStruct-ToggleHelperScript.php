@@ -20,6 +20,21 @@
 $GLOBALS['taxSiteStrucTogHelper_updateRefTerm'] = null;
 $GLOBALS['taxSiteStrucTogHelper_noPostProc'] = false;
 
+hooks_reaction_add(
+    array(
+        'HOOK_form_taxonomy_manager_form_alter',
+        'HOOK_form_taxonomy_form_term_alter',
+    ),
+    function ($form, $form_state, $form_id) {
+
+        drupal_add_css('.field-name-field-gobiernousa-gov-toggle-url { display: none; }', 'inline');
+        drupal_add_css('.field-name-field-usa-gov-toggle-url { display: none; }', 'inline');
+        drupal_add_css('.field-name-field-english-spanish-toggle .relation-add-wrapper label { display: none; }', 'inline');
+        drupal_add_css('.field-name-field-english-spanish-toggle .relation-add-wrapper .form-type-checkbox { display: none; }', 'inline');
+        drupal_add_css('.field-name-field-english-spanish-toggle .relation-add-wrapper { margin-left: 0px; }', 'inline');
+    }
+);
+
 hooks_reaction_add('HOOK_taxonomy_term_presave',
     function ($term) {
 
