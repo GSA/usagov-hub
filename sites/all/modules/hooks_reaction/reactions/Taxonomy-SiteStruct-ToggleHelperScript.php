@@ -44,15 +44,55 @@ hooks_reaction_add('HOOK_taxonomy_term_presave',
         }
 
         // Get the target referenced/toggle term-ID
-        $targetRelationId = _taxSiteStructToggleHelper_getRefToggleTerm($term);
+        $targetRelationTermId = _taxSiteStructToggleHelper_getRefToggleTerm($term);
 
         // We only act when there is data supplied in the field_english_spanish_toggle field
-        if ( $targetRelationId == false ) {
+        if ( $targetRelationTermId == false ) {
             return;
+        }
+
+        /* Before we implement a 2-way relation between two terms, let us check to 
+        see if the other term is already related to something else */
+        $targetTermRelationCount = db_query("
+            SELECT COUNT(*) AS 'count'
+            FROM field_data_endpoints e1 
+            LEFT JOIN field_data_endpoints e2 ON ( e1.entity_id = e2.entity_id )
+            WHERE 
+                e1.bundle = 'language_toggle'
+                AND e1.endpoints_entity_id = {$targetRelationTermId}
+                AND NOT ( 
+                    e2.endpoints_entity_id IN ({$term->tid}, {$targetRelationTermId}) 
+                    AND e2.endpoints_entity_id IN ({$term->tid}, {$targetRelationTermId}) 
+                )
+        ")->fetchColumn();
+
+        // If the other term IS related to something else, clobber it
+        if ( intval($targetTermRelationCount) > 0 ) {
+
+            error_log("SiteStruct-ToggleHelper wants to associate a term with another therm, that is already "
+                ."associated with something else. SiteStruct-ToggleHelper is now deleting relations in its way.");
+            
+            $results = db_query("
+                SELECT DISTINCT e1.entity_id AS 'relationid'
+                FROM field_data_endpoints e1 
+                LEFT JOIN field_data_endpoints e2 ON ( e1.entity_id = e2.entity_id )
+                WHERE 
+                    e1.bundle = 'language_toggle'
+                    AND e1.endpoints_entity_id = {$targetRelationTermId}
+                    AND NOT ( 
+                        e2.endpoints_entity_id IN ({$term->tid}, {$targetRelationTermId}) 
+                        AND e2.endpoints_entity_id IN ({$term->tid}, {$targetRelationTermId}) 
+                    )
+            ");
+
+            foreach ( $results as $result ) {
+                relation_delete($result->relationid);
+                error_log("Deleted relation ".$result->relationid);
+            }
         }
         
         // We now must determin which field we are going to update; the "USA.gov Toggle URL" or "GobiernoUSA.gov Toggle URL".
-        $targetIdUnderTree = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid = {$targetRelationId}")->fetchColumn();
+        $targetIdUnderTree = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid = {$targetRelationTermId}")->fetchColumn();
         switch ( $targetIdUnderTree ) {
             case 'USA.gov':
                 // we'll update the "USA.gov Toggle URL" field
@@ -74,14 +114,14 @@ hooks_reaction_add('HOOK_taxonomy_term_presave',
             FROM field_data_field_friendly_url
             WHERE
                 entity_type = 'taxonomy_term'
-                AND entity_id = {$targetRelationId}
+                AND entity_id = {$targetRelationTermId}
             LIMIT 1
         ")->fetchColumn();
 
         // Bail if we failed to obtain a Friendly-URL value for this referenced-term
         if ( empty($refTermsFriendlyUrlValue) ) {
             error_log('Error - Taxonomy-SiteStruct-ToggleHelperScript.php was unable to obtain a Friendly-URL '
-                .'value for the referenced-term: '.$targetRelationId);
+                .'value for the referenced-term: '.$targetRelationTermId);
             return;
         }
 
@@ -120,7 +160,7 @@ hooks_reaction_add('HOOK_taxonomy_term_presave',
             Alright- now to get, just a little, funky...
 
             This code in THIS hook, is firing on PRE-save of this $term. We want to run additional logic; to have
-            the referenced-term ($targetRelationId) update it's Toggle-URL as well (since THIS $term's toggles 
+            the referenced-term ($targetRelationTermId) update it's Toggle-URL as well (since THIS $term's toggles 
             point to the ref-term, and the ref-term should point at THIS $term back).
 
             HOWEVER; Keep in mind that at THIS [execution] point, the information in THIS $term is not yet saved 
@@ -136,7 +176,7 @@ hooks_reaction_add('HOOK_taxonomy_term_presave',
         }
 
         // [!!] After this, LOGIC CONTINUES IN: _taxSiteStructToggleHelper_postTermSave_updateRefTerm()
-        $GLOBALS['taxSiteStrucTogHelper_updateRefTerm'] = $targetRelationId; // push this value into the global scope
+        $GLOBALS['taxSiteStrucTogHelper_updateRefTerm'] = $targetRelationTermId; // push this value into the global scope
 
 
     } // End Hook: taxonomy_term_presave
@@ -190,15 +230,15 @@ function _taxSiteStructToggleHelper_getRefToggleTerm($term ) {
     $targetRelationString = $term->field_english_spanish_toggle['und'][0]['relation_options']['targets']['target_2'];
     $words = explode(':', $targetRelationString);
     $lastWord = @array_pop($words);
-    $targetRelationId = intval($lastWord);
+    $targetRelationTermId = intval($lastWord);
 
     // Bail if we failed to parse out the target-id
-    if ( $targetRelationId === 0 ) {
+    if ( $targetRelationTermId === 0 ) {
         error_log('Error - Taxonomy-SiteStruct-ToggleHelperScript.php failed to obtain a target reference-id.');
         return false;
     }
 
-    return $targetRelationId;
+    return $targetRelationTermId;
 }
 
 
