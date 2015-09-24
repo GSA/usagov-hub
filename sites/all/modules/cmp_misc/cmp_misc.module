@@ -289,6 +289,17 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
         $form['field_owner']['und'][0]['target_id']['#default_value'] = $currentUserStr;
     }
 
+    // repeating the logic above for the owner fields, except for terms instead of nodes
+    if ( !isset($form_state['term']->tid) 
+        && $form_id == 'taxonomy_form_term'
+        &&  empty($form['field_term_owner']['und'][0]['target_id']['#default_value'])
+        && strlen($form['field_term_owner']['und'][0]['target_id']['#default_value']) == 0 )
+    {
+        global $user;
+        $currentUserStr = $user->name . " (" . $user->uid . ") ";
+        $form['field_term_owner']['und'][0]['target_id']['#default_value'] = $currentUserStr;
+    }
+
     // If this is the edit form for any node under the 'Text Asset' content-type
     //if ( $form_id === 'text_content_type_node_form' ) {
 
