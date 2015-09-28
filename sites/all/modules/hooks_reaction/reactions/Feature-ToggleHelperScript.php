@@ -18,7 +18,7 @@ $GLOBALS['FeatureToggHelper_ignoreNids'] = array();
 hooks_reaction_add('form_text_content_type_node_form_alter',
     function (&$form, &$form_state, $form_id) {
 
-        drupal_add_css('.field-name-field-feature-toggle { display: none; }', 'inline');
+        //drupal_add_css('.field-name-field-feature-toggle { display: none; }', 'inline');
 
     }
 );
@@ -31,6 +31,10 @@ hooks_reaction_add('HOOK_node_presave',
             return;
         }
 
+        // This is needed in order to prevent infinite loops (see later code)
+        if ( $GLOBALS['FeatureToggHelper_noPostProc'] ) {
+            return;
+        }
         if ( in_array(intval($node->nid), $GLOBALS['FeatureToggHelper_ignoreNids']) ) {
             return;
         }
@@ -68,8 +72,8 @@ hooks_reaction_add('HOOK_node_presave',
 
                     } else {
 
-                        // While savng it in the Draft (workflow) state 
-                        $nodeRef->workbench_moderation_state_new = workbench_moderation_state_none();
+                        // While savng it in the needs_review (workflow) state 
+                        $nodeRef->workbench_moderation_state_new = 'needs_review';
 
                         // With this #ref pointing to nothing
                         $nodeRef->field_feature_toggle_ref = array();
@@ -79,9 +83,17 @@ hooks_reaction_add('HOOK_node_presave',
                         // So we'll set a global No-Process flag to prevent infinite loops
                         error_log("ToggleHelperScript: Emptying the field_feature_toggle field in new revision for node: ".$nodeRef->title);
                         $GLOBALS['FeatureToggHelper_noPostProc'] = true;
-                        node_save($nodeRef);
                         $GLOBALS['FeatureToggHelper_ignoreNids'][] = intval($nodeRef->nid);
+                        node_save($nodeRef);
                         $GLOBALS['FeatureToggHelper_noPostProc'] = false;
+
+                        drupal_set_message(
+                            "Note: Since you have removed the relation to \"{$nodeRef->title}\", a new revision "
+                                ."of \"{$nodeRef->title}\" has been created, in the <i>Needs Approval</i> state "
+                                ."with the relation to \"{$node->title}\" removed.",
+                            "warning",
+                            FALSE
+                        );
                     }
 
                 }
@@ -107,11 +119,6 @@ hooks_reaction_add('HOOK_node_presave',
             )
         );
 
-        // This is needed in order to prevent infinite loops (see later code)
-        if ( $GLOBALS['FeatureToggHelper_noPostProc'] ) {
-            return;
-        }
-
         // Now this this $node points to #ref, we want a bidirectional relation where #ref points back to $node
         $nodeRef = _featureToggle_nodeLoadRecent($targetRelationNodeId);
 
@@ -119,8 +126,8 @@ hooks_reaction_add('HOOK_node_presave',
         unset($nodeRef->vid);
         $nodeRef->revision = 1;
 
-        // While savng it in the Draft (workflow) state 
-        $nodeRef->workbench_moderation_state_new = workbench_moderation_state_none();
+        // While savng it in the needs_review (workflow) state 
+        $nodeRef->workbench_moderation_state_new = 'needs_review';
 
         // With this #ref pointing back to this $node
         error_log("ToggleHelperScript: Setting Toggle-Ref to {$node->nid} in new revision for node: ".$nodeRef->title);
@@ -131,13 +138,30 @@ hooks_reaction_add('HOOK_node_presave',
                 )
             )
         );
+        $nodeRef->field_feature_toggle = array(
+            'und' => array(
+                0 => array(
+                    'value' => $node->title,
+                    'format' => null,
+                    'safe_value' => $node->title,
+                )
+            )
+        );
 
         // And remember that we will trigger this same HOOK_node_presave with node_save()
         // So we'll set a global No-Process flag to prevent infinite loops
         $GLOBALS['FeatureToggHelper_noPostProc'] = true;
-        node_save($nodeRef);
         $GLOBALS['FeatureToggHelper_ignoreNids'][] = intval($nodeRef->nid);
+        node_save($nodeRef);
         $GLOBALS['FeatureToggHelper_noPostProc'] = false;
+
+        drupal_set_message(
+            "Note: Since you have added a relation to \"{$nodeRef->title}\", a new revision "
+                ."of \"{$nodeRef->title}\" has been created, in the <i>Needs Approval</i> state "
+                ."with the relation to \"{$node->title}\" added.",
+            "warning",
+            FALSE
+        );
 
     } // End Hook: node_presave
 
