@@ -18,7 +18,7 @@ $GLOBALS['FeatureToggHelper_ignoreNids'] = array();
 hooks_reaction_add('form_text_content_type_node_form_alter',
     function (&$form, &$form_state, $form_id) {
 
-        //drupal_add_css('.field-name-field-feature-toggle { display: none; }', 'inline');
+        drupal_add_css('.field-name-field-feature-toggle { display: none; }', 'inline');
 
     }
 );
