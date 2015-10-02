@@ -195,6 +195,23 @@ function repo_sync_form() {
         '#required' => TRUE,
     );
 
+    $form['reposdest']['srcwlisttargetoverride'] = array(
+        '#type' => 'fieldset',
+        '#title' => 'White-List Target Directory Overrides',
+        '#collapsible' => true,
+        '#collapsed' => true,
+    );
+
+    $form['reposdest']['srcwlisttargetoverride']['srcwlisttargetoverlist'] = array(
+        '#type' => 'textarea',
+        '#title' => 'search:target',
+        '#default_value' => repo_sync_settings('srcwlisttargetoverlist'), 
+        '#description' => 'Separate each override with a new line, each line should have a colon (:), which '
+            .'will devide the <b>search string</b> and the <b>override path</b>.<br/>Should a path to a file '
+            .'in the remote-repository contain the <b>search-string</b>, the given <b>target-path</b> will be '
+            .'used in place of the value in the "<i>White-List Target Directory</i>" field above.'
+    );
+
     $form['reposdest']['srcwlistjail'] = array(
         '#type' => 'textarea', 
         '#title' => 'Directory Jail', 
@@ -466,6 +483,12 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
         repo_sync_logEvent(true, "Error - Could not read white-list file, are permissions set correctly?", true);
         return false;
     }
+    $whiteList[] = 'blog/mars-zen/mars/js/*';
+    $whiteList[] = 'blog/mars-zen/mars/css/*';
+    $whiteList[] = 'blog/mars-zen/mars/css/layouts/*';
+    $whiteList[] = 'blog/mars-zen/zen/css/*';
+    $whiteList[] = 'blog/mars-zen/zen/js/*';
+    $whiteList[] = '';
     $whiteList = repo_sync_resolve($wdir, $whiteList);
 
     // Resolve real-paths for the directory-jail
@@ -493,7 +516,7 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
         // Get entry information
         $entry = trim(trim($entry), "\"'");
         $fileRelSrc = $entry;
-        $fileRelDest = trim($settings['srcwlisttarget'],'/').'/'.$entry;
+        $fileRelDest = trim(repo_sync_determinRepoRelTarget($fileRelSrc, $settings),'/');
 
         // Determine paths
         $filePathSrc = $wdir.'/src/'.$fileRelSrc;
@@ -550,7 +573,7 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     `cd {$wdir}/dest; git add -A;`;
 
     // Push up the new files
-    $rslt = `cd {$wdir}/dest; git commit -m 'test'; git push`;
+    $rslt = `cd {$wdir}/dest; git commit -m 'Russell Repo Sync'; git push`;
     if ( strpos($rslt, 'nothing to commit') !== false ) {
         repo_sync_logEvent(true, "Warning: Nothing was pushed in repo-sync, no files appear to be updated.");
     } else {
@@ -599,6 +622,54 @@ function repo_sync_resolve($wdir, $whiteList) {
     }
 
     return $ret;
+}
+
+/**
+ * string repo_sync_determinRepoRelTarget(string $relSource)
+ *
+ * Given a path to a filed in the remote-repository, this function will return 
+ * the "White-List Target Directory" (setting) field-value.
+ *
+ * A function is nessesary for this since the "White-List Target Directory" 
+ * setting has an associated "White-List Target Directory Overrides" setting.
+ */
+function repo_sync_determinRepoRelTarget($relSource, $settings = 'ASSUME-DEFAULT') {
+
+    // Get settings from the database unless overridden in function-call
+    if ($settings === 'ASSUME-DEFAULT') $settings = repo_sync_settings('ALL');
+
+    // Scan for overrides
+    $arrOverrides = explode("\n", $settings['srcwlisttargetoverlist']);
+    foreach ( $arrOverrides as $override ) {
+        
+        // We expect the lines in the "search:target" field to contain a colon
+        if ( strpos($override, ':') === false ) continue;
+
+        // The colon separates two variables we are interested in
+        $parts = explode(':', $override);
+        if ( count($parts) !== 3 ) continue;
+
+        // Get the search-string, and the override-path-to-use
+        $searchStr = trim($parts[0]);
+        $replaceStr = $parts[1];
+        $useOverridePath = trim($parts[2]);
+
+        /* If the file-in-question is located in a directory that has
+        a "White-List Target Directory" override, then return the override */
+        if ( strpos($relSource, $searchStr) !== false ) {
+            $ret = trim($useOverridePath, '/') . '/' . trim($relSource, '/');
+            if ( $replaceStr !== '' ) {
+                $ret = str_replace($searchStr, trim($replaceStr), $ret);
+            }
+            return $ret;
+        }
+
+    }
+
+    /* If we have escaped the loop, then there are no overrides 
+    triggering for this file in the remote-repo */
+    return trim($settings['srcwlisttarget'],'/') . '/' . trim($relSource, '/');
+
 }
 
 function repo_sync_logEvent($print, $strMessage, $isVerbose = true) {
