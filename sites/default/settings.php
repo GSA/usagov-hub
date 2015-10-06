@@ -361,8 +361,8 @@ if ( !empty(getenv('CMP_DRUPAL_DB_SSL_KEY'))  &&
     );
 }
 
-$conf['awssdk2_access_key'] = getenv('CMP_AWS_ACCESS_KEY');
-$conf['awssdk2_secret_key'] = getenv('CMP_AWS_SECRET_KEY');
+/* $conf['awssdk2_access_key'] = getenv('CMP_AWS_ACCESS_KEY');
+$conf['awssdk2_secret_key'] = getenv('CMP_AWS_SECRET_KEY'); */
 
 /**
  * Access control for update.php script.
