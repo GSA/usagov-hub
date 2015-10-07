@@ -1,9 +1,10 @@
 <?php
 
-// @TODO Slack messaging
 // @TODO Commit as user (not www-data)
 // @TODO Mod's personal log system. And display on form
-// @TODO Email dispatched when files are fully synced?
+
+// We will define a global variable to hold repo_sync log messages triggered in this PHP thread
+$GLOBALS['repo_sync_log'] = array();
 
 /*
  * Implements HOOK_menu()
@@ -571,7 +572,6 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
 
     // Add all file-changes under Git-tracking
     `cd {$wdir}/dest; git add -A;`;
-
     // Push up the new files
     $rslt = `cd {$wdir}/dest; git commit -m 'Russell Repo Sync'; git push`;
     if ( strpos($rslt, 'nothing to commit') !== false ) {
@@ -586,8 +586,40 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
         }
     }
 
+    drupal_mail(
+        'repo_sync', 
+        'sync_proccessed', 
+        'dfrey@ctacorp.com, russell.oneill@gsa.gov, dnarkiewicz@ctacorp.com, rashley@ctacorp.com', 
+        language_default(), 
+        array(), 
+        variable_get('site_mail', '')
+    );
+
     // Clean up
     `rm -r {$wdir}`;
+
+}
+
+function repo_sync_mail($key, &$message, $params) {
+
+    switch ($key) {
+        case 'sync_proccessed':
+
+            // Set headers etc
+            $message['subject'] = t('Repo-Sync (CSS Sync) in progress');
+            $message['body'][] = "This is an automated message to inform you that a GitHub => BitBucket sync is "
+                ."in progress. File changes have been posted into BitBucket (the repository for the ChildSites), "
+                ."and the Jenkins build server may take up to 5 minutes to notice the changes. Once the build "
+                ."process starts, it should take no more than 5 minutes to complete.\n";
+            $message['body'][] = "(in other words, there may be a 10 minute time lag for the total process).";
+            $message['body'][] = "\n\n";
+
+            global $repo_sync_log;
+            $message['body'][] = "Errors/Warning from this process is as follows:\n\n";
+            $message['body'][] = implode("\n", $GLOBALS['repo_sync_log']);
+
+            break;
+    }
 
 }
 
@@ -620,6 +652,15 @@ function repo_sync_resolve($wdir, $whiteList) {
             }
         }
     }
+
+    // Filter out errous lines
+    foreach ( $ret as $key => $entry ) {
+
+        if ( trim($entry) === '' || basename(trim($entry)) === '*' ) {
+            unset($ret[$key]);
+        }
+    }
+    $ret = array_values($ret); // resets the keys in the array
 
     return $ret;
 }
@@ -675,6 +716,8 @@ function repo_sync_determinRepoRelTarget($relSource, $settings = 'ASSUME-DEFAULT
 function repo_sync_logEvent($print, $strMessage, $isVerbose = true) {
 
     //@TODO - add to a log specific log file or table
+
+    $GLOBALS['repo_sync_log'][] = $strMessage;
 
     // Print the string if requested
     if ( $print ) {
