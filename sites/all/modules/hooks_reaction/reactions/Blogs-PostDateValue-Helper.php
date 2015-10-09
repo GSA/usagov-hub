@@ -17,7 +17,11 @@
 */
 
 
-hooks_reaction_add("HOOK_form_text_content_type_node_form_alter",
+hooks_reaction_add(
+    array(
+        "HOOK_form_text_content_type_node_form_alter",
+        "HOOK_form_html_content_type_node_form_alter",
+    ),
     function (&$form, &$form_state, $form_id) {
 
     	drupal_add_css('.field-name-field-blog-pub-date { display: none; }', 'inline');
@@ -43,7 +47,7 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
 
             error_log('ERROR - The CMP dosnt seem to have the field_blog_pub_date field! '
                 .'Please create this text-field for text-assets.');
-
+            
             return;
         }
 
