@@ -32,8 +32,8 @@ hooks_reaction_add(
 hooks_reaction_add("HOOK_workbench_moderation_transition",
     function ($node, $previous_state, $new_state) {
 
-        // We only care about text-assets here
-        if ( empty($node->type) || $node->type !== 'text_content_type' ) {
+        // We only care about text-assets and html-assets here
+        if ( empty($node->type) || ( $node->type !== 'text_content_type' && $node->type !== 'html_content_type' ) ) {
             return;
         }
 
