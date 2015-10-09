@@ -17,7 +17,11 @@
 */
 
 
-hooks_reaction_add("HOOK_form_text_content_type_node_form_alter",
+hooks_reaction_add(
+    array(
+        "HOOK_form_text_content_type_node_form_alter",
+        "HOOK_form_html_content_type_node_form_alter",
+    ),
     function (&$form, &$form_state, $form_id) {
 
     	drupal_add_css('.field-name-field-blog-pub-date { display: none; }', 'inline');
