@@ -94,8 +94,9 @@ $envToDrupalMap = array(
         'slack_username'    => 'CMP_DRUPAL_SLACK_USERNAME',
 
         /* Drupal variables, strings, used by the s3fs module */
-        'awssdk2_access_key'           => 'CMP_DRUPAL_AWSSDK2_ACCESS_KEY',
-        'awssdk2_default_cache_config' => 'CMP_DRUPAL_AWSSDK2_DEFAULT_CACHE_CONFIG',
+        'awssdk2_access_key'           => 'CMP_AWS_ACCESS_KEY',
+        'awssdk2_secret_key'           => 'CMP_AWS_SECRET_KEY',
+        'awssdk2_default_cache_config' => 'CMP_AWS_DEFAULT_CACHE_CONFIG',
 
         's3fs_bucket'     => 'CMP_AWS_S3_BUCKET',
         's3fs_region'     => 'CMP_AWS_S3_REGION',
@@ -112,6 +113,9 @@ $envToDrupalMap = array(
         'smtp_password'   => 'CMP_DRUPAL_SMTP_PASSWORD',
         'smtp_from'       => 'CMP_DRUPAL_SMTP_FROM',
         'smtp_fromname'   => 'CMP_DRUPAL_SMTP_FROMNAME',
+
+        'mimemail_name' => 'CMP_DRUPAL_EMAIL_SENDER_NAME',
+        'mimemail_mail' => 'CMP_DRUPAL_EMAIL_SENDER_ADDRESS',
     ),
 
     /* Add Env->Drupal vars here, to be typecast into INTEGERS */
@@ -361,8 +365,8 @@ if ( !empty(getenv('CMP_DRUPAL_DB_SSL_KEY'))  &&
     );
 }
 
-$conf['awssdk2_access_key'] = getenv('CMP_AWS_ACCESS_KEY');
-$conf['awssdk2_secret_key'] = getenv('CMP_AWS_SECRET_KEY');
+/* $conf['awssdk2_access_key'] = getenv('CMP_AWS_ACCESS_KEY');
+$conf['awssdk2_secret_key'] = getenv('CMP_AWS_SECRET_KEY'); */
 
 /**
  * Access control for update.php script.
