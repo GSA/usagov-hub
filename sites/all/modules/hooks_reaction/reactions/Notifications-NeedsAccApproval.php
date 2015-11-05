@@ -31,7 +31,22 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
 function informAccTeamOfMultNeedingApproval($node) {
 
     // We must always email this address
-    $strTo = 'fcic-accessibility-team@gsa.gov, dfrey@ctacorp.com';
+    //$strTo = 'fcic-accessibility-team@gsa.gov, dfrey@ctacorp.com';
+
+    $role = user_role_load_by_name('accessibility team');
+    $uids = db_select('users_roles', 'ur')
+        ->fields('ur', array('uid'))
+        ->condition('ur.rid', $role->rid, '=')
+        ->execute()
+        ->fetchCol();
+    $users = user_load_multiple($uids);
+    $acc_user = array();
+    $acc_user[] = 'achuluunkhuu@ctacorp.com';
+
+    foreach($users as $user) {
+        $acc_user[] = $user->mail;
+    }
+    $strTo = join(',', $acc_user);
 
     // We check and prevent developer's locals from sending emails here
     $prodStageDomains = variable_get('udm_prod_domains', array());
@@ -41,7 +56,7 @@ function informAccTeamOfMultNeedingApproval($node) {
         drupal_set_message(__FUNCTION__."() notification email is NOT beening sent to {$strTo} because "
             ."this is NOT the STAGE, nor is it PROD, environment. Instead it is being sent to dfrey@ctacorp.com");
 
-        $strTo = 'dfrey@ctacorp.com';
+        $strTo = 'achuluunkhuu@ctacorp.com';
     }
 
     // Email Subject

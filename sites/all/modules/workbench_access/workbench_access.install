@@ -218,10 +218,11 @@ function workbench_access_uninstall() {
       taxonomy_vocabulary_delete($vocabulary->vid);
     }
   }
+
   variable_del('workbench_access');
-  variable_del('workbench_access_taxonomy');
-  variable_del('workbench_access_menu');
-  variable_del('workbench_access_auto_assign');
+  db_delete('variable')
+    ->condition('name', 'workbench_access_%', 'LIKE')
+    ->execute();
 }
 
 /**
@@ -318,37 +319,4 @@ function workbench_access_update_7003() {
     $new[] = $vocabularies[$vid]->machine_name;
   }
   variable_set('workbench_access_taxonomy', $new);
-}
-
-
-/**
- * New workbench_access permission added.
- *
- * If user had "access workbench" perm, give them new
- * "use workbench_access my sections tab" permission.
- */
-function workbench_access_update_7004() {
-  // Grab all of the "access workbench" roles
-  $roles = db_select('role_permission', 'rp')
-    ->fields('rp', array('rid'))
-    ->condition('permission', 'access workbench')
-    ->execute()
-    ->fetchCol();
-
-  // Remove any duplicates.
-  $roles  = array_unique($roles);
-
-  foreach ($roles as $role) {
-
-    // Insert new permissions.
-    db_insert('role_permission')
-    ->fields(array(
-      'rid' => $role,
-      'permission' => 'use workbench_access my sections tab',
-      'module' => 'workbench_access',
-    ))
-    ->execute();
-  }
-
-  return t("Updated role permissions.");
 }

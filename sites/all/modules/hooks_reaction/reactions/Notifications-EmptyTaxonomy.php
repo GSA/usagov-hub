@@ -455,6 +455,7 @@ function informPmTeamOfEmptyPage($term, $pendingChange = false) {
         if ($res["send"]) {
             drupal_set_message("Empty-Page notification has been sent to: " . $strTo);
         }
+        //drupal_set_message("Turned off taxonomy notification. It has to be turned on after html asset conversion.");
 
     } else {
         // then we are running on someone's local, do NOT send the email

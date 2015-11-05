@@ -275,18 +275,29 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
     /// check to see if this is a new piece of content
     if ( (  empty($form_state['node'])
         || !isset($form_state['node']->nid)
-        ||  isset($form_state['node']->is_new)
+        ||  isset($form_state['node']->is_new) )
         && in_array($form_id,array(
                 'text_content_type_node_form',  'state_details_node_form',
                 'state_details_node_form',      'html_content_type_node_form',
                 'file_content_type_node_form',  'directory_record_content_type_node_form',
                 'multimedia_content_type_node_form' ))
         &&  empty($form['field_owner']['und'][0]['target_id']['#default_value'])
-        && strlen($form['field_owner']['und'][0]['target_id']['#default_value']) == 0 ) )
+        && strlen($form['field_owner']['und'][0]['target_id']['#default_value']) == 0 )
     {
         global $user;
         $currentUserStr = $user->name . " (" . $user->uid . ") ";
         $form['field_owner']['und'][0]['target_id']['#default_value'] = $currentUserStr;
+    }
+
+    // repeating the logic above for the owner fields, except for terms instead of nodes
+    if ( !isset($form_state['term']->tid) 
+        && $form_id == 'taxonomy_form_term'
+        &&  empty($form['field_term_owner']['und'][0]['target_id']['#default_value'])
+        && strlen($form['field_term_owner']['und'][0]['target_id']['#default_value']) == 0 )
+    {
+        global $user;
+        $currentUserStr = $user->name . " (" . $user->uid . ") ";
+        $form['field_term_owner']['und'][0]['target_id']['#default_value'] = $currentUserStr;
     }
 
     // If this is the edit form for any node under the 'Text Asset' content-type
@@ -363,6 +374,13 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
 function cmp_misc_mail_alter(&$message) {
     //Sanitize and decode HTML entities in email subject
     $message['headers']['Content-Type'] = "html/text; charset=UTF-8; format=flowed; delsp=yes";
+
+    // Telling email recipient which environment the email is coming from if not from Prod
+    if(!empty(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')) && getenv('CMP_DRUPAL_ENVIRONMENT_NAME') != 'Prod'){
+        $message['subject'] = '[FROM:' . getenv('CMP_DRUPAL_ENVIRONMENT_NAME') . '] ' . $message['subject'];
+    }
+
+    
 }
 
 /*
@@ -747,11 +765,11 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
     }
 
 
-    // needs approval >>> needs discussion
+    // needs approval or needs_acc_approval >>> needs discussion
     if ($previous_state == 'needs_review' && $new_state == 'needs_discussion') {
         $node_vs = node_revision_list($node);
         $node_vs_index = array_keys($node_vs);
-        //dsm($node_vs);
+
         global $user;
         $last_edited_node = $last_edited_user = '';
         if (count($node_vs) > 2) {
@@ -772,6 +790,18 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
                 $current_user = user_load($current_node->uid);
                 _cmp_misc_send_last_edited_person($last_edited_user, $node);
             }
+        }
+    }
+    elseif($previous_state == 'needs_acc_approval' && $new_state == 'needs_discussion') {
+
+        // http://ctac.myjetbrains.com/youtrack/issue/usagov-100605
+        $sql = "SELECT * FROM workbench_moderation_node_history WHERE nid =:node_id AND from_state='draft' AND state='needs_review' ORDER BY stamp ASC LIMIT 1;";
+        $node_row = db_query($sql, array(':node_id'=>$node->nid))->fetchAssoc();
+
+        if (isset($node_row['nid']) && isset($node_row['vid'])){
+            $node_rev = node_load($node_row['nid'], $node_row['vid']);
+            $user_rev = user_load($node_rev->uid);
+            _cmp_misc_send_last_edited_person($user_rev, $node, "Person who initially requested node from 'Draft' to 'Needs Approval' is ");
         }
     }
 
@@ -875,7 +905,7 @@ function _cmp_misc_send_needs_approval_notice_person( $node) {
     }
 }
 
-function _cmp_misc_send_last_edited_person($user_to_send, $node) {
+function _cmp_misc_send_last_edited_person($user_to_send, $node, $msg=null) {
     $to = $user_to_send->mail;
     global $user;
 
@@ -897,7 +927,7 @@ function _cmp_misc_send_last_edited_person($user_to_send, $node) {
     $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
 
     if ($res["send"]) {
-        drupal_set_message("Person who last revision created is " . $user_to_send->name . ". Notification email has been sent." . $to);
+        drupal_set_message((($msg == null)? "Person who last revision created is ": $msg) . $user_to_send->name . ". Notification email has been sent." . $to);
     }
 }
 
@@ -1057,18 +1087,22 @@ class MostRecentRevisionStateAlterSettings extends SearchApiAbstractAlterCallbac
                     if(property_exists($item, $key)) {
                         $item->{$key} = $value ;
                     }
-
                 }
             }
-            $item->field_workflow_state_search['und'][0]['value']= $current_node->workbench_moderation['current']->state;
-            $item->field_workflow_state_search['und'][0]['safe_value']= $current_node->workbench_moderation['current']->state;
-
+            if ( isset($current_node->workbench_moderation) ) {
+                $item->field_workflow_state_search['und'][0]['value']= $current_node->workbench_moderation['current']->state;
+                $item->field_workflow_state_search['und'][0]['safe_value']= $current_node->workbench_moderation['current']->state;
+            }
             // node is text or directory content type, we need to add use by field
             if ($current_node->type == 'directory_record_content_type' || $current_node->type == 'text_content_type') {
-                $item->field_for_use_by = $item->field_for_use_by_text;
+                if ( isset($item->field_for_use_by_text) ) {
+                    $item->field_for_use_by = $item->field_for_use_by_text;
+                }
             }
             else {
-                $item->field_for_use_by_text = $item->field_for_use_by;
+                if ( isset($item->field_for_use_by) ) {
+                    $item->field_for_use_by_text = $item->field_for_use_by;
+                }
             }
         }
     }

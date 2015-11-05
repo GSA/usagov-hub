@@ -47,15 +47,15 @@ class elasticsearch_connector_views_query extends views_plugin_query {
     // Add fields to the query so they will be shown in solr document.
     $this->params['fields'] = array_keys($view->field);
     $this->params['fields'][] = '_source';
-    //dpm($this->params);
+
     $params = array();
     if (isset($this->params['q']) && !empty($this->params['q'])) {
-      $temp = $this->params['q'];
-      $temp = "*".$temp."*";   
+
       // If we have more than one field we make a multi match query
       if (count($this->params['fields']) > 1) {
+
         $params['query']['multi_match'] = array(
-                                            'query' => $temp,
+                                            'query' => $this->params['q'],
                                             'fields' => $this->params['fulltext_fields']
                                           );
       }
@@ -63,7 +63,7 @@ class elasticsearch_connector_views_query extends views_plugin_query {
 
         $params['query']['match'] = array(
                                       reset($this->params['fulltext_fields']) => array(
-                                        'query' => $temp,
+                                        'query' => $this->params['q'],
                                         'operator' => $this->params['fulltext_operator'],
                                       ),
                                     );
@@ -97,7 +97,7 @@ class elasticsearch_connector_views_query extends views_plugin_query {
 
     // if a filter and query is set, combine them into a filtered query
     if (isset($params['filter']) && isset($params['query'])) {
-      $temp = "*".$params['query']."*";
+      $temp = $params['query'];
       unset($params['query']);
 
       $params['query']['filtered'] = array(
@@ -154,7 +154,7 @@ class elasticsearch_connector_views_query extends views_plugin_query {
         // Execute the search.
 
       }
-      dpm($this->query_params);
+
       // Execute search.
       $response = $client->search(array(
         'index' => $index,

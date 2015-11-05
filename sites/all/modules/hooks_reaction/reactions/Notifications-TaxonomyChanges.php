@@ -638,6 +638,7 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
             drupal_set_message("Send taxonomy-update notification emails to: " . $strTo);
         }
 
+
     } else {
         // then we are running on someone's local, do NOT send the email
         drupal_set_message("Notification email has NOT been sent because this environment is neither STAGE nor PROD.");
