@@ -113,6 +113,15 @@ function _vdn_deletionDetails( &$node )
   }
 }
 
+function _vdn_locations( &$node )
+{
+  /// for use by usa/gob/kids
+  # for usa/gob/kids : the id must be in stl.field_asset_order_content[und][\d][target_id]==node_id
+  # for blog : if node.for_use_by==blog then blog.usa.gov/{title_with_space_to_dashed-and-all-lowercase}
+  # for features : ignore it
+
+}
+
 function nidToXML($nid) {
 
     // initializing or creating array

@@ -33,7 +33,7 @@ function cmp_misc_init()
     drupal_add_js(drupal_get_path('module', 'cmp_misc') .'/js/global.js');
     drupal_add_css(drupal_get_path('module', 'cmp_misc') .'/global_fix.css');
 
-    // redirect users on '/search-content-items' page to '/search-content-items?items_per_page=20' 
+    // redirect users on '/search-content-items' page to '/search-content-items?items_per_page=20'
     $currentURL = request_uri();
     if($currentURL == '/search-content-items'){
         $options = array('query' => array('items_per_page' => '20'));
@@ -270,7 +270,7 @@ function cmp_misc_node_ever_published($node) {
 /**/
 
 
-function cmp_misc_form_alter(&$form, &$form_state, $form_id) 
+function cmp_misc_form_alter(&$form, &$form_state, $form_id)
 {
     /// check to see if this is a new piece of content
     if ( (  empty($form_state['node'])
@@ -290,7 +290,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
     }
 
     // repeating the logic above for the owner fields, except for terms instead of nodes
-    if ( !isset($form_state['term']->tid) 
+    if ( !isset($form_state['term']->tid)
         && $form_id == 'taxonomy_form_term'
         &&  empty($form['field_term_owner']['und'][0]['target_id']['#default_value'])
         && strlen($form['field_term_owner']['und'][0]['target_id']['#default_value']) == 0 )
@@ -380,7 +380,7 @@ function cmp_misc_mail_alter(&$message) {
         $message['subject'] = '[FROM:' . getenv('CMP_DRUPAL_ENVIRONMENT_NAME') . '] ' . $message['subject'];
     }
 
-    
+
 }
 
 /*
@@ -704,7 +704,7 @@ function _cmp_misc_node_future_publication_date($node)
 //             array( ":hid"=>$hist[0]->hid ));
 //     }
 
-//     /* Bug killer - in some specific edge case, another process (after the call to this function) may set the status 
+//     /* Bug killer - in some specific edge case, another process (after the call to this function) may set the status
 //     to 1 for this node on the node table - so we shall ensure that status is 0 by use of register_shutdown_function() */
 //     drupal_register_shutdown_function("db_query", "UPDATE node SET status=0 WHERE nid={$node->nid}");
 // }
@@ -847,7 +847,7 @@ function _cmp_misc_setWorkflowStatusSearchTextField($nid, $vid, $workFlowStatusT
     db_query("
         UPDATE field_data_field_workflow_state_search
         SET field_workflow_state_search_value = '{$workFlowStatusText}'
-        WHERE 
+        WHERE
             entity_id = {$nid}
             AND revision_id = {$vid}
     ");
@@ -855,7 +855,7 @@ function _cmp_misc_setWorkflowStatusSearchTextField($nid, $vid, $workFlowStatusT
     db_query("
         UPDATE field_revision_field_workflow_state_search
         SET field_workflow_state_search_value = '{$workFlowStatusText}'
-        WHERE 
+        WHERE
             entity_id = {$nid}
             AND revision_id = {$vid}
     ");
@@ -1107,4 +1107,32 @@ class MostRecentRevisionStateAlterSettings extends SearchApiAbstractAlterCallbac
         }
     }
 
+}
+
+function cmp_misc_wysiwyg_editor_settings_alter(&$settings, $context)
+{
+  if ( trim(strtolower($context['profile']->editor)) === 'ckeditor')
+  {
+    // $m = menu_get_item();
+    // if ( isset($m['page_arguments']) && isset($m['page_arguments'][0]) )
+    // {
+    //   $l = null;
+    //   if ( !empty($m['page_arguments'][0]->nid) )
+    //   {
+    //     $meta = entity_metadata_wrapper('node', $m['page_arguments'][0]);
+    //     $fl = $meta->field_language->value();
+    //     if      ( $fl == 'English' ) { $l = 'en_US'; }
+    //     else if ( $fl == 'Spanish' ) { $l = 'es_ES'; }
+    //   } else if ( !empty($m['page_arguments'][0]->language) ) {
+    //     $l = $m['page_arguments'][0]->language;
+    //     if      ( $l == 'en' ) { $l = 'en_US'; }
+    //     else if ( $l == 'es' ) { $l = 'es_ES'; }
+    //   }
+    //   if ( !empty($l) )
+    //   {
+    //     $settings['scayt_sLang'] = $l;
+    //   }
+    // }
+    $settings['scayt_autoStartup'] = TRUE;
+  }
 }
