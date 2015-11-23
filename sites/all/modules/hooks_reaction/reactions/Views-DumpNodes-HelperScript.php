@@ -32,6 +32,8 @@ hooks_reaction_add("HOOK_views_pre_execute",
             $limit = ( empty($view->args[1]) ? 1 : intval($view->args[1]) );
             $query->range(($page)*$limit, $limit);
 
+            __vdn_cache_stuff();
+
             /* COMMENTING OUT AS THIS CODE DOES NOT BELONG HERE?
 
                 // The "Recent Data export" display should only show taxonomy-terms that have been modded in the last 15mins
@@ -112,23 +114,132 @@ function _vdn_deletionDetails( &$node )
       }
   }
 }
-
 function _vdn_locations( &$node )
 {
-  /// for use by usa/gob/kids
-  # for usa/gob/kids : the id must be in stl.field_asset_order_content[und][\d][target_id]==node_id
-  # for blog : if node.for_use_by==blog then blog.usa.gov/{title_with_space_to_dashed-and-all-lowercase}
-  # for features : ignore it
-
+  $node->locations = [];
+  if ( !empty($GLOBALS['__cached_content_pages'][$node->nid]) )
+  {
+    foreach ( $GLOBALS['__cached_content_pages'][$node->nid] as $page_id )
+    {
+      if ( !empty($GLOBALS['__cached_page_sites'][$page_id]) )
+      {
+        $page = $GLOBALS['__cached_page_sites'][$page_id];
+        if ( !empty($page['site']) )
+        {
+          if ( in_array($page['site'],['usa.gov','kids.gov','gobiernousa.gov']) )
+          {
+            $full_url = '';
+            if ( $page['site'] == 'usa.gov' )
+            {
+              $full_url = 'https://www.usa.gov';
+            } else if ( $page['site'] == 'gobiernousa.gov' ) {
+              $full_url = 'https://gobierno.usa.gov';
+            } else if ( $page['site'] == 'kids.usa.gov' ) {
+              $full_url = 'https://kids.usa.gov';
+            }
+            if ( !empty($page['url']) )
+            {
+              $full_url .= $page['url'];
+            }
+            if ( strlen($full_url) == 0 )
+            {
+              continue;
+            }
+            $node->locations[] = [ 'value'=> [
+                'page_title' => $page['title'],
+                'url' => $full_url.'#item-'.$node->nid
+              ]
+            ];
+          } else if ( $page['site'] == 'blog.usa.gov' ) {
+            $node->locations[] = [ 'value'=> [
+                'page_title' => $node->title,
+                'url' => 'https://blog.usa.gov/'._bloggov_urlFriendlyString($node->title),
+              ]
+            ];
+          }
+        }
+      }
+    }
+  }
 }
 
-function nidToXML($nid) {
 
+function __vdn_cache_stuff()
+{
+    /// which pages contain which content
+    $GLOBALS['__cached_content_pages'] = [];
+    $query = "
+      select aoc.field_asset_order_content_target_id aoc, group_concat(ttd.tid separator ',') as tid
+      from taxonomy_term_data ttd
+        join field_data_field_asset_order_content aoc on ( aoc.entity_id = ttd.tid )
+      group by aoc.field_asset_order_content_target_id
+    ";
+    $result = db_query($query);
+    foreach ( $result as $row )
+    {
+      $GLOBALS['__cached_content_pages'][$row->aoc] = explode(',',$row->tid);
+    }
+
+    /// which pages belong to which site
+    $GLOBALS['__cached_page_sites'] = [];
+    /// handles 10 level of parents
+    $query = "
+    SELECT
+      tops.tid,
+      pd.name as title,
+      LCASE(td.name) as site,
+      IF ( fu.field_friendly_url_value IS NULL,
+           '/', fu.field_friendly_url_value ) as url
+    FROM (
+      SELECT
+      	tth0.tid as tid,
+      	IF ( tthA.tid IS NOT NULL, tthA.tid,
+      	IF ( tth9.tid IS NOT NULL, tth9.tid,
+      	IF ( tth8.tid IS NOT NULL, tth8.tid,
+      	IF ( tth7.tid IS NOT NULL, tth7.tid,
+      	IF ( tth6.tid IS NOT NULL, tth6.tid,
+      	IF ( tth5.tid IS NOT NULL, tth5.tid,
+      	IF ( tth4.tid IS NOT NULL, tth4.tid,
+      	IF ( tth3.tid IS NOT NULL, tth3.tid,
+      	IF ( tth2.tid IS NOT NULL, tth2.tid,
+      	IF ( tth1.tid IS NOT NULL, tth1.tid,tth0.tid)))))))))
+      	) as top
+      FROM taxonomy_term_hierarchy tth0
+      	 LEFT JOIN taxonomy_term_data ttd ON ( ttd.tid = tth0.tid )
+      	 LEFT JOIN taxonomy_term_hierarchy tth1 ON ( tth1.tid = tth0.parent )
+      	 LEFT JOIN taxonomy_term_hierarchy tth2 ON ( tth2.tid = tth1.parent )
+      	 LEFT JOIN taxonomy_term_hierarchy tth3 ON ( tth3.tid = tth2.parent )
+      	 LEFT JOIN taxonomy_term_hierarchy tth4 ON ( tth4.tid = tth3.parent )
+      	 LEFT JOIN taxonomy_term_hierarchy tth5 ON ( tth5.tid = tth4.parent )
+      	 LEFT JOIN taxonomy_term_hierarchy tth6 ON ( tth6.tid = tth5.parent )
+      	 LEFT JOIN taxonomy_term_hierarchy tth7 ON ( tth7.tid = tth6.parent )
+      	 LEFT JOIN taxonomy_term_hierarchy tth8 ON ( tth8.tid = tth7.parent )
+      	 LEFT JOIN taxonomy_term_hierarchy tth9 ON ( tth9.tid = tth8.parent )
+      	 LEFT JOIN taxonomy_term_hierarchy tthA ON ( tthA.tid = tth9.parent )
+      WHERE ttd.vid = 42
+      ORDER BY top
+    ) tops
+    left join taxonomy_term_data td            on ( td.tid       = tops.top )
+    left join taxonomy_term_data pd            on ( pd.tid       = tops.tid )
+    left join field_data_field_friendly_url fu on ( fu.entity_id = tops.tid )
+    ";
+    $result = db_query($query);
+    foreach ( $result as $row )
+    {
+      $GLOBALS['__cached_page_sites'][$row->tid] = ['title'=>$row->title,'site'=>$row->site,'url'=>$row->url];
+    }
+    // die(print_r($GLOBALS['__cached_page_sites'],1));
+}
+
+function nidToXML($nid)
+{
+    
     // initializing or creating array
     $n = node_load($nid);
 
     _vdn_deletionDetails( $n );
     _vdn_absoluteLinks(   $n );
+    _vdn_locations(       $n );
 
     $arrNodeData = json_decode( json_encode($n), true );
 
