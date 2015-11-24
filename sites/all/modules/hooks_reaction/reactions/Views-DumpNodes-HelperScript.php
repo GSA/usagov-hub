@@ -135,9 +135,9 @@ function _vdn_locations( &$node )
             if ( $page['site'] == 'usa.gov' )
             {
               $full_url = 'https://www.usa.gov';
-            } else if ( $page['site'] == 'gobiernousa.gov' ) {
+            } else if ( $page['site'] == 'gobiernousa.gov' || $page['site'] == 'gobierno.usa.gov' ) {
               $full_url = 'https://gobierno.usa.gov';
-            } else if ( $page['site'] == 'kids.usa.gov' ) {
+            } else if ( $page['site'] == 'kids.usa.gov' || $page['site'] == 'kids.gov' ) {
               $full_url = 'https://kids.usa.gov';
             }
             if ( !empty($page['url']) )
