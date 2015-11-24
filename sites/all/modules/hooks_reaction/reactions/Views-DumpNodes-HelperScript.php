@@ -129,7 +129,7 @@ function _vdn_locations( &$node )
         $page = $GLOBALS['__cached_page_sites'][$page_id];
         if ( !empty($page['site']) )
         {
-          if ( in_array($page['site'],['usa.gov','kids.gov','gobiernousa.gov']) )
+          if ( in_array($page['site'],['usa.gov','kids.gov','kids.usa.gov','gobiernousa.gov','gobierno.usa.gov']) )
           {
             $full_url = '';
             if ( $page['site'] == 'usa.gov' )
