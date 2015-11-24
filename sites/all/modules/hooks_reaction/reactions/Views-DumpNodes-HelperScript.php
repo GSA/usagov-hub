@@ -98,9 +98,12 @@ function _vdn_absoluteLinks( &$node )
       break;
     }
   }
-  $node->body['und'][0]['value'] = preg_replace(
-     "/(href|src)\s*\=\s*([\"'])\s*([^(https?|mailto|ftp)])/",
-     "$1=$2$host/$3", $node->body['und'][0]['value']);
+  if ( isset($node) && isset($node->body) && isset($node->body['und']) && isset($node->body['und'][0]) && !empty($node->body['und'][0]['value']) )
+  {
+    $node->body['und'][0]['value'] = preg_replace(
+       "/(href|src)\s*\=\s*([\"'])\s*([^(https?|mailto|ftp)])/",
+       "$1=$2$host/$3", $node->body['und'][0]['value']);
+  }
 }
 function _vdn_deletionDetails( &$node )
 {
@@ -233,7 +236,7 @@ function __vdn_cache_stuff()
 
 function nidToXML($nid)
 {
-    
+
     // initializing or creating array
     $n = node_load($nid);
 
