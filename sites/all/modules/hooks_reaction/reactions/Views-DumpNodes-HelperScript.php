@@ -56,45 +56,7 @@ if ( !class_exists('SimpleXMLExtended') ) {
             $node->appendChild($no->createCDATASection($cdata_text));
         }
     }
-  }
-  return $by;
 }
-function _vdn_absoluteLinks( &$node )
-{
-  $host = null;
-  $hosts = [
-       'usa.gov'          => 'https://www.usa.gov'
-      ,'gobiernousa.gov'  => 'https://gobierno.usa.gov'
-      ,'gobierno.usa.gov' => 'https://gobierno.usa.gov'
-      ,'kids.usa.gov'     => 'https://kids.usa.gov'
-      ,'blog.usa.gov'     => 'https://blog.usa.gov'
-  ];
-  $fubs = _vdn_forUseBy( $node );
-  foreach ( $fubs as $fub )
-  {
-    if ( isset($hosts[$fub]) )
-    {
-      $host = $hosts[$fub];
-      break;
-    }
-  }
-  $node->body['und'][0]['value'] = preg_replace(
-     "/(href|src)\s*\=\s*([\"'])\s*([^(https?|mailto|ftp)])/",
-     "$1=$2$host/$3", $node->body['und'][0]['value']);
-}
-function _vdn_deletionDetails( &$node )
-{
-  // override deleted, deletion_uid, deletion_timestamp
-  if (isset($node) && is_object($node)) {
-      $del = (db_query("SELECT deletion_uid, deletion_timestamp FROM node_deleted WHERE nid = :nid", array(":nid"=>$node->nid))->fetchAssoc());
-      if (isset($del) && !empty($del) && is_array($del)) {
-          $node->deleted=1;
-          $node->deletion_uid = $del['deletion_uid'];
-          $node->deletion_timestamp = $del['deletion_timestamp'];
-      }
-  }
-}
-
 function _vdn_forUseBy( $node )
 {
   $by = [];
