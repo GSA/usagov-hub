@@ -37,7 +37,7 @@
         }
       }
     }
-  }
+  };
 
   // Create a new ajax command, ervw_draggable that is called to make the rows
   // of the widget draggable.
