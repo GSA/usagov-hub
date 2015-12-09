@@ -109,7 +109,14 @@ function entityreference_view_widget_field_widget_settings_form($field, $instanc
       '#default_value' => isset($settings['rendered_entity']) ? $settings['rendered_entity'] : FALSE,
     );
 
-    $entity_info = entity_get_info($instance['entity_type']);
+    if (strpos($field['type'], '_reference') !== FALSE) {
+      $target_type = str_replace('_reference', '', $field['type']);
+    }
+    else {
+      $target_type = $field['settings']['target_type'];
+    }
+
+    $entity_info = entity_get_info($target_type);
     $view_modes = array();
     foreach ($entity_info['view modes'] as $mode => $mode_info) {
       $view_modes[$mode] = check_plain($mode_info['label']);
@@ -190,6 +197,11 @@ function entityreference_view_widget_field_widget_form(&$form, &$form_state, $fi
     '#name' => 'add_more_' . $index,
   );
 
+  // Load the items for form rebuilds from the field state.
+  if (isset($form_state['input'][$field['field_name']][$langcode])) {
+    $items = $form_state['input'][$field['field_name']][$langcode];
+  }
+
   $entity_ids = array();
   foreach ($items as $item) {
     $entity_ids[] = $item[$settings['column']];
@@ -216,7 +228,7 @@ function entityreference_view_widget_add_more_ajax($form, $form_state) {
         $arguments[0] = implode('+', $form_state['ervw_ids'][$settings['index']]);
       }
       // Allow the alteration of Views arguments.
-      drupal_alter('entityreference_view_widget_views_arguments', $arguments, $form_state);
+      drupal_alter('entityreference_view_widget_views_arguments', $arguments, $form_state, $view);
 
       if (!empty($arguments)) {
         $view->set_arguments($arguments);
