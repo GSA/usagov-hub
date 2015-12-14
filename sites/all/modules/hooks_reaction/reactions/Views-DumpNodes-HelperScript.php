@@ -57,7 +57,6 @@ if ( !class_exists('SimpleXMLExtended') ) {
         }
     }
 }
-
 function _vdn_forUseBy( $node )
 {
   $by = [];
@@ -98,11 +97,14 @@ function _vdn_absoluteLinks( &$node )
       break;
     }
   }
-  if ( isset($node) && isset($node->body) && isset($node->body['und']) && isset($node->body['und'][0]) && !empty($node->body['und'][0]['value']) )
+  if ( isset($node) && isset($node->body) && isset($node->body['und'])
+    && isset($node->body['und'][0]) && !empty($node->body['und'][0]['value']) )
   {
     $node->body['und'][0]['value'] = preg_replace(
        "/(href|src)\s*\=\s*([\"'])\s*([^(https?|mailto|ftp)])/",
-       "$1=$2$host/$3", $node->body['und'][0]['value']);
+       "$1=$2$host/$3#EDNARK", $node->body['und'][0]['value']);
+    $node->body['und'][0]['value'] = preg_replace("/usa\.gov\/{2,}/", "usa.gov/",
+       $node->body['und'][0]['value']);
   }
 }
 function _vdn_deletionDetails( &$node )
@@ -137,7 +139,7 @@ function _vdn_locations( &$node )
               $full_url = 'https://www.usa.gov';
             } else if ( $page['site'] == 'gobiernousa.gov' || $page['site'] == 'gobierno.usa.gov' ) {
               $full_url = 'https://gobierno.usa.gov';
-            } else if ( $page['site'] == 'kids.usa.gov' || $page['site'] == 'kids.gov' ) {
+            } else if ( $page['site'] == 'kids.usa.gov'    || $page['site'] == 'kids.gov' ) {
               $full_url = 'https://kids.usa.gov';
             }
             if ( !empty($page['url']) )
@@ -172,10 +174,14 @@ function __vdn_cache_stuff()
     /// which pages contain which content
     $GLOBALS['__cached_content_pages'] = [];
     $query = "
-      select aoc.field_asset_order_content_target_id aoc, group_concat(ttd.tid separator ',') as tid
-      from taxonomy_term_data ttd
-        join field_data_field_asset_order_content aoc on ( aoc.entity_id = ttd.tid )
-      group by aoc.field_asset_order_content_target_id
+      SELECT
+        aoc.field_asset_order_content_target_id aoc,
+        group_concat(ttd.tid separator ',') as tid
+      FROM
+        taxonomy_term_data ttd
+        JOIN field_data_field_asset_order_content aoc
+          ON ( aoc.entity_id = ttd.tid )
+      GROUP BY aoc.field_asset_order_content_target_id
     ";
     $result = db_query($query);
     foreach ( $result as $row )
@@ -190,7 +196,7 @@ function __vdn_cache_stuff()
     SELECT
       tops.tid,
       pd.name as title,
-      LCASE(td.name) as site,
+      TRIM(LCASE(td.name)) as site,
       IF ( fu.field_friendly_url_value IS NULL,
            '/', fu.field_friendly_url_value ) as url
     FROM (

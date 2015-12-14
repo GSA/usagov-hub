@@ -373,6 +373,11 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
 
 function informPmTeamOfEmptyPage($term, $pendingChange = false) {
 
+    // The $term given MUST be a Site-Structure taxonomy-term, if the term is from any other Vocabulary, then this function was called in error
+    if ( $term->vocabulary_machine_name !== 'site_strucutre_taxonomy' ) {
+        return; // bail
+    }
+
     // Get the role-id for the SS_CHANGE_NOTIFY_ROLE role
     $role = user_role_load_by_name(SS_EMPTY_NOTIFY_ROLE);
     if ( $role === false ) {
