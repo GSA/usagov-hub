@@ -954,7 +954,7 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
     UPPER(s.field_state_value) AS state,
     z.field_zip_value AS zip,
     e.field_email_value AS email,
-    field_subdivision_value AS subdivision
+    sub.field_subdivision_value AS subdivision
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Better Business Bureaus'
     LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
@@ -965,8 +965,8 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY field_state_value, field_city_value";
+    $res = db_query($sql); //,array(':use_by'=>$use_by)
 
-    $res = db_query($sql,array(':use_by'=>$use_by));
     $data = array();
     foreach($res as $row) {
         $state_name = _get_states_abbr($row->state);
@@ -993,8 +993,8 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
 
         foreach($addresses as $add) {
             $text .= "<ParaStyle:CityState><CharStyle:Bold>" . $add["city"] . "<CharStyle:>" . $new_line;
-            if (isset($row->subdivision) && strlen($row->subdivision) > 0) {
-                $text .= "<ParaStyle:BodyText>" . $row->subdivision . $new_line;
+            if (isset($add['subdivision']) && strlen($add['subdivision']) > 0) {
+                $text .= "<ParaStyle:BodyText>" . $add['subdivision'] . $new_line;
             }
             else {
                 $text .= "<ParaStyle:BodyText>" . $new_line;
