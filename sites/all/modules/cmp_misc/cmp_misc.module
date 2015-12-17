@@ -203,7 +203,10 @@ function cmp_misc_views_pre_render(&$view) {
                 }
             }
 
-            $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
+            $owner = _get_asset_owner_by_tid($row->tid);
+            $owner_txt = strlen($owner) > 0? ' is owned by ' . $owner : '' ;
+
+            $new_title = $view->result[$i]->taxonomy_term_data_name . $owner_txt . ' ( '
                 . $asset_count . ' Asset' . (($asset_count!=0)?'s':'')
                 . ($is_asset_topic || $is_site_structure? (', ' . ($child_topics . ' Asset Node' . (($child_topics!=0)?'s':''))) : '')
                 . ' )';
@@ -226,6 +229,14 @@ function cmp_misc_views_pre_render(&$view) {
         }
         $view->result = $new_result;
     }
+}
+
+function _get_asset_owner_by_tid($tid) {
+    $sql_s = "SELECT u.name FROM {field_data_field_term_owner} t
+        INNER JOIN {users} u
+        WHERE t.field_term_owner_target_id = u.uid AND t.entity_id IN ( $tid )";
+    $user = db_query($sql_s)->fetchField();
+    return $user;
 }
 
 function cmp_misc_form_views_exposed_form_alter(&$form, $form_state) {
