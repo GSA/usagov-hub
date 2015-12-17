@@ -758,7 +758,7 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
             $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
             $tty_res = db_query($tty_sql, array(':nid'=>$add['nid']));
             foreach($tty_res as $tty_row) {
-                if (isset($tty_row->tty) && strlen($tty_row->tt) > 0) {
+                if (isset($tty_row->tty) && strlen($tty_row->tty) > 0) {
                     $text .= "TTY: " . $tty_row->tty . $new_line;
                 }
             }
