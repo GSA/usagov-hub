@@ -4,6 +4,7 @@ CREATE TABLE node_deleted (
 nid INT PRIMARY KEY,
 deletion_uid INT,
 deletion_timestamp INT
+deletion_state VCHAR20
 );
  */
 
@@ -14,7 +15,7 @@ function cmp_soft_delete_menu()
 {
     $items['node/%node/approve-soft-delete'] = array(
         'title' => "Approve Soft Delete",
-        'page callback' => '_cmp_soft_delete_do_soft_delete',
+        'page callback' => '_cmp_soft_delete_handle_do_soft_delete',
         'page arguments' => array(1),
         'access callback' => 'cmp_soft_delete_access',
         'access arguments' => array('soft', 1),
@@ -23,7 +24,7 @@ function cmp_soft_delete_menu()
     );
     $items['node/%node/undo-soft-delete'] = array(
         'title' => "Undo Soft Delete",
-        'page callback' => '_cmp_soft_delete_undo_soft_delete',
+        'page callback' => '_cmp_soft_delete_handle_undo_soft_delete',
         'page arguments' => array(1),
         'access callback' => 'cmp_soft_delete_access',
         'access arguments' => array('undo', 1),
@@ -32,7 +33,7 @@ function cmp_soft_delete_menu()
     );
     $items['node/%node/approve-hard-delete'] = array(
         'title' => "Approve Hard Delete",
-        'page callback' => '_cmp_soft_delete_do_hard_delete',
+        'page callback' => '_cmp_soft_delete_handle_do_hard_delete',
         'page arguments' => array(1),
         'access callback' => 'cmp_soft_delete_access',
         'access arguments' => array('hard', 1),
@@ -41,7 +42,7 @@ function cmp_soft_delete_menu()
     );
     $items['node/%node/request-soft-delete'] = array(
         'title' => "Request Soft Delete",
-        'page callback' => '_cmp_soft_delete_request_soft_delete',
+        'page callback' => '_cmp_soft_delete_handle_request_soft_delete',
         'page arguments' => array(1),
         'access callback' => 'cmp_soft_delete_access',
         'access arguments' => array('request', 1),
@@ -50,7 +51,7 @@ function cmp_soft_delete_menu()
     );
     $items['node/%node/rescind-soft-delete'] = array(
         'title' => "Undelete",
-        'page callback' => '_cmp_soft_delete_rescind_soft_delete',
+        'page callback' => '_cmp_soft_delete_handle_rescind_request',
         'page arguments' => array(1),
         'access callback' => 'cmp_soft_delete_access',
         'access arguments' => array('rescind', 1),
@@ -90,16 +91,18 @@ function cmp_soft_delete_access($op,$node,$account=null)
 
     if ( $op === 'hard' )
     {
-        $everPublished = _cmp_soft_delete_node_ever_published($node);
+        $everPublished = cmp_misc_node_ever_published($node);
         return ( !$everPublished || user_access('skip soft delete',$account) );
     } else if ( $op === 'soft' ) {
         return user_access('approve soft delete',$account);
     } else if ( $op === 'undo' ) {
         return user_access('approve soft delete',$account);
     } else if ( $op === 'rescind' ) {
-        return node_access('delete',$node,$account);
+        //return node_access('delete',$node,$account);
+        return TRUE;
     } else if ( $op === 'request' ) {
-        return node_access('delete',$node,$account);
+        //return node_access('delete',$node,$account);
+        return TRUE;
     }
 
     return FALSE;
@@ -143,6 +146,18 @@ function cmp_soft_delete_permission()
   );
 }
 
+function _cmp_soft_delete_destination($nid=null)
+{
+  $goto = drupal_get_destination();
+  if ( empty($_GET['destination']) && !empty($nid) )
+  {
+    $goto['destination'] = "node/$nid/edit";
+  } else {
+    $goto['destination'] = "admin/workbench/delete";
+  }
+  return $goto;
+}
+
 /**
  * Implements hook_form_alter().
  */
@@ -160,11 +175,13 @@ function cmp_soft_delete_form_alter(&$form, &$form_state, $form_id)
         // Override node_delete_confirm_submit() submit handler
         $form['#submit'][0] = 'cmp_soft_delete_node_delete_confirm_submit';
 
+        $form['description']['#markup'] = t('Soft Deletion may be undone later.');
+
         if ( user_access('skip soft delete') )
         {
           $form['permanent'] = array(
               '#type' => 'checkbox',
-              '#title' => t("Permanently delete this content"),
+              '#title' => t("Permanently delete this content (cannot be undone)."),
               '#default_value' => 0,
               '#attributes' => array()
           );
@@ -182,10 +199,10 @@ function cmp_soft_delete_form_alter(&$form, &$form_state, $form_id)
             {
                 if ( cmp_soft_delete_access('soft',$form['#node']) )
                 {
+                    $approve = l(t('Approve Deletion'), "/node/{$form['nid']['#value']}/approve-soft-delete", array('query'=>drupal_get_destination()));
+                    $reject  = l(t('Reject Deletion'), "/node/{$form['nid']['#value']}/rescind-soft-delete", array('query'=>drupal_get_destination()));
                     drupal_set_message(t('Awaiting Soft Delete approval.')
-                      . "<ul><li><a href='/node/"
-                      . $form['nid']['#value'] . "/approve-soft-delete'>Approve Deletion</a></li> <li><a href='/node/"
-                      . $form['nid']['#value'] . "/rescind-soft-delete'>Disapprove Deletion</a></li></ul>"
+                      . "<ul><li>$approve</li><li>$reject</li></ul>"
                     ,'warning');
                 } else {
                     drupal_set_message(t('Awaiting Soft Delete approval.'),'warning');
@@ -195,10 +212,10 @@ function cmp_soft_delete_form_alter(&$form, &$form_state, $form_id)
                 /// This might be better off as a button on the bottom
                 if ( cmp_soft_delete_access('undo',$form['#node']) )
                 {
+                    $undo = l(t('Undo Deletion'), "/node/{$form['nid']['#value']}/undo-soft-delete", array('query'=>drupal_get_destination()));
                     drupal_set_message(
                       t('Content is soft deleted.')
-                        . "<ul><li><a href='/node/"
-                        . $form['nid']['#value'] . "/undo-soft-delete'>Undo Deletion</a></li></ul>"
+                        . "<ul><li>$undo</li></ul>"
                     ,'warning');
                 } else {
                   drupal_set_message(t('Content is soft deleted.'), 'warning');
@@ -219,10 +236,10 @@ function cmp_soft_delete_form_alter(&$form, &$form_state, $form_id)
 function cmp_soft_delete_node_delete_confirm_submit($form, &$form_state)
 {
     $node = node_load($form_state['values']['nid']);
-    $everPublished = _cmp_soft_delete_node_ever_published($node);
+    $everPublished = cmp_misc_node_ever_published($node);
 
     // never published OR ( permission to skip soft delete AND permanent )
-    if ( !everPublished
+    if ( !$everPublished
          || ( !empty($form_state['values']['permanent'])
               && cmp_soft_delete_access('hard',$node) ) )
     {
@@ -236,26 +253,121 @@ function cmp_soft_delete_node_delete_confirm_submit($form, &$form_state)
         _cmp_soft_delete_send_email_to_editors($node);
         _cmp_soft_delete_request_soft_delete($node);
     }
-    $form_state['redirect'] = '/admin/content';
+    $d = _cmp_soft_delete_destination($node->nid);
+    $form_state['redirect'] = $d['destination'];
 }
 
-function _cmp_soft_delete_request_soft_delete($node)
-{
-    global $user;
 
+// http request handlers
+function _cmp_soft_delete_handle_request_soft_delete($node)
+{
     $del = _cmp_soft_delete_get_node_stat($node->nid);
     if ( !empty($del['deletion_state']) )
     {
         if ( $del['deletion_state'] == 'soft' )
         {
             drupal_set_message("\"" . $node->title . "\" has already been soft deleted.", 'warning');
-            drupal_goto("admin/workbench/delete");
-            return TRUE;
+            drupal_goto(_cmp_soft_delete_destination($node->nid));
+            return;
         } else if ( $del['deletion_state'] == 'requested' ) {
             drupal_set_message("\"" . $node->title . "\" is already awaiting soft deletion.", 'warning');
-            drupal_goto("admin/workbench/delete");
-            return TRUE;
+            drupal_goto(_cmp_soft_delete_destination($node->nid));
+            return;
         }
+    }
+
+    _cmp_soft_delete_request_soft_delete($node);
+
+    drupal_set_message("\"" . $node->title . "\" is awaiting soft deletion.", 'warning');
+    drupal_goto(_cmp_soft_delete_destination($node->nid));
+    return;
+}
+
+function _cmp_soft_delete_handle_do_soft_delete($node)
+{
+    $del = _cmp_soft_delete_get_node_stat($node->nid);
+    if ( !empty($del['deletion_state']) && $del['deletion_state'] == 'soft' )
+    {
+        drupal_set_message("\"" . $node->title . "\" has already been soft deleted.", 'warning');
+        drupal_goto(_cmp_soft_delete_destination($node->nid));
+        return;
+    }
+    drupal_set_message("\"" . $node->title . "\" has been soft deleted.", 'warning');
+
+    _cmp_soft_delete_do_soft_delete($node);
+
+    drupal_goto(_cmp_soft_delete_destination($node->nid));
+    return;
+}
+
+function _cmp_soft_delete_handle_rescind_request($node)
+{
+    /// remove soft-deleted status
+    $del = _cmp_soft_delete_get_node_stat($node->nid);
+    if ( empty($del['deletion_timestamp']) )
+    {
+        drupal_set_message("This node is not awaiting deleted.", 'warning');
+        drupal_goto(_cmp_soft_delete_destination($node->nid));
+        return;
+    }
+
+    if ( $del['deletion_state'] == 'soft' )
+    {
+        drupal_set_message("\"" . $node->title . "\" has already deleted.", 'error');
+    } else if ( $del['deletion_state'] == 'requested' ) {
+        _cmp_soft_delete_rescind_request($node);
+        drupal_set_message("\"" . $node->title . "\" soft delete request has been rescinded.", 'warning');
+    }
+
+    drupal_goto(_cmp_soft_delete_destination($node->nid));
+    return;
+}
+
+function _cmp_soft_delete_handle_undo_soft_delete($node)
+{
+    /// remove soft-deleted status
+    $del = _cmp_soft_delete_get_node_stat($node->nid);
+    if ( empty($del['deletion_timestamp']) )
+    {
+        drupal_set_message("This node is already not deleted.", 'warning');
+        drupal_goto(_cmp_soft_delete_destination($node->nid));
+        return;
+    }
+
+    if ( $del['deletion_state'] == 'soft' )
+    {
+        _cmp_soft_delete_undo_soft_delete($node);
+        drupal_set_message("\"" . $node->title . "\" has been un-deleted.", 'warning');
+    } else if ( $del['deletion_state'] == 'requested' ) {
+        _cmp_soft_delete_rescind_request($node);
+        drupal_set_message("\"" . $node->title . "\" soft delete request has been rescinded.", 'warning');
+    }
+
+    drupal_goto(_cmp_soft_delete_destination($node->nid));
+    return;
+}
+
+function _cmp_soft_delete_handle_do_hard_delete($node)
+{
+    _cmp_soft_delete_do_hard_delete($node);
+
+    drupal_set_message("\"" . $node->title. "\" has been deleted.");
+    drupal_goto(_cmp_soft_delete_destination($node->nid));
+    return TRUE;
+}
+
+
+// node actions
+function _cmp_soft_delete_request_soft_delete($node)
+{
+    global $user;
+
+    $del = _cmp_soft_delete_get_node_stat($node->nid);
+    if ( !empty($del['deletion_state'])
+      && ( $del['deletion_state'] == 'soft'
+        || $del['deletion_state'] == 'requested' ) )
+    {
+        return TRUE;
     }
 
     /// set the state of the node to requesting deletion
@@ -271,8 +383,7 @@ function _cmp_soft_delete_request_soft_delete($node)
         ))
         ->execute();
     node_save($node);
-    drupal_set_message("\"" . $node->title . "\" is awaiting soft deletion.", 'warning');
-    drupal_goto("admin/workbench/delete");
+
     return TRUE;
 }
 
@@ -280,20 +391,10 @@ function _cmp_soft_delete_do_soft_delete($node)
 {
     global $user;
 
-    // $everPublished = _cmp_soft_delete_node_ever_published($node);
-    // if ( $everPublished && !user_access('approve soft delete') )
-    // {
-    //     drupal_set_message("You do not have permission to soft delete this content.", 'error');
-    //     drupal_goto("admin/workbench");
-    //     return;
-    // }
-
     $del = _cmp_soft_delete_get_node_stat($node->nid);
     if ( !empty($del['deletion_state']) && $del['deletion_state'] == 'soft' )
     {
-        drupal_set_message("\"" . $node->title . "\" has already been soft deleted.", 'warning');
-        drupal_goto("admin/workbench/delete");
-        return FALSE;
+        return TRUE;
     }
 
     $res = db_merge('node_deleted')
@@ -311,94 +412,64 @@ function _cmp_soft_delete_do_soft_delete($node)
     /// unpublish this node ?
     $node->status=0;
     node_save($node);
-    drupal_set_message("\"" . $node->title . "\" has been soft deleted.", 'warning');
 
-    // Tell USA Data Migration module that node has been deleted
-    if ( module_exists('usa_data_migration') )
-    {
-        $nidsDeleted = variable_get('udm_nidsDeleted', array());
-        // Limit tracking to the last 50 nodes to save db space
-        // bad idea to put this udm logic into this module -
-        $nidsDeleted = array_slice($nidsDeleted, -50);
-        $nidsDeleted[] = $node->nid;
-        variable_set('udm_nidsDeleted', $nidsDeleted);
-    }
-    drupal_goto("admin/workbench/delete");
+    _cmp_soft_delete_ridin_dirty($node->nid);
+
     return TRUE;
 }
 
-function _cmp_soft_delete_rescind_soft_delete($node)
+function _cmp_soft_delete_rescind_request($node)
 {
-    return _cmp_soft_delete_undo_soft_delete($node);
-}
-
-
-function _cmp_soft_delete_undo_soft_delete($node)
-{
-
-    /// remove soft-deleted status
     $del = _cmp_soft_delete_get_node_stat($node->nid);
     if ( empty($del['deletion_timestamp']) )
     {
-        drupal_set_message("This node is already not deleted.", 'warning');
-        drupal_goto("admin/workbench/delete");
+      return TRUE;
+    }
+
+    if ( $del['deletion_state'] == 'requested' )
+    {
+        $num_deleted = db_delete("node_deleted")
+                       ->condition("nid" , $node->nid)->execute();
+        node_save($node);
+        _cmp_soft_delete_ridin_dirty($node->nid);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+function _cmp_soft_delete_undo_soft_delete($node)
+{
+    $del = _cmp_soft_delete_get_node_stat($node->nid);
+    if ( empty($del['deletion_timestamp']) )
+    {
         return TRUE;
     }
 
     if ( $del['deletion_state'] == 'soft' )
     {
-        drupal_set_message("\"" . $node->title . "\" has been un-deleted.", 'warning');
-    } else if ( $del['deletion_state'] == 'requested' ) {
-        drupal_set_message("\"" . $node->title . "\" soft delete request has been rescinded.", 'warning');
+        $num_deleted = db_delete("node_deleted")
+                       ->condition("nid" , $node->nid)->execute();
+        node_save($node);
+        _cmp_soft_delete_ridin_dirty($node->nid);
+        return TRUE;
     }
 
-    $num_deleted = db_delete("node_deleted")
-                   ->condition("nid" , $node->nid)->execute();
-
-    node_save($node);
-
-    // Tell USA Data Migration module that node has been updated
-    if ( module_exists('usa_data_migration') )
-    {
-      $nidsDeleted = variable_get('udm_nidsDeleted', array());
-      // Limit tracking to the last 50 nodes to save db space
-      // bad idea to put this udm logic into this module -
-      $nidsDeleted = array_slice($nidsDeleted, -50);
-      $nidsDeleted[] = $node->nid;
-      variable_set('udm_nidsDeleted', $nidsDeleted);
-    }
-
-    drupal_goto("admin/workbench/delete");
-    return TRUE;
+    return FALSE;
 }
 
 function _cmp_soft_delete_do_hard_delete($node)
 {
-    // if ( !node_access('delete',$node) )
-    // {
-    //   drupal_set_message("You do not have permission to delete this content.", 'error');
-    //   drupal_goto("admin/workbench");
-    //   return;
-    // }
-    //
-    // $everPublished = _cmp_soft_delete_node_ever_published($node);
-    // if ( $everPublished && !user_access('skip soft delete') )
-    // {
-    //     drupal_set_message("You do not have permission to permenantly delete this content.", 'error');
-    //     drupal_goto("admin/workbench");
-    //     return;
-    // }
-
-    // clean up soft deleted table as well
     db_delete("node_deleted")
         ->condition("nid" , $node->nid)->execute();
 
     node_delete($node->nid);
+    _cmp_soft_delete_ridin_dirty($node->nid);
     drupal_set_message("\"" . $node->title. "\" has been deleted.");
-
-    drupal_goto("admin/workbench/delete");
+    drupal_goto(_cmp_soft_delete_destination($node->nid));
     return TRUE;
 }
+
 
 // email to editors
 function _cmp_soft_delete_send_email_to_editors($node)
@@ -436,26 +507,6 @@ function _cmp_soft_delete_send_email_to_editors($node)
     }
 }
 
-function _cmp_soft_delete_node_ever_published($node)
-{
-
-    if (isset($node->workbench_moderation) && !empty($node->workbench_moderation['published']))
-    {
-        return true;
-    }
-
-    // Get the moderation history of this node.
-    $query = db_select('workbench_moderation_node_history', 'm');
-    $query->condition('m.nid', $node->nid)
-        ->condition('m.state', 'published')
-        ->fields('m',array('stamp'));
-
-    $moderations = $query->execute()->rowCount();
-
-    // Make sure it's an array.
-    return !empty($moderations);
-}
-
 function _cmp_soft_delete_get_soft_deleted_nodes()
 {
     $ret = array();
@@ -478,8 +529,39 @@ function _cmp_soft_delete_get_requested_nodes()
     return $ret;
 }
 
-
 function _cmp_soft_delete_get_node_stat($nid)
 {
    return db_query("SELECT deletion_uid, deletion_timestamp, deletion_state FROM node_deleted WHERE nid = :nid", array(":nid"=>$nid))->fetchAssoc();
+}
+
+function _cmp_soft_delete_ridin_dirty($nid)
+{
+  if ( module_exists('usa_data_migration') )
+  {
+      $nidsDeleted = variable_get('udm_nidsDeleted', array());
+      // Limit tracking to the last 50 nodes to save db space
+      // bad idea to put this udm logic into this module -
+      $nidsDeleted = array_slice($nidsDeleted, -50);
+      $nidsDeleted[] = $nid;
+      variable_set('udm_nidsDeleted', $nidsDeleted);
+  }
+}
+
+//
+
+function cmp_soft_delete_views_pre_execute(&$view)
+{
+    // do not include soft-deleted items for these views
+    if ( in_array($view->name,[
+          'admin_views_node','workbench_recent_content',
+          'workbench_current_user'],TRUE) )
+    {
+        $query =& $view->build_info['query'];
+        $query->addJoin('LEFT', 'node_deleted', 'd', "d.nid = node.nid AND d.deletion_state='soft'" );
+        $query->where('(d.deletion_state IS NULL)');
+    } else if ( in_array($view->name,['workbench_edited'],TRUE) ) {
+        $query =& $view->build_info['query'];
+        $query->addJoin('LEFT', 'node_deleted', 'd', "d.nid = node_revision.nid AND d.deletion_state='soft'" );
+        $query->where('(d.deletion_state IS NULL)');
+    }
 }

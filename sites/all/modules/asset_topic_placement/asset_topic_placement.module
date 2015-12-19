@@ -3,8 +3,8 @@
 function asset_topic_placement_init() {
 
     // On any taxonomy edit-page or site_strucutre_taxonomy adding-page...
-    if ( 
-        strpos(request_uri(), 'taxonomy/term/') !== false && strpos(request_uri(), '/edit') !== false 
+    if (
+        strpos(request_uri(), 'taxonomy/term/') !== false && strpos(request_uri(), '/edit') !== false
         || strpos(request_uri(), '/admin/structure/taxonomy/site_strucutre_taxonomy/add') !== false
         || strpos(request_uri(), '/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy') !== false
     ) {
@@ -22,7 +22,7 @@ function asset_topic_placement_init() {
  */
 function asset_topic_placement_menu() {
     $items = array();
-    
+
     // Ajax handeler for getting nodes under given Asset-Topic(s)
     $items['atm/get-nodes-under-topics'] = array(
         'title' => 'Get Nodes Under Topics',
@@ -57,7 +57,7 @@ function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_stat
 
             // Get the revision of the published version of this node
             $targetRevId = db_query("
-                SELECT r.vid 
+                SELECT r.vid
                 FROM node n
                 LEFT JOIN node_revision r ON ( r.nid = n.nid AND r.vid= n.vid )
                 WHERE n.nid = {$nid} AND n.status = 1 AND r.status = 1
@@ -67,10 +67,10 @@ function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_stat
             // If the node has never been published yet, then default to the latest revision
             if ( $targetRevId == false ) {
                 $targetRevId = db_query("
-                    SELECT vid 
-                    FROM node_revision 
-                    WHERE nid = {$nid} 
-                    ORDER BY vid DESC 
+                    SELECT vid
+                    FROM node_revision
+                    WHERE nid = {$nid}
+                    ORDER BY vid DESC
                     LIMIT 1
                 ")->fetchColumn();
                 $wasPublished = 0;
@@ -78,14 +78,14 @@ function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_stat
 
             // Obtain node info
             $nodeInfo = db_query("
-                SELECT 
-                    nid, 
-                    title, 
-                    type, 
-                    field_priority_value AS 'priority', 
+                SELECT
+                    nid,
+                    title,
+                    type,
+                    field_priority_value AS 'priority',
                     p.revision_id AS 'vid',
                     {$wasPublished} AS 'haspubrevision'
-                FROM node n 
+                FROM node n
                 LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = {$targetRevId} )
                 WHERE n.nid = {$nid}
             ")->fetchAll();
@@ -109,7 +109,7 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
         exit('Error - no terms argument supplied');
     }
 
-    // MySQL string sanitization 
+    // MySQL string sanitization
     $terms = explode(',', $_REQUEST['terms']);
     $msqlTerms = array();
     foreach ( $terms as $term ) {
@@ -120,9 +120,14 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
     /* Get all node-ids that are associated with the given Asset-Topic terms, based
      on the information in the field_data_field_asset_topic_taxonomy table */
     $nids = db_query("
-        SELECT entity_id 
-        FROM field_data_field_asset_topic_taxonomy 
-        WHERE field_asset_topic_taxonomy_tid IN ({$msqlTerms})
+      SELECT t.entity_id
+      FROM field_data_field_asset_topic_taxonomy t
+			   LEFT JOIN node_deleted d
+                   ON ( t.entity_id = d.nid AND d.deletion_state='soft' )
+      WHERE
+			   t.entity_type = 'node'
+         AND d.deletion_state IS NULL
+         AND field_asset_topic_taxonomy_tid IN ({$msqlTerms})
     ")->fetchCol();
     if ( count($nids) === 0 ) {
         print '[]';
@@ -140,7 +145,7 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
 
         // Get the revision of the published version of this node
         $targetRevId = db_query("
-            SELECT r.vid 
+            SELECT r.vid
             FROM node n
             LEFT JOIN node_revision r ON ( r.nid = n.nid AND r.vid= n.vid )
             WHERE n.nid = {$nid} AND n.status = 1 AND r.status = 1
@@ -150,10 +155,10 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
         // If the node has never been published yet, then default to the latest revision
         if ( $targetRevId == false ) {
             $targetRevId = db_query("
-                SELECT vid 
-                FROM node_revision 
-                WHERE nid = {$nid} 
-                ORDER BY vid DESC 
+                SELECT vid
+                FROM node_revision
+                WHERE nid = {$nid}
+                ORDER BY vid DESC
                 LIMIT 1
             ")->fetchColumn();
             $wasPublished = 0;
@@ -161,14 +166,14 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
 
         // Obtain node info
         $thisNode = db_query("
-            SELECT 
-                nid, 
-                title, 
-                type, 
-                field_priority_value AS 'priority', 
-                p.revision_id AS 'vid', 
+            SELECT
+                nid,
+                title,
+                type,
+                field_priority_value AS 'priority',
+                p.revision_id AS 'vid',
                 {$wasPublished} AS 'haspubrevision'
-            FROM node n 
+            FROM node n
             LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = {$targetRevId} )
             WHERE n.nid = {$nid}
         ")->fetchAll();
@@ -204,7 +209,7 @@ function asset_topic_placement_ajaxReturnNodesInfo() {
 
         // Get the revision of the published version of this node
         $targetRevId = db_query("
-            SELECT r.vid 
+            SELECT r.vid
             FROM node n
             LEFT JOIN node_revision r ON ( r.nid = n.nid AND r.vid= n.vid )
             WHERE n.nid = {$nid} AND n.status = 1 AND r.status = 1
@@ -214,16 +219,16 @@ function asset_topic_placement_ajaxReturnNodesInfo() {
         // If the node has never been published yet, then default to the latest revision
         if ( $targetRevId == false ) {
             $targetRevId = db_query("
-                SELECT vid 
-                FROM node_revision 
-                WHERE nid = {$nid} 
-                ORDER BY vid DESC 
+                SELECT vid
+                FROM node_revision
+                WHERE nid = {$nid}
+                ORDER BY vid DESC
                 LIMIT 1
             ")->fetchColumn();
             $wasPublished = 0;
         }
 
-        /* If we still couldn't find the $targetRevId, then this node doesn't 
+        /* If we still couldn't find the $targetRevId, then this node doesn't
         exists, (this is a broken reference), ignore/skip. */
         if ( $targetRevId === false ) {
             continue;
@@ -231,14 +236,14 @@ function asset_topic_placement_ajaxReturnNodesInfo() {
 
         // Obtain node info
         $thisNode = db_query("
-            SELECT 
-                nid, 
-                title, 
-                type, 
-                field_priority_value AS 'priority', 
+            SELECT
+                nid,
+                title,
+                type,
+                field_priority_value AS 'priority',
                 p.revision_id AS 'vid',
                 {$wasPublished} AS 'haspubrevision'
-            FROM node n 
+            FROM node n
             LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = {$targetRevId} )
             WHERE n.nid = {$nid}
         ")->fetchAll();
