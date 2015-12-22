@@ -55,7 +55,7 @@ hooks_reaction_add(
     function (&$form, &$form_state, $form_id) {
 
         if ($form_id == "text_content_type_node_form") {
-            drupal_add_js(drupal_get_path('module', 'hooks_reaction') . '/js/alter_node_form_text.js');
+            //drupal_add_js(drupal_get_path('module', 'hooks_reaction') . '/js/alter_node_form_text.js');
         }
         
         if ( !empty($form['field_workflow_notification_emai']['und'][0]['value']) ) {
