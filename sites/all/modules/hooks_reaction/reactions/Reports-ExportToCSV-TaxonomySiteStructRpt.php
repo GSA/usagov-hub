@@ -124,7 +124,9 @@ function exportSiteStructureTaxonomyReportToCSV() {
     }
 
     // Print the CSV headers
-    fwrite($h, '"counter","Site","Page Title","Parent Title","Owner","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",');
+//    fwrite($h, '"counter","Site","Page Title","Parent Title","Owner","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",');
+    fwrite($h, '"counter","Site","Page Title","Parent Title","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",');
+
     for ( $T = 1 ; $T < intval(variable_get('tssr_lastmaxcolcount', 3)); $T++ ) {
         if ( $T > 1 ) {
             fwrite($h, ',');
@@ -190,7 +192,7 @@ function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$ro
         'Site' => db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid={$term->tid}")->fetchColumn(),
         'Page Title' => tssr_sanitzie( !empty($term->field_page_title['und'][0]['value']) ? $term->field_page_title['und'][0]['value'] : 'NOT SET IN CMP' ),
         'Parent Title' => tssr_sanitzie($termParentPageTitle),
-        'Owner' => !empty($term->field_term_owner['und'][0]['target_id'])? (tssr_get_username($term->field_term_owner['und'][0]['target_id'])) : 'NOT SET IN CMP',
+       // 'Owner' => !empty($term->field_term_owner['und'][0]['target_id'])? (tssr_get_username($term->field_term_owner['und'][0]['target_id'])) : 'NOT SET IN CMP',
         'Hierarchy Level' => $lvlSemaphore,
         'Page Type' => ( !empty($term->field_type_of_page_to_generate['und'][0]['value']) ? $term->field_type_of_page_to_generate['und'][0]['value'] : 'NOT SET IN CMP' ),
         'Friendly URL' => ( !empty($term->field_friendly_url['und'][0]['value']) ? $term->field_friendly_url['und'][0]['value'] : 'NOT SET IN CMP' ),
