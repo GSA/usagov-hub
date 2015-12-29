@@ -125,7 +125,7 @@ function exportAssetTopicTaxonomyReportToCSV() {
     }
 
     // Write the CSV headers
-    fwrite($h, '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets-Nodes Associated (cumulative)","For Use By",');
+    fwrite($h, '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets-Nodes Associated (cumulative)","For Use By","Owner","Status",');
     for ( $T = 1 ; $T < intval(variable_get('tatr_lastmaxcolcount', 3)); $T++ ) {
         if ( $T > 1 ) {
             fwrite($h, ',');
