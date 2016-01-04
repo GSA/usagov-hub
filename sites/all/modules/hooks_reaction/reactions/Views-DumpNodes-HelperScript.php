@@ -108,8 +108,8 @@ function _vdn_absoluteLinks( &$node )
     && isset($node->body['und'][0]) && !empty($node->body['und'][0]['value']) )
   {
     $node->body['und'][0]['value'] = preg_replace(
-       "/(href|src)\s*\=\s*([\"'])\s*([^(https?|mailto|ftp)])/",
-       "$1=$2$host/$3", $node->body['und'][0]['value']);
+       "/(href|src)\s*\=\s*([\"'])\s*([^(http|mailto|ftp)])/",
+       "$1=$2{$host}/$3", $node->body['und'][0]['value']);
     $node->body['und'][0]['value'] = preg_replace("/usa\.gov\/{2,}/", "usa.gov/",
        $node->body['und'][0]['value']);
   }
