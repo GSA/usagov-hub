@@ -313,7 +313,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
 
     // If this is the edit form for any node under the 'Text Asset' content-type
     //if ( $form_id === 'text_content_type_node_form' ) {
-
+/*
     if ( !empty($form['#node']->workbench_moderation) ) {
 
         global $user;
@@ -329,7 +329,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
         if ( !$everPublished ) { return; } /// anyone can see delete
         /// if  ever_published &&  awaiting_deletion && !(state:awaiting->deleted) : disabled delete button + message
         if ( $workflowState=='awaiting_deletion' && !$canApproveDelete && !empty($form['actions']['delete']) )
-        { /* awaiting deletion approval */
+        { // awaiting deletion approval
             $form['actions']['delete']['#value'] = 'Awaiting Deletion';
             $form['actions']['delete']['#type'] = 'button';
             unset($form['actions']['delete']['#submit']);
@@ -341,7 +341,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
         }
         /// if  ever_published &&  awaiting_deletion &&  (state:awaiting->deleted) : approve soft delete button
         if ( $workflowState=='awaiting_deletion' &&  $canApproveDelete && !empty($form['actions']['delete']) )
-        { /* approve deletion */
+        { // approve deletion
             $form['actions']['delete']['#value'] = 'Approve Deletion';
             return;
         }
@@ -357,6 +357,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
             );
             return;
         }
+        */
         /*
         $disableDelBtn = false;
          If this user isn't allowed to hard-delete, disabel the delete button if the node is in the soft-delete process
@@ -374,7 +375,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
             );
         }
         */
-    }
+    //}
     //}
 }
 
@@ -511,7 +512,7 @@ function _cmp_misc_auto_publish_content()
                     group by nid
                 )                                                 c on ( c.nid = n.nid )
                 LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid       AND d.deletion_state = "soft" )
                 LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
                 LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
                 LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
@@ -565,7 +566,7 @@ function _cmp_misc_auto_archive_content()
                 a.field_archive_date_value
               FROM
                 {node} n
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid       AND d.deletion_state = "soft" )
                 LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND n.vid = a.revision_id )
               WHERE
                 # node is not deleted
@@ -610,7 +611,7 @@ function _cmp_misc_node_past_publication_date($node)
                     GROUP BY nid
                 )                                                 c on ( n.nid = c.nid )
                 LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid       AND d.deletion_state = "soft" )
                 LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
                 LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
                 LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
@@ -666,7 +667,7 @@ function _cmp_misc_node_future_publication_date($node)
                     GROUP BY nid
                 )                                                 c on ( n.nid = c.nid )
                 LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid       AND d.deletion_state = "soft" )
                 LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
                 LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
                 LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )

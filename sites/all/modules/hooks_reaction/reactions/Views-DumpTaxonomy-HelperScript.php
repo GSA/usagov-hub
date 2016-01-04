@@ -1,8 +1,8 @@
 <?php /*
 
     [--] PURPOSE [--]
-    
-    The purpose of this script is to assist the dump_taxonomy View with rendering - this View uses 
+
+    The purpose of this script is to assist the dump_taxonomy View with rendering - this View uses
     some custom functions that must be defined outside of the View.
 
     This helper script also assists in altering the query sent to MySQL for this View,
@@ -22,7 +22,7 @@ hooks_reaction_add("HOOK_views_pre_execute",
         // I'm not using HOOK_views_query_alter() due to technical difficulty/reasons
         if ( $view->name === 'dump_taxonomy' ) {
 
-            $query = $view->build_info['query'];
+            $query =& $view->build_info['query'];
 
             // Implement pagination URL
             $page = ( empty($view->args[0]) ? 0 : intval($view->args[0]) - 1);
@@ -32,11 +32,11 @@ hooks_reaction_add("HOOK_views_pre_execute",
             $query->range(($page)*$limit, $limit);
 
             // The "Recent Data export" display should only show taxonomy-terms that have been modded in the last 15mins
-            if ( $view->current_display === 'views_data_export_2' ) {
-                $query->leftJoin('taxonomy_dates', 'd', '(taxonomy_term_data.tid=d.tid)');
-                $recentTime = time() - 901; // 900 == seconds in 15 minutes
-                $query->where(" d.created > {$recentTime} OR d.changed > {$recentTime} ");
-            }
+            // if ( $view->current_display === 'views_data_export_2' ) {
+            //     $query->leftJoin('taxonomy_dates', 'd', '(taxonomy_term_data.tid=d.tid)');
+            //     $recentTime = time() - 901; // 900 == seconds in 15 minutes
+            //     $query->where(" d.created > {$recentTime} OR d.changed > {$recentTime} ");
+            // }
 
         }
     }
@@ -45,10 +45,10 @@ hooks_reaction_add("HOOK_views_pre_execute",
 if ( !class_exists('SimpleXMLExtended') ) {
     class SimpleXMLExtended extends SimpleXMLElement {
         public function addCData($cdata_text) {
-            $node = dom_import_simplexml($this); 
-            $no   = $node->ownerDocument; 
-            $node->appendChild($no->createCDATASection($cdata_text)); 
-        } 
+            $node = dom_import_simplexml($this);
+            $no   = $node->ownerDocument;
+            $node->appendChild($no->createCDATASection($cdata_text));
+        }
     }
 }
 
