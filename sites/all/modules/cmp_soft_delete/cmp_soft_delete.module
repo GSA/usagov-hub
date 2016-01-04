@@ -195,7 +195,7 @@ function cmp_soft_delete_form_alter(&$form, &$form_state, $form_id)
         if ( isset($form['nid']['#value']) )
         {
             $del = _cmp_soft_delete_get_node_stat($form['nid']['#value']);
-            if ( $del['deletion_state']==='requested' )
+            if ( $del['deletion_state'] === 'requested' )
             {
                 if ( cmp_soft_delete_access('soft',$form['#node']) )
                 {
@@ -207,7 +207,7 @@ function cmp_soft_delete_form_alter(&$form, &$form_state, $form_id)
                 } else {
                     drupal_set_message(t('Awaiting Soft Delete approval.'),'warning');
                 }
-            } else if ( $del['deletion_state']==='soft' ) {
+            } else if ( $del['deletion_state'] === 'soft' ) {
 
                 /// This might be better off as a button on the bottom
                 if ( cmp_soft_delete_access('undo',$form['#node']) )
@@ -264,12 +264,12 @@ function _cmp_soft_delete_handle_request_soft_delete($node)
     $del = _cmp_soft_delete_get_node_stat($node->nid);
     if ( !empty($del['deletion_state']) )
     {
-        if ( $del['deletion_state'] == 'soft' )
+        if ( $del['deletion_state'] === 'soft' )
         {
             drupal_set_message("\"" . $node->title . "\" has already been soft deleted.", 'warning');
             drupal_goto(_cmp_soft_delete_destination($node->nid));
             return;
-        } else if ( $del['deletion_state'] == 'requested' ) {
+        } else if ( $del['deletion_state'] === 'requested' ) {
             drupal_set_message("\"" . $node->title . "\" is already awaiting soft deletion.", 'warning');
             drupal_goto(_cmp_soft_delete_destination($node->nid));
             return;
@@ -286,7 +286,7 @@ function _cmp_soft_delete_handle_request_soft_delete($node)
 function _cmp_soft_delete_handle_do_soft_delete($node)
 {
     $del = _cmp_soft_delete_get_node_stat($node->nid);
-    if ( !empty($del['deletion_state']) && $del['deletion_state'] == 'soft' )
+    if ( !empty($del['deletion_state']) && $del['deletion_state'] === 'soft' )
     {
         drupal_set_message("\"" . $node->title . "\" has already been soft deleted.", 'warning');
         drupal_goto(_cmp_soft_delete_destination($node->nid));
@@ -311,10 +311,10 @@ function _cmp_soft_delete_handle_rescind_request($node)
         return;
     }
 
-    if ( $del['deletion_state'] == 'soft' )
+    if ( $del['deletion_state'] === 'soft' )
     {
         drupal_set_message("\"" . $node->title . "\" has already deleted.", 'error');
-    } else if ( $del['deletion_state'] == 'requested' ) {
+    } else if ( $del['deletion_state'] === 'requested' ) {
         _cmp_soft_delete_rescind_request($node);
         drupal_set_message("\"" . $node->title . "\" soft delete request has been rescinded.", 'warning');
     }
@@ -334,7 +334,7 @@ function _cmp_soft_delete_handle_undo_soft_delete($node)
         return;
     }
 
-    if ( $del['deletion_state'] == 'soft' )
+    if ( $del['deletion_state'] === 'soft' )
     {
         _cmp_soft_delete_undo_soft_delete($node);
         drupal_set_message("\"" . $node->title . "\" has been un-deleted.", 'warning');
@@ -364,8 +364,8 @@ function _cmp_soft_delete_request_soft_delete($node)
 
     $del = _cmp_soft_delete_get_node_stat($node->nid);
     if ( !empty($del['deletion_state'])
-      && ( $del['deletion_state'] == 'soft'
-        || $del['deletion_state'] == 'requested' ) )
+      && ( $del['deletion_state'] === 'soft'
+        || $del['deletion_state'] === 'requested' ) )
     {
         return TRUE;
     }
@@ -392,7 +392,7 @@ function _cmp_soft_delete_do_soft_delete($node)
     global $user;
 
     $del = _cmp_soft_delete_get_node_stat($node->nid);
-    if ( !empty($del['deletion_state']) && $del['deletion_state'] == 'soft' )
+    if ( !empty($del['deletion_state']) && $del['deletion_state'] === 'soft' )
     {
         return TRUE;
     }
@@ -446,7 +446,7 @@ function _cmp_soft_delete_undo_soft_delete($node)
         return TRUE;
     }
 
-    if ( $del['deletion_state'] == 'soft' )
+    if ( $del['deletion_state'] === 'soft' )
     {
         $num_deleted = db_delete("node_deleted")
                        ->condition("nid" , $node->nid)->execute();
@@ -563,5 +563,20 @@ function cmp_soft_delete_views_pre_execute(&$view)
         $query =& $view->build_info['query'];
         $query->addJoin('LEFT', 'node_deleted', 'd', "d.nid = node_revision.nid AND d.deletion_state='soft'" );
         $query->where('(d.deletion_state IS NULL)');
+    }
+}
+
+/// soft deleted nodes may not be published
+/// right now this operates on the state of the node,
+/// it should probably unpublish the current moderation state as well
+function cmp_soft_delete_node_presave($node)
+{
+    if ( $node->status === 1 )
+    {
+        $del = _cmp_soft_delete_get_node_stat($node->nid);
+        if ( !empty($del['deletion_state']) && $del['deletion_state'] === 'soft' )
+        {
+            throw new Exception('Error saving node: Cannot publish soft deleted nodes');
+        }
     }
 }
