@@ -201,9 +201,10 @@ function cmp_misc_views_pre_render(&$view) {
                 if (is_numeric($asset_tid)) {
                     $asset_count = _get_node_count_by_tid(array($asset_tid));
                 }
+                $owner = _get_asset_owner_by_tid($row->tid);
             }
 
-            $owner = _get_asset_owner_by_tid($row->tid);
+
             $owner_txt = strlen($owner) > 0? ' is owned by ' . $owner : '' ;
 
             $new_title = $view->result[$i]->taxonomy_term_data_name . $owner_txt . ' ( '

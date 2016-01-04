@@ -125,7 +125,7 @@ function exportAssetTopicTaxonomyReportToCSV() {
     }
 
     // Write the CSV headers
-    fwrite($h, '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets-Nodes Associated (cumulative)","For Use By",');
+    fwrite($h, '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets-Nodes Associated (cumulative)","For Use By","Owner","Status",');
     for ( $T = 1 ; $T < intval(variable_get('tatr_lastmaxcolcount', 3)); $T++ ) {
         if ( $T > 1 ) {
             fwrite($h, ',');
@@ -188,6 +188,8 @@ function compileAssetTopicTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$rows,
         'CMP Edit Link' => "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/{$tid}/edit",
         'Assets-Nodes Associated (cumulative)' => findNodeCountAssociatedWithTopicCumulatively($vid, $tid),
         'For Use By' => '',
+        'Owner' => '',
+        'Status' => ''
     );
 
     // Get the nodes associated with this Topic
@@ -212,6 +214,8 @@ function compileAssetTopicTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$rows,
             'CMP Edit Link' => "https://".$_SERVER['HTTP_HOST']."/node/{$node->nid}/edit",
             'Assets-Nodes Associated (cumulative)' => '',
             'For Use By' => $forUseBy,
+            'Owner' => tssr_get_username($node->uid),
+            'Status' => ($node->status)? 'Published':'Unpublished'
         );
 
         // For each page this node apears on, add a new column
