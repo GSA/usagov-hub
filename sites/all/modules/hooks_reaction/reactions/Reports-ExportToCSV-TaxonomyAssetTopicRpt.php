@@ -214,7 +214,7 @@ function compileAssetTopicTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$rows,
             'CMP Edit Link' => "https://".$_SERVER['HTTP_HOST']."/node/{$node->nid}/edit",
             'Assets-Nodes Associated (cumulative)' => '',
             'For Use By' => $forUseBy,
-            'Owner' => tssr_get_username($node->uid),
+            'Owner' => !empty($node->field_owner['und'][0]['target_id'])? (tssr_get_username($node->field_owner['und'][0]['target_id'])) : 'NOT SET IN CMP',
             'Status' => ($node->status)? 'Published':'Unpublished'
         );
 
