@@ -127,6 +127,19 @@ function cmp_soft_delete_admin($form, &$form_state)
      return system_settings_form($form);
 }
 
+function cmp_soft_delete_node_delete( $node )
+{
+    $content_types = variable_get('cmp_soft_delete_content_types',array());
+    /// if this node's content_type is soft-delete-able
+    if ( !empty($node->type)
+         && in_array($node->type, $content_types) )
+    {
+        /// remove all references from node_deleted
+        db_delete("node_deleted")
+            ->condition("nid" , $node->nid)->execute();
+    }
+}
+
 /**
  * Implements hook_permission().
  */
@@ -149,11 +162,21 @@ function cmp_soft_delete_permission()
 function _cmp_soft_delete_destination($nid=null)
 {
   $goto = drupal_get_destination();
-  if ( empty($_GET['destination']) && !empty($nid) )
+  /// if no destination specified
+  if ( empty($_GET['destination']) )
   {
-    $goto['destination'] = "node/$nid/edit";
-  } else {
-    $goto['destination'] = "admin/workbench/delete";
+    /// default to requested deletion screen
+    $goto['destination'] = "admin/workbench/needs-soft-delete";
+    if ( !empty($nid) )
+    {
+      $nid_count = db_query("SELECT COUNT(*) FROM {node} WHERE nid = :nid", array(":nid"=>$nid))->fetchField();
+      /// if node exists
+      if ( $nid_count > 0 )
+      {
+          /// go back to node edit screen
+          $goto['destination'] = "node/$nid/edit";
+      }
+    }
   }
   return $goto;
 }
@@ -279,6 +302,7 @@ function cmp_soft_delete_node_delete_confirm_submit($form, &$form_state)
     }
 
     $d = _cmp_soft_delete_destination($node->nid);
+    dpm($d);
     $form_state['redirect'] = $d['destination'];
 }
 
@@ -305,7 +329,6 @@ function _cmp_soft_delete_handle_request_soft_delete($node)
 
     drupal_set_message("\"" . $node->title . "\" is awaiting soft deletion.", 'warning');
     drupal_goto(_cmp_soft_delete_destination($node->nid));
-    return;
 }
 
 function _cmp_soft_delete_handle_do_soft_delete($node)
@@ -322,7 +345,6 @@ function _cmp_soft_delete_handle_do_soft_delete($node)
     _cmp_soft_delete_do_soft_delete($node);
 
     drupal_goto(_cmp_soft_delete_destination($node->nid));
-    return;
 }
 
 function _cmp_soft_delete_handle_rescind_request($node)
@@ -345,7 +367,6 @@ function _cmp_soft_delete_handle_rescind_request($node)
     }
 
     drupal_goto(_cmp_soft_delete_destination($node->nid));
-    return;
 }
 
 function _cmp_soft_delete_handle_undo_soft_delete($node)
@@ -369,7 +390,6 @@ function _cmp_soft_delete_handle_undo_soft_delete($node)
     }
 
     drupal_goto(_cmp_soft_delete_destination($node->nid));
-    return;
 }
 
 function _cmp_soft_delete_handle_do_hard_delete($node)
@@ -378,7 +398,6 @@ function _cmp_soft_delete_handle_do_hard_delete($node)
 
     drupal_set_message("\"" . $node->title. "\" has been deleted.");
     drupal_goto(_cmp_soft_delete_destination($node->nid));
-    return TRUE;
 }
 
 
@@ -485,13 +504,8 @@ function _cmp_soft_delete_undo_soft_delete($node)
 
 function _cmp_soft_delete_do_hard_delete($node)
 {
-    db_delete("node_deleted")
-        ->condition("nid" , $node->nid)->execute();
-
     node_delete($node->nid);
-    _cmp_soft_delete_ridin_dirty($node->nid);
     drupal_set_message("\"" . $node->title. "\" has been deleted.");
-    drupal_goto(_cmp_soft_delete_destination($node->nid));
     return TRUE;
 }
 
@@ -529,6 +543,7 @@ function _cmp_soft_delete_ridin_dirty($nid)
       $nidsDeleted = variable_get('udm_nidsDeleted', array());
       // Limit tracking to the last 50 nodes to save db space
       // bad idea to put this udm logic into this module -
+      $nidsDeleted = array_unique($nidsDeleted);
       $nidsDeleted = array_slice($nidsDeleted, -50);
       $nidsDeleted[] = $nid;
       variable_set('udm_nidsDeleted', $nidsDeleted);
