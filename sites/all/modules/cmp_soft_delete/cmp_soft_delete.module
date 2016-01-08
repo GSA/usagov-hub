@@ -171,13 +171,12 @@ function cmp_soft_delete_form_alter(&$form, &$form_state, $form_id)
          && in_array($form['#node']->type, $content_types)
          && $form_id == 'node_delete_confirm' )
     {
-        /// Override node_delete_confirm_submit() submit handler
-        $form['#submit'][0] = 'cmp_soft_delete_node_delete_confirm_submit';
-
         /// if  everPublished : request soft delete
         $everPublished = cmp_misc_node_ever_published($form['#node']);
         if ( $everPublished )
         {
+          /// Override node_delete_confirm_submit() submit handler
+          $form['#submit'][0] = 'cmp_soft_delete_node_delete_confirm_submit';
           $form['description']['#markup'] = t('Soft Deletion may be undone later.');
 
           $form['actions']['submit']['#id']    = 'deleteSubmit';
