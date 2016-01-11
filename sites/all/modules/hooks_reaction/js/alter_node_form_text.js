@@ -1,10 +1,6 @@
 (function ($) {
 
     $(document).ready(function () {
-
-        $('td').each(function() {
-            var text = $(this).text();
-            $(this).text(text.replace('No items have been added yet.', 'This item has not been added yet.'));
-        });
+            $("td:contains('No items have been added yet.')").html('This item has not been added yet. Click "Add items" to launch the widget.');
     });
 })(jQuery);

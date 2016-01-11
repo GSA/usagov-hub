@@ -13,25 +13,31 @@ function cmp_soft_delete_install() {
 function cmp_soft_delete_schema() {
 
   $schema['node_deleted'] = array(
-  'fields' => array(
-      'nid' => array(
-        'type' => 'int',
-        'not null' => TRUE,
-        'default' => 0,
-        'no export' => TRUE,
-      ),
-      'deletion_uid' => array(
-        'type' => 'int',
-        'not null' => TRUE,
-        'default' => 0,
-        'no export' => TRUE,
-      ),
-      'deletion_timestamp' => array(
-        'type' => 'int',
-        'not null' => TRUE,
-        'default' => 0,
-        'no export' => TRUE,
-      ),
+      'fields' => array(
+          'nid' => array(
+            'type' => 'int',
+            'not null' => TRUE,
+            'default' => 0,
+            'no export' => TRUE,
+          ),
+          'deletion_uid' => array(
+            'type' => 'int',
+            'not null' => TRUE,
+            'default' => 0,
+            'no export' => TRUE,
+          ),
+          'deletion_timestamp' => array(
+            'type' => 'int',
+            'not null' => TRUE,
+            'default' => 0,
+            'no export' => TRUE,
+          ),
+          'deletion_state' => array(
+            'type' => 'varchar',
+            'length' => '20',
+            'default' => 'soft',
+            'no export' => TRUE,
+          ),
       ),
       'primary key' => array('nid')
   );
