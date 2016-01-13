@@ -513,13 +513,13 @@ function _cmp_misc_auto_publish_content()
                     group by nid
                 )                                                 c on ( c.nid = n.nid )
                 LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid       AND d.deletion_state = "soft" )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
                 LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
                 LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
                 LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
               WHERE
                 # node is not deleted
-                d.deletion_timestamp IS NULL
+                ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
@@ -563,15 +563,15 @@ function _cmp_misc_auto_archive_content()
         'SELECT
                 n.nid, n.vid as curr_rev,
                 n.status,
-                d.deletion_timestamp,
+                d.deletion_state,
                 a.field_archive_date_value
               FROM
                 {node} n
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid       AND d.deletion_state = "soft" )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
                 LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND n.vid = a.revision_id )
               WHERE
                 # node is not deleted
-                d.deletion_timestamp IS NULL
+                ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
                 # any revision of the node is currently published
                 AND n.status = 1
                 # is archivable
@@ -600,7 +600,7 @@ function _cmp_misc_node_past_publication_date($node)
         'SELECT
                 n.nid, n.vid as pub_rev, c.vid as curr_rev,
                 r.status as curr_rev_status,
-                d.deletion_timestamp,
+                d.deletion_state,
                 a.field_archive_date_value,
                 p.field_schedule_publish_value
               FROM
@@ -612,7 +612,7 @@ function _cmp_misc_node_past_publication_date($node)
                     GROUP BY nid
                 )                                                 c on ( n.nid = c.nid )
                 LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid       AND d.deletion_state = "soft" )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
                 LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
                 LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
                 LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
@@ -620,7 +620,7 @@ function _cmp_misc_node_past_publication_date($node)
                 # node is our node
                 n.nid = :nid
                 # node is not deleted
-                AND d.deletion_timestamp IS NULL
+                AND ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
@@ -656,7 +656,7 @@ function _cmp_misc_node_future_publication_date($node)
         'SELECT
                 n.nid, n.vid as pub_rev, c.vid as curr_rev,
                 r.status as curr_rev_status,
-                d.deletion_timestamp,
+                d.deletion_state,
                 a.field_archive_date_value,
                 p.field_schedule_publish_value
               FROM
@@ -668,7 +668,7 @@ function _cmp_misc_node_future_publication_date($node)
                     GROUP BY nid
                 )                                                 c on ( n.nid = c.nid )
                 LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid       AND d.deletion_state = "soft" )
+                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
                 LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
                 LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
                 LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
@@ -676,7 +676,7 @@ function _cmp_misc_node_future_publication_date($node)
                 # node is our node
                 n.nid = :nid
                 # node is not deleted
-                AND d.deletion_timestamp IS NULL
+                AND ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
