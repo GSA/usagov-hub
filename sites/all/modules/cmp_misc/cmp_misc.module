@@ -519,7 +519,7 @@ function _cmp_misc_auto_publish_content()
                 LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
               WHERE
                 # node is not deleted
-                ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
+                ( d.deletion_state IS NULL OR d.deletion_state != :soft )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
@@ -544,8 +544,8 @@ function _cmp_misc_auto_publish_content()
                         UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
                     )
                 )
-                AND w.state = \'scheduled_for_publication\'
-            ',array( ":now" => REQUEST_TIME )
+                AND w.state = :scheduled_for_publication
+            ',array( ":now" => REQUEST_TIME, ":soft" => "soft", ":scheduled_for_publication" => "scheduled_for_publication"  )
     )->fetchAll();
 
     foreach  ( $records as $record )
@@ -571,7 +571,7 @@ function _cmp_misc_auto_archive_content()
                 LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND n.vid = a.revision_id )
               WHERE
                 # node is not deleted
-                ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
+                ( d.deletion_state IS NULL OR d.deletion_state != :soft )
                 # any revision of the node is currently published
                 AND n.status = 1
                 # is archivable
@@ -581,7 +581,7 @@ function _cmp_misc_auto_archive_content()
                     AND # archive date is in the past
                     UNIX_TIMESTAMP(a.field_archive_date_value) < :now
                 )
-            ',array( ":now" => REQUEST_TIME )
+            ',array( ":now" => REQUEST_TIME, ":soft" => "soft" )
     )->fetchAll();
 
     foreach  ( $records as $record )
@@ -620,7 +620,7 @@ function _cmp_misc_node_past_publication_date($node)
                 # node is our node
                 n.nid = :nid
                 # node is not deleted
-                AND ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
+                AND ( d.deletion_state IS NULL OR d.deletion_state != :soft )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
@@ -645,7 +645,7 @@ function _cmp_misc_node_past_publication_date($node)
                         UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
                     )
                 )
-            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME )
+            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME, ":soft" => "soft"  )
     )->rowCount();
 }
 
@@ -676,7 +676,7 @@ function _cmp_misc_node_future_publication_date($node)
                 # node is our node
                 n.nid = :nid
                 # node is not deleted
-                AND ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
+                AND ( d.deletion_state IS NULL OR d.deletion_state != :soft )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
@@ -697,7 +697,7 @@ function _cmp_misc_node_future_publication_date($node)
                     AND # publish date is in the past
                     UNIX_TIMESTAMP(p.field_schedule_publish_value) > :now
                 )
-            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME )
+            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME, ":soft" => "soft"  )
     )->rowCount();
 }
 
