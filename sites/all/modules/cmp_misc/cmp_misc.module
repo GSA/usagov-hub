@@ -519,7 +519,7 @@ function _cmp_misc_auto_publish_content()
                 LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
               WHERE
                 # node is not deleted
-                ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
+                ( d.deletion_state IS NULL OR d.deletion_state != \'soft\' )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
@@ -571,7 +571,7 @@ function _cmp_misc_auto_archive_content()
                 LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND n.vid = a.revision_id )
               WHERE
                 # node is not deleted
-                ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
+                ( d.deletion_state IS NULL OR d.deletion_state != \'soft\' )
                 # any revision of the node is currently published
                 AND n.status = 1
                 # is archivable
@@ -620,7 +620,7 @@ function _cmp_misc_node_past_publication_date($node)
                 # node is our node
                 n.nid = :nid
                 # node is not deleted
-                AND ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
+                AND ( d.deletion_state IS NULL OR d.deletion_state != \'soft\' )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
@@ -631,7 +631,7 @@ function _cmp_misc_node_past_publication_date($node)
                         # has archive date set
                         a.field_archive_date_value IS NOT NULL
                         AND # archive date is in the future
-                        UNIX_TIMESTAMP(a.field_archive_date_value) > :now
+                        UNIX_TIMESTAMP(a.field_archive_date_value) > :nows
                     )
                 )
                 # is publishable
@@ -676,7 +676,7 @@ function _cmp_misc_node_future_publication_date($node)
                 # node is our node
                 n.nid = :nid
                 # node is not deleted
-                AND ( d.deletion_state IS NULL OR d.deletion_state != "soft" )
+                AND ( d.deletion_state IS NULL OR d.deletion_state != \'soft\' )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
