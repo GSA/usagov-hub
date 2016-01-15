@@ -23,7 +23,7 @@ hooks_reaction_add("HOOK_views_pre_execute",
         // I'm not using HOOK_views_query_alter() due to technical difficulty/reasons
         if ( $view->name === 'dump_nodes' ) {
 
-            $query = $view->build_info['query'];
+            $query =& $view->build_info['query'];
 
             // Implement pagination URL
             $page = ( empty($view->args[0]) ? 0 : intval($view->args[0]) - 1);
@@ -31,6 +31,13 @@ hooks_reaction_add("HOOK_views_pre_execute",
             // Implement limit by URL
             $limit = ( empty($view->args[1]) ? 1 : intval($view->args[1]) );
             $query->range(($page)*$limit, $limit);
+
+            // do not include soft-deleted items
+            // $query->addJoin('LEFT', 'node_deleted', 'd', "d.nid = node.nid AND d.deletion_state='soft'" );
+            // $query->where('(d.deletion_state IS NULL)');
+
+            // do not include un-published items
+            // $query->where('(node.status = 1)');
 
             __vdn_cache_stuff();
 
@@ -101,8 +108,8 @@ function _vdn_absoluteLinks( &$node )
     && isset($node->body['und'][0]) && !empty($node->body['und'][0]['value']) )
   {
     $node->body['und'][0]['value'] = preg_replace(
-       "/(href|src)\s*\=\s*([\"'])\s*([^(https?|mailto|ftp)])/",
-       "$1=$2$host/$3", $node->body['und'][0]['value']);
+       "/(href|src)\s*\=\s*([\"'])\s*([^(http|mailto|ftp)])/",
+       "$1=$2{$host}/$3", $node->body['und'][0]['value']);
     $node->body['und'][0]['value'] = preg_replace("/usa\.gov\/{2,}/", "usa.gov/",
        $node->body['und'][0]['value']);
   }
@@ -111,7 +118,7 @@ function _vdn_deletionDetails( &$node )
 {
   // override deleted, deletion_uid, deletion_timestamp
   if (isset($node) && is_object($node)) {
-      $del = (db_query("SELECT deletion_uid, deletion_timestamp FROM node_deleted WHERE nid = :nid", array(":nid"=>$node->nid))->fetchAssoc());
+      $del = (db_query("SELECT deletion_uid, deletion_timestamp FROM node_deleted WHERE nid = :nid AND deletion_state='soft'", array(":nid"=>$node->nid))->fetchAssoc());
       if (isset($del) && !empty($del) && is_array($del)) {
           $node->deleted=1;
           $node->deletion_uid = $del['deletion_uid'];

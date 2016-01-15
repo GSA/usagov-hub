@@ -262,7 +262,8 @@ function _cmp_export_xml_fed($use_by='Print CAH')  {
     z.field_zip_value AS zip,
     e.field_email_value AS email,
     l.field_website_links_value AS website,
-    de.field_description_value AS summary
+    de.field_description_value AS summary,
+    field_subdivision_value AS subdivision
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Federal Agencies'
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
@@ -274,6 +275,7 @@ function _cmp_export_xml_fed($use_by='Print CAH')  {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
 
     $res = db_query($sql,array(":use_by"=>$use_by));
@@ -283,7 +285,13 @@ function _cmp_export_xml_fed($use_by='Print CAH')  {
 
     foreach($res as $row) {
         $text .= "<ParaStyle:CorpName>" . $row->title . $new_line;
-        $text .= "<ParaStyle:BodyText>" . $new_line;
+
+        if (isset($row->subdivision) && strlen($row->subdivision) > 0) {
+            $text .= "<ParaStyle:BodyText>" . $row->subdivision . $new_line;
+        }
+        else {
+            $text .= "<ParaStyle:BodyText>" . $new_line;
+        }
         $text .= $row->street1 . ' ' . $row->street2 . $new_line;
         $text .= $row->city . ", " . $row->state . " " . $row->zip . $new_line;
 
@@ -676,7 +684,8 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
     e.field_email_value AS email,
     l.field_website_links_value AS website,
     de.field_description_value AS summary,
-    LEFT(UPPER(n.title),1) AS le
+    LEFT(UPPER(n.title),1) AS le,
+    field_subdivision_value AS subdivision
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Corporations'
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
@@ -688,6 +697,7 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY UPPER(n.title)";
 
 
@@ -704,9 +714,10 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
                 "phone"=>$row->phone,
                 "email"=>$row->email,
                 "website"=>$row->website,
-                "tty"=>$row->tty,
+                //"tty"=>$row->tty,
                 "summary"=>$row->summary,
-                "title"=>$row->title
+                "title"=>$row->title,
+                "subdivision"=>$row->subdivision
             );
     }
 
@@ -718,7 +729,13 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
 
         foreach($addresses as $add) {
             $text .= "<ParaStyle:CorpName>" . $add["title"] . $new_line;
-            $text .= "<ParaStyle:BodyText>" . $new_line;
+
+            if (isset($add["subdivision"]) && strlen($add["subdivision"]) > 0) {
+                $text .= "<ParaStyle:BodyText>" . $add["subdivision"] . $new_line;
+            }
+            else {
+                $text .= "<ParaStyle:BodyText>" . $new_line;
+            }
             $text .= $add['street1'] . ' ' . $add['street2'] . $new_line;
             $text .= $add["city"] . ", " .$add["state"] . " " . $add["zip"] . $new_line;
 
@@ -741,7 +758,7 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
             $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
             $tty_res = db_query($tty_sql, array(':nid'=>$add['nid']));
             foreach($tty_res as $tty_row) {
-                if (isset($tty_row->tty) && strlen($tty_row->tt) > 0) {
+                if (isset($tty_row->tty) && strlen($tty_row->tty) > 0) {
                     $text .= "TTY: " . $tty_row->tty . $new_line;
                 }
             }
@@ -773,7 +790,8 @@ function _cmp_export_xml_co($use_by='Print CAH')  {
     z.field_zip_value AS zip,
     e.field_email_value AS email,
     l.field_website_links_value AS website,
-    de.field_description_value AS summary
+    de.field_description_value AS summary,
+    field_subdivision_value AS subdivision
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Consumer Organizations'
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
@@ -785,6 +803,7 @@ function _cmp_export_xml_co($use_by='Print CAH')  {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
 
     $res = db_query($sql,array(':use_by'=>$use_by));
@@ -793,7 +812,13 @@ function _cmp_export_xml_co($use_by='Print CAH')  {
     $text = "<ASCII-WIN>".$new_line.$new_line;
     foreach($res as $row) {
         $text .= "<ParaStyle:CorpName>" . $row->title . $new_line;
-        $text .= "<ParaStyle:BodyText>" . $new_line;
+
+        if (isset($row->subdivision) && strlen($row->subdivision) > 0) {
+            $text .= "<ParaStyle:BodyText>" . $row->subdivision . $new_line;
+        }
+        else {
+            $text .= "<ParaStyle:BodyText>" . $new_line;
+        }
         $text .= $row->street1 . ' ' . $row->street2 . $new_line;
         $text .= $row->city . ", " . $row->state . " " . $row->zip . $new_line;
 
@@ -848,7 +873,8 @@ function _cmp_export_xml_carman_ta($use_by='Print CAH', $dir_type)  {
     z.field_zip_value AS zip,
     e.field_email_value AS email,
     l.field_website_links_value AS website,
-    de.field_description_value AS summary
+    de.field_description_value AS summary,
+    field_subdivision_value AS subdivision
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = :dir_type
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
@@ -860,6 +886,7 @@ function _cmp_export_xml_carman_ta($use_by='Print CAH', $dir_type)  {
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
 
     $res = db_query($sql,array(':use_by'=>$use_by, ":dir_type"=>$dir_type));
@@ -869,7 +896,12 @@ function _cmp_export_xml_carman_ta($use_by='Print CAH', $dir_type)  {
 
     foreach($res as $row) {
         $text .= "<ParaStyle:CorpName>" . $row->title . $new_line;
-        $text .= "<ParaStyle:BodyText>".$new_line;
+        if (isset($row->subdivision) && strlen($row->subdivision) > 0) {
+            $text .= "<ParaStyle:BodyText>" . $row->subdivision . $new_line;
+        }
+        else {
+            $text .= "<ParaStyle:BodyText>" . $new_line;
+        }
         $text .= $row->street1 . ' ' . $row->street2 . $new_line;
         $text .= $row->city . ", " . $row->state . " " . $row->zip . $new_line;
 
@@ -921,7 +953,8 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
     c.field_city_value AS city,
     UPPER(s.field_state_value) AS state,
     z.field_zip_value AS zip,
-    e.field_email_value AS email
+    e.field_email_value AS email,
+    sub.field_subdivision_value AS subdivision
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Better Business Bureaus'
     LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
@@ -930,9 +963,10 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
     LEFT JOIN field_data_field_state s ON s.entity_id = n.nid
     LEFT JOIN field_data_field_zip z ON z.entity_id = n.nid
     LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY field_state_value, field_city_value";
+    $res = db_query($sql); //,array(':use_by'=>$use_by)
 
-    $res = db_query($sql,array(':use_by'=>$use_by));
     $data = array();
     foreach($res as $row) {
         $state_name = _get_states_abbr($row->state);
@@ -945,6 +979,7 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
             "state"=>$row->state,
             "zip"=>$row->zip,
             "phone"=>$row->phone,
+            "subdivision"=>$row->subdivision,
             "email"=>$row->email);
         }
     }
@@ -958,7 +993,12 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
 
         foreach($addresses as $add) {
             $text .= "<ParaStyle:CityState><CharStyle:Bold>" . $add["city"] . "<CharStyle:>" . $new_line;
-            $text .= "<ParaStyle:BodyText>" . $new_line;
+            if (isset($add['subdivision']) && strlen($add['subdivision']) > 0) {
+                $text .= "<ParaStyle:BodyText>" . $add['subdivision'] . $new_line;
+            }
+            else {
+                $text .= "<ParaStyle:BodyText>" . $new_line;
+            }
             $text .= $add['street1'] . ' ' . $add['street2'] . $new_line;
             $text .= $add["city"] . ", " .$add["state"] . " " . $add["zip"] . $new_line;
 

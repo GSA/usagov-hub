@@ -8,14 +8,14 @@ jQuery(document).ready( function () {
 	}
 
 	/*Every so often, check if we need to initialize this helper script [again]
-	This is necessary because a single term's edit form can be loaded on a 
+	This is necessary because a single term's edit form can be loaded on a
 	single page multiple times in the "Taxonomy Manager" */
 	setInterval(function () {
-		
+
 		// If there is a term's edit form on this page, and this help script has NOT been applied to it...
 		if ( jQuery('.group-asset-topic-placement').length > 0 && jQuery('.group-asset-topic-placement.helper-script-applied').length == 0 ) {
 
-			console.log('Firing initAssetTopicPlacementHelperScript()');
+			//console.log('Firing initAssetTopicPlacementHelperScript()');
 			initAssetTopicPlacementHelperScript();
 
 			// Note this helper-script has been applied to this form
@@ -69,7 +69,7 @@ jQuery(document).ready( function () {
 				},100, this);
 			}).click();
 			needingAttachment.addClass('homepage-watch-attached');
-			console.log('homepage-watch-attached functionality has attached itself to a new taxonomy-form');
+			//console.log('homepage-watch-attached functionality has attached itself to a new taxonomy-form');
 		}
 
 	}, 500);
@@ -79,14 +79,14 @@ jQuery(document).ready( function () {
 
 function untickAssetTopic(term) {
 
-    console.log("Uncheck firing" + term.value);
+    //console.log("Uncheck firing" + term.value);
 	jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
 	jQuery('.group-homepage-container').addClass('term-processing'); // This shows a spinner
 
     jQuery.get('/atm/get-nodes-under-topics?terms='+term.value, function (nodes) {
 
         for ( var x = 0 ; x < nodes.length ; x++ ) {
-            console.log(nodes[x].nid + nodes[x].title + " NEEDs TO BE REMOVED");
+            //console.log(nodes[x].nid + nodes[x].title + " NEEDs TO BE REMOVED");
             jQuery("#field-asset-order-sidebar-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
             jQuery("#field-asset-order-content-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
             jQuery("#field-asset-order-carousel-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
@@ -103,9 +103,9 @@ function initAssetTopicPlacementHelperScript() {
 
 	updateAssetTopicPlacementCountClasses();
 
-	// When the user touches a checkbox under the "Asset Topic Taxonomy" field... 
+	// When the user touches a checkbox under the "Asset Topic Taxonomy" field...
 	jQuery('.field-name-field-asset-topic-taxonomy input').bind('click', function () {
-		
+
 		// I'm using setTimeout() to make [very] sure that this event fires AFTER the browser has handled the checkbox ticked-value alteration...
 		setTimeout( function (tThis) {
 
@@ -139,7 +139,7 @@ function initAssetTopicPlacementHelperScript() {
 
 	});
 
-	// When the user touches a checkbox under the "Also include on Nav Pages" field... 
+	// When the user touches a checkbox under the "Also include on Nav Pages" field...
 	jQuery('.field-name-field-also-include-on-nav-page input').bind('click', function () {
 
 		// I'm using setTimeout() to make [very] sure that this event fires AFTER the browser has handled the checkbox ticked-value alteration...
@@ -165,8 +165,8 @@ function initAssetTopicPlacementHelperScript() {
 		}, 10);
 	});
 
-	/* When the page first loads, we want to make sure any [currently] selected term under 
-	"Asset Topic Taxonomy" shows under ALL lists in "Asset Topic Placement" (this is necessary 
+	/* When the page first loads, we want to make sure any [currently] selected term under
+	"Asset Topic Taxonomy" shows under ALL lists in "Asset Topic Placement" (this is necessary
 	on taxonomy edit-pages) */
 	var tickedCheckboxes = jQuery('.field-name-field-asset-topic-taxonomy input:checked');
 	if ( tickedCheckboxes.length > 0 ) {
@@ -178,15 +178,15 @@ function initAssetTopicPlacementHelperScript() {
 			updateAssetTopicPlacementCountClasses();
 		});
 	} else {
-		/* There are no Asset-Topics selected, so we shall just show 
+		/* There are no Asset-Topics selected, so we shall just show
 		everything under the "Asset Placement" area now */
 		jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
 		jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
 		updateAssetTopicPlacementCountClasses();
 	}
 
-	/* When the page first loads, we want to make sure any [currently] selected term under 
-	"Also include on Nav Pages" shows under the lists in "Menu Region" (this is necessary 
+	/* When the page first loads, we want to make sure any [currently] selected term under
+	"Also include on Nav Pages" shows under the lists in "Menu Region" (this is necessary
 	on taxonomy edit-pages) */
 	var tickedCheckboxes = jQuery('.field-name-field-also-include-on-nav-page input:checked');
 	if ( tickedCheckboxes.length > 0 ) {
@@ -202,12 +202,12 @@ function initAssetTopicPlacementHelperScript() {
 
 }
 
-/* Shows or hides each "Asset Topic Order" field based on weather to not 
+/* Shows or hides each "Asset Topic Order" field based on weather to not
  * the "Inherit this region's assets from parent" sibling-checkbox is ticked.
  */
 function enforceAssetTopicOrderVisibilityBasedOnInheritance() {
 
-	
+
 	jQuery('.group-asset-topic-placement .form-item.form-type-checkbox label:contains("Inherit")').each( function () {
 		var jqThis = jQuery(this);
 		var inheritCheckbox = jqThis.siblings('input');
@@ -285,7 +285,7 @@ function alterTermsInAssetPlacementFields(callback) {
 														callback();
 													}
 												});
-												
+
 											})
 										})
 									})
@@ -301,7 +301,7 @@ function alterTermsInAssetPlacementFields(callback) {
 
 function alterTermsInAssetPlacementField(fieldSelector, callback) {
 
-	console.log('Now applying changes to the Asset-Topic-Placement-Field: ' + fieldSelector);
+	//console.log('Now applying changes to the Asset-Topic-Placement-Field: ' + fieldSelector);
 
 	// Initalize NodeUnderTopicCache
 	if ( typeof NodeUnderTopicCache === 'undefined' ) {
@@ -339,7 +339,7 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 	}
 }
 
-/* This function builds the JavaScript node-cache, which contains information about 
+/* This function builds the JavaScript node-cache, which contains information about
 what nodes are "sticky", etc. */
 function atp_buildNodeInfoCache(callback) {
 
@@ -381,7 +381,7 @@ function atp_getNodeInfoFromCache(arrNids) {
 		NodeInfoCache = {};
 	}
 
-	// 
+	//
 	var nodesFromCache = {};
 	for ( var n = 0 ; n < arrNids.length ; n++ ) {
 		var nid = arrNids[n];
@@ -472,12 +472,12 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 function reinitializeDragTables() {
 
 	jQuery('.needs-dragtable-reinit').each( function () {
-		
+
 		var jqThis = jQuery(this);
 		jqThis.removeClass('needs-dragtable-reinit');
 		var fieldSelector = '#' + jqThis.attr('id');
 
-		console.log('Reinitializing drag-table: '+fieldSelector);
+		//console.log('Reinitializing drag-table: '+fieldSelector);
 
 		// Determin where the drag-table information is stored in the Drupal js-variable
 		var base = fieldSelector;
@@ -575,7 +575,7 @@ function ensureEditAssetLinksExsist() {
 
 			var jqInput = jqRow.find('input');
 			var jqLabel = jqInput.parent().find('label');
-			
+
 			var linkHTML = '<a class="asset-edit-link" style="margin-left: 7px;" target="_blank" href="/node/-NODE-ID-/edit">Edit Asset</a>';
 			linkHTML = linkHTML.replace('-NODE-ID-', jqInput.attr('value'))
 

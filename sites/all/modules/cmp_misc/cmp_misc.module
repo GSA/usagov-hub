@@ -201,9 +201,13 @@ function cmp_misc_views_pre_render(&$view) {
                 if (is_numeric($asset_tid)) {
                     $asset_count = _get_node_count_by_tid(array($asset_tid));
                 }
+                $owner = _get_asset_owner_by_tid($row->tid);
             }
 
-            $new_title = $view->result[$i]->taxonomy_term_data_name . ' ( '
+
+            $owner_txt = strlen($owner) > 0? ' is owned by ' . $owner : '' ;
+
+            $new_title = $view->result[$i]->taxonomy_term_data_name . $owner_txt . ' ( '
                 . $asset_count . ' Asset' . (($asset_count!=0)?'s':'')
                 . ($is_asset_topic || $is_site_structure? (', ' . ($child_topics . ' Asset Node' . (($child_topics!=0)?'s':''))) : '')
                 . ' )';
@@ -226,6 +230,14 @@ function cmp_misc_views_pre_render(&$view) {
         }
         $view->result = $new_result;
     }
+}
+
+function _get_asset_owner_by_tid($tid) {
+    $sql_s = "SELECT u.name FROM {field_data_field_term_owner} t
+        INNER JOIN {users} u
+        WHERE t.field_term_owner_target_id = u.uid AND t.entity_id IN ( $tid )";
+    $user = db_query($sql_s)->fetchField();
+    return $user;
 }
 
 function cmp_misc_form_views_exposed_form_alter(&$form, $form_state) {
@@ -302,7 +314,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
 
     // If this is the edit form for any node under the 'Text Asset' content-type
     //if ( $form_id === 'text_content_type_node_form' ) {
-
+/*
     if ( !empty($form['#node']->workbench_moderation) ) {
 
         global $user;
@@ -318,7 +330,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
         if ( !$everPublished ) { return; } /// anyone can see delete
         /// if  ever_published &&  awaiting_deletion && !(state:awaiting->deleted) : disabled delete button + message
         if ( $workflowState=='awaiting_deletion' && !$canApproveDelete && !empty($form['actions']['delete']) )
-        { /* awaiting deletion approval */
+        { // awaiting deletion approval
             $form['actions']['delete']['#value'] = 'Awaiting Deletion';
             $form['actions']['delete']['#type'] = 'button';
             unset($form['actions']['delete']['#submit']);
@@ -330,7 +342,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
         }
         /// if  ever_published &&  awaiting_deletion &&  (state:awaiting->deleted) : approve soft delete button
         if ( $workflowState=='awaiting_deletion' &&  $canApproveDelete && !empty($form['actions']['delete']) )
-        { /* approve deletion */
+        { // approve deletion
             $form['actions']['delete']['#value'] = 'Approve Deletion';
             return;
         }
@@ -346,6 +358,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
             );
             return;
         }
+        */
         /*
         $disableDelBtn = false;
          If this user isn't allowed to hard-delete, disabel the delete button if the node is in the soft-delete process
@@ -363,7 +376,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
             );
         }
         */
-    }
+    //}
     //}
 }
 
@@ -506,7 +519,7 @@ function _cmp_misc_auto_publish_content()
                 LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
               WHERE
                 # node is not deleted
-                d.deletion_timestamp IS NULL
+                ( d.deletion_state IS NULL OR d.deletion_state != :soft )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
@@ -531,8 +544,8 @@ function _cmp_misc_auto_publish_content()
                         UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
                     )
                 )
-                AND w.state = \'scheduled_for_publication\'
-            ',array( ":now" => REQUEST_TIME )
+                AND w.state = :scheduled_for_publication
+            ',array( ":now" => REQUEST_TIME, ":soft" => "soft", ":scheduled_for_publication" => "scheduled_for_publication"  )
     )->fetchAll();
 
     foreach  ( $records as $record )
@@ -550,7 +563,7 @@ function _cmp_misc_auto_archive_content()
         'SELECT
                 n.nid, n.vid as curr_rev,
                 n.status,
-                d.deletion_timestamp,
+                d.deletion_state,
                 a.field_archive_date_value
               FROM
                 {node} n
@@ -558,7 +571,7 @@ function _cmp_misc_auto_archive_content()
                 LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND n.vid = a.revision_id )
               WHERE
                 # node is not deleted
-                d.deletion_timestamp IS NULL
+                ( d.deletion_state IS NULL OR d.deletion_state != :soft )
                 # any revision of the node is currently published
                 AND n.status = 1
                 # is archivable
@@ -568,7 +581,7 @@ function _cmp_misc_auto_archive_content()
                     AND # archive date is in the past
                     UNIX_TIMESTAMP(a.field_archive_date_value) < :now
                 )
-            ',array( ":now" => REQUEST_TIME )
+            ',array( ":now" => REQUEST_TIME, ":soft" => "soft" )
     )->fetchAll();
 
     foreach  ( $records as $record )
@@ -587,7 +600,7 @@ function _cmp_misc_node_past_publication_date($node)
         'SELECT
                 n.nid, n.vid as pub_rev, c.vid as curr_rev,
                 r.status as curr_rev_status,
-                d.deletion_timestamp,
+                d.deletion_state,
                 a.field_archive_date_value,
                 p.field_schedule_publish_value
               FROM
@@ -607,7 +620,7 @@ function _cmp_misc_node_past_publication_date($node)
                 # node is our node
                 n.nid = :nid
                 # node is not deleted
-                AND d.deletion_timestamp IS NULL
+                AND ( d.deletion_state IS NULL OR d.deletion_state != :soft )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
@@ -632,7 +645,7 @@ function _cmp_misc_node_past_publication_date($node)
                         UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
                     )
                 )
-            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME )
+            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME, ":soft" => "soft"  )
     )->rowCount();
 }
 
@@ -643,7 +656,7 @@ function _cmp_misc_node_future_publication_date($node)
         'SELECT
                 n.nid, n.vid as pub_rev, c.vid as curr_rev,
                 r.status as curr_rev_status,
-                d.deletion_timestamp,
+                d.deletion_state,
                 a.field_archive_date_value,
                 p.field_schedule_publish_value
               FROM
@@ -663,7 +676,7 @@ function _cmp_misc_node_future_publication_date($node)
                 # node is our node
                 n.nid = :nid
                 # node is not deleted
-                AND d.deletion_timestamp IS NULL
+                AND ( d.deletion_state IS NULL OR d.deletion_state != :soft )
                 # current revision is not already published
                 AND r.status != 1
                 # is not archived
@@ -684,7 +697,7 @@ function _cmp_misc_node_future_publication_date($node)
                     AND # publish date is in the past
                     UNIX_TIMESTAMP(p.field_schedule_publish_value) > :now
                 )
-            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME )
+            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME, ":soft" => "soft"  )
     )->rowCount();
 }
 
