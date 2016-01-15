@@ -302,7 +302,6 @@ function cmp_soft_delete_node_delete_confirm_submit($form, &$form_state)
     }
 
     $d = _cmp_soft_delete_destination($node->nid);
-    dpm($d);
     $form_state['redirect'] = $d['destination'];
 }
 
