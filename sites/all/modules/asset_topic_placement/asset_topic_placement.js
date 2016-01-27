@@ -274,13 +274,13 @@ function alterTermsInAssetPlacementFields(callback) {
 											var targId = jQuery('.field-name-field-home-quickfindcont-asset').attr('id');
 											alterTermsInAssetPlacementField('#'+targId, function () {
 
-												atp_buildNodeInfoCache( function () {
+                                                    atp_buildNodeInfoCache( function () {
 
-													reinitializeDragTables();
-													jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
-													jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+                                                        reinitializeDragTables();
+                                                        jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+                                                        jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
 
-													// Trigger callback
+                                                        // Trigger callback
 													if ( typeof callback === 'function' ) {
 														callback();
 													}
@@ -456,9 +456,10 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 
 	jQuery(fieldSelector+' tbody').append(newRowHTML);
 	updateWeightOptionsInAssetPlacementField(fieldSelector);
-	jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().attr('selected', 'selected');
+	//jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().attr('selected', 'selected');
 	var setWeight = jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().val();
-	jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').val(setWeight);
+	//jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').val(setWeight);
+    jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order select').val(setWeight);
 	jQuery(fieldSelector+' tbody tr .weight-select').last().attr('setValTo', setWeight);
 
 	// Remove any "No items" message in this table
