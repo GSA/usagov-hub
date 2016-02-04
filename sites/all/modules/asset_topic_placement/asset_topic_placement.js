@@ -82,21 +82,23 @@ function untickAssetTopic(term) {
     //console.log("Uncheck firing" + term.value);
     jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
     jQuery('.group-homepage-container').addClass('term-processing'); // This shows a spinner
+    //console.log('86');
+    if (term.value.length > 0) {
+        jQuery.get('/atm/get-nodes-under-topics?terms=' + term.value, function (nodes) {
 
-    jQuery.get('/atm/get-nodes-under-topics?terms='+term.value, function (nodes) {
+            for (var x = 0; x < nodes.length; x++) {
+                //console.log(nodes[x].nid + nodes[x].title + " NEEDs TO BE REMOVED");
+                jQuery("#field-asset-order-sidebar-values tr:has(td:has(input[value='" + nodes[x].nid + "']))").remove();
+                jQuery("#field-asset-order-content-values tr:has(td:has(input[value='" + nodes[x].nid + "']))").remove();
+                jQuery("#field-asset-order-carousel-values tr:has(td:has(input[value='" + nodes[x].nid + "']))").remove();
+                jQuery("#field-asset-order-bottom-values tr:has(td:has(input[value='" + nodes[x].nid + "']))").remove();
+                jQuery("#field-asset-order-menu-values tr:has(td:has(input[value='" + nodes[x].nid + "']))").remove();
+            }
 
-        for ( var x = 0 ; x < nodes.length ; x++ ) {
-            //console.log(nodes[x].nid + nodes[x].title + " NEEDs TO BE REMOVED");
-            jQuery("#field-asset-order-sidebar-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-            jQuery("#field-asset-order-content-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-            jQuery("#field-asset-order-carousel-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-            jQuery("#field-asset-order-bottom-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-            jQuery("#field-asset-order-menu-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-        }
-
-        jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
-        jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
-    });
+            jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+            jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+        });
+    }
 }
 
 function initAssetTopicPlacementHelperScript() {
@@ -113,7 +115,7 @@ function initAssetTopicPlacementHelperScript() {
         setTimeout( function (tThis) {
 
             //jQuery(tThis).siblings('.shs-enabled').trigger('change');
-            console.log('update shs-enabled');
+            //console.log('update shs-enabled');
             jQuery('.shs-wrapper-processed').each( function () {
                 var $this = jQuery(this);
                 var next_element;
@@ -353,29 +355,44 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 
     // Get selected Asset-Topic Taxonomy terms
     var terms = [];
+
+    jQuery('.shs-wrapper-processed').each( function () {
+        var $this = jQuery(this);
+        var next_element;
+        jQuery('.shs-select').each(function(){
+
+            if(this.value != 0) {
+                jQuery(this).siblings('.shs-enabled').first().val(this.value);
+            }
+        });
+    });
+
     jQuery('.shs-enabled').each( function () {
         if (this.value.length > 0 && this.value != '') {
             terms.push(this.value);
         }
     });
+
     var nutCacheKey = 't' + terms.join('t', terms);
 
     // Get nodes associated to these Asset-Topic taxonomy terms...
     if ( typeof NodeUnderTopicCache[nutCacheKey] !== 'undefined' ) {
         alterTermsInAssetPlacementField_callInjectRows(fieldSelector, NodeUnderTopicCache[nutCacheKey], callback);
     } else {
-        jQuery.get('/atm/get-nodes-under-topics?terms='+terms.join(','), function (nodes) {
+        if (terms.length > 0) {
+            jQuery.get('/atm/get-nodes-under-topics?terms=' + terms.join(','), function (nodes) {
 
-            // Cache what nodes are under this topic
-            NodeUnderTopicCache[nutCacheKey] = nodes;
+                // Cache what nodes are under this topic
+                NodeUnderTopicCache[nutCacheKey] = nodes;
 
-            // Cache all node information (by nid)
-            for ( var n = 0 ; n < nodes.length ; n++ ) {
-                NodeInfoCache['n'+nodes[n].nid] = nodes[n];
-            }
+                // Cache all node information (by nid)
+                for (var n = 0; n < nodes.length; n++) {
+                    NodeInfoCache['n' + nodes[n].nid] = nodes[n];
+                }
 
-            alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback);
-        });
+                alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback);
+            });
+        }
     }
 }
 
@@ -784,41 +801,43 @@ function assetByTopicFullCheck() {
 
     // Get all node/assets under these Asset-Topics
     var nutCacheKey = 't' + tidAssetTopics.join('t', tidAssetTopics);
-    jQuery.get('/atm/get-nodes-under-topics?terms='+tidAssetTopics.join(','), function (nodes) {
+    if (tidAssetTopics.length > 0) {
+        jQuery.get('/atm/get-nodes-under-topics?terms=' + tidAssetTopics.join(','), function (nodes) {
 
-        // Cache what nodes are under this/these topic(s)
-        NodeUnderTopicCache[nutCacheKey] = nodes;
+            // Cache what nodes are under this/these topic(s)
+            NodeUnderTopicCache[nutCacheKey] = nodes;
 
-        // Cache all node information (by nid)
-        for ( var n = 0 ; n < nodes.length ; n++ ) {
-            NodeInfoCache['n'+nodes[n].nid] = nodes[n];
-        }
-
-        // Get a list of nodes that are allowed to show in the regions
-        var allowedNids = {};
-        for ( var n = 0 ; n < nodes.length ; n++ ) {
-            var thisNodeId = nodes[n].nid;
-            allowedNids['n'+thisNodeId] = true;
-        }
-
-        // Scan for rows in Asset-Drag tables, for rows containing node-references that dont belong
-        jQuery('.group-asset-placement tr').each( function () {
-            var jqRow = jQuery(this);
-            var thisRowInput = jqRow.find('input');
-            var thisRowNidRef = thisRowInput.val();
-            if ( thisRowInput.length > 0 ) { // basically: skip over rows that dont contain an input-element
-                if ( typeof allowedNids['n'+thisRowNidRef] == 'undefined' ) {
-                    jqRow.remove();
-                }
+            // Cache all node information (by nid)
+            for (var n = 0; n < nodes.length; n++) {
+                NodeInfoCache['n' + nodes[n].nid] = nodes[n];
             }
+
+            // Get a list of nodes that are allowed to show in the regions
+            var allowedNids = {};
+            for (var n = 0; n < nodes.length; n++) {
+                var thisNodeId = nodes[n].nid;
+                allowedNids['n' + thisNodeId] = true;
+            }
+
+            // Scan for rows in Asset-Drag tables, for rows containing node-references that dont belong
+            jQuery('.group-asset-placement tr').each(function () {
+                var jqRow = jQuery(this);
+                var thisRowInput = jqRow.find('input');
+                var thisRowNidRef = thisRowInput.val();
+                if (thisRowInput.length > 0) { // basically: skip over rows that dont contain an input-element
+                    if (typeof allowedNids['n' + thisRowNidRef] == 'undefined') {
+                        jqRow.remove();
+                    }
+                }
+            });
+
+            updateAssetTopicPlacementCountClasses();
+
+            // This removes the spinner
+            jQuery('.group-asset-topic-placement').removeClass('term-processing');
+            jQuery('.group-homepage-container').removeClass('term-processing');
+
         });
-
-        updateAssetTopicPlacementCountClasses();
-
-        // This removes the spinner
-        jQuery('.group-asset-topic-placement').removeClass('term-processing');
-        jQuery('.group-homepage-container').removeClass('term-processing');
-
-    });
+    }
 
 }
