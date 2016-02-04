@@ -105,6 +105,7 @@ function initAssetTopicPlacementHelperScript() {
 
     // adding refresh button
     jQuery('.group-asset-topic-placement').prepend('<input type="button" class="form-submit asset-refresh" value="Refresh Assets" id="refresh-content">');
+    jQuery('.group-homepage-container').prepend('<input type="button" class="form-submit asset-refresh" value="Refresh Assets" id="refresh-content">');
 
     jQuery('#refresh-content').bind('click', function () {
 
@@ -517,7 +518,7 @@ function reinitializeDragTables() {
         jqThis.removeClass('needs-dragtable-reinit');
         var fieldSelector = '#' + jqThis.attr('id');
 
-        console.log('Reinitializing drag-table: '+fieldSelector);
+        //console.log('Reinitializing drag-table: '+fieldSelector);
 
         // Determin where the drag-table information is stored in the Drupal js-variable
         var base = fieldSelector;
