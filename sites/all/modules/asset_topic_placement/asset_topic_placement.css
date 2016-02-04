@@ -27,3 +27,9 @@ span.warning.tabledrag-changed {
 .drag-previous.even {
   background: #f3f4ee;
 }
+
+input#refresh-content {
+    clear: both;
+    margin-top: 5px;
+    background-color: #9CD7F5;}
+
