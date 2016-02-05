@@ -42,7 +42,6 @@ hooks_reaction_add("HOOK_views_pre_execute",
             __vdn_cache_stuff();
 
             /* COMMENTING OUT AS THIS CODE DOES NOT BELONG HERE?
-
                 // The "Recent Data export" display should only show taxonomy-terms that have been modded in the last 15mins
                 if ( $view->current_display === 'views_data_export_2' ) {
                     $query->leftJoin('taxonomy_dates', 'd', '(taxonomy_term_data.tid=d.tid)');
@@ -108,7 +107,7 @@ function _vdn_absoluteLinks( &$node )
     && isset($node->body['und'][0]) && !empty($node->body['und'][0]['value']) )
   {
     $node->body['und'][0]['value'] = preg_replace(
-       "/(href|src)\s*\=\s*([\"'])\s*([^(http|mailto|ftp)])/",
+       "/(href|src)\s*\=\s*([\"'])\s*([^(https?|mailto|ftp)])/",
        "$1=$2{$host}/$3", $node->body['und'][0]['value']);
     $node->body['und'][0]['value'] = preg_replace("/usa\.gov\/{2,}/", "usa.gov/",
        $node->body['und'][0]['value']);

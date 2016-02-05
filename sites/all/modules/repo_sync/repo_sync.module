@@ -1,5 +1,8 @@
 <?php
 
+error_reporting(E_ALL);
+ini_set('display_errors',1);
+
 // @TODO Commit as user (not www-data)
 // @TODO Mod's personal log system. And display on form
 
@@ -12,7 +15,7 @@ $GLOBALS['repo_sync_log'] = array();
 function repo_sync_menu() {
 
     $items = array();
-    
+
     // Configuration page URL handler
     $items['admin/repo-sync/ui'] = array(
         'title' => 'Repo-Sync Settings',
@@ -54,6 +57,12 @@ function repo_sync_form() {
 
     $form = array();
 
+    $form['disabled'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Disable Repository Syncing',
+        '#default_value' => variable_get('repo_sync_disabled'),
+    );
+
     $form['actions'] = array(
         '#type' => 'fieldset',
         '#title' => 'Actions',
@@ -62,8 +71,13 @@ function repo_sync_form() {
     );
 
     $form['actions']['dosyncnow'] = array(
-        '#type' => 'submit', 
-        '#value' => 'Trigger Sync Now', 
+        '#type' => 'submit',
+        '#value' => 'Trigger Sync Now',
+        '#states' => array(
+            'enabled' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['trigsettings'] = array(
@@ -74,12 +88,17 @@ function repo_sync_form() {
     );
 
     $form['trigsettings']['secret'] = array(
-        '#type' => 'textfield', 
-        '#title' => 'Sync-Trigger Security Key', 
+        '#type' => 'textfield',
+        '#title' => 'Sync-Trigger Security Key',
         '#description' => "This will be the string expected when a bit hits; <i>{$triggerUrl}?key=<b>SecurityKeyHere</b></i>",
-        '#default_value' => repo_sync_settings('secret'), 
-        '#size' => 80, 
-        '#required' => TRUE,
+        '#default_value' => repo_sync_settings('secret'),
+        '#size' => 80,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $trigForceSilent = !function_exists('fastcgi_finish_request');
@@ -111,89 +130,139 @@ function repo_sync_form() {
     );
 
     $form['reposrc']['src'] = array(
-        '#type' => 'textfield', 
-        '#title' => 'Git-Repository HTTPS-URL', 
+        '#type' => 'textfield',
+        '#title' => 'Git-Repository HTTPS-URL',
         '#field_prefix' => 'HTTPS://',
         '#description' => 'Source repository to pull files from.',
-        '#default_value' => repo_sync_settings('src'), 
-        '#size' => 80, 
-        '#required' => TRUE,
+        '#default_value' => repo_sync_settings('src'),
+        '#size' => 80,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['reposrc']['srcuser'] = array(
-        '#type' => 'textfield', 
-        '#title' => 'Account Username', 
-        '#default_value' => repo_sync_settings('srcuser'), 
-        '#size' => 25, 
-        '#required' => TRUE,
+        '#type' => 'textfield',
+        '#title' => 'Account Username',
+        '#default_value' => repo_sync_settings('srcuser'),
+        '#size' => 25,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['reposrc']['srcpass'] = array(
-        '#type' => 'password', 
-        '#title' => 'Account Password', 
+        '#type' => 'password',
+        '#title' => 'Account Password',
         '#attributes' => array('value' => repo_sync_settings('srcpass')),
-        '#size' => 25, 
-        '#required' => TRUE,
+        '#size' => 25,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['reposrc']['srcbranch'] = array(
-        '#type' => 'textfield', 
-        '#title' => 'Branch Name', 
-        '#default_value' => repo_sync_settings('srcbranch'), 
-        '#size' => 25, 
-        '#required' => TRUE,
+        '#type' => 'textfield',
+        '#title' => 'Branch Name',
+        '#default_value' => repo_sync_settings('srcbranch'),
+        '#size' => 25,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['reposrc']['srcwlistpath'] = array(
-        '#type' => 'textfield', 
-        '#title' => 'White-List Path', 
-        '#default_value' => repo_sync_settings('srcwlistpath'), 
+        '#type' => 'textfield',
+        '#title' => 'White-List Path',
+        '#default_value' => repo_sync_settings('srcwlistpath'),
         '#description' => 'Enter the relative path to the white-list in the source repsoitory.',
-        '#size' => 25, 
-        '#required' => TRUE,
+        '#size' => 25,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['reposdest']['dest'] = array(
-        '#type' => 'textfield', 
-        '#title' => 'Git-Repository HTTPS-URL', 
+        '#type' => 'textfield',
+        '#title' => 'Git-Repository HTTPS-URL',
         '#field_prefix' => 'HTTPS://',
         '#description' => 'Destination repository to place new files into.',
-        '#default_value' => repo_sync_settings('dest'), 
-        '#size' => 80, 
-        '#required' => TRUE,
+        '#default_value' => repo_sync_settings('dest'),
+        '#size' => 80,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['reposdest']['destuser'] = array(
-        '#type' => 'textfield', 
-        '#title' => 'Account Username', 
-        '#default_value' => repo_sync_settings('destuser'), 
-        '#size' => 25, 
-        '#required' => TRUE,
+        '#type' => 'textfield',
+        '#title' => 'Account Username',
+        '#default_value' => repo_sync_settings('destuser'),
+        '#size' => 25,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['reposdest']['destpass'] = array(
-        '#type' => 'password', 
-        '#title' => 'Account Password', 
+        '#type' => 'password',
+        '#title' => 'Account Password',
         '#attributes' => array('value' => repo_sync_settings('destpass')),
-        '#size' => 25, 
-        '#required' => TRUE,
+        '#size' => 25,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['reposdest']['destbranch'] = array(
-        '#type' => 'textfield', 
-        '#title' => 'Branch Name', 
-        '#default_value' => repo_sync_settings('destbranch'), 
-        '#size' => 25, 
-        '#required' => TRUE,
+        '#type' => 'textarea',
+        '#title' => 'Branch Name',
+        '#default_value' => repo_sync_settings('destbranch'),
+        '#size' => 25,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['reposdest']['srcwlisttarget'] = array(
-        '#type' => 'textfield', 
-        '#title' => 'White-List Target Directory', 
-        '#default_value' => repo_sync_settings('srcwlisttarget'), 
+        '#type' => 'textfield',
+        '#title' => 'White-List Target Directory',
+        '#default_value' => repo_sync_settings('srcwlisttarget'),
         '#description' => 'This will be the based-directory files are copied into, in the destination-repo.',
-        '#size' => 80, 
-        '#required' => TRUE,
+        '#size' => 80,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['reposdest']['srcwlisttargetoverride'] = array(
@@ -206,7 +275,7 @@ function repo_sync_form() {
     $form['reposdest']['srcwlisttargetoverride']['srcwlisttargetoverlist'] = array(
         '#type' => 'textarea',
         '#title' => 'search:target',
-        '#default_value' => repo_sync_settings('srcwlisttargetoverlist'), 
+        '#default_value' => repo_sync_settings('srcwlisttargetoverlist'),
         '#description' => 'Separate each override with a new line, each line should have a colon (:), which '
             .'will devide the <b>search string</b> and the <b>override path</b>.<br/>Should a path to a file '
             .'in the remote-repository contain the <b>search-string</b>, the given <b>target-path</b> will be '
@@ -214,28 +283,38 @@ function repo_sync_form() {
     );
 
     $form['reposdest']['srcwlistjail'] = array(
-        '#type' => 'textarea', 
-        '#title' => 'Directory Jail', 
-        '#default_value' => repo_sync_settings('srcwlistjail'), 
+        '#type' => 'textarea',
+        '#title' => 'Directory Jail',
+        '#default_value' => repo_sync_settings('srcwlistjail'),
         '#description' => 'List directories that files are <b>allowed</b> to be copied into. Attempts to '
             .'copy files into any other directory will be rejected.<br/>'
             .'Separate each directory with a <b>new-line</b><br/>'
             .'Note granting access to a directory from this field <b>does not</b> grant access '
             .'recursively (to subdirectories) - you must state each directory this module is allowed '
             .'to touch in the destination-repo.',
-        '#size' => 80, 
-        '#required' => TRUE,
+        '#size' => 80,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['reposdest']['allowedext'] = array(
-        '#type' => 'textfield', 
-        '#title' => 'Allowed File-Extension', 
+        '#type' => 'textfield',
+        '#title' => 'Allowed File-Extension',
         '#default_value' => repo_sync_settings('allowedext'),
         '#description' => 'List all allowed file-extensions, separate each extension with a space. '
             .'Please do not include the periods.<br/>Any attempt to save a file with an extension '
             .'not included in this list will be rejected.',
-        '#size' => 80, 
-        '#required' => TRUE,
+        '#size' => 80,
+        #'#required' => TRUE,
+        '#states' => array(
+            'required' => array(
+                ':input[name="disabled"]' => array('checked' => FALSE),
+            ),
+        ),
     );
 
     $form['logging'] = array(
@@ -255,26 +334,26 @@ function repo_sync_form() {
     } else {
 
         $form['logging']['useslack'] = array(
-            '#type' => 'checkbox', 
-            '#title' => 'Send general debug information into Slack', 
+            '#type' => 'checkbox',
+            '#title' => 'Send general debug information into Slack',
             '#default_value' => repo_sync_settings('useslack'),
         );
 
         $form['logging']['slackchannel'] = array(
-            '#type' => 'textfield', 
-            '#title' => 'Slack Channel (for general debug info)', 
+            '#type' => 'textfield',
+            '#title' => 'Slack Channel (for general debug info)',
             '#default_value' => repo_sync_settings('slackchannel'),
         );
 
         $form['logging']['useslackverbose'] = array(
-            '#type' => 'checkbox', 
-            '#title' => 'Send verbose debug information into Slack', 
+            '#type' => 'checkbox',
+            '#title' => 'Send verbose debug information into Slack',
             '#default_value' => repo_sync_settings('useslackverbose'),
         );
 
         $form['logging']['slackchannelverbose'] = array(
-            '#type' => 'textfield', 
-            '#title' => 'Slack Channel (for verbose debug info)', 
+            '#type' => 'textfield',
+            '#title' => 'Slack Channel (for verbose debug info)',
             '#default_value' => repo_sync_settings('slackchannelverbose'),
         );
 
@@ -289,7 +368,25 @@ function repo_sync_form() {
     return $form;
 }
 
-function repo_sync_form_validate($form, $form_state) {
+function _fields_conditionally_required($form,&$form_state)
+{
+  foreach($form as $field_name=>$field)
+  {
+    if ( is_array($field) )
+    {
+      if ( isset($field['#states']) && isset($field['#states']['required'])
+        && empty($form_state['values']['disabled']) && empty($form_state['values'][$field_name]) )
+      {
+        form_set_error($field_name, t(':field is a required field', array(':field' => $field['#title'])));
+      }
+      _fields_conditionally_required($field,$form_state);
+    }
+  }
+}
+
+function repo_sync_form_validate($form, &$form_state) {
+
+    _fields_conditionally_required($form,$form_state);
 
     if ( strpos($form_state['input']['src'], 'http://') === 0 ) {
         form_set_error('src', 'Use of insecure HTTP is unacceptable, please use secure HTTPS.');
@@ -307,7 +404,7 @@ function repo_sync_form_validate($form, $form_state) {
         form_set_error('dest', 'Please remove any username or passwords from the target-URL.');
     }
 
-    if ( substr(strtolower($form_state['input']['srcwlistpath']), -4) !== '.txt' ) {
+    if ( !empty($form_state['input']['srcwlistpath']) && substr(strtolower($form_state['input']['srcwlistpath']), -4) !== '.txt' ) {
         form_set_error('srcwlistpath', 'The white-list is expected to be a <b>.txt</b> file.');
     }
 
@@ -354,7 +451,6 @@ function repo_sync_form_submit($form, $form_state) {
 function repo_sync_settings($getSetting = 'ALL') {
 
     $data = variable_get('repo_sync_settings', array());
-
     if ( $getSetting !== 'ALL' ) {
         if ( !isset($data[$getSetting]) ) $data[$getSetting] = null;
         $data = $data[$getSetting];
@@ -377,6 +473,12 @@ function repo_sync_triggerSyncMenuCallback() {
     @ob_end_clean();
     while ( @ob_end_clean() );
     header("Content-Type:text/plain");
+
+    // Don't continue if we are not ready yet
+    if ( !empty(variable_get('repo_sync_disabled')) ) {
+      repo_sync_logEvent(false, 'Rejected a request to sync since the service has been disabled');
+      exit('Error - This service disabled');
+    }
 
     // Don't continue if we are not ready yet
     if ( count(repo_sync_settings()) === 0 ) {
@@ -413,6 +515,11 @@ function repo_sync_triggerSyncMenuCallback() {
  */
 function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
 
+    if ( !empty(variable_get('repo_sync_disabled')) ) {
+      repo_sync_logEvent(true,'ERROR - Repo Sync has been disabled',true);
+      return false;
+    }
+
     // Get settings from the database unless overridden in function-call
     if ($settings === 'ASSUME-DEFAULT') $settings = repo_sync_settings('ALL');
     //dsm($settings); return;
@@ -434,14 +541,16 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
 
     // Pull down the source-repo
     $cloneUrl = 'https://'.$settings['srcuser'].':'.$settings['srcpass'].'@'.$settings['src'];
+    #echo "git clone '{$cloneUrl}' {$wdir}/src 2>&1\n";
     $rslt = `git clone '{$cloneUrl}' {$wdir}/src 2>&1`;
     if ( strpos($rslt, 'Authentication failed') !== false ) {
         repo_sync_logEvent(true, 'Error - Could not pull down source-repository due to authentication-error.', true);
         return false;
     }
-    
+
     // Switch to target branch (source repo)
-    $rslt = `cd {$wdir}/src; git checkout {$settings['srcbranch']} 2>&1`;
+    #echo "cd {$wdir}/src && git checkout {$settings['srcbranch']} 2>&1\n\n";
+    $rslt = `cd {$wdir}/src && git checkout {$settings['srcbranch']} 2>&1`;
     if ( strpos($rslt, 'error') === 0 ) {
         repo_sync_logEvent(
             true,
@@ -454,150 +563,157 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
 
     // Pull down the destination repo
     $cloneUrl = 'https://'.$settings['destuser'].':'.$settings['destpass'].'@'.$settings['dest'];
+    #echo "git clone '{$cloneUrl}' {$wdir}/dest 2>&1\n\n";
     $rslt = `git clone '{$cloneUrl}' {$wdir}/dest 2>&1`;
     if ( strpos($rslt, 'Authentication failed') !== false ) {
         repo_sync_logEvent(true, 'Error - Could not pull down destination-repository due to authentication-error.', true);
         return false;
     }
 
+    $something_got_updated = false;
+
     // Switch to target branch (source repo)
-    $rslt = `cd {$wdir}/dest; git checkout {$settings['destbranch']} 2>&1`;
-    if ( strpos($rslt, 'error') === 0 ) {
-        repo_sync_logEvent(
-            true,
-            "Error - Could not switch to branch \"{$settings['destbranch']}\" in destination-repo. "
-                ."Are you sure this branch exsist on the server?",
-            true
-        );
-        return false;
-    }
-
-    // Get while-list targets
-    $wlPath = $wdir . '/src/' . $settings['srcwlistpath'];
-    $whiteList = array();
-    if ( !file_exists($wlPath) ) {
-        repo_sync_logEvent(true, "Error - No white-list found at {$settings['srcwlistpath']} in the source-repository.", true);
-        return;
-    }
-    $whiteList = file($wlPath, FILE_SKIP_EMPTY_LINES + FILE_IGNORE_NEW_LINES);
-    if ( $whiteList === false ) {
-        repo_sync_logEvent(true, "Error - Could not read white-list file, are permissions set correctly?", true);
-        return false;
-    }
-    $whiteList[] = 'blog/mars-zen/mars/js/*';
-    $whiteList[] = 'blog/mars-zen/mars/css/*';
-    $whiteList[] = 'blog/mars-zen/mars/css/layouts/*';
-    $whiteList[] = 'blog/mars-zen/zen/css/*';
-    $whiteList[] = 'blog/mars-zen/zen/js/*';
-    $whiteList[] = '';
-    $whiteList = repo_sync_resolve($wdir, $whiteList);
-
-    // Resolve real-paths for the directory-jail
-    $allowedDirs = array();
-    foreach ( explode("\n", $settings['srcwlistjail']) as $dir ) {
-        
-        $dir = trim($dir);
-        $grantDirAccess = rtrim($wdir, '/').'/dest/'.ltrim($dir, '/');
-        error_log($grantDirAccess);
-        $grantDirAccess = realpath($grantDirAccess);
-        if ( !empty($grantDirAccess) ) { // Note that the directoy must exsist for this to pass
-            $allowedDirs[] = $grantDirAccess;
-        }
-    }
-    
-    // Get a list of allowed file-extension to save into the destination-repo
-    $strAllowedExt = $settings['allowedext'];
-    $strAllowedExt = trim($strAllowedExt);
-    $strAllowedExt = strtolower($strAllowedExt);
-    $arrAllowedExt = explode(' ', $strAllowedExt);
-
-    // Copy over white-listed files
-    foreach ( $whiteList as $lineNumb => &$entry ) {
-
-        // Get entry information
-        $entry = trim(trim($entry), "\"'");
-        $fileRelSrc = $entry;
-        $fileRelDest = trim(repo_sync_determinRepoRelTarget($fileRelSrc, $settings),'/');
-
-        // Determine paths
-        $filePathSrc = $wdir.'/src/'.$fileRelSrc;
-        $filePathDest = $wdir.'/dest/'.$fileRelDest;
-        $filePathDest = str_replace('//', '/', $filePathDest);
-
-        // Sanity-check - directories should have been filtered out by repo_sync_resolve()
-        if ( is_dir($filePathSrc) ) {
+    $branches = preg_split('/[\~\^\,\:\s\b]+/',$settings['destbranch']);
+    foreach ( $branches as $destbranch )
+    {
+        #echo "cd {$wdir}/dest && git checkout {$destbranch} 2>&1\n\n";
+        $rslt = `cd {$wdir}/dest && git checkout {$destbranch} 2>&1`;
+        if ( strpos($rslt, 'error') === 0 ) {
+            repo_sync_logEvent(
+                true,
+                "Error - Could not switch to branch \"{$destbranch}\" in destination-repo. "
+                    ."Are you sure this branch exsist on the server?",
+                true
+            );
             continue;
         }
 
-        // Security
-        if ( strpos($filePathSrc, '..') !== false || strpos($filePathDest, '..') !== false ) {
-            repo_sync_logEvent(true, "Warning - White-list entry contains unacceptable \"..\" in row {$lineNumb}");
+        // Get while-list targets
+        $wlPath = $wdir . '/src/' . $settings['srcwlistpath'];
+        $whiteList = array();
+        if ( !file_exists($wlPath) ) {
+            repo_sync_logEvent(true, "Error - No white-list found at {$settings['srcwlistpath']} in the source-repository.", true);
             continue;
         }
-
-        // Security - Directory-Jail
-        $dirTarget = realpath( dirname($filePathDest) );
-        if ( !in_array($dirTarget, $allowedDirs) ) {
-            repo_sync_logEvent(true, "Warning - White-listed file '{$fileRelSrc}' is not allwed to be written "
-                ."to '{$fileRelDest}' as per the directory-jail rules, skipping...");
+        $whiteList = file($wlPath, FILE_SKIP_EMPTY_LINES + FILE_IGNORE_NEW_LINES);
+        if ( $whiteList === false ) {
+            repo_sync_logEvent(true, "Error - Could not read white-list file, are permissions set correctly?", true);
             continue;
         }
+        $whiteList[] = 'blog/mars-zen/mars/js/*';
+        $whiteList[] = 'blog/mars-zen/mars/css/*';
+        $whiteList[] = 'blog/mars-zen/mars/css/layouts/*';
+        $whiteList[] = 'blog/mars-zen/zen/css/*';
+        $whiteList[] = 'blog/mars-zen/zen/js/*';
+        $whiteList[] = '';
+        $whiteList = repo_sync_resolve($wdir, $whiteList);
 
-        // Security - Extension limitations
-        $fileExt = pathinfo($filePathSrc, PATHINFO_EXTENSION);
-        $fileExt = strtolower($fileExt);
-        if ( !in_array($fileExt, $arrAllowedExt) ) {
-            repo_sync_logEvent(true, "Warning - White-listed file '{$fileRelSrc}' is not allowed to be written "
-                ."to the target-repo since .{$fileExt} files are not granted xfer permission, skipping...");
-            continue;
+        // Resolve real-paths for the directory-jail
+        $allowedDirs = array();
+        foreach ( explode("\n", $settings['srcwlistjail']) as $dir ) {
+            $dir = trim($dir);
+            $grantDirAccess = rtrim($wdir, '/').'/dest/'.ltrim($dir, '/');
+            #error_log($grantDirAccess);
+            $grantDirAccess = realpath($grantDirAccess);
+            if ( !empty($grantDirAccess) ) { // Note that the directoy must exsist for this to pass
+                $allowedDirs[] = $grantDirAccess;
+            }
         }
 
-        // Existence check
-        if ( !file_exists($filePathSrc) ) {
-            $msg = "Warning - White-listed file {$fileRelSrc} does not exist in source-repo, skipping...";
-            repo_sync_logEvent(true, $msg);
-            continue;
-        }
+        // Get a list of allowed file-extension to save into the destination-repo
+        $strAllowedExt = $settings['allowedext'];
+        $strAllowedExt = trim($strAllowedExt);
+        $strAllowedExt = strtolower($strAllowedExt);
+        $arrAllowedExt = explode(' ', $strAllowedExt);
 
-        // Copy the file over into the dest-repo
-        @unlink($filePathDest);
-        if ( !copy($filePathSrc, $filePathDest) ) {
-            $msg = "Error - Failed to copy \"{$filePathSrc}\" to \"{$filePathDest}\". Permissions? Skipping...";
-            repo_sync_logEvent(true, $msg);
-            continue;
+        // Copy over white-listed files
+        foreach ( $whiteList as $lineNumb => &$entry ) {
+            // Get entry information
+            $entry = trim(trim($entry), "\"'");
+            $fileRelSrc = $entry;
+            $fileRelDest = trim(repo_sync_determinRepoRelTarget($fileRelSrc, $settings),'/');
+
+            // Determine paths
+            $filePathSrc = $wdir.'/src/'.$fileRelSrc;
+            $filePathDest = $wdir.'/dest/'.$fileRelDest;
+            $filePathDest = str_replace('//', '/', $filePathDest);
+
+            // Sanity-check - directories should have been filtered out by repo_sync_resolve()
+            if ( is_dir($filePathSrc) ) {
+                continue;
+            }
+
+            // Security
+            if ( strpos($filePathSrc, '..') !== false || strpos($filePathDest, '..') !== false ) {
+                repo_sync_logEvent(true, "Warning - White-list entry contains unacceptable \"..\" in row {$lineNumb}");
+                continue;
+            }
+
+            // Security - Directory-Jail
+            $dirTarget = realpath( dirname($filePathDest) );
+            if ( !in_array($dirTarget, $allowedDirs) ) {
+                repo_sync_logEvent(true, "Warning - White-listed file '{$fileRelSrc}' is not allowed to be written "
+                    ."to '{$fileRelDest}' ($filePathDest=$dirTarget) as per the directory-jail rules, skipping...");
+                continue;
+            }
+
+            // Security - Extension limitations
+            $fileExt = pathinfo($filePathSrc, PATHINFO_EXTENSION);
+            $fileExt = strtolower($fileExt);
+            if ( !in_array($fileExt, $arrAllowedExt) ) {
+                repo_sync_logEvent(true, "Warning - White-listed file '{$fileRelSrc}' is not allowed to be written "
+                    ."to the target-repo since .{$fileExt} files are not granted xfer permission, skipping...");
+                continue;
+            }
+
+            // Existence check
+            if ( !file_exists($filePathSrc) ) {
+                repo_sync_logEvent(true,"Warning - White-listed file {$fileRelSrc} does not exist in source-repo, skipping...");
+                continue;
+            }
+
+            // Copy the file over into the dest-repo
+            @unlink($filePathDest);
+            if ( !copy($filePathSrc, $filePathDest) ) {
+                repo_sync_logEvent(true, "Error - Failed to copy \"{$filePathSrc}\" to \"{$filePathDest}\". Permissions? Skipping...");
+            } else {
+                // Not logging this event here anymore since constant-pings to Slack can lag things...
+            }
+        }
+        // Add all file-changes under Git-tracking
+        $rslt = `cd {$wdir}/dest \
+              && git config push.default simple \
+              && git config user.email 'dnarkiewicz+repo_sync@ctacorp.com' \
+              && git config user.name  'Drupal Repo-Sync Module' \
+              && git add -A 2>&1 && git commit -m 'Russell Repo Sync' 2>&1`;
+        if ( strpos($rslt, 'nothing to commit') !== false ) {
+            repo_sync_logEvent(true, "Warning: Nothing was pushed in repo-sync, no files appear to be updated.");
         } else {
-            // Not logging this event here anymore since constant-pings to Slack can lag things...
+            $rslt = `cd {$wdir}/dest && git push {$cloneUrl} 2>&1`;
+            if ( strpos($rslt, 'error') !== false || strpos($rslt, 'fatal') !== false) {
+                repo_sync_logEvent(true, "Error: An unexpected error occurred during git-push.");
+            } else {
+                $something_got_updated = true;
+                $retLines = explode("\n", trim($rslt));
+                repo_sync_logEvent(true, "Notice: Repo-sync completed successfully. Git returned: ".$retLines[count($retLines)-1]);
+            }
         }
     }
 
-    // Add all file-changes under Git-tracking
-    `cd {$wdir}/dest; git add -A;`;
-    // Push up the new files
-    $rslt = `cd {$wdir}/dest; git commit -m 'Russell Repo Sync'; git push`;
-    if ( strpos($rslt, 'nothing to commit') !== false ) {
-        repo_sync_logEvent(true, "Warning: Nothing was pushed in repo-sync, no files appear to be updated.");
-    } else {
-        if ( strpos($rslt, 'error') !== false ) {
-            repo_sync_logEvent(true, "Error: An unexpected error occurred during git-push.");
-            return;
-        } else {
-            $retLines = explode("\n", trim($rslt));
-            repo_sync_logEvent(true, "Notice: Repo-sync completed successfully. Git returned: ".$retLines[count($retLines)-1]);
-        }
+    if ( $something_got_updated && getenv('CMP_DRUPAL_SMTP_ON') )
+    {
+      drupal_mail(
+          'repo_sync',
+          'sync_proccessed '. $settings['srcbranch'] .' > '. implode(', ',$branches),
+          'dfrey@ctacorp.com, russell.oneill@gsa.gov, dnarkiewicz@ctacorp.com, rashley@ctacorp.com',
+          language_default(),
+          array(),
+          variable_get('site_mail', '')
+      );
     }
-
-    drupal_mail(
-        'repo_sync', 
-        'sync_proccessed', 
-        'dfrey@ctacorp.com, russell.oneill@gsa.gov, dnarkiewicz@ctacorp.com, rashley@ctacorp.com', 
-        language_default(), 
-        array(), 
-        variable_get('site_mail', '')
-    );
 
     // Clean up
     `rm -r {$wdir}`;
-
 }
 
 function repo_sync_mail($key, &$message, $params) {
@@ -626,7 +742,7 @@ function repo_sync_mail($key, &$message, $params) {
 function repo_sync_resolve($wdir, $whiteList) {
 
     $ret = array();
-    
+
     // Resolve wild-cards and directories
     foreach ( $whiteList as $lineNumb => $entry ) {
 
@@ -668,10 +784,10 @@ function repo_sync_resolve($wdir, $whiteList) {
 /**
  * string repo_sync_determinRepoRelTarget(string $relSource)
  *
- * Given a path to a filed in the remote-repository, this function will return 
+ * Given a path to a filed in the remote-repository, this function will return
  * the "White-List Target Directory" (setting) field-value.
  *
- * A function is nessesary for this since the "White-List Target Directory" 
+ * A function is nessesary for this since the "White-List Target Directory"
  * setting has an associated "White-List Target Directory Overrides" setting.
  */
 function repo_sync_determinRepoRelTarget($relSource, $settings = 'ASSUME-DEFAULT') {
@@ -682,7 +798,7 @@ function repo_sync_determinRepoRelTarget($relSource, $settings = 'ASSUME-DEFAULT
     // Scan for overrides
     $arrOverrides = explode("\n", $settings['srcwlisttargetoverlist']);
     foreach ( $arrOverrides as $override ) {
-        
+
         // We expect the lines in the "search:target" field to contain a colon
         if ( strpos($override, ':') === false ) continue;
 
@@ -707,7 +823,7 @@ function repo_sync_determinRepoRelTarget($relSource, $settings = 'ASSUME-DEFAULT
 
     }
 
-    /* If we have escaped the loop, then there are no overrides 
+    /* If we have escaped the loop, then there are no overrides
     triggering for this file in the remote-repo */
     return trim($settings['srcwlisttarget'],'/') . '/' . trim($relSource, '/');
 
@@ -721,7 +837,7 @@ function repo_sync_logEvent($print, $strMessage, $isVerbose = true) {
 
     // Print the string if requested
     if ( $print ) {
-        print $strMessage;
+#        print $strMessage;
     }
 
     // Log to PHP's error-log (which should in tern, log to Splunk)
