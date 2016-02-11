@@ -21,17 +21,16 @@ jQuery(document).ready( function () {
 			// Note this helper-script has been applied to this form
 			jQuery('.group-asset-topic-placement').addClass('helper-script-applied');
 
-            if (jQuery("input[name='tid']").length > 0 && jQuery('.field-name-field-page-intro textarea').length > 0) {
+      if (jQuery("input[name='tid']").length > 0 && jQuery('.field-name-field-page-intro textarea').length > 0) {
 
-                // resriction limit for page intro field except for kids, usa, and gobierno.govs
-                // adding 170 character limit for page creation
-                var tid = jQuery("input[name='tid']").val();
+        // resriction limit for page intro field except for kids, usa, and gobierno.govs
+        // adding 170 character limit for page creation
+        var tid = jQuery("input[name='tid']").val();
 
-                if (tid != 3062 && tid != 3067 && tid != 3072) {
-
-                    jQuery('.field-name-field-page-intro textarea').attr('maxlength', '170');
-                }
-            }
+        if (tid != 3062 && tid != 3067 && tid != 3072) {
+          jQuery('.field-name-field-page-intro textarea').attr('maxlength', '170');
+        }
+      }
 		}
 
 		// Bug killer - Sometimes multiple "Show/Hide row weights" links show...
@@ -78,25 +77,26 @@ jQuery(document).ready( function () {
 });
 
 function untickAssetTopic(term) {
-
-    //console.log("Uncheck firing" + term.value);
-	jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
-	jQuery('.group-homepage-container').addClass('term-processing'); // This shows a spinner
-
-    jQuery.get('/atm/get-nodes-under-topics?terms='+term.value, function (nodes) {
-
-        for ( var x = 0 ; x < nodes.length ; x++ ) {
-            //console.log(nodes[x].nid + nodes[x].title + " NEEDs TO BE REMOVED");
-            jQuery("#field-asset-order-sidebar-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-            jQuery("#field-asset-order-content-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-            jQuery("#field-asset-order-carousel-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-            jQuery("#field-asset-order-bottom-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-            jQuery("#field-asset-order-menu-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-        }
-
-		jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
-		jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
-    });
+	assetByTopicFullCheck();
+	return;
+  //console.log("Uncheck firing" + term.value);
+	// jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
+	// jQuery('.group-homepage-container').addClass('term-processing'); // This shows a spinner
+	//
+  //   jQuery.get('/atm/get-nodes-under-topics?terms='+term.value, function (nodes) {
+	//
+  //       for ( var x = 0 ; x < nodes.length ; x++ ) {
+  //           //console.log(nodes[x].nid + nodes[x].title + " NEEDs TO BE REMOVED");
+  //           jQuery("#field-asset-order-sidebar-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+  //           jQuery("#field-asset-order-content-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+  //           jQuery("#field-asset-order-carousel-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+  //           jQuery("#field-asset-order-bottom-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+  //           jQuery("#field-asset-order-menu-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+  //       }
+	//
+	// 	jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+	// 	jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+  //   });
 }
 
 function initAssetTopicPlacementHelperScript() {
@@ -206,7 +206,6 @@ function initAssetTopicPlacementHelperScript() {
  * the "Inherit this region's assets from parent" sibling-checkbox is ticked.
  */
 function enforceAssetTopicOrderVisibilityBasedOnInheritance() {
-
 
 	jQuery('.group-asset-topic-placement .form-item.form-type-checkbox label:contains("Inherit")').each( function () {
 		var jqThis = jQuery(this);
@@ -722,7 +721,7 @@ function assetByTopicFullCheck() {
 		// Remove all rows from the drag tables that contain inputs (an asset-referencer)
 		jQuery('.group-asset-placement tr input[type=checkbox]').parents('tr').remove();
 		// Update things and return
-        updateAssetTopicPlacementCountClasses();
+    updateAssetTopicPlacementCountClasses();
 		jQuery('.group-asset-topic-placement').removeClass('term-processing'); // remove the spinner
 		jQuery('.group-homepage-container').removeClass('term-processing'); // remove the spinner
 		return;
@@ -750,28 +749,28 @@ function assetByTopicFullCheck() {
 			NodeInfoCache['n'+nodes[n].nid] = nodes[n];
 		}
 
-        // Get a list of nodes that are allowed to show in the regions
-        var allowedNids = {};
-        for ( var n = 0 ; n < nodes.length ; n++ ) {
-        	var thisNodeId = nodes[n].nid;
-        	allowedNids['n'+thisNodeId] = true;
-        }
+    // Get a list of nodes that are allowed to show in the regions
+    var allowedNids = {};
+    for ( var n = 0 ; n < nodes.length ; n++ ) {
+    	var thisNodeId = nodes[n].nid;
+    	allowedNids['n'+thisNodeId] = true;
+    }
 
-        // Scan for rows in Asset-Drag tables, for rows containing node-references that dont belong
-        jQuery('.group-asset-placement tr').each( function () {
-        	var jqRow = jQuery(this);
-        	var thisRowInput = jqRow.find('input');
-        	var thisRowNidRef = thisRowInput.val();
-        	if ( thisRowInput.length > 0 ) { // basically: skip over rows that dont contain an input-element
-        		if ( typeof allowedNids['n'+thisRowNidRef] == 'undefined' ) {
-        			jqRow.remove();
-        		}
-        	}
-        });
+    // Scan for rows in Asset-Drag tables, for rows containing node-references that dont belong
+    jQuery('.group-asset-placement tr').each( function () {
+    	var jqRow = jQuery(this);
+    	var thisRowInput = jqRow.find('input');
+    	var thisRowNidRef = thisRowInput.val();
+    	if ( thisRowInput.length > 0 ) { // basically: skip over rows that dont contain an input-element
+    		if ( typeof allowedNids['n'+thisRowNidRef] == 'undefined' ) {
+    			jqRow.remove();
+    		}
+    	}
+    });
 
-        updateAssetTopicPlacementCountClasses();
+    updateAssetTopicPlacementCountClasses();
 
-        // This removes the spinner
+    // This removes the spinner
 		jQuery('.group-asset-topic-placement').removeClass('term-processing');
 		jQuery('.group-homepage-container').removeClass('term-processing');
 
