@@ -405,13 +405,13 @@ function repo_sync_form_validate($form, &$form_state) {
         form_set_error('srcwlistpath', 'The white-list is expected to be a <b>.txt</b> file.');
     }
 
-    if ( strpos($form_state['input']['srcpass'], '@') !== false ) {
-        form_set_error('srcpass', 'Sorry, due to technical limitations, passwords cannot contain the @ symbol.');
-    }
-
-    if ( strpos($form_state['input']['destpass'], '@') !== false ) {
-        form_set_error('destpass', 'Sorry, due to technical limitations, passwords cannot contain the @ symbol.');
-    }
+    // if ( strpos($form_state['input']['srcpass'], '@') !== false ) {
+    //     form_set_error('srcpass', 'Sorry, due to technical limitations, passwords cannot contain the @ symbol.');
+    // }
+    //
+    // if ( strpos($form_state['input']['destpass'], '@') !== false ) {
+    //     form_set_error('destpass', 'Sorry, due to technical limitations, passwords cannot contain the @ symbol.');
+    // }
 
 }
 
@@ -479,7 +479,7 @@ function repo_sync_triggerSyncMenuCallback() {
 
     // Don't continue if we are not ready yet
     if ( count(repo_sync_settings()) === 0 ) {
-        repo_sync_logEvent(false, 'Rejected a request to sync since the servie is not yet setup');
+        repo_sync_logEvent(false, 'Rejected a request to sync since the service is not yet setup');
         exit('Error - This service is not yet setup');
     }
 
@@ -519,7 +519,6 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
 
     // Get settings from the database unless overridden in function-call
     if ($settings === 'ASSUME-DEFAULT') $settings = repo_sync_settings('ALL');
-    //dsm($settings); return;
 
     // Create a working directory
     $wdir = '/tmp/gitsync'.time();
@@ -537,11 +536,16 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     }
 
     // Pull down the source-repo
-    $cloneUrl = 'https://'.$settings['srcuser'].':'.$settings['srcpass'].'@'.$settings['src'];
-    #echo "git clone '{$cloneUrl}' {$wdir}/src 2>&1\n";
+    $cloneUrl = 'https://'.urlencode($settings['srcuser']).':'.urlencode($settings['srcpass']).'@'.$settings['src'];
+
     $rslt = `git clone '{$cloneUrl}' {$wdir}/src 2>&1`;
     if ( strpos($rslt, 'Authentication failed') !== false ) {
         repo_sync_logEvent(true, 'Error - Could not pull down source-repository due to authentication-error.', true);
+        return false;
+    }
+
+    if ( strpos($rslt, 'not found') !== false ) {
+        repo_sync_logEvent(true, 'Error - Could not pull find source-repository', true);
         return false;
     }
 
@@ -559,21 +563,63 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     }
 
     // Pull down the destination repo
-    $cloneUrl = 'https://'.$settings['destuser'].':'.$settings['destpass'].'@'.$settings['dest'];
-    #echo "git clone '{$cloneUrl}' {$wdir}/dest 2>&1\n\n";
+    $cloneUrl = 'https://'.urlencode($settings['destuser']).':'.urlencode($settings['destpass']).'@'.$settings['dest'];
+    $GLOBALS['repo_sync_log'][] = "git clone '{$cloneUrl}' {$wdir}/dest 2>&1";
     $rslt = `git clone '{$cloneUrl}' {$wdir}/dest 2>&1`;
+
     if ( strpos($rslt, 'Authentication failed') !== false ) {
         repo_sync_logEvent(true, 'Error - Could not pull down destination-repository due to authentication-error.', true);
         return false;
     }
 
+    if ( strpos($rslt, 'not found') !== false ) {
+        repo_sync_logEvent(true, 'Error - Could not pull find destination-repository', true);
+        return false;
+    }
+
     $something_got_updated = false;
+
+    // Get while-list targets
+    $wlPath = $wdir . '/src/' . $settings['srcwlistpath'];
+    $whiteList = array();
+    if ( !file_exists($wlPath) ) {
+        repo_sync_logEvent(true, "Error - No white-list found at {$settings['srcwlistpath']} in the source-repository.", true);
+        return;
+    }
+    $whiteList = file($wlPath, FILE_SKIP_EMPTY_LINES + FILE_IGNORE_NEW_LINES);
+    if ( $whiteList === false ) {
+        repo_sync_logEvent(true, "Error - Could not read white-list file, are permissions set correctly?", true);
+        return;
+    }
+    $whiteList[] = 'blog/mars-zen/mars/js/*';
+    $whiteList[] = 'blog/mars-zen/mars/css/*';
+    $whiteList[] = 'blog/mars-zen/mars/css/layouts/*';
+    $whiteList[] = 'blog/mars-zen/zen/css/*';
+    $whiteList[] = 'blog/mars-zen/zen/js/*';
+    $whiteList[] = '';
+    $whiteList = repo_sync_resolve($wdir, $whiteList);
+
+    // Resolve real-paths for the directory-jail
+    $allowedDirs = array();
+    foreach ( explode("\n", $settings['srcwlistjail']) as $dir ) {
+        $dir = trim($dir);
+        $grantDirAccess = rtrim($wdir, '/').'/dest/'.ltrim($dir, '/');
+        $grantDirAccess = realpath($grantDirAccess);
+        if ( !empty($grantDirAccess) ) { // Note that the directoy must exsist for this to pass
+            $allowedDirs[] = $grantDirAccess;
+        }
+    }
+
+    // Get a list of allowed file-extension to save into the destination-repo
+    $strAllowedExt = $settings['allowedext'];
+    $strAllowedExt = trim($strAllowedExt);
+    $strAllowedExt = strtolower($strAllowedExt);
+    $arrAllowedExt = explode(' ', $strAllowedExt);
 
     // Switch to target branch (source repo)
     $branches = preg_split('/[\~\^\,\:\s\b]+/',$settings['destbranch']);
     foreach ( $branches as $destbranch )
     {
-        #echo "cd {$wdir}/dest && git checkout {$destbranch} 2>&1\n\n";
         $rslt = `cd {$wdir}/dest && git checkout {$destbranch} 2>&1`;
         if ( strpos($rslt, 'error') === 0 ) {
             repo_sync_logEvent(
@@ -585,44 +631,6 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
             continue;
         }
 
-        // Get while-list targets
-        $wlPath = $wdir . '/src/' . $settings['srcwlistpath'];
-        $whiteList = array();
-        if ( !file_exists($wlPath) ) {
-            repo_sync_logEvent(true, "Error - No white-list found at {$settings['srcwlistpath']} in the source-repository.", true);
-            continue;
-        }
-        $whiteList = file($wlPath, FILE_SKIP_EMPTY_LINES + FILE_IGNORE_NEW_LINES);
-        if ( $whiteList === false ) {
-            repo_sync_logEvent(true, "Error - Could not read white-list file, are permissions set correctly?", true);
-            continue;
-        }
-        $whiteList[] = 'blog/mars-zen/mars/js/*';
-        $whiteList[] = 'blog/mars-zen/mars/css/*';
-        $whiteList[] = 'blog/mars-zen/mars/css/layouts/*';
-        $whiteList[] = 'blog/mars-zen/zen/css/*';
-        $whiteList[] = 'blog/mars-zen/zen/js/*';
-        $whiteList[] = '';
-        $whiteList = repo_sync_resolve($wdir, $whiteList);
-
-        // Resolve real-paths for the directory-jail
-        $allowedDirs = array();
-        foreach ( explode("\n", $settings['srcwlistjail']) as $dir ) {
-            $dir = trim($dir);
-            $grantDirAccess = rtrim($wdir, '/').'/dest/'.ltrim($dir, '/');
-            #error_log($grantDirAccess);
-            $grantDirAccess = realpath($grantDirAccess);
-            if ( !empty($grantDirAccess) ) { // Note that the directoy must exsist for this to pass
-                $allowedDirs[] = $grantDirAccess;
-            }
-        }
-
-        // Get a list of allowed file-extension to save into the destination-repo
-        $strAllowedExt = $settings['allowedext'];
-        $strAllowedExt = trim($strAllowedExt);
-        $strAllowedExt = strtolower($strAllowedExt);
-        $arrAllowedExt = explode(' ', $strAllowedExt);
-
         // Copy over white-listed files
         foreach ( $whiteList as $lineNumb => &$entry ) {
             // Get entry information
@@ -631,7 +639,7 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
             $fileRelDest = trim(repo_sync_determinRepoRelTarget($fileRelSrc, $settings),'/');
 
             // Determine paths
-            $filePathSrc = $wdir.'/src/'.$fileRelSrc;
+            $filePathSrc  = $wdir.'/src/'.$fileRelSrc;
             $filePathDest = $wdir.'/dest/'.$fileRelDest;
             $filePathDest = str_replace('//', '/', $filePathDest);
 
@@ -677,10 +685,11 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
                 // Not logging this event here anymore since constant-pings to Slack can lag things...
             }
         }
+
         // Add all file-changes under Git-tracking
         $rslt = `cd {$wdir}/dest \
               && git config push.default simple \
-              && git config user.email 'dnarkiewicz+repo_sync@ctacorp.com' \
+              && git config user.email 'dnarkiewicz+ctacbot@ctacorp.com' \
               && git config user.name  'Drupal Repo-Sync Module' \
               && git add -A 2>&1 && git commit -m 'Russell Repo Sync' 2>&1`;
         if ( strpos($rslt, 'nothing to commit') !== false ) {
@@ -697,7 +706,7 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
         }
     }
 
-    if ( $something_got_updated && getenv('CMP_DRUPAL_SMTP_ON') )
+    if ( $something_got_updated && !empty(getenv('CMP_DRUPAL_SMTP_ON')) )
     {
       drupal_mail(
           'repo_sync',
@@ -710,7 +719,7 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     }
 
     // Clean up
-    `rm -r {$wdir}`;
+    `rm -rf /tmp/gitsync*`;
 }
 
 function repo_sync_mail($key, &$message, $params) {
@@ -757,7 +766,7 @@ function repo_sync_resolve($wdir, $whiteList) {
             $ret[] = $entry;
         } else {
 
-            $starFiles = explode("\n",`ls -Ad $filePathSrc`);
+            $starFiles = @explode("\n",`ls -Ad $filePathSrc`);
             foreach ( $starFiles as $starFile ) {
                 $starFile = str_replace($wdir.'/src/', '', $starFile);
                 $starFile = str_replace('//', '/', $starFile);
@@ -801,12 +810,11 @@ function repo_sync_determinRepoRelTarget($relSource, $settings = 'ASSUME-DEFAULT
 
         // The colon separates two variables we are interested in
         $parts = explode(':', $override);
-        if ( count($parts) !== 3 ) continue;
+        if ( count($parts) !== 2 ) continue;
 
         // Get the search-string, and the override-path-to-use
         $searchStr = trim($parts[0]);
-        $replaceStr = $parts[1];
-        $useOverridePath = trim($parts[2]);
+        $useOverridePath = trim($parts[1]);
 
         /* If the file-in-question is located in a directory that has
         a "White-List Target Directory" override, then return the override */
