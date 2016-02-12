@@ -42,7 +42,6 @@ hooks_reaction_add("HOOK_views_pre_execute",
             __vdn_cache_stuff();
 
             /* COMMENTING OUT AS THIS CODE DOES NOT BELONG HERE?
-
                 // The "Recent Data export" display should only show taxonomy-terms that have been modded in the last 15mins
                 if ( $view->current_display === 'views_data_export_2' ) {
                     $query->leftJoin('taxonomy_dates', 'd', '(taxonomy_term_data.tid=d.tid)');
