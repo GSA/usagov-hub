@@ -401,7 +401,7 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 function atp_buildNodeInfoCache(callback) {
 
     var uniqNids = [];
-    jQuery('.group-asset-placemen tr input').each( function () {
+    jQuery('.group-asset-placement tr input').each( function () {
         var thisNid = jQuery(this).val();
         if ( uniqNids.indexOf(thisNid) == -1 ) {
             uniqNids.push(thisNid);
