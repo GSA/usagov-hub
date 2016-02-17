@@ -28,7 +28,6 @@ jQuery(document).ready( function () {
                 var tid = jQuery("input[name='tid']").val();
 
                 if (tid != 3062 && tid != 3067 && tid != 3072) {
-
                     jQuery('.field-name-field-page-intro textarea').attr('maxlength', '170');
                 }
             }
@@ -79,26 +78,25 @@ jQuery(document).ready( function () {
 
 function untickAssetTopic(term) {
     assetByTopicFullCheck();
-    // //console.log("Uncheck firing" + term.value);
+    return;
+    //console.log("Uncheck firing" + term.value);
     // jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
     // jQuery('.group-homepage-container').addClass('term-processing'); // This shows a spinner
-    // //console.log('86');
-    // if (term.value.length > 0) {
-    //     jQuery.get('/atm/get-nodes-under-topics?terms=' + term.value, function (nodes) {
     //
-    //         for (var x = 0; x < nodes.length; x++) {
-    //             //console.log(nodes[x].nid + nodes[x].title + " NEEDs TO BE REMOVED");
-    //             jQuery("#field-asset-order-sidebar-values tr:has(td:has(input[value='" + nodes[x].nid + "']))").remove();
-    //             jQuery("#field-asset-order-content-values tr:has(td:has(input[value='" + nodes[x].nid + "']))").remove();
-    //             jQuery("#field-asset-order-carousel-values tr:has(td:has(input[value='" + nodes[x].nid + "']))").remove();
-    //             jQuery("#field-asset-order-bottom-values tr:has(td:has(input[value='" + nodes[x].nid + "']))").remove();
-    //             jQuery("#field-asset-order-menu-values tr:has(td:has(input[value='" + nodes[x].nid + "']))").remove();
-    //         }
+    //   jQuery.get('/atm/get-nodes-under-topics?terms='+term.value, function (nodes) {
     //
-    //         jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
-    //         jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
-    //     });
-    // }
+    //       for ( var x = 0 ; x < nodes.length ; x++ ) {
+    //           //console.log(nodes[x].nid + nodes[x].title + " NEEDs TO BE REMOVED");
+    //           jQuery("#field-asset-order-sidebar-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+    //           jQuery("#field-asset-order-content-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+    //           jQuery("#field-asset-order-carousel-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+    //           jQuery("#field-asset-order-bottom-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+    //           jQuery("#field-asset-order-menu-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
+    //       }
+    //
+    // 	jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+    // 	jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+    //   });
 }
 
 function initAssetTopicPlacementHelperScript() {
@@ -106,40 +104,40 @@ function initAssetTopicPlacementHelperScript() {
     updateAssetTopicPlacementCountClasses();
 
     // When the user touches a checkbox under the "Asset Topic Taxonomy" field...
-    /*jQuery('.field-name-field-asset-topic-taxonomy input').bind('click', function () {
+    jQuery('.field-name-field-asset-topic-taxonomy input').bind('click', function () {
 
-     // I'm using setTimeout() to make [very] sure that this event fires AFTER the browser has handled the checkbox ticked-value alteration...
-     setTimeout( function (tThis) {
+        // I'm using setTimeout() to make [very] sure that this event fires AFTER the browser has handled the checkbox ticked-value alteration...
+        setTimeout( function (tThis) {
 
-     if ( tThis.checked ) {
-     if ( jQuery('.group-asset-topic-placement').queue('fx').length < 3 ) {
-     jQuery('.group-asset-topic-placement').queue( function () {
+            if ( tThis.checked ) {
+                if ( jQuery('.group-asset-topic-placement').queue('fx').length < 3 ) {
+                    jQuery('.group-asset-topic-placement').queue( function () {
 
-     jQuery('.group-asset-topic-placement').fadeIn();
+                        jQuery('.group-asset-topic-placement').fadeIn();
 
-     var addTids = [];
-     jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
-     addTids.push(this.value);
-     });
+                        var addTids = [];
+                        jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
+                            addTids.push(this.value);
+                        });
 
-     alterTermsInAssetPlacementFields(function () {
-     updateAssetTopicPlacementCountClasses();
-     jQuery('.group-asset-topic-placement').dequeue();
-     });
-     });
-     }
-     } else {
-     jQuery('.group-asset-topic-placement').queue( function () {
-     jQuery('.group-asset-topic-placement input[value=' + tThis.value + ']').parents('tr').remove();
-     untickAssetTopic(tThis);
-     updateAssetTopicPlacementCountClasses();
-     jQuery('.group-asset-topic-placement').dequeue();
-     });
-     }
+                        alterTermsInAssetPlacementFields(function () {
+                            updateAssetTopicPlacementCountClasses();
+                            jQuery('.group-asset-topic-placement').dequeue();
+                        });
+                    });
+                }
+            } else {
+                jQuery('.group-asset-topic-placement').queue( function () {
+                    jQuery('.group-asset-topic-placement input[value=' + tThis.value + ']').parents('tr').remove();
+                    untickAssetTopic(tThis);
+                    updateAssetTopicPlacementCountClasses();
+                    jQuery('.group-asset-topic-placement').dequeue();
+                });
+            }
 
-     }, 10, this);
+        }, 10, this);
 
-     });*/
+    });
 
     // When the user touches a checkbox under the "Also include on Nav Pages" field...
     jQuery('.field-name-field-also-include-on-nav-page input').bind('click', function () {
@@ -208,7 +206,6 @@ function initAssetTopicPlacementHelperScript() {
  * the "Inherit this region's assets from parent" sibling-checkbox is ticked.
  */
 function enforceAssetTopicOrderVisibilityBasedOnInheritance() {
-
 
     jQuery('.group-asset-topic-placement .form-item.form-type-checkbox label:contains("Inherit")').each( function () {
         var jqThis = jQuery(this);
@@ -458,10 +455,9 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
 
     jQuery(fieldSelector+' tbody').append(newRowHTML);
     updateWeightOptionsInAssetPlacementField(fieldSelector);
-    //jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().attr('selected', 'selected');
+    jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().attr('selected', 'selected');
     var setWeight = jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().val();
-    //jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').val(setWeight);
-    jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order select').val(setWeight);
+    jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').val(setWeight);
     jQuery(fieldSelector+' tbody tr .weight-select').last().attr('setValTo', setWeight);
 
     // Remove any "No items" message in this table
