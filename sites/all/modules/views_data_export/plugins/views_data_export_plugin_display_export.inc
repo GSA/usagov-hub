@@ -846,7 +846,6 @@ class views_data_export_plugin_display_export extends views_plugin_display_feed
   function store_search_api_result($view) {
         $display_handler = &$view->display_handler;
         $start = microtime(TRUE);
-
         try {
               // Get all the view results.
               $view->query->set_limit(NULL);
@@ -862,7 +861,7 @@ class views_data_export_plugin_display_export extends views_plugin_display_feed
                       ));
 
               db_create_table($display_handler->index_tablename(), $schema);
-
+            dsm($view->result);
               if (!empty($view->result)) {
                     $insert_query = db_insert($display_handler->index_tablename())->fields(array($weight_alias, 'data'));
                     $weight = 0;
@@ -952,12 +951,12 @@ class views_data_export_plugin_query_default_batched extends views_plugin_query_
       // Let the pager modify the query to add limits.
       $this->pager->pre_execute($query);
 
-      if (!empty($this->limit) || !empty($this->offset)) {
+     /* if (!empty($this->limit) || !empty($this->offset)) {
         // We can't have an offset without a limit, so provide a very large limit instead.
         $limit  = intval(!empty($this->limit) ? $this->limit : 999999);
         $offset = intval(!empty($this->offset) ? $this->offset : 0);
         $query->range($offset, $limit);
-      }
+      }*/
 
       try {
         // The $query is final and ready to go, we are going to redirect it to
