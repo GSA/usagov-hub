@@ -105,72 +105,41 @@ function initAssetTopicPlacementHelperScript() {
 
     updateAssetTopicPlacementCountClasses();
 
-    // adding refresh button
-    jQuery('.group-asset-topic-placement').prepend('<input type="button" class="form-submit asset-refresh" value="Refresh Assets" id="refresh-content">');
-    jQuery('.group-homepage-container').prepend('<input type="button" class="form-submit asset-refresh" value="Refresh Assets" id="refresh-content">');
-
-    jQuery('#refresh-content').bind('click', function () {
-
-        // I'm using setTimeout() to make [very] sure that this event fires AFTER the browser has handled the checkbox ticked-value alteration...
-        setTimeout( function (tThis) {
-
-            //jQuery(tThis).siblings('.shs-enabled').trigger('change');
-            //console.log('update shs-enabled');
-            jQuery('.shs-wrapper-processed').each( function () {
-                var $this = jQuery(this);
-                var next_element;
-                jQuery('.shs-select').each(function(){
-
-                    if(this.value != 0) {
-                        jQuery(this).siblings('.shs-enabled').first().val(this.value);
-                    }
-                });
-            });
-
-            // don't want to
-            jQuery('.shs-enabled').trigger('change');
-
-        }, 10, this);
-
-    });
-
     // When the user touches a checkbox under the "Asset Topic Taxonomy" field...
-    jQuery('.shs-enabled').bind('change', function () {
+    /*jQuery('.field-name-field-asset-topic-taxonomy input').bind('click', function () {
 
-        // I'm using setTimeout() to make [very] sure that this event fires AFTER the browser has handled the checkbox ticked-value alteration...
-        setTimeout( function (tThis) {
+     // I'm using setTimeout() to make [very] sure that this event fires AFTER the browser has handled the checkbox ticked-value alteration...
+     setTimeout( function (tThis) {
 
-            if ( tThis.value.length > 0 ) {
-                if ( jQuery('.group-asset-topic-placement').queue('fx').length < 3 ) {
-                    jQuery('.group-asset-topic-placement').queue( function () {
+     if ( tThis.checked ) {
+     if ( jQuery('.group-asset-topic-placement').queue('fx').length < 3 ) {
+     jQuery('.group-asset-topic-placement').queue( function () {
 
-                        jQuery('.group-asset-topic-placement').fadeIn();
+     jQuery('.group-asset-topic-placement').fadeIn();
 
-                        var addTids = [];
-                        jQuery('.shs-enabled').each( function () {
-                            if (this.value.length > 0 && this.value != '') {
-                                addTids.push(this.value);
-                            }
-                        });
+     var addTids = [];
+     jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
+     addTids.push(this.value);
+     });
 
-                        alterTermsInAssetPlacementFields(function () {
-                            updateAssetTopicPlacementCountClasses();
-                            jQuery('.group-asset-topic-placement').dequeue();
-                        });
-                    });
-                }
-            } else {
-                jQuery('.group-asset-topic-placement').queue( function () {
-                    jQuery('.group-asset-topic-placement input[value=' + tThis.value + ']').parents('tr').remove();
-                    untickAssetTopic(tThis);
-                    updateAssetTopicPlacementCountClasses();
-                    jQuery('.group-asset-topic-placement').dequeue();
-                });
-            }
+     alterTermsInAssetPlacementFields(function () {
+     updateAssetTopicPlacementCountClasses();
+     jQuery('.group-asset-topic-placement').dequeue();
+     });
+     });
+     }
+     } else {
+     jQuery('.group-asset-topic-placement').queue( function () {
+     jQuery('.group-asset-topic-placement input[value=' + tThis.value + ']').parents('tr').remove();
+     untickAssetTopic(tThis);
+     updateAssetTopicPlacementCountClasses();
+     jQuery('.group-asset-topic-placement').dequeue();
+     });
+     }
 
-        }, 10, this);
+     }, 10, this);
 
-    });
+     });*/
 
     // When the user touches a checkbox under the "Also include on Nav Pages" field...
     jQuery('.field-name-field-also-include-on-nav-page input').bind('click', function () {
@@ -201,13 +170,11 @@ function initAssetTopicPlacementHelperScript() {
     /* When the page first loads, we want to make sure any [currently] selected term under
      "Asset Topic Taxonomy" shows under ALL lists in "Asset Topic Placement" (this is necessary
      on taxonomy edit-pages) */
-    var tickedCheckboxes = jQuery('.shs-enabled');
+    var tickedCheckboxes = jQuery('.field-name-field-asset-topic-taxonomy input:checked');
     if ( tickedCheckboxes.length > 0 ) {
         var selectedTermIDs = [];
         tickedCheckboxes.each( function () {
-            if (this.value.length > 0 && this.value != '') {
-                selectedTermIDs.push(this.value);
-            }
+            selectedTermIDs.push( this.value );
         });
         alterTermsInAssetPlacementFields(function () {
             updateAssetTopicPlacementCountClasses();
@@ -259,14 +226,9 @@ function enforceAssetTopicOrderVisibilityBasedOnInheritance() {
 }
 
 function updateAssetTopicPlacementCountClasses() {
-    var is_set = false;
-    jQuery(".shs-enabled").each( function () {
-        if (this.value.length > 0 && this.value != '') {
-            is_set = true;
-        }
-    });
+
     // These classes are used for theming purposes in asset_topic_placement.css
-    if ( is_set) {
+    if ( jQuery('.field-name-field-asset-topic-taxonomy input:checked').length > 0 ) {
         jQuery('.group-asset-topic-placement').removeClass('term-count-0');
         jQuery('.group-asset-topic-placement').addClass('term-count-not-0');
     } else {
@@ -355,44 +317,27 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 
     // Get selected Asset-Topic Taxonomy terms
     var terms = [];
-
-    jQuery('.shs-wrapper-processed').each( function () {
-        var $this = jQuery(this);
-        var next_element;
-        jQuery('.shs-select').each(function(){
-
-            if(this.value != 0) {
-                jQuery(this).siblings('.shs-enabled').first().val(this.value);
-            }
-        });
+    jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
+        terms.push(this.value);
     });
-
-    jQuery('.shs-enabled').each( function () {
-        if (this.value.length > 0 && this.value != '') {
-            terms.push(this.value);
-        }
-    });
-
     var nutCacheKey = 't' + terms.join('t', terms);
 
     // Get nodes associated to these Asset-Topic taxonomy terms...
     if ( typeof NodeUnderTopicCache[nutCacheKey] !== 'undefined' ) {
         alterTermsInAssetPlacementField_callInjectRows(fieldSelector, NodeUnderTopicCache[nutCacheKey], callback);
     } else {
-        if (terms.length > 0) {
-            jQuery.get('/atm/get-nodes-under-topics?terms=' + terms.join(','), function (nodes) {
+        jQuery.get('/atm/get-nodes-under-topics?terms='+terms.join(','), function (nodes) {
 
-                // Cache what nodes are under this topic
-                NodeUnderTopicCache[nutCacheKey] = nodes;
+            // Cache what nodes are under this topic
+            NodeUnderTopicCache[nutCacheKey] = nodes;
 
-                // Cache all node information (by nid)
-                for (var n = 0; n < nodes.length; n++) {
-                    NodeInfoCache['n' + nodes[n].nid] = nodes[n];
-                }
+            // Cache all node information (by nid)
+            for ( var n = 0 ; n < nodes.length ; n++ ) {
+                NodeInfoCache['n'+nodes[n].nid] = nodes[n];
+            }
 
-                alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback);
-            });
-        }
+            alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback);
+        });
     }
 }
 
@@ -401,7 +346,7 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 function atp_buildNodeInfoCache(callback) {
 
     var uniqNids = [];
-    jQuery('.group-asset-placement tr input').each( function () {
+    jQuery('.tabledrag-processed tr input').each( function () {
         var thisNid = jQuery(this).val();
         if ( uniqNids.indexOf(thisNid) == -1 ) {
             uniqNids.push(thisNid);
@@ -410,7 +355,7 @@ function atp_buildNodeInfoCache(callback) {
 
     var nidsNotCached = [];
     for ( var x = 0 ; x < uniqNids.length ; x++ ) {
-        if ( typeof NodeInfoCache['n'+uniqNids[x]] == 'undefined' && uniqNids[x].length > 0 && uniqNids[x] != '') {
+        if ( typeof NodeInfoCache['n'+uniqNids[x]] == 'undefined' ) {
             nidsNotCached.push(uniqNids[x]);
         }
     }
@@ -771,11 +716,8 @@ function assetByTopicFullCheck() {
 
     // Get the selected-Asset-Topic term-IDs
     var tidAssetTopics = [];
-    jQuery('.shs-enabled').each( function () {
-        if (jQuery(this).val() != '')
-        {
-            tidAssetTopics.push(jQuery(this).val());
-        }
+    jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
+        tidAssetTopics.push( jQuery(this).val() );
     });
 
     // SPECIAL CASE - If there are no Asset-Topics selected, then there should be no Assets available
@@ -801,43 +743,41 @@ function assetByTopicFullCheck() {
 
     // Get all node/assets under these Asset-Topics
     var nutCacheKey = 't' + tidAssetTopics.join('t', tidAssetTopics);
-    if (tidAssetTopics.length > 0) {
-        jQuery.get('/atm/get-nodes-under-topics?terms=' + tidAssetTopics.join(','), function (nodes) {
+    jQuery.get('/atm/get-nodes-under-topics?terms='+tidAssetTopics.join(','), function (nodes) {
 
-            // Cache what nodes are under this/these topic(s)
-            NodeUnderTopicCache[nutCacheKey] = nodes;
+        // Cache what nodes are under this/these topic(s)
+        NodeUnderTopicCache[nutCacheKey] = nodes;
 
-            // Cache all node information (by nid)
-            for (var n = 0; n < nodes.length; n++) {
-                NodeInfoCache['n' + nodes[n].nid] = nodes[n];
-            }
+        // Cache all node information (by nid)
+        for ( var n = 0 ; n < nodes.length ; n++ ) {
+            NodeInfoCache['n'+nodes[n].nid] = nodes[n];
+        }
 
-            // Get a list of nodes that are allowed to show in the regions
-            var allowedNids = {};
-            for (var n = 0; n < nodes.length; n++) {
-                var thisNodeId = nodes[n].nid;
-                allowedNids['n' + thisNodeId] = true;
-            }
+        // Get a list of nodes that are allowed to show in the regions
+        var allowedNids = {};
+        for ( var n = 0 ; n < nodes.length ; n++ ) {
+            var thisNodeId = nodes[n].nid;
+            allowedNids['n'+thisNodeId] = true;
+        }
 
-            // Scan for rows in Asset-Drag tables, for rows containing node-references that dont belong
-            jQuery('.group-asset-placement tr').each(function () {
-                var jqRow = jQuery(this);
-                var thisRowInput = jqRow.find('input');
-                var thisRowNidRef = thisRowInput.val();
-                if (thisRowInput.length > 0) { // basically: skip over rows that dont contain an input-element
-                    if (typeof allowedNids['n' + thisRowNidRef] == 'undefined') {
-                        jqRow.remove();
-                    }
+        // Scan for rows in Asset-Drag tables, for rows containing node-references that dont belong
+        jQuery('.group-asset-placement tr').each( function () {
+            var jqRow = jQuery(this);
+            var thisRowInput = jqRow.find('input');
+            var thisRowNidRef = thisRowInput.val();
+            if ( thisRowInput.length > 0 ) { // basically: skip over rows that dont contain an input-element
+                if ( typeof allowedNids['n'+thisRowNidRef] == 'undefined' ) {
+                    jqRow.remove();
                 }
-            });
-
-            updateAssetTopicPlacementCountClasses();
-
-            // This removes the spinner
-            jQuery('.group-asset-topic-placement').removeClass('term-processing');
-            jQuery('.group-homepage-container').removeClass('term-processing');
-
+            }
         });
-    }
+
+        updateAssetTopicPlacementCountClasses();
+
+        // This removes the spinner
+        jQuery('.group-asset-topic-placement').removeClass('term-processing');
+        jQuery('.group-homepage-container').removeClass('term-processing');
+
+    });
 
 }
