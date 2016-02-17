@@ -55,7 +55,7 @@ function _cacheSearchResult($data) {
         $row->_entity_properties['field_workflow_state_search'],
         $row->_entity_properties['field_language'],
             (is_array($row->_entity_properties['field_for_use_by'])? implode(',', $row->_entity_properties['field_for_use_by']):'UseBy'),
-        date('l, F t, Y - H ',$row->_entity_properties['field_date_last_reviewed'])
+        $row->_entity_properties['field_date_last_reviewed']
     );
     }
 }
@@ -122,7 +122,7 @@ function exportSearchTextMultiMediaHtmlToCSV(){
     $rows = $_SESSION["__search_result"];
     $i = 1;
     foreach ( $rows as $row ) {
-        fwrite($h, '"' .$i . '","'.$row[0].'","'.$row[1].'","'.$row[2].'", "'.$row[3].'", "'.$row[4].'", "'.$row[5].'", "'.$row[6].'"');
+        fwrite($h, '"' .$i . '","'.$row[0].'","'.$row[1].'","'.$row[2].'", "'.$row[3].'", "'.$row[4].'", "'.$row[5].'", "'.date('l, F d, Y - H ',$row[6]).'"');
         fwrite($h, "\n");
         $i++;
     }
