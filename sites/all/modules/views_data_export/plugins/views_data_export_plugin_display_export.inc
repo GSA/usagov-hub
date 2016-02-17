@@ -625,9 +625,8 @@ class views_data_export_plugin_display_export extends views_plugin_display_feed
            default:
              $query_class = 'views_data_export_plugin_query_default_batched';
              break;*/
-        dsm($view);
         $query_plugin = get_class($view->query);
-        dsm($query_plugin);
+
         if ($query_plugin == 'views_plugin_query_default') {
             // Change the query object to use our custom one.
             switch ($this->_get_database_driver()) {
@@ -863,7 +862,7 @@ class views_data_export_plugin_display_export extends views_plugin_display_feed
                       ));
 
               db_create_table($display_handler->index_tablename(), $schema);
-            dsm($view->result);
+
               if (!empty($view->result)) {
                     $insert_query = db_insert($display_handler->index_tablename())->fields(array($weight_alias, 'data'));
                     $weight = 0;
