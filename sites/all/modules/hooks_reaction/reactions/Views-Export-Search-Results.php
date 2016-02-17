@@ -54,12 +54,24 @@ hooks_reaction_add("HOOK_views_post_render",
             $output = $prependMarkup.$output;
 
             drupal_add_js('sites/all/modules/hooks_reaction/reactions/Views-Export-Search-Results.js');
+            dsm($view);
         }
     }
 );
 
 function _cacheSearchResult($data) {
-    $_SESSION["__search_result"] = $data;
+    unset($_SESSION["__search_result"]);
+
+    foreach($data as $row) {
+        $_SESSION["__search_result"][] = array($row->_entity_properties['title'],
+        $row->_entity_properties['type'],
+        $row->_entity_properties['field_owner:name'],
+        $row->_entity_properties['field_workflow_state_search'],
+        $row->_entity_properties['field_language'],
+            (is_array($row->_entity_properties['field_for_use_by'])? implode(',', $row->_entity_properties['field_for_use_by']):'UseBy'),
+        $row->_entity_properties['field_date_last_reviewed']
+    );
+    }
 }
 
 function exportSearchTextMultiMediaHtmlToCSV(){
@@ -122,10 +134,9 @@ function exportSearchTextMultiMediaHtmlToCSV(){
 
     // Write the CSV content
     $rows = $_SESSION["__search_result"];
-
     $i = 1;
     foreach ( $rows as $row ) {
-        fwrite($h, '"' .$i . '","'.$row->_entity_properties['title'].'","Content Type","Owner", "Workflow State", "Language", "For Use By", "Date Last Reviewed"');
+        fwrite($h, '"' .$i . '","'.$row[0].'","'.$row[1].'","'.$row[2].'", "'.$row[3].'", "'.$row[4].'", "'.$row[5].'", "'.$row[6].'"');
         fwrite($h, "\n");
         $i++;
     }
