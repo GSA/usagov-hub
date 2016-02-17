@@ -17,7 +17,7 @@ hooks_reaction_add("menu",
         $menuArr = array();
 
         // Register the URL-path: /content-tag-report/export-asset-topic-taxonomy to return a page generated from exportAssetTopicTaxonomyReportToCSV()
-        $menuArr['export-search-api-csv/search_text_multimedia_html'] = array(
+        $menuArr['export-search-api-csv/%/search_text_multimedia_html'] = array(
             'title' => '',
             'description' => 'CSV export for the Search Result report export-search-api-csv/search_text_multimedia_html',
             'page callback' => 'exportSearchTextMultiMediaHtmlToCSV',
@@ -31,25 +31,25 @@ hooks_reaction_add("menu",
 
 hooks_reaction_add("HOOK_views_post_render",
     function (&$view, &$output, &$cache) {
+        $views = array('search_text_multimedia_html', 'search_files', 'search_state_details','search_directory_records_index', 'search_content_items');
 
-        if ( $view->name === 'search_text_multimedia_html') {
+        if ( in_array($view->name, $views)) {
             $thisFile = basename(__FILE__);
             $prependMarkup = '<a style="float: right" rendersource="'.$thisFile.'" href="javascript: getReport(\''.uniqid().'\'); void(0);">Export to Excel</a>';
             $output = $prependMarkup.$output;
 
-            drupal_add_js('sites/all/modules/hooks_reaction/reactions/Views-Export-Search-Results.js');
-            _cacheSearchResult($view->result);
-            dsm($view);
+            drupal_add_js('sites/all/modules/hooks_reaction/reactions/Views-Export-Search-Results-'.$view->name.'.js');
+            _cacheSearchResult($view->result, $view->name);
         }
     }
 );
 
-function _cacheSearchResult($data) {
-    unset($_SESSION["__search_result"]);
+function _cacheSearchResult($data, $viewname) {
+    unset($_SESSION["__search_result__".$viewname]);
 
     foreach($data as $row) {
 
-        $_SESSION["__search_result"][] = array($row->_entity_properties['title'],
+        $_SESSION["__search_result__".$viewname][] = array($row->_entity_properties['title'],
             __get_cck_name($row->_entity_properties['type']),
         $row->_entity_properties['field_owner:name'],
         $row->_entity_properties['field_workflow_state_search'],
@@ -119,7 +119,7 @@ function exportSearchTextMultiMediaHtmlToCSV(){
     fwrite($h, "\n");
 
     // Write the CSV content
-    $rows = $_SESSION["__search_result"];
+    $rows = $_SESSION["__search_result__".arg(1)];
     $i = 1;
     foreach ( $rows as $row ) {
         fwrite($h, '"' .$i . '","'.$row[0].'","'.$row[1].'","'.$row[2].'", "'.$row[3].'", "'.$row[4].'", "'.$row[5].'", "'.date('l, F d, Y - H ',$row[6]).'"');
