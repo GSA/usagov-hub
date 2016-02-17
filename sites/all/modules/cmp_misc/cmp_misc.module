@@ -138,6 +138,7 @@ function cmp_misc_views_api() {
 
 function cmp_misc_views_pre_render(&$view) {
     $i = 0;
+    dsm($view);
     if ($view->name == "sites_taxonomy_report" && $view->current_display == "summarized_report_page") {
         foreach($view->result as $row){
             $nav_count = 0;
