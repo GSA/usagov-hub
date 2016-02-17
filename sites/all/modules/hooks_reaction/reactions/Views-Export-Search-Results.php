@@ -122,10 +122,10 @@ function exportSearchTextMultiMediaHtmlToCSV(){
 
     // Write the CSV content
     $rows = $_SESSION["__search_result"];
-    $rows = array(1,2,3);
+
     $i = 1;
     foreach ( $rows as $row ) {
-        fwrite($h, '"' .$i . '","Title","Content Type","Owner", "Workflow State", "Language", "For Use By", "Date Last Reviewed"');
+        fwrite($h, '"' .$i . '","'.$row->_entity_properties['title'].'","Content Type","Owner", "Workflow State", "Language", "For Use By", "Date Last Reviewed"');
         fwrite($h, "\n");
         $i++;
     }
