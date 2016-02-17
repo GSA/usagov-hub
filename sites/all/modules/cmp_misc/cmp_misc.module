@@ -136,9 +136,6 @@ function cmp_misc_views_api() {
     );
 }
 
-function cmp_misc_views_post_execute(&$view) {
-    dsm($view);
-}
 
 function cmp_misc_views_pre_render(&$view) {
     $i = 0;

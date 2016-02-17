@@ -15,7 +15,7 @@ function getReport(reqId, noInit) {
                         Processing, please wait...\
                     </span>\
                     <span id="reportDownloadingUiComplete" style="display: none;">\
-                        Report generation complete, you can <a download="asset_taxonomy_report.csv">download it now</a>, or <a href="javascript: jQuery(\'#reportDownloadingUi\').remove(); void(0);">close this window</a>.\
+                        Report generation complete, you can <a download="Search-Text-Multiedia.csv">download it now</a>, or <a href="javascript: jQuery(\'#reportDownloadingUi\').remove(); void(0);">close this window</a>.\
                     </span>\
                 </div>\
             <div>\

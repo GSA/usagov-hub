@@ -28,22 +28,6 @@ hooks_reaction_add("menu",
         return $menuArr;
     }
 );
-/**
- * Implements HOOK_views_pre_execute
- *
- */
-hooks_reaction_add("HOOK_views_post_execute",
-    function (&$view) {
-
-        // Query edits to the dump_nodes and dump_taxonomy Views
-        // I'm not using HOOK_views_query_alter() due to technical difficulty/reasons
-        if ( $view->name === 'search_text_multimedia_html' ) {
-
-            _cacheSearchResult($view->result);
-
-        }
-    }
-);
 
 hooks_reaction_add("HOOK_views_post_render",
     function (&$view, &$output, &$cache) {
@@ -54,6 +38,7 @@ hooks_reaction_add("HOOK_views_post_render",
             $output = $prependMarkup.$output;
 
             drupal_add_js('sites/all/modules/hooks_reaction/reactions/Views-Export-Search-Results.js');
+            _cacheSearchResult($view->result);
             dsm($view);
         }
     }
@@ -63,13 +48,14 @@ function _cacheSearchResult($data) {
     unset($_SESSION["__search_result"]);
 
     foreach($data as $row) {
+
         $_SESSION["__search_result"][] = array($row->_entity_properties['title'],
-        $row->_entity_properties['type'],
+            __get_cck_name($row->_entity_properties['type']),
         $row->_entity_properties['field_owner:name'],
         $row->_entity_properties['field_workflow_state_search'],
         $row->_entity_properties['field_language'],
             (is_array($row->_entity_properties['field_for_use_by'])? implode(',', $row->_entity_properties['field_for_use_by']):'UseBy'),
-        $row->_entity_properties['field_date_last_reviewed']
+        date('l, F t, Y - H ',$row->_entity_properties['field_date_last_reviewed'])
     );
     }
 }
@@ -149,4 +135,17 @@ function exportSearchTextMultiMediaHtmlToCSV(){
 
     exit('working');
 
+}
+
+function __get_cck_name($machine_name) {
+    $ret = '';
+    switch ($machine_name) {
+        case "text_content_type": $ret = "Text Asset"; break;
+        case "file_content_type": $ret = "File Asset"; break;
+        case "html_content_type": $ret = "HTML Asset"; break;
+        case "multimedia_content_type": $ret = "Multimedia Asset"; break;
+        case "state_details": $ret = "State Details"; break;
+        case "directory_record_content_type": $ret="Directory Record"; break;
+    }
+    return $ret;
 }
