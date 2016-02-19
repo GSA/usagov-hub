@@ -27,6 +27,18 @@ if ( !empty(getenv('CMP_AWS_S3_BUCKET')) )
     }
 }*/
 
+function cmp_misc_entity_property_info_alter(&$info) {
+  $info['node']['properties']['title_string'] = array(
+    'type' => 'text',
+    'label' => t('Title String'),
+    'sanitized' => TRUE,
+    'getter callback' => 'cmp_misc_search_api_property_title_string_getter_callback',
+  );
+  return $info;
+}
+function cmp_misc_search_api_property_title_string_getter_callback($item) {
+  return $item->title;
+}
 
 function cmp_misc_init()
 {
