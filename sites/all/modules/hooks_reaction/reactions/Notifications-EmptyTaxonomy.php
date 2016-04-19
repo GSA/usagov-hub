@@ -406,7 +406,7 @@ function informPmTeamOfEmptyPage($term, $pendingChange = false) {
     $termVocab = str_replace(' ', '-', $termVocab);
 
     // Email Subject
-    $params['subject'] = "Empty Page: ".$term->name;
+    $params['subject'] = "Empty Page: ".$term->name . _get_env_string();
 
     // Email message body
     $linkToTerm = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$term->tid."/edit";
@@ -453,13 +453,13 @@ function informPmTeamOfEmptyPage($term, $pendingChange = false) {
             $params['from']
         );
         if ($res["send"]) {
-            drupal_set_message("Empty-Page notification has been sent to: " . $strTo);
+            drupal_set_message("Empty-Page notification has been sent to: " . $strTo ._get_env_string());
         }
         //drupal_set_message("Turned off taxonomy notification. It has to be turned on after html asset conversion.");
 
     } else {
         // then we are running on someone's local, do NOT send the email
-        drupal_set_message("Notified about Empty page creation. Notification email has NOT been sent because it is NOT STAGE or PROD environment." . $to);
+        drupal_set_message("Notified about Empty page creation. Notification email has NOT been sent because it is NOT STAGE or PROD environment." . $to. _get_env_string());
     }
 
 }

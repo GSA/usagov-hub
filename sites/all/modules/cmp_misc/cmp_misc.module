@@ -904,7 +904,7 @@ function _cmp_misc_send_needs_approval_notice_person( $node) {
         global $user;
 
         // Subject
-        $params['subject'] = "Approval Needed: " . $node->title;
+        $params['subject'] = "Approval Needed: " . $node->title . _get_env_string();
 
         $alias = drupal_get_path_alias('node/' . $node->nid);
         // body
@@ -927,7 +927,7 @@ function _cmp_misc_send_needs_approval_notice_person( $node) {
         $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
 
         if ($res["send"]) {
-            drupal_set_message("Approval notification email has been sent." . $to);
+            drupal_set_message("Approval notification email has been sent." . $to . _get_env_string());
         }
     }
 }
@@ -937,7 +937,7 @@ function _cmp_misc_send_last_edited_person($user_to_send, $node, $msg=null) {
     global $user;
 
     // Subject
-    $params['subject'] = "Discussion Needed :".$node->title;
+    $params['subject'] = "Discussion Needed :".$node->title ._get_env_string();
 
     $alias = drupal_get_path_alias('node/'.$node->nid);
     // body
@@ -954,7 +954,7 @@ function _cmp_misc_send_last_edited_person($user_to_send, $node, $msg=null) {
     $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
 
     if ($res["send"]) {
-        drupal_set_message((($msg == null)? "Person who last revision created is ": $msg) . $user_to_send->name . ". Notification email has been sent." . $to);
+        drupal_set_message((($msg == null)? "Person who last revision created is ": $msg) . $user_to_send->name . ". Notification email has been sent." . $to ._get_env_string());
     }
 }
 
@@ -989,7 +989,7 @@ function _cmp_misc_send_report() {
         $body .= "</ul>";
 
         // Subject
-        $params['subject'] = $subject;
+        $params['subject'] = $subject ._get_env_string();
 
         // body
         $params['body'] = $body;
@@ -1430,4 +1430,15 @@ if ( !function_exists('_diacritichandler_seems_utf8') )
          }
          return true;
     }
+}
+
+// if it is empty, assume PROD
+function _get_env_string() {
+    $ret = "";
+    if (strpos($_SERVER["HTTP_HOST"], "test") !== FALSE)
+        $ret = " TEST";
+    elseif(strpos($_SERVER["HTTP_HOST"], "stage") !== FALSE)
+        $ret = " STAGE";
+
+    return $ret;
 }
