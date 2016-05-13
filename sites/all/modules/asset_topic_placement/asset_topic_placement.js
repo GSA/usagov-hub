@@ -1,8 +1,17 @@
 
 // On document ready, we may need to initialize this helper script
-var setupPageTypeInterval;
-var setupGroupHelperInterval;
-var setupExtraWeightsInterval;
+if ( typeof setupPageTypeInterval === 'undefined' )
+{
+    var setupPageTypeInterval = null;
+}
+if ( typeof setupGroupHelperInterval === 'undefined' )
+{
+    var setupGroupHelperInterval = null;
+}
+if ( typeof setupExtraWeightsInterval === 'undefined' )
+{
+    var setupExtraWeightsInterval = null;
+}
 
 //jQuery(document).ready(setupAssetTopicEvents);
 
@@ -20,6 +29,7 @@ function setupAssetTopicEvents()
                 needingAttachment.find('select').bind('change click', function () {
                     // Using setTimeout to ensure the following fires after the browser has set the UI value
                     setTimeout( function(pageTypeFieldUI) {
+                        // console.info('setupPageTypeInterval CLICK');
                         if ( pageTypeFieldUI.value == 'home' ) {
                             jQuery('.group-asset-placement').hide();
                             jQuery('.group-homepage-container').show();

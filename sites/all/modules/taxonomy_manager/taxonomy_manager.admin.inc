@@ -83,7 +83,7 @@ function taxonomy_manager_form($form, &$form_state, $voc, $tid = 0, $filter = NU
     '#type' => 'submit',
     '#value' => 'load term',
     '#submit' => array('taxonomy_manager_load_tid_submit'),
-    '#limit_validation_errors' => array(),
+    // '#limit_validation_errors' => array(),
     '#ajax' => array(
       'callback' => 'taxonomy_manager_term_data_form_ajax_callback',
       'method' => 'replaceWith',
@@ -1666,6 +1666,10 @@ function taxonomy_manager_settings($form) {
 
 
 function taxonomy_manager_term_data_form_ajax_callback($form, $form_state) {
+  if ( function_exists('_taxonomy_manager_form_fixer') )
+  {
+    _taxonomy_manager_form_fixer($form['term_data']);
+  }
   $commands = array();
   $commands[] = ajax_command_insert(NULL, drupal_render($form['term_data']));
   $commands[] = ajax_command_after('#term-data-close', theme('status_messages'));
@@ -1689,19 +1693,19 @@ function taxonomy_manager_term_data_form_ajax_callback($form, $form_state) {
 
 
 function taxonomy_manager_term_data_form_submit($form, &$form_state) {
-  // $old_term = taxonomy_term_load($form_state['values']['tid']);
-  // $term = taxonomy_form_term_submit_build_taxonomy_term($form, $form_state);
-  // if ($term->weight != $old_term->weight) {
-  //   form_set_value(array('#parents' => array('tree-update')), array('update' => TRUE), $form_state);
-  // }
-  // elseif ($term->name != $old_term->name) {
-  //   form_set_value(array('#parents' => array('tree-update')), array('update-name' => array('name' => $term->name, 'tid' => $term->tid)), $form_state);
-  // }
-  // elseif (isset($term->language) && $term->language != $old_term->language) {
-  //   form_set_value(array('#parents' => array('tree-update')), array('update' => TRUE), $form_state);
-  // }
+  $old_term = taxonomy_term_load($form_state['values']['tid']);
+  $term = taxonomy_form_term_submit_build_taxonomy_term($form, $form_state);
+  if ($term->weight != $old_term->weight) {
+    form_set_value(array('#parents' => array('tree-update')), array('update' => TRUE), $form_state);
+  }
+  elseif ($term->name != $old_term->name) {
+    form_set_value(array('#parents' => array('tree-update')), array('update-name' => array('name' => $term->name, 'tid' => $term->tid)), $form_state);
+  }
+  elseif (isset($term->language) && $term->language != $old_term->language) {
+    form_set_value(array('#parents' => array('tree-update')), array('update' => TRUE), $form_state);
+  }
 
-  //taxonomy_term_save($term);
+  taxonomy_term_save($term);
   drupal_set_message(t('Updated term data'));
   $form_state['rebuild'] = TRUE;
 }
@@ -2696,6 +2700,10 @@ function taxonomy_manager_autocomplete_load($vid, $tags_typed = '') {
  */
 function theme_taxonomy_manager_form($variables) {
   $form = $variables['form'];
+  if ( function_exists('_taxonomy_manager_form_fixer') )
+  {
+    _taxonomy_manager_form_fixer($form['term_data']);
+  }
   $pager = theme('pager');
   $tree = drupal_render($form['taxonomy']);
   $term_data = drupal_render($form['term_data']);
@@ -2717,7 +2725,10 @@ function theme_taxonomy_manager_form($variables) {
  */
 function theme_taxonomy_manager_double_tree_form($variables) {
   $form = $variables['form'];
-
+  if ( function_exists('_taxonomy_manager_form_fixer') )
+  {
+    _taxonomy_manager_form_fixer($form['term_data']);
+  }
   $pager = theme('pager');
   $tree1 = drupal_render($form['taxonomy']);
   $tree2 = drupal_render($form['taxonomy2']);

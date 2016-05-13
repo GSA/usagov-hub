@@ -44,6 +44,55 @@ function asset_topic_placement_menu() {
     return $items;
 }
 
+function _taxonomy_manager_form_fixer(&$form)
+{
+    $form['assetTopicTrigger'] = array(
+      '#markup' => "<script>setTimeout(setupAssetTopicEvents,200);</script>",
+      '#weight' => 1000,
+    );
+    if (!empty($form['#term']['field_asset_order_content']['und'])) {
+        $js_inline = array(
+            'NodeInfoCache = ( typeof NodeInfoCache != "undefined" ? NodeInfoCache : {} );'
+        );
+
+        $assets = $form['#term']['field_asset_order_content']['und'];
+        $asset_nids = [];
+        foreach ( $assets as $asset )
+        {
+            $asset_nids[] = $asset['target_id'];
+        }
+        $nids   = array_unique(array_map('intval',$asset_nids));
+        // Note this node info in a global NodeInfoCache JavaScript variable
+        $nodes = __get_node_info($nids);
+        foreach ( $nodes as $node )
+        {
+            $js_inline[] = "NodeInfoCache['n". $node->nid ."'] = ".json_encode($node).";";
+        }
+
+        $topics = $form['#term']['field_asset_topic_taxonomy']['und'];
+        $nutCacheKey = '';
+        foreach ( $topics as $topic )
+        {
+            $nutCacheKey += 't'.intval($topic['tid']);
+        }
+        $cachedNodes = json_encode($nodes);
+
+        if ( !empty($nutCacheKey) )
+        {
+            $js_inline[] = "
+                if ( typeof NodeUnderTopicCache === 'undefined' ) {
+                    NodeUnderTopicCache = {};
+                }
+                NodeUnderTopicCache[{$nutCacheKey}] = {$cachedNodes};
+            ";
+        }
+        $form['assetTopicJS'] = array(
+          '#markup' => "<script>". implode("\n",$js_inline) ."</script>",
+          '#weight' => -10,
+        );
+    }
+}
+
 function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id)
 {
     drupal_add_js("jQuery(document).ready(function(){ setTimeout(setupAssetTopicEvents,200) });", 'inline');
@@ -60,7 +109,6 @@ function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_stat
         }
         $nids   = array_unique(array_map('intval',$asset_nids));
         // Note this node info in a global NodeInfoCache JavaScript variable
-        $nodes = [];
         $nodes = __get_node_info($nids);
         foreach ( $nodes as $node )
         {
@@ -71,7 +119,7 @@ function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_stat
         $nutCacheKey = '';
         foreach ( $topics as $topic )
         {
-            $nutCacheKey += 't'.$topic['tid'];
+            $nutCacheKey += 't'.intval($topic['tid']);
         }
         $cachedNodes = json_encode($nodes);
 
@@ -164,6 +212,11 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
     // }
     //$msqlTerms = implode(',', $msqlTerms);
     $tids = array_unique(array_map('intval',explode(',', $_REQUEST['terms'])));
+    if ( empty($tids) )
+    {
+        echo '{}';
+        exit();
+    }
 
     /* Get all node-ids that are associated with the given Asset-Topic terms, based
      on the information in the field_data_field_asset_topic_taxonomy table */
@@ -178,7 +231,7 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
          AND field_asset_topic_taxonomy_tid IN (:tids)
     ",array(':tids'=>$tids))->fetchCol();
     if (count($nids) === 0) {
-        echo '[]';
+        echo '{}';
         exit();
     }
 
@@ -310,6 +363,7 @@ function __get_node_info($nids)
     {
         $nids = array($nids);
     }
+    $nids = array_unique(array_map('intval',$nids));
     $info = db_query("
         SELECT
         	n.nid, 	n.title,
