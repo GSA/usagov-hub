@@ -124,7 +124,7 @@ function exportSiteStructureTaxonomyReportToCSV() {
     }
 
     // Print the CSV headers
-    fwrite($h, '"counter","Site","Page Title","Parent Title","Owner","Hierarchy Level","Page Type","Help Desk","Friendly URL","CMP Edit Link","Assets on Page",');
+    fwrite($h, '"counter","Site","Page Title","Parent Title","Owner","Hierarchy Level","Page Type","Topic Desk Replacement","Friendly URL","CMP Edit Link","Assets on Page",');
   //  fwrite($h, '"counter","Site","Page Title","Parent Title","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",');
 
     for ( $T = 1 ; $T < intval(variable_get('tssr_lastmaxcolcount', 3)); $T++ ) {
