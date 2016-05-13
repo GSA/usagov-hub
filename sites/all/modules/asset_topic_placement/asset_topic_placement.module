@@ -53,13 +53,18 @@ function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_stat
         );
 
         $assets = $form['#term']['field_asset_order_content']['und'];
-        $nids   = array_unique(array_map('intval',explode(',', $assets)));
+        $asset_nids = [];
+        foreach ( $assets as $asset )
+        {
+            $asset_nids[] = $asset['target_id'];
+        }
+        $nids   = array_unique(array_map('intval',$asset_nids));
         // Note this node info in a global NodeInfoCache JavaScript variable
         $nodes = [];
         $nodes = __get_node_info($nids);
         foreach ( $nodes as $node )
         {
-            $js_inline[] = "NodeInfoCache['n". $node['nid'] ."'] = ".json_encode($node).";";
+            $js_inline[] = "NodeInfoCache['n". $node->nid ."'] = ".json_encode($node).";";
         }
 
         $topics = $form['#term']['field_asset_topic_taxonomy']['und'];
@@ -323,7 +328,7 @@ function __get_node_info($nids)
 }
 
 /// When a Term updates, go ahead and vet it's Region's Assets and remove any bad ones
-function asset_topic_placement_taxonomy_term_presave(&$term)
+function asset_topic_placement_taxonomy_term_presave($term)
 {
     /// grab existing region/asset maps
     // $topics  = field_get_items('taxonomy_term', $term, 'field_asset_topic_taxonomy');
