@@ -1,105 +1,106 @@
 
 // On document ready, we may need to initialize this helper script
-jQuery(document).ready( function () {
+var setupPageTypeInterval;
+var setupGroupHelperInterval;
+var setupExtraWeightsInterval;
 
-    if ( typeof jQuery.fn.waitUntilExists != 'function' ) {
-        alert('Error - Missing waitUntilExists jQuery library!');
-        return;
+//jQuery(document).ready(setupAssetTopicEvents);
+
+function setupAssetTopicEvents()
+{
+    // console.info('setupAssetTopicEvents trigger');
+    if ( !setupPageTypeInterval ) {
+        // console.info('setupPageTypeInterval start');
+        setupPageTypeInterval = setInterval(function ()
+        {
+            // console.info('setupPageTypeInterval TRY');
+            var needingAttachment = jQuery('.field-name-field-type-of-page-to-generate').not('.atp-processed');
+            if ( needingAttachment.length !== 0 ) {
+                // console.info('setupPageTypeInterval ACTION');
+                needingAttachment.find('select').bind('change click', function () {
+                    // Using setTimeout to ensure the following fires after the browser has set the UI value
+                    setTimeout( function(pageTypeFieldUI) {
+                        if ( pageTypeFieldUI.value == 'home' ) {
+                            jQuery('.group-asset-placement').hide();
+                            jQuery('.group-homepage-container').show();
+                        } else {
+                            jQuery('.group-asset-placement').show();
+                            jQuery('.group-homepage-container').hide();
+                        }
+                    }, 100, this);
+                }).click();
+                needingAttachment.addClass('atp-processed');
+            } else {
+                clearInterval(setupPageTypeInterval);
+                setupPageTypeInterval = null;
+                // console.info('setupPageTypeInterval stop');
+            }
+        }, 100);
     }
 
-    /*Every so often, check if we need to initialize this helper script [again]
-     This is necessary because a single term's edit form can be loaded on a
-     single page multiple times in the "Taxonomy Manager" */
-    setInterval(function () {
-
-        // If there is a term's edit form on this page, and this help script has NOT been applied to it...
-        if ( jQuery('.group-asset-topic-placement').length > 0 && jQuery('.group-asset-topic-placement.helper-script-applied').length == 0 ) {
-
-            //console.log('Firing initAssetTopicPlacementHelperScript()');
-            initAssetTopicPlacementHelperScript();
-
-            // Note this helper-script has been applied to this form
-            jQuery('.group-asset-topic-placement').addClass('helper-script-applied');
-
-            if (jQuery("input[name='tid']").length > 0 && jQuery('.field-name-field-page-intro textarea').length > 0) {
-
-                // resriction limit for page intro field except for kids, usa, and gobierno.govs
-                // adding 170 character limit for page creation
-                var tid = jQuery("input[name='tid']").val();
-
-                if (tid != 3062 && tid != 3067 && tid != 3072) {
-                    jQuery('.field-name-field-page-intro textarea').attr('maxlength', '170');
-                }
-            }
-        }
-
-        // Bug killer - Sometimes multiple "Show/Hide row weights" links show...
-        jQuery('.field-type-entityreference').each( function () {
-            var jqThis = jQuery(this);
-            var toggleWeights = jqThis.find('a.tabledrag-toggle-weight');
-            if (toggleWeights.length > 1) {
-                toggleWeights.hide();
-                toggleWeights.last().show();
-            }
-        });
-
-    }, 100);
-
-});
-
-// When the user changes the "Type of page to generate" field, show/hide the "Home Page" group
-jQuery(document).ready( function () {
-
-    setInterval(function () {
-
-        var needingAttachment = jQuery('.field-name-field-type-of-page-to-generate').not('.homepage-watch-attached');
-        if ( needingAttachment.length !== 0 ) {
-
-            needingAttachment.find('select').bind('change click', function () {
-                // Using setTimeout to ensure the following fires after the browser has set the UI value
-                setTimeout( function (pageTypeFieldUI) {
-                    if ( pageTypeFieldUI.value == 'home' ) {
-                        jQuery('.group-asset-placement').hide();
-                        jQuery('.group-homepage-container').show();
-                    } else {
-                        jQuery('.group-asset-placement').show();
-                        jQuery('.group-homepage-container').hide();
+    if ( !setupGroupHelperInterval ) {
+        // console.info('setupGroupHelperInterval start');
+        setupGroupHelperInterval = setInterval(function ()
+        {
+            // console.info('setupGroupHelperInterval TRY');
+            // If there is a term's edit form on this page, and this help script has NOT been applied to it...
+            var needingHelp = jQuery('.group-asset-topic-placement').not('.atp-processed');
+            if ( needingHelp.length !== 0 ) {
+                // console.info('setupGroupHelperInterval ACTION');
+                //console.log('Firing initAssetTopicPlacementHelperScript()');
+                initAssetTopicPlacementHelperScript();
+                // Note this helper-script has been applied to this form
+                jQuery('.group-asset-topic-placement').addClass('atp-processed');
+                if (jQuery("input[name='tid']").length > 0 && jQuery('.field-name-field-page-intro textarea').length > 0) {
+                    // resriction limit for page intro field except for kids, usa, and gobierno.govs
+                    // adding 170 character limit for page creation
+                    var tid = jQuery("input[name='tid']").val();
+                    if (tid != 3062 && tid != 3067 && tid != 3072) {
+                        jQuery('.field-name-field-page-intro textarea').attr('maxlength', '170');
                     }
-                },100, this);
-            }).click();
-            needingAttachment.addClass('homepage-watch-attached');
-            //console.log('homepage-watch-attached functionality has attached itself to a new taxonomy-form');
-        }
+                }
+            } else {
+                clearInterval(setupGroupHelperInterval);
+                setupGroupHelperInterval = null;
+                // console.info('setupGroupHelperInterval stop');
+            }
+        }, 100);
+    }
 
-    }, 500);
-
-
-});
-
-function untickAssetTopic(term) {
-    assetByTopicFullCheck();
-    return;
-    //console.log("Uncheck firing" + term.value);
-    // jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
-    // jQuery('.group-homepage-container').addClass('term-processing'); // This shows a spinner
-    //
-    //   jQuery.get('/atm/get-nodes-under-topics?terms='+term.value, function (nodes) {
-    //
-    //       for ( var x = 0 ; x < nodes.length ; x++ ) {
-    //           //console.log(nodes[x].nid + nodes[x].title + " NEEDs TO BE REMOVED");
-    //           jQuery("#field-asset-order-sidebar-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-    //           jQuery("#field-asset-order-content-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-    //           jQuery("#field-asset-order-carousel-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-    //           jQuery("#field-asset-order-bottom-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-    //           jQuery("#field-asset-order-menu-values tr:has(td:has(input[value='"+nodes[x].nid+"']))").remove();
-    //       }
-    //
-    // 	jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
-    // 	jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
-    //   });
+    // Bug killer - Sometimes multiple "Show/Hide row weights" links show...
+    if ( !setupExtraWeightsInterval ) {
+        // console.info('setupExtraWeightsInterval start');
+        setupExtraWeightsInterval = setInterval(function ()
+        {
+            // console.info('setupExtraWeightsInterval TRY');
+            var needingCleanup = jQuery('.field-type-entityreference').not('.atp-processed');
+            if ( needingCleanup.length !== 0 ) {
+                // console.info('setupExtraWeightsInterval ACTION');
+                needingCleanup.each( function () {
+                    var jqThis = jQuery(this);
+                    var toggleWeights = jqThis.find('a.tabledrag-toggle-weight');
+                    if (toggleWeights.length > 1) {
+                        toggleWeights.hide();
+                        toggleWeights.last().show();
+                    }
+                    needingCleanup.addClass('atp-processed');
+                });
+            } else {
+                clearInterval(setupExtraWeightsInterval);
+                setupExtraWeightsInterval = null;
+                // console.info('setupExtraWeightsInterval stop');
+            }
+        }, 100);
+    }
 }
 
-function initAssetTopicPlacementHelperScript() {
+function untickAssetTopic(term)
+{
+    assetByTopicFullCheck();
+}
+
+function initAssetTopicPlacementHelperScript()
+{
 
     updateAssetTopicPlacementCountClasses();
 
@@ -113,7 +114,9 @@ function initAssetTopicPlacementHelperScript() {
                 if ( jQuery('.group-asset-topic-placement').queue('fx').length < 3 ) {
                     jQuery('.group-asset-topic-placement').queue( function () {
 
-                        jQuery('.group-asset-topic-placement').fadeIn();
+                        if ( jQuery('#edit-field-type-of-page-to-generate-und').val() != 'home' ) {
+                            jQuery('.group-asset-topic-placement').fadeIn();
+                        }
 
                         var addTids = [];
                         jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
@@ -146,9 +149,12 @@ function initAssetTopicPlacementHelperScript() {
         setTimeout( function (tThis) {
 
             if ( tThis.checked ) {
-                jQuery('.group-asset-topic-placement').fadeIn();
+                if ( jQuery('#edit-field-type-of-page-to-generate-und').val() != 'home' ) {
+                    jQuery('.group-asset-topic-placement').fadeIn();
+                }
                 var targId = jQuery('.field-name-field-asset-order-menu').attr('id');
                 injectRowIntoAssetPlacementField('#'+targId, tThis.value, jQuery(tThis).parent().find('label').text());
+                updateWeightOptionsInAssetPlacementField('#'+targId);
             } else {
                 jQuery('.field-name-field-asset-order-menu input[value=' + tThis.value + ']').parents('tr').remove();
                 updateAssetTopicPlacementCountClasses();
@@ -193,10 +199,11 @@ function initAssetTopicPlacementHelperScript() {
         tickedCheckboxes.each( function () {
             var targId = jQuery('.field-name-field-asset-order-menu').attr('id');
             injectRowIntoAssetPlacementField('#'+targId, this.value, jQuery(this).parent().find('label').text());
+            updateWeightOptionsInAssetPlacementField('#'+targId);
         });
     }
 
-    /* When the page first loads, we want to make sure that any Asset associated with this term that
+    /* When the page first loads, we want to make sure that any Asset associated with a term that
      does NOT exist under any of the selected Asset-Topics are removed */
     assetByTopicFullCheck();
 
@@ -205,7 +212,8 @@ function initAssetTopicPlacementHelperScript() {
 /* Shows or hides each "Asset Topic Order" field based on weather to not
  * the "Inherit this region's assets from parent" sibling-checkbox is ticked.
  */
-function enforceAssetTopicOrderVisibilityBasedOnInheritance() {
+function enforceAssetTopicOrderVisibilityBasedOnInheritance()
+{
 
     jQuery('.group-asset-topic-placement .form-item.form-type-checkbox label:contains("Inherit")').each( function () {
         var jqThis = jQuery(this);
@@ -222,8 +230,8 @@ function enforceAssetTopicOrderVisibilityBasedOnInheritance() {
 
 }
 
-function updateAssetTopicPlacementCountClasses() {
-
+function updateAssetTopicPlacementCountClasses()
+{
     // These classes are used for theming purposes in asset_topic_placement.css
     if ( jQuery('.field-name-field-asset-topic-taxonomy input:checked').length > 0 ) {
         jQuery('.group-asset-topic-placement').removeClass('term-count-0');
@@ -235,7 +243,8 @@ function updateAssetTopicPlacementCountClasses() {
 
 }
 
-function alterTermsInAssetPlacementFields(callback) {
+function alterTermsInAssetPlacementFields(callback)
+{
 
     jQuery('.group-asset-topic-placement').addClass('term-processing'); // This shows a spinner
     jQuery('.group-homepage-container').addClass('term-processing'); // This shows a spinner
@@ -298,7 +307,8 @@ function alterTermsInAssetPlacementFields(callback) {
     });
 }
 
-function alterTermsInAssetPlacementField(fieldSelector, callback) {
+function alterTermsInAssetPlacementField(fieldSelector, callback)
+{
 
     //console.log('Now applying changes to the Asset-Topic-Placement-Field: ' + fieldSelector);
 
@@ -340,7 +350,8 @@ function alterTermsInAssetPlacementField(fieldSelector, callback) {
 
 /* This function builds the JavaScript node-cache, which contains information about
  what nodes are "sticky", etc. */
-function atp_buildNodeInfoCache(callback) {
+function atp_buildNodeInfoCache(callback)
+{
 
     var uniqNids = [];
     jQuery('.tabledrag-processed tr input').each( function () {
@@ -373,7 +384,8 @@ function atp_buildNodeInfoCache(callback) {
 
 }
 
-function atp_getNodeInfoFromCache(arrNids) {
+function atp_getNodeInfoFromCache(arrNids)
+{
 
     // Initialize NodeUnderTopicCache
     if ( typeof NodeInfoCache === 'undefined' ) {
@@ -396,18 +408,21 @@ function atp_getNodeInfoFromCache(arrNids) {
     return nodesFromCache;
 }
 
-function alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback) {
+function alterTermsInAssetPlacementField_callInjectRows(fieldSelector, nodes, callback)
+{
 
     for ( var x = 0 ; x < nodes.length ; x++ ) {
         injectRowIntoAssetPlacementField(fieldSelector, nodes[x].nid, nodes[x].title);
     }
+    updateWeightOptionsInAssetPlacementField(fieldSelector);
 
     if ( typeof callback == 'function' ) {
         callback();
     }
 }
 
-function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
+function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle)
+{
 
     // if this table already has this entity-reference, then bail
     if ( jQuery(fieldSelector+' input[value='+nodeId+']').length > 0 ) {
@@ -454,21 +469,22 @@ function injectRowIntoAssetPlacementField(fieldSelector, nodeId, nodeTitle) {
     newRowHTML = newRowHTML.replace(/ODD_OR_EVEN/g, oddOrEven);
 
     jQuery(fieldSelector+' tbody').append(newRowHTML);
-    updateWeightOptionsInAssetPlacementField(fieldSelector);
-    jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().attr('selected', 'selected');
-    var setWeight = jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().val();
-    jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').val(setWeight);
-    jQuery(fieldSelector+' tbody tr .weight-select').last().attr('setValTo', setWeight);
+    // updateWeightOptionsInAssetPlacementField(fieldSelector);
+    // jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().attr('selected', 'selected');
+    // var setWeight = jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().val();
+    // jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').val(setWeight);
+    // jQuery(fieldSelector+' tbody tr .weight-select').last().attr('setValTo', setWeight);
 
     // Remove any "No items" message in this table
     jQuery('td:contains("No items have been added yet")').parent().remove();
 
     // Mark this drag-table as needing to be reinitialized
-    jQuery(fieldSelector).addClass('needs-dragtable-reinit');
+    // jQuery(fieldSelector).addClass('needs-dragtable-reinit');
 
 }
 
-function reinitializeDragTables() {
+function reinitializeDragTables()
+{
 
     jQuery('.needs-dragtable-reinit').each( function () {
 
@@ -541,14 +557,19 @@ function reinitializeDragTables() {
 
 }
 
-function updateWeightOptionsInAssetPlacementField(fieldSelector) {
+function updateWeightOptionsInAssetPlacementField(fieldSelector)
+{
+    var fieldName  = String(fieldSelector).replace('#edit-', '');
 
-    var fieldName = String(fieldSelector).replace('#edit-', '');
-    var maxWeight = jQuery(fieldSelector+' tr.draggable').length;
-    jQuery(fieldSelector+' tr.draggable').each( function () {
+    jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().attr('selected', 'selected');
+    var setWeight = jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').last().val();
+    jQuery(fieldSelector+' tbody tr').last().find('.'+fieldName+'-delta-order option').val(setWeight);
+    jQuery(fieldSelector+' tbody tr .weight-select').last().attr('setValTo', setWeight);
 
+    var draggables = jQuery(fieldSelector+' tr.draggable');
+    var maxWeight  = draggables.length;
+    draggables.each( function () {
         var weightSelect = jQuery(this).find('.'+fieldName+'-delta-order');
-
         for ( var w = 1 ; w < maxWeight+1 ; w++ ) {
             if ( weightSelect.find('option[value='+w+']').length == 0 ) {
                 weightSelect.append('<option value="'+w+'">'+w+'</option>');
@@ -563,9 +584,13 @@ function updateWeightOptionsInAssetPlacementField(fieldSelector) {
 
     });
 
+    // Mark this drag-table as needing to be reinitialized
+    jQuery(fieldSelector).addClass('needs-dragtable-reinit');
+
 }
 
-function ensureEditAssetLinksExsist() {
+function ensureEditAssetLinksExsist()
+{
 
     jQuery('.tabledrag-processed tr').each( function () {
 
@@ -583,7 +608,8 @@ function ensureEditAssetLinksExsist() {
     });
 }
 
-function processSticky() {
+function processSticky()
+{
 
     jQuery('.tabledrag-processed tr').not('.sticky-processed').each( function () {
 
@@ -654,7 +680,8 @@ function processSticky() {
 
 }
 
-function processStickySorting() {
+function processStickySorting()
+{
 
     jQuery('table.needsStickySorting').each( function () {
 
@@ -687,7 +714,8 @@ function processStickySorting() {
     });
 }
 
-function reprocessZebraPattern(jqTable) {
+function reprocessZebraPattern(jqTable)
+{
 
     // Remove all even/odd classes
     jqTable.find('tr.even, tr.odd').each( function () {
@@ -704,8 +732,8 @@ function reprocessZebraPattern(jqTable) {
 }
 
 // Based on the selected Asset-Topics, remove any asset that dosnt belong
-function assetByTopicFullCheck() {
-
+function assetByTopicFullCheck()
+{
     // This shows a spinner
     jQuery('.group-asset-topic-placement').addClass('term-processing');
     jQuery('.group-homepage-container').addClass('term-processing');
@@ -739,7 +767,14 @@ function assetByTopicFullCheck() {
 
     // Get all node/assets under these Asset-Topics
     var nutCacheKey = 't' + tidAssetTopics.join('t', tidAssetTopics);
-    jQuery.get('/atm/get-nodes-under-topics?terms='+tidAssetTopics.join(','), function (nodes) {
+    if ( NodeUnderTopicCache.hasOwnProperty(nutCacheKey) )
+    {
+        updateNodeUnderTopicCache(NodeUnderTopicCache[nutCacheKey]);
+    } else {
+        jQuery.get('/atm/get-nodes-under-topics?terms='+tidAssetTopics.join(','), updateNodeUnderTopicCache );
+    }
+
+    function updateNodeUnderTopicCache (nodes) {
 
         // Cache what nodes are under this/these topic(s)
         NodeUnderTopicCache[nutCacheKey] = nodes;
@@ -774,6 +809,6 @@ function assetByTopicFullCheck() {
         jQuery('.group-asset-topic-placement').removeClass('term-processing');
         jQuery('.group-homepage-container').removeClass('term-processing');
 
-    });
+    }
 
 }

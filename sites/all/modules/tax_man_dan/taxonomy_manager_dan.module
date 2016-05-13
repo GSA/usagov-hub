@@ -1,0 +1,77 @@
+<?php
+
+
+/**
+ *
+ * @file
+ * Taxonomy Manager
+ *
+ * Administration interface for managing taxonomy vocabularies
+ *
+ */
+
+ * Implements hook_menu().
+ */
+function taxonomy_manager_dan_menu() {
+
+  $items['admin/structure/taxonomy_manager_dan/voc'] = array(
+    'title'            => 'Taxonomy Manager',
+    'description'      => 'Administer vocabularies with the Taxonomy Manager',
+    'page callback'    => 'taxonomy_manager_dan_voc_list',
+    'access arguments' => array('administer taxonomy'),
+    'file'             => 'taxonomy_manager_dan.admin.inc',
+  );
+
+  $items['admin/structure/taxonomy_manager/voc/%taxonomy_vocabulary_machine_name'] = array(
+    'title callback'   => 'taxonomy_admin_vocabulary_title_callback',
+    'title arguments'  => array(4),
+    'page callback'    => 'taxonomy_manager_dan_ui',
+    'page arguments'   => array(4),
+    //'access arguments' => array('administer taxonomy'),
+    'access callback'  => '_has_taxonomy_access',
+    'access arguments' => array(4),
+    'file'             => 'taxonomy_manager_dan.admin.inc',
+  );
+
+  return $items;
+}
+
+function _has_taxonomy_access( $tax_or_id, $account=null )
+{
+    if ( user_access('administer taxonomy') ) { return true; }
+    $taxonomy = null;
+    if (is_object($tax_or_id) )
+    {
+        $taxonomy = $tax_or_id;
+    } else if ( is_numeric($tax_or_id) ) {
+        $taxonomy = taxonomy_vocabulary_load($tax_or_id);
+    } else if ( is_string($tax_or_vid) ) {
+        $taxonomy = taxonomy_vocabulary_machine_name_load($tax_or_id);
+    }
+    if ( $taxonomy )
+    {
+        if ( user_access('administer '.$taxonomy->machine_name.' vocabulary terms') )
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Implements hook_admin_menu_map().
+ */
+function taxonomy_manager_dan_admin_menu_map()
+{
+  if (!user_access('administer taxonomy'))
+  {
+    return;
+  }
+  $map['admin/structure/taxonomy_manager/voc/%taxonomy_vocabulary_machine_name'] = array(
+    'parent' => 'admin/structure/taxonomy_manager/voc',
+    'arguments' => array(
+      array('%taxonomy_vocabulary_machine_name' => array_keys(taxonomy_vocabulary_get_names())),
+    ),
+  );
+  return $map;
+}

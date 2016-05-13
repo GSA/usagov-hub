@@ -111,7 +111,7 @@ function _has_taxonomy_access( $tax_or_id, $account=null )
                             $taxonomy = taxonomy_vocabulary_load($term->vid);
                             if ( $taxonomy ) {
                                 if ( !user_access('administer '.$taxonomy->machine_name.' vocabulary terms') ) {
-                                   return false; 
+                                   return false;
                                 }
                             }
                         }
@@ -130,7 +130,7 @@ function _has_taxonomy_access( $tax_or_id, $account=null )
     }
     if ( $taxonomy )
     {
-        if ( user_access('administer '.$taxonomy->machine_name.' vocabulary terms') ) 
+        if ( user_access('administer '.$taxonomy->machine_name.' vocabulary terms') )
         {
             return true;
         }
