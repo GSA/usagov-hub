@@ -125,7 +125,6 @@ function exportSearchTextMultiMediaHtmlToCSV(){
         //fwrite($h, '"' .$i . '","'.$row[0].'","'.$row[1].'","'.$row[2].'", "'.$row[3].'", "'.$row[4].'", "'.$row[5].'", "'.date('l, F d, Y - H ',$row[6]).'"');
         $fields =array($i, $row[0], $row[1], $row[2], $row[3], $row[4], $row[5], date('l, F d, Y - H ',$row[6]));
         fputcsv($h, $fields);
-        //fwrite($h, "\n");
         $i++;
     }
     fclose($h);
