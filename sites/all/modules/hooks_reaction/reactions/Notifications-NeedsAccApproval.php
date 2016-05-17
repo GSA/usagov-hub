@@ -60,7 +60,7 @@ function informAccTeamOfMultNeedingApproval($node) {
     }
 
     // Email Subject
-    $params['subject'] = "Asset Needing Acc. Approval: ".$node->title;
+    $params['subject'] = "Asset Needing Acc. Approval: ".$node->title. _get_env_string();
 
     // Email message body
     $linkToNode = "https://".$_SERVER['HTTP_HOST']."/node/".$node->nid."/edit";
@@ -99,7 +99,7 @@ function informAccTeamOfMultNeedingApproval($node) {
     );
     if ($res["send"]) {
         drupal_set_message('Notified the Accessibility-Team that this content needs Accessibility-Approval. '
-            .'Notification email has been sent to: ' . $strTo);
+            .'Notification email has been sent to: ' . $strTo. _get_env_string());
     }
 
 }

@@ -36,7 +36,7 @@ function getReport(reqId, noInit) {
         } else {
             jQuery('#reportDownloadingUiProgress').hide();
             jQuery('#reportDownloadingUiComplete').show();
-            jQuery('#reportDownloadingUiComplete a').eq(0).attr('href', 'data:attachment/csv;charset=utf-8,'+encodeURIComponent(data));
+            jQuery('#reportDownloadingUiComplete a').eq(0).attr('href', 'data:application/vnd.ms-excel;charset=utf-8,'+encodeURIComponent(data));
             jQuery('#reportDownloadingUiComplete a').eq(0).click();
         }
     });

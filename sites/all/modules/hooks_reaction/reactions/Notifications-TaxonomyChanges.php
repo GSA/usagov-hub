@@ -551,7 +551,7 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
     $strTo = trim(implode(',', $arrTo), ',');
 
     // Email Subject
-    $params['subject'] = 'CMP: Asset-Topic Alteration Notification, and pages effected';
+    $params['subject'] = 'CMP: Asset-Topic Alteration Notification, and pages effected.'._get_env_string();
 
     // Email body
     $nodeHref = "https://".$_SERVER['HTTP_HOST']."/node/".$node->nid."/edit";
@@ -641,7 +641,7 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
 
     } else {
         // then we are running on someone's local, do NOT send the email
-        drupal_set_message("Notification email has NOT been sent because this environment is neither STAGE nor PROD.");
+        drupal_set_message("Notification email has NOT been sent because this environment is neither STAGE nor PROD."._get_env_string());
     }
 
 }

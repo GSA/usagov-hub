@@ -604,7 +604,7 @@ function _cmp_soft_delete_send_email_to_editors($node)
         $to = $node->field_workflow_notification_emai['und'][0]['value'];
 
         // Subject
-        $params['subject'] = "Deletion Requested : " . $node->title;
+        $params['subject'] = "Deletion Requested : " . $node->title . _get_env_string();
 
         $alias = drupal_get_path_alias('node/'.$node->nid);
         // body
@@ -621,10 +621,10 @@ function _cmp_soft_delete_send_email_to_editors($node)
         $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
 
         if ($res["send"]) {
-            drupal_set_message("Node deletion email is " . $to . ". Notification email has been sent." . $to);
+            drupal_set_message("Node deletion email is " . $to . ". Notification email has been sent." . $to ._get_env_string());
         }
     }
     else {
-        drupal_set_message("Workflow email wasn't set for the asset. Therefore system didn't send an email.", 'warning');
+        drupal_set_message("Workflow email wasn't set for the asset. Therefore system didn't send an email."._get_env_string(), 'warning');
     }
 }

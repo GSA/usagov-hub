@@ -5,11 +5,11 @@
 
 
 (function ($) {
-  
+
 //global var that holds the current term link object
 var active_term = new Object();
 
-/** 
+/**
  * attaches term data form, used after 'Saves changes' submit
  */
 Drupal.behaviors.TaxonomyManagerTermData = {
@@ -91,24 +91,24 @@ Drupal.TermData = function(tid) {
  */
 Drupal.TermData.prototype.form = function() {
   var termdata = this;
-  
+
   $(this.div).find('#term-data-close span').click(function() {
     termdata.div.children().hide();
   });
-  
+
   $(this.div).find('a.taxonomy-term-data-name-link').click(function() {
     var tid = this.href.split("/").pop();
     Drupal.loadTermDataForm(tid, true);
     return false;
   });
-  
+
   $(this.div).find("legend").each(function() {
     var staticOffsetX, staticOffsetY = null;
     var left, top = 0;
-    var div = termdata.div; 
+    var div = termdata.div;
     var pos = $(div).position();
-    $(this).mousedown(startDrag);  
-  
+    $(this).mousedown(startDrag);
+
     function startDrag(e) {
       if (staticOffsetX == null && staticOffsetY == null) {
         staticOffsetX = e.pageX;
@@ -117,14 +117,14 @@ Drupal.TermData.prototype.form = function() {
       $(document).mousemove(performDrag).mouseup(endDrag);
       return false;
     }
- 
+
     function performDrag(e) {
       left = e.pageX - staticOffsetX;
       top = e.pageY - staticOffsetY;
       $(div).css({position: "absolute", "left": pos.left + left +"px", "top": pos.top + top +"px"});
       return false;
     }
- 
+
     function endDrag(e) {
       $(document).unbind("mousemove", performDrag).unbind("mouseup", endDrag);
     }

@@ -124,7 +124,7 @@ function exportSiteStructureTaxonomyReportToCSV() {
     }
 
     // Print the CSV headers
-    fwrite($h, '"counter","Site","Page Title","Parent Title","Owner","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",');
+    fwrite($h, '"counter","Site","Page Title","Parent Title","Owner","Hierarchy Level","Page Type","Topic Desk Replacement","Friendly URL","CMP Edit Link","Assets on Page",');
   //  fwrite($h, '"counter","Site","Page Title","Parent Title","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",');
 
     for ( $T = 1 ; $T < intval(variable_get('tssr_lastmaxcolcount', 3)); $T++ ) {
@@ -186,6 +186,12 @@ function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$ro
     // Get all assets associated with this term
     $assets = tssr_getAssetsInSiteStructTerm($term);
 
+    $help_desk = 'NOT SET IN CMP';
+    if (isset($term->field_help_desk['und'][0]['tid'])) {
+        $help_term = taxonomy_term_load($term->field_help_desk['und'][0]['tid']);
+        $help_desk = (!empty($help_term))? $help_term->name : '';
+    }
+
     // Prepare to add a new row into the report
     $newRow = array(
         'counter' => $counter,
@@ -195,6 +201,7 @@ function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$ro
         'Owner' => !empty($term->field_term_owner['und'][0]['target_id'])? (tssr_get_username($term->field_term_owner['und'][0]['target_id'])) : 'NOT SET IN CMP',
         'Hierarchy Level' => $lvlSemaphore,
         'Page Type' => ( !empty($term->field_type_of_page_to_generate['und'][0]['value']) ? $term->field_type_of_page_to_generate['und'][0]['value'] : 'NOT SET IN CMP' ),
+        'Help Desk'=> $help_desk,
         'Friendly URL' => ( !empty($term->field_friendly_url['und'][0]['value']) ? $term->field_friendly_url['und'][0]['value'] : 'NOT SET IN CMP' ),
         'CMP Edit Link' => "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/{$tid}/edit",
         'Assets on Page' => count($assets),

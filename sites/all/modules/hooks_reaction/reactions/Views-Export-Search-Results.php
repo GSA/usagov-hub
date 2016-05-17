@@ -122,8 +122,9 @@ function exportSearchTextMultiMediaHtmlToCSV(){
     $rows = $_SESSION["__search_result__".arg(1)];
     $i = 1;
     foreach ( $rows as $row ) {
-        fwrite($h, '"' .$i . '","'.$row[0].'","'.$row[1].'","'.$row[2].'", "'.$row[3].'", "'.$row[4].'", "'.$row[5].'", "'.date('l, F d, Y - H ',$row[6]).'"');
-        fwrite($h, "\n");
+        //fwrite($h, '"' .$i . '","'.$row[0].'","'.$row[1].'","'.$row[2].'", "'.$row[3].'", "'.$row[4].'", "'.$row[5].'", "'.date('l, F d, Y - H ',$row[6]).'"');
+        $fields =array($i, $row[0], $row[1], $row[2], $row[3], $row[4], $row[5], date('l, F d, Y - H ',$row[6]));
+        fputcsv($h, $fields);
         $i++;
     }
     fclose($h);
