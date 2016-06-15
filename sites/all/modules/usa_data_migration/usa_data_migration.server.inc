@@ -30,7 +30,7 @@ function usa_data_migration_triggerUpdatePullOnAllChildSites($killThreadOnComple
         // Run through each child-site
         $targets = explode("\n", variable_get('udm_push_targets', ''));
         foreach ($targets as $target) {
-            if ( empty($target) ) { continue; }
+
             $arrContextOptions=array(
                 "ssl"=>array(
                     "verify_peer"=>false,
