@@ -37,9 +37,10 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
     foreach($res as $row) {
 
         $top_term = _get_top_term($row->entity_id);
-        dsm("Found:" . $row->entity_id . " term:".$top_term. " FRIENDLY URL: ". $row->field_friendly_url_value . ' curren  term parent' . $current_termp_parent);
+
 
         if (isset($row->entity_id)) {
+            $term_name = db_query("SELECT name FROM taxonomy_term_data WHERE tid=:tid",array(":tid"=>$row->entity_id))->fetchField(0);
 
             if ($toggle_field == 'field_usa_gov_toggle_url') {
                 if ($top_term == 3062 && $current_termp_parent == 3067) { // usagov gobierno
@@ -47,12 +48,14 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
                     db_query("UPDATE field_revision_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    $changed_toggle= "GobiernoUSA.gov Toggle URL";
                 }
                 if ($top_term == 3062 && $current_termp_parent == 3072) { // usagov kids
                     db_query("UPDATE field_data_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
                     db_query("UPDATE field_revision_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    $changed_toggle= "Kids.gov Toggle URL";
                 }
             }
 
@@ -63,6 +66,7 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
                     db_query("UPDATE field_revision_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    $changed_toggle = "USA.gov Toggle URL";
                 }
                 if ($top_term == 3067 &&  $current_termp_parent == 3072) { // gobierno kids
 
@@ -70,6 +74,7 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
                     db_query("UPDATE field_revision_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    $changed_toggle= "Kids.gov Toggle URL";
                 }
             }
 
@@ -79,17 +84,20 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
                     db_query("UPDATE field_revision_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    $changed_toggle= "USA.gov Toggle URL";
                 }
                 if ($top_term == 3072 && $current_termp_parent==3067) { //kids gobierno
                     db_query("UPDATE field_data_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
                     db_query("UPDATE field_revision_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
                         array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    $changed_toggle= "GobiernoUSA.gov Toggle URL";
                 }
             }
 
             $sql = "DELETE FROM cache_field WHERE cid='field:taxonomy_term:{$row->entity_id}'";
             db_query($sql);
+            drupal_set_message($settoggle_str ." has been set to ".$term_name."\'s ".$changed_toggle. " field.");
         }
     }
 }
