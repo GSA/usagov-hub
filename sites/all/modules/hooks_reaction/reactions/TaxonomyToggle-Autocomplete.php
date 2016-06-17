@@ -44,18 +44,72 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
 
             if ($toggle_field == 'field_usa_gov_toggle_url') {
                 if ($top_term == 3062 && $current_termp_parent == 3067) { // usagov gobierno
-                    db_query("UPDATE field_data_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
-                    db_query("UPDATE field_revision_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    if (db_query("SELECT COUNT(*) FROM field_data_field_gobiernousa_gov_toggle_url WHERE entity_id = :entity_id", array(":entity_id"=>$row->entity_id,))->fetchField(0) > 0) {
+
+                        db_query("UPDATE field_data_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url' => $settoggle_str, ':tid' => $row->entity_id));
+                        db_query("UPDATE field_revision_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url' => $settoggle_str, ':tid' => $row->entity_id));
+                    }
+                    else {
+                        db_query("INSERT INTO field_data_field_gobiernousa_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_gobiernousa_gov_toggle_url_value, field_gobiernousa_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_format" => null
+                        ));
+                        db_query("INSERT INTO field_revision_field_gobiernousa_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_gobiernousa_gov_toggle_url_value, field_gobiernousa_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_format" => null
+                        ));
+                    }
                     $changed_toggle= "GobiernoUSA.gov Toggle URL";
                     $site='USA';
                 }
                 if ($top_term == 3062 && $current_termp_parent == 3072) { // usagov kids
-                    db_query("UPDATE field_data_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
-                    db_query("UPDATE field_revision_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    if (db_query("SELECT COUNT(*) FROM field_data_field_kids_gov_toggle_url WHERE entity_id = :entity_id", array(":entity_id"=>$row->entity_id,))->fetchField(0) > 0) {
+
+                        db_query("UPDATE field_data_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                        db_query("UPDATE field_revision_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    }
+                    else {
+                        db_query("INSERT INTO field_data_field_kids_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_kids_gov_toggle_url_value, field_kids_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_format" => null
+                        ));
+                        db_query("INSERT INTO field_revision_field_kids_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_kids_gov_toggle_url_value, field_kids_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_format" => null
+                        ));
+                    }
                     $changed_toggle= "Kids.gov Toggle URL";
                     $site='USA';
 
@@ -65,19 +119,73 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
             if ($toggle_field == 'field_gobiernousa_gov_toggle_url') {
                 if ($top_term == 3067 &&  $current_termp_parent == 3062) { //gobierno usagov
 
-                    db_query("UPDATE field_data_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
-                    db_query("UPDATE field_revision_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    if (db_query("SELECT COUNT(*) FROM field_data_field_usa_gov_toggle_url WHERE entity_id = :entity_id", array(":entity_id"=>$row->entity_id,))->fetchField(0) > 0) {
+
+                        db_query("UPDATE field_data_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                        db_query("UPDATE field_revision_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    }
+                    else {
+                        db_query("INSERT INTO field_data_field_usa_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_usa_gov_toggle_url_value, field_usa_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_format" => null
+                        ));
+                        db_query("INSERT INTO field_revision_field_usa_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_usa_gov_toggle_url_value, field_gobiernousa_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_format" => null
+                        ));
+                    }
                     $changed_toggle = "USA.gov Toggle URL";
                     $site='Gobierno';
                 }
                 if ($top_term == 3067 &&  $current_termp_parent == 3072) { // gobierno kids
 
-                    db_query("UPDATE field_data_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
-                    db_query("UPDATE field_revision_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    if (db_query("SELECT COUNT(*) FROM field_data_field_kids_gov_toggle_url WHERE entity_id = :entity_id", array(":entity_id"=>$row->entity_id,))->fetchField(0) > 0) {
+
+                        db_query("UPDATE field_data_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                        db_query("UPDATE field_revision_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                    }
+                    else {
+                        db_query("INSERT INTO field_data_field_kids_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_kids_gov_toggle_url_value, field_kids_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_format" => null
+                        ));
+                        db_query("INSERT INTO field_revision_field_kids_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_kids_gov_toggle_url_value, field_kids_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_format" => null
+                        ));
+                    }
                     $changed_toggle= "Kids.gov Toggle URL";
                     $site='Gobierno';
                 }
@@ -85,18 +193,77 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
 
             if ($toggle_field == 'field_kids_gov_toggle_url') {
                 if ($top_term == 3072 && $current_termp_parent==3062) { // kids usagov
-                    db_query("UPDATE field_data_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
-                    db_query("UPDATE field_revision_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+
+                    if (db_query("SELECT COUNT(*) FROM field_data_field_usa_gov_toggle_url WHERE entity_id = :entity_id", array(":entity_id"=>$row->entity_id,))->fetchField(0) > 0) {
+
+                        db_query("UPDATE field_data_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+                        db_query("UPDATE field_revision_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+
+                    }
+                    else {
+                        db_query("INSERT INTO field_data_field_usa_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_usa_gov_toggle_url_value, field_usa_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_format" => null
+                        ));
+                        db_query("INSERT INTO field_revision_field_usa_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_usa_gov_toggle_url_value, field_gobiernousa_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_format" => null
+                        ));
+                    }
                     $changed_toggle= "USA.gov Toggle URL";
                     $site='Kids';
                 }
+
                 if ($top_term == 3072 && $current_termp_parent==3067) { //kids gobierno
-                    db_query("UPDATE field_data_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
-                    db_query("UPDATE field_revision_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
-                        array(':new_toggle_url'=>$settoggle_str, ':tid'=>$row->entity_id));
+
+                    if (db_query("SELECT COUNT(*) FROM field_data_field_gobiernousa_gov_toggle_url WHERE entity_id = :entity_id", array(":entity_id"=>$row->entity_id,))->fetchField(0) > 0) {
+
+                        db_query("UPDATE field_data_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url' => $settoggle_str, ':tid' => $row->entity_id));
+                        db_query("UPDATE field_revision_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                            array(':new_toggle_url' => $settoggle_str, ':tid' => $row->entity_id));
+                    }
+                    else {
+                        db_query("INSERT INTO field_data_field_gobiernousa_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_gobiernousa_gov_toggle_url_value, field_gobiernousa_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_value" => null
+                        ));
+                        db_query("INSERT INTO field_revision_field_gobiernousa_gov_toggle_url (entity_type, bundle, deleted,entity_id, revision_id, language, delta, field_gobiernousa_gov_toggle_url_value, field_gobiernousa_gov_toggle_url_format)
+                        VALUES (:entity_type, :bundle, :deleted, :entity_id, :revision_id, :language, :delta, :field_gobiernousa_gov_toggle_url_value, :field_gobiernousa_gov_toggle_url_format)", array(
+                            ":entity_type" => "taxonomy_term",
+                            ":bundle" => "site_strucutre_taxonomy",
+                            ":deleted" => 0,
+                            ":entity_id" => $row->entity_id,
+                            ":revision_id" => $row->entity_id,
+                            ":delta" => 0,
+                            ":field_gobiernousa_gov_toggle_url_value" => $settoggle_str,
+                            ":field_gobiernousa_gov_toggle_url_value" => null
+                        ));
+                    }
+
                     $changed_toggle= "GobiernoUSA.gov Toggle URL";
                     $site='Kids';
                 }
