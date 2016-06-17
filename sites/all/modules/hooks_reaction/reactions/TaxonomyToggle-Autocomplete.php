@@ -37,36 +37,37 @@ function _update_toggle($toggle_str, $current_term_friendly_url, $toggle_field) 
         dsm("Found:" . $row->entity_id);
 
         $top_term = _get_top_term($row->entity_id);
+
         dpr($top_term);
 
         if (isset($row->entity_id)) {
             $term = taxonomy_term_load($row->entity_id);
 
             if ($toggle_field == 'field_usa_gov_toggle_url') {
-                if ($top_term == "GobiernoUSA.gov") {
+                if ($top_term == 3067) {
                     $term->field_gobiernousa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
                 }
-                if ($top_term == "Kids.gov") {
+                if ($top_term == 3072) {
                     $term->field_kids_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
                 }
                 taxonomy_term_save($term);
             }
 
             if ($toggle_field == 'field_gobiernousa_gov_toggle_url') {
-                if ($top_term == "USA.gov") {
+                if ($top_term == 3062) {
                     $term->field_usa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
                 }
-                if ($top_term == "Kids.gov") {
+                if ($top_term == 3072) {
                     $term->field_kids_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
                 }
                 taxonomy_term_save($term);
             }
 
             if ($toggle_field == 'field_kids_gov_toggle_url') {
-                if ($top_term == "USA.gov") {
+                if ($top_term == 3062) {
                     $term->field_usa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
                 }
-                if ($top_term == "GobiernoUSA.gov") {
+                if ($top_term == 3067) {
                     $term->field_gobiernousa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
                 }
                 taxonomy_term_save($term);
@@ -78,8 +79,10 @@ function _update_toggle($toggle_str, $current_term_friendly_url, $toggle_field) 
 function _get_top_term($tid){
 
     $parent_tid = db_query("SELECT parent FROM taxonomy_term_hierarchy WHERE  tid = :tid", array(":tid" => $tid))->fetchField();
-    if (isset($parent_tid) && is_numeric($parent_tid)) {
-        _get_top_term($parent_tid);
+    if (isset($parent_tid) && ($parent_tid == 3062 || $parent_tid == 3072 || $parent_tid == 3067 || $parent_tid == 11272)) {
+        return $parent_tid;
     }
-    return $tid;
+    else {
+        return _get_top_term($parent_tid);
+    }
 }
