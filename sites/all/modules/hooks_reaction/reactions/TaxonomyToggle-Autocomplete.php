@@ -97,7 +97,7 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
 
             $sql = "DELETE FROM cache_field WHERE cid='field:taxonomy_term:{$row->entity_id}'";
             db_query($sql);
-            drupal_set_message($settoggle_str ." has been set to ".$term_name."\'s ".$changed_toggle. " field.");
+            drupal_set_message($settoggle_str ." has been set to ".$term_name."'s ".$changed_toggle. " field.");
         }
     }
 }
