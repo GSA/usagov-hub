@@ -15,17 +15,17 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
         $current_term_parent =  _get_top_term($term->tid);
         if (!empty($term->field_usa_gov_toggle_url['und'][0]['value']) && !empty($term->field_friendly_url['und'][0]['value'])) {
             // assume this is spanish page
-            _update_toggle($term->field_friendly_url['und'][0]['value'], $term->field_usa_gov_toggle_url['und'][0]['value'],'field_usa_gov_toggle_url',$current_term_parent);
+            _update_togglee($term->field_friendly_url['und'][0]['value'], $term->field_usa_gov_toggle_url['und'][0]['value'],'field_usa_gov_toggle_url',$current_term_parent);
         }
 
         if (!empty($term->field_gobiernousa_gov_toggle_url['und'][0]['value']) && !empty($term->field_friendly_url['und'][0]['value'])) {
             // assume this is usagov page
-            _update_toggle($term->field_friendly_url['und'][0]['value'], $term->field_gobiernousa_gov_toggle_url['und'][0]['value'],'field_gobiernousa_gov_toggle_url', $current_term_parent);
+            _update_togglee($term->field_friendly_url['und'][0]['value'], $term->field_gobiernousa_gov_toggle_url['und'][0]['value'],'field_gobiernousa_gov_toggle_url', $current_term_parent);
         }
 
         if (!empty($term->field_kids_gov_toggle_url['und'][0]['value']) && !empty($term->field_friendly_url['und'][0]['value'])) {
             // assume this is kids page
-            _update_toggle($term->field_friendly_url['und'][0]['value'], $term->field_kids_gov_toggle_url['und'][0]['value'],'field_kids_gov_toggle_url',$current_term_parent);
+            _update_togglee($term->field_friendly_url['und'][0]['value'], $term->field_kids_gov_toggle_url['und'][0]['value'],'field_kids_gov_toggle_url',$current_term_parent);
         }
     }
 );
