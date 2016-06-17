@@ -161,6 +161,10 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
                     $site='Kids';
                 }
             }
+            // tell migration to sync
+            db_query("INSERT IGNORE INTO taxonomy_dates (tid) VALUES({$row->entity_id})");
+            $nowTime = time();
+            db_query("UPDATE taxonomy_dates SET created={$nowTime}, changed={$nowTime} WHERE tid = {$row->entity_id}");
 
             $sql = "DELETE FROM cache_field WHERE cid='field:taxonomy_term:{$row->entity_id}'";
             db_query($sql);
