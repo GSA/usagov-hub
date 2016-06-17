@@ -41,36 +41,60 @@ function _update_toggle($toggle_str, $current_term_friendly_url, $toggle_field) 
         dpr($top_term);
 
         if (isset($row->entity_id)) {
-            $term = taxonomy_term_load($row->entity_id);
+            //$term = taxonomy_term_load($row->entity_id);
 
             if ($toggle_field == 'field_usa_gov_toggle_url') {
-                if ($top_term == 3067) {
-                    $term->field_gobiernousa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                if ($top_term == 3067) { // gobierno
+                    //$term->field_gobiernousa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                    db_query("UPDATE field_data_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
+                    db_query("UPDATE field_revision_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
                 }
-                if ($top_term == 3072) {
-                    $term->field_kids_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                if ($top_term == 3072) { // usagov
+                    //$term->field_kids_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                    db_query("UPDATE field_data_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
+                    db_query("UPDATE field_revision_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
                 }
-                taxonomy_term_save($term);
+               // taxonomy_term_save($term);
             }
 
             if ($toggle_field == 'field_gobiernousa_gov_toggle_url') {
-                if ($top_term == 3062) {
-                    $term->field_usa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                if ($top_term == 3062) { //usagov
+                    //$term->field_usa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                    db_query("UPDATE field_data_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
+                    db_query("UPDATE field_revision_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
                 }
-                if ($top_term == 3072) {
-                    $term->field_kids_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                if ($top_term == 3072) { // 3072
+                    //$term->field_kids_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                    db_query("UPDATE field_data_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
+                    db_query("UPDATE field_revision_field_kids_gov_toggle_url SET field_kids_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
                 }
-                taxonomy_term_save($term);
+                //taxonomy_term_save($term);
             }
 
             if ($toggle_field == 'field_kids_gov_toggle_url') {
-                if ($top_term == 3062) {
-                    $term->field_usa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                if ($top_term == 3062) { // usagov
+                    //$term->field_usa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                    db_query("UPDATE field_data_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
+                    db_query("UPDATE field_revision_field_usa_gov_toggle_url SET field_usa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
                 }
-                if ($top_term == 3067) {
-                    $term->field_gobiernousa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                if ($top_term == 3067) { // gobierno
+                    //$term->field_gobiernousa_gov_toggle_url['und'][0]['value'] = $current_term_friendly_url;
+                    db_query("UPDATE field_data_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
+                    db_query("UPDATE field_revision_field_gobiernousa_gov_toggle_url SET field_gobiernousa_gov_toggle_url_value=:new_toggle_url WHERE entity_id=:tid",
+                        array(':new_toggle_url'=>$current_term_friendly_url, ':tid'=>$row->entity_id));
                 }
-                taxonomy_term_save($term);
+                //taxonomy_term_save($term);
             }
         }
     }
