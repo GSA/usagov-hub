@@ -175,6 +175,8 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
 
 function _get_top_term($tid){
 
+    if ($tid == 3062 || $tid == 3072 || $tid == 3067 || $tid == 11272) return $tid;
+
     $parent_tid = db_query("SELECT parent FROM taxonomy_term_hierarchy WHERE  tid = :tid", array(":tid" => $tid))->fetchField();
     if (isset($parent_tid) && ($parent_tid == 3062 || $parent_tid == 3072 || $parent_tid == 3067 || $parent_tid == 11272)) {
         return $parent_tid;
