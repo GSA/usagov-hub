@@ -1,7 +1,7 @@
 <?php /*
 
     [--] PURPOSE [--]
-    
+
     The purpose of this script is to alter the Log-In form as needed. I this scrupt we shall;
         *
         *
@@ -12,7 +12,7 @@
     2015-??-?? (a previous tick involving GSA [internal] Secure-Auth)
     2015-07-08 Relocated previously made code from cmp_misc.module into this [new] fiel for organization sake.
     2015-07-08 usagov-100558 - Beginning to implement [External] Secure-Auth
-        
+
 */
 
 /**
@@ -28,7 +28,7 @@ hooks_reaction_add(
     ),
     function (&$form, &$form_state, $form_id) {
 
-        // These hooks only fire for the password-reset form, which we want disabled 
+        // These hooks only fire for the password-reset form, which we want disabled
         header('HTTP/1.0 403 Forbidden');
         exit('Service disabled');
     }
@@ -57,8 +57,8 @@ hooks_reaction_add(
             exit();
         }
 
-        // Only show the SecureAuth login link, unless the right key is provided
-        if ( strpos($_SERVER['REQUEST_URI'], 'Q8RWOD4HQ4') === false ) {
+        // Only show the SecureAuth login link, unless the right key is provided, then show full form
+        if ( strpos($_SERVER['REQUEST_URI'], 'Q8RWOD4HQ4') === false && getenv('CMP_DRUPAL_ENVIRONMENT_NAME')!=='Local' ) {
 
             drupal_set_title('Authentication Required');
 
@@ -88,7 +88,7 @@ hooks_reaction_add(
             /*$form['saml_sp_drupal_login_links']['#items'][] = array(
                 'data' => '<a href="#">Log in for users external to GSA</a>'
             );*/
-            
+
             // Hide the breadcrumb, and "Log in / Req. new password" tabs
             drupal_add_css(".breadcrumb, ul.tabs.primary { display: none !important; }", "inline");
 
