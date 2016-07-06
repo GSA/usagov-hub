@@ -183,7 +183,10 @@ function _get_top_term($tid){
     if (isset($parent_tid) && ($parent_tid == 3062 || $parent_tid == 3072 || $parent_tid == 3067 || $parent_tid == 11272)) {
         return $parent_tid;
     }
-    else {
+    elseif(is_numeric($parent_tid) && $parent_tid > 0) {
         return _get_top_term($parent_tid);
+    }
+    else{
+        return $tid;
     }
 }
