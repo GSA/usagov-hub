@@ -7,7 +7,7 @@
  */
 hooks_reaction_add("HOOK_taxonomy_term_presave",
     function ($term) {
-        if (isset($term) && $term->vid == 4) {
+        if (isset($term) && $term->vid == 42) {
             // field_gobiernousa_gov_toggle_url
             // field_kids_gov_toggle_url
             // field_usa_gov_toggle_url
@@ -177,7 +177,7 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
 
 function _get_top_term($tid){
 
-    if ($tid == 3062 || $tid == 3072 || $tid == 3067 || $tid == 11272) return $tid;
+    if ($tid == 3062 || $tid == 3072 || $tid == 3067 || $tid == 11272 || $tid == 0 || $tid == null) return $tid;
 
     $parent_tid = db_query("SELECT parent FROM taxonomy_term_hierarchy WHERE  tid = :tid", array(":tid" => $tid))->fetchField();
     /*if (empty($parent_tid) || $parent_tid==0) {
