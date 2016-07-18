@@ -263,7 +263,8 @@ function _cmp_export_xml_fed($use_by='Print CAH')  {
     e.field_email_value AS email,
     l.field_website_links_value AS website,
     de.field_description_value AS summary,
-    field_subdivision_value AS subdivision
+    field_subdivision_value AS subdivision,
+    cah.field_cah_value AS cah_val
     FROM node n
     INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Federal Agencies'
     INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
@@ -276,6 +277,7 @@ function _cmp_export_xml_fed($use_by='Print CAH')  {
     LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
     LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
     LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
+    LEFT JOIN field_data_field_cah cah ON cah.entity_id = n.nid
     WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
 
     $res = db_query($sql,array(":use_by"=>$use_by));
@@ -288,10 +290,10 @@ function _cmp_export_xml_fed($use_by='Print CAH')  {
 
         if (isset($row->subdivision) && strlen($row->subdivision) > 0) {
             $text .= "<ParaStyle:BodyText>" . $row->subdivision . $new_line;
-        }
-        else {
+        } else {
             $text .= "<ParaStyle:BodyText>" . $new_line;
         }
+
         $text .= $row->street1 . ' ' . $row->street2 . $new_line;
         $text .= $row->city . ", " . $row->state . " " . $row->zip . $new_line;
 
@@ -330,7 +332,13 @@ function _cmp_export_xml_fed($use_by='Print CAH')  {
             $text .= (isset($m[2])) ? ("<CharStyle:Web>" . $m[2] . "<CharStyle:>" . $new_line) : "";
         }
 
-        $text .= $row->summary;
+        if (isset($row->cah_val) && strlen($row->cah_val) > 0) {
+            $text .= $row->cah_val;
+        }
+        else {
+            $text .= $row->summary;
+        }
+
         $text .= $new_line.$new_line;
     }
 
