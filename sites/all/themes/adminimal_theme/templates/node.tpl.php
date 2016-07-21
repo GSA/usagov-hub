@@ -81,8 +81,7 @@
 <div id="node-<?php print $node->nid; ?>" class="<?php print $classes; ?> clearfix"<?php print $attributes; ?>>
 
     <?php print render($title_prefix); ?>
-    <?php print '<b>Node ID:</b> ' . $node->nid; ?> <br/>
-    <?php print '<b>Node UID:</b> ' . $node->uid; ?>
+    <?php print '<b>Asset ID:</b> ' . $node->nid; ?> <br/>
     <?php if (!$page): ?>
         <h2<?php print $title_attributes; ?>>
             <a href="<?php print $node_url; ?>"><?php print $title; ?></a>
