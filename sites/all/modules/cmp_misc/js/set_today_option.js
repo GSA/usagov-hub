@@ -11,7 +11,7 @@
             var mm = today.getMonth()+1;
             var yyyy = today.getFullYear();
             $('#edit-field-date-last-reviewed-und-0-value-datepicker-popup-0').val(mm+'/'+dd+'/'+yyyy);
-            $('#edit-field-date-last-reviewed-und-0-value-timeEntry-popup-1').val(today.getHours() + ":" + today.getMinutes());
+            $('#edit-field-date-last-reviewed-und-0-value-timeEntry-popup-1').val("12:00");
             event.preventDefault();
         });
     });
