@@ -1,0 +1,18 @@
+name = Relation Add Views
+description = Ralation add views support.
+core = 7.x
+package = Relation
+dependencies[] = relation
+dependencies[] = relation_add
+dependencies[] = views
+
+files[] = views/relation_add_views_plugin_display.inc
+files[] = views/relation_add_views_plugin_style.inc
+files[] = views/relation_add_views_plugin_row_fields.inc
+
+; Information added by Drupal.org packaging script on 2016-02-25
+version = "7.x-1.6"
+core = "7.x"
+project = "relation_add"
+datestamp = "1456409170"
+
