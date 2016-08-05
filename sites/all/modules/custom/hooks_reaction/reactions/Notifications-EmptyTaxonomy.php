@@ -1,8 +1,8 @@
 <?php /*
 
     [--] PURPOSE [--]
-    
-    The purpose of this script is to notify the PM-Team when a taxonomy-term has had its associated assets 
+
+    The purpose of this script is to notify the PM-Team when a taxonomy-term has had its associated assets
     removed from it.
 
     [--] TICKET HISTORY [--]
@@ -20,7 +20,7 @@
 
     Thank you!
     Russell
-        
+
 */
 
 define("SS_EMPTY_NOTIFY_ROLE", 'ux member');
@@ -28,7 +28,7 @@ define("SS_EMPTY_NOTIFY_ROLE", 'ux member');
 /**
  * Implements hook_taxonomy_term_presave
  *
- * Checks if a S.S.-taxonomy-term is no longer assigned any assets, and 
+ * Checks if a S.S.-taxonomy-term is no longer assigned any assets, and
  * messages the PM team if so.
  */
 hooks_reaction_add("HOOK_taxonomy_term_presave",
@@ -76,9 +76,9 @@ hooks_reaction_add("HOOK_taxonomy_term_delete",
         // Find all S.S-tax-terms that were using this Topic
         $loosingPages = db_query("
             SELECT entity_id
-            FROM field_data_field_asset_topic_taxonomy 
+            FROM field_data_field_asset_topic_taxonomy
             WHERE
-                entity_type = 'taxonomy_term' 
+                entity_type = 'taxonomy_term'
                 AND field_asset_topic_taxonomy_tid IN ({$term->tid})
         ")->fetchCol();
 
@@ -114,7 +114,7 @@ hooks_reaction_add("HOOK_taxonomy_term_delete",
 /**
  * Implements hook_workbench_moderation_transition
  *
- * Checks if a node is being removed from an Asset-Topic, and if/when so, 
+ * Checks if a node is being removed from an Asset-Topic, and if/when so,
  * checks to see if the Asset-Topic has become empty.
  */
 hooks_reaction_add("HOOK_workbench_moderation_transition",
@@ -138,8 +138,8 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
         // Get the vid of the last node-revision that was published (but not including this one)
         $lastPubVid = db_query("
             SELECT vid
-            FROM workbench_moderation_node_history 
-            WHERE 
+            FROM workbench_moderation_node_history
+            WHERE
                 InStr(state, 'pub') <> 0
                 AND nid = {$node->nid}
                 AND vid <> {$node->vid}
@@ -181,9 +181,9 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
             // (minus this node)
             $topicContainsAssetCount = db_query("
                 SELECT COUNT(entity_id)
-                FROM field_data_field_asset_topic_taxonomy 
+                FROM field_data_field_asset_topic_taxonomy
                 WHERE
-                    entity_type = 'node' 
+                    entity_type = 'node'
                     AND field_asset_topic_taxonomy_tid = {$loosingTopicId}
                     AND entity_id <> {$node->nid}
             ")->fetchColumn();
@@ -211,9 +211,9 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
         $strLoosingTopics = implode(',', $loosingTopics);
         $loosingPages = db_query("
             SELECT entity_id
-            FROM field_data_field_asset_topic_taxonomy 
+            FROM field_data_field_asset_topic_taxonomy
             WHERE
-                entity_type = 'taxonomy_term' 
+                entity_type = 'taxonomy_term'
                 AND field_asset_topic_taxonomy_tid IN ({$strLoosingTopics})
         ")->fetchCol();
         $loosingPages = ( $loosingPages === false ? array() : $loosingPages );
@@ -258,7 +258,7 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
 /**
  * array getAssetsInSiteStructTerm($term[, $loadAssets = false])
  *
- * Given a loaded Site-Structure taxonomy-term, this function will find all the 
+ * Given a loaded Site-Structure taxonomy-term, this function will find all the
  * assets assigned to this node.
  *
  * Returns an array of node-IDs, or array of loaded nodes (based on the seconds argument).
@@ -333,9 +333,9 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
                 // Query MySQL to get all node-IDs that reference these $strTermIds
                 $ret = db_query("
                     SELECT entity_id
-                    FROM field_data_field_asset_topic_taxonomy 
-                    WHERE 
-                        field_asset_topic_taxonomy_tid in ({$strTopicIds}) 
+                    FROM field_data_field_asset_topic_taxonomy
+                    WHERE
+                        field_asset_topic_taxonomy_tid in ({$strTopicIds})
                         AND entity_type='node'
                 ")->fetchCol();
             }
@@ -372,7 +372,7 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
 }
 
 function informPmTeamOfEmptyPage($term, $pendingChange = false) {
-
+return;
     // The $term given MUST be a Site-Structure taxonomy-term, if the term is from any other Vocabulary, then this function was called in error
     if ( $term->vocabulary_machine_name !== 'site_strucutre_taxonomy' ) {
         return; // bail
@@ -417,8 +417,8 @@ function informPmTeamOfEmptyPage($term, $pendingChange = false) {
         $linkToPending = "https://".$_SERVER['HTTP_HOST']."/node/".$pendingChange->nid."/edit";
 
         $params['body'] =
-            'This is an automated message to inform you that the "<a href="' . $linkToTerm . '">' . 
-            $term->name . '</a>" page has become empty since its last asset, "' 
+            'This is an automated message to inform you that the "<a href="' . $linkToTerm . '">' .
+            $term->name . '</a>" page has become empty since its last asset, "'
             .l($pendingChange->title, $linkToPending) . '", has been removed from this page.'
             .'<br/><br/>';
     }
@@ -439,15 +439,15 @@ function informPmTeamOfEmptyPage($term, $pendingChange = false) {
     $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
 
     // We check and prevent developer's locals from sending emails here
-    $prodStageDomains = variable_get('udm_prod_domains', array());
-    if ( in_array($_SERVER['HTTP_HOST'], $prodStageDomains) ) {
+    //$prodStageDomains = variable_get('udm_prod_domains', array());
+    //if ( in_array($_SERVER['HTTP_HOST'], $prodStageDomains) ) {
 
-        /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will 
+        /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
         be called and used to determine the email-message to send. */
         $res = drupal_mail(
             'cmp_misc',
             'scanning_content',
-            $strTo,
+            'dnarkiewicz@ctacorp.com',//$strTo,
             language_default(),
             $params,
             $params['from']
@@ -457,9 +457,9 @@ function informPmTeamOfEmptyPage($term, $pendingChange = false) {
         }
         //drupal_set_message("Turned off taxonomy notification. It has to be turned on after html asset conversion.");
 
-    } else {
+    //} else {
         // then we are running on someone's local, do NOT send the email
-        drupal_set_message("Notified about Empty page creation. Notification email has NOT been sent because it is NOT STAGE or PROD environment." . $to. _get_env_string());
-    }
+        //drupal_set_message("Notified about Empty page creation. Notification email has NOT been sent because it is NOT STAGE or PROD environment." . $to. _get_env_string());
+    //}
 
 }

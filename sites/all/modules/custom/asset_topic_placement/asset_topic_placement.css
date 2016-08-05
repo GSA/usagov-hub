@@ -9,7 +9,7 @@
 }
 .group-asset-topic-placement.term-processing,
 .group-homepage-container.term-processing {
-  background: url('/sites/all/modules/asset_topic_placement/spinner.gif') no-repeat 50% 51%;
+  background: url('/sites/all/modules/custom/asset_topic_placement/spinner.gif') no-repeat 50% 51%;
   height: 150px;
   display: block;
 }
@@ -32,4 +32,3 @@ input#refresh-content {
     clear: both;
     margin-top: 5px;
     background-color: #9CD7F5;}
-

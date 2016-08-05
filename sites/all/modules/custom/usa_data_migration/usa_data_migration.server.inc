@@ -8,7 +8,7 @@ function usa_data_migration_triggerUpdatePullOnAllChildSites($killThreadOnComple
     $thisFunct = __FUNCTION__;
     slack_send_message(
         "Notice: {$thisFunct}() has triggered ".( isset($_SESSION['udm_push_eid']) ? "since {$_SESSION['udm_push_type']} {$_SESSION['udm_push_eid']} was modified." : "[via cron]."),
-        "#cmp-notify-verbose", 
+        "#cmp-notify-verbose",
         $_SERVER['HTTP_HOST']
     );
 
@@ -22,7 +22,7 @@ function usa_data_migration_triggerUpdatePullOnAllChildSites($killThreadOnComple
         // Unset session variables that tell client browsers to trigger this function through AJAX
         if ( isset($_SESSION['udm_push_eid']) ) {
             unset($_SESSION['udm_push_eid']);
-        }        
+        }
         if ( isset($_SESSION['udm_push_type']) ) {
             unset($_SESSION['udm_push_type']);
         }
@@ -36,8 +36,8 @@ function usa_data_migration_triggerUpdatePullOnAllChildSites($killThreadOnComple
                     "verify_peer"=>false,
                     "verify_peer_name"=>false,
                 ),
-            ); 
-            
+            );
+
             $ret .= "Invoked site: {$target}\n";
 
             // This next line is what triggers a child-site to do an update pull
@@ -117,7 +117,7 @@ function usa_data_migration_getDeletedNodes() {
 
     // To make sure we're not crazy, well check and make sure the given entity-id truley is dead
     foreach ( variable_get('udm_nidsDeleted', array()) as $nid ) {
-        $nidExsists = db_query("SELECT COUNT(*) FROM node WHERE nid={$nid} ")->fetchColumn();
+        $nidExsists = db_query("SELECT COUNT(*) FROM node WHERE nid=:nid",array(':nid'=>$nid))->fetchColumn();
         if ( intval($nidExsists) === 0 ) {
             $ret[] = $nid;
         }
@@ -137,7 +137,7 @@ function usa_data_migration_getDeletedTerms() {
 
     // To make sure we're not crazy, well check and make sure the given entity-id truley is dead
     foreach ( variable_get('udm_tidsDeleted', array()) as $tid ) {
-        $tidExsists = db_query("SELECT COUNT(*) FROM taxonomy_term_data WHERE tid={$tid} ")->fetchColumn();
+        $tidExsists = db_query("SELECT COUNT(*) FROM taxonomy_term_data WHERE tid=:tid",array(':tid'=>$term->tid))->fetchColumn();
         if ( intval($tidExsists) === 0 ) {
             $ret[] = $tid;
         }
@@ -155,9 +155,8 @@ function usa_data_migration_taxonomy_term_update($term) {
     usa_data_migration_schedualTriggerChildPull($term, 'taxonomy_term');
 
     if ( !empty($term->tid) ) {
-        db_query("INSERT IGNORE INTO taxonomy_dates (tid) VALUES({$term->tid})");
-        $nowTime = time();
-        db_query("UPDATE taxonomy_dates SET changed = {$nowTime} WHERE tid = {$term->tid}");
+        db_query("INSERT IGNORE INTO taxonomy_dates (tid) VALUES(:tid)",array(':tid'=>$term->tid));
+        db_query("UPDATE taxonomy_dates SET changed = :now WHERE tid = :tid",array(':now'=>time(),':tid'=>$term->tid));
     }
 }
 
@@ -165,14 +164,13 @@ function usa_data_migration_taxonomy_term_update($term) {
  * Implements HOOK_taxonomy_term_update
  */
 function usa_data_migration_taxonomy_term_insert($term) {
-    
+
     usa_data_migration_updateTopLevelTaxonomyNameTbl( array($term->tid) );
     usa_data_migration_schedualTriggerChildPull($term, 'taxonomy_term');
 
     if ( !empty($term->tid) ) {
-        db_query("INSERT IGNORE INTO taxonomy_dates (tid) VALUES({$term->tid})");
-        $nowTime = time();
-        db_query("UPDATE taxonomy_dates SET created={$nowTime}, changed={$nowTime} WHERE tid = {$term->tid}");
+        db_query("INSERT IGNORE INTO taxonomy_dates (tid) VALUES(:tid)",array(':tid'=>$term->tid));
+        db_query("UPDATE taxonomy_dates SET changed = :now WHERE tid = :tid",array(':now'=>time(),':tid'=>$term->tid));
     }
 }
 
@@ -187,12 +185,11 @@ function usa_data_migration_node_insert($node) {
  * Implements HOOK_node_insert
  */
 function usa_data_migration_node_update($node) {
-    
+
     /* When a new revision is added to a node, in certain edge cases, the node's "changed" field is not updated,
     which can cause a node to be missed by childsite update-pulls. We will fix this here. */
     if ( !empty($node->nid) ) {
-        $nowTime = time();
-        db_query("UPDATE node SET changed={$nowTime} WHERE nid={$node->nid}");
+        db_query("UPDATE node SET changed=:now WHERE nid=:nid",array(':now'=>time(),':nid'=>$node->nid));
     }
 }
 
@@ -204,8 +201,7 @@ function usa_data_migration_workbench_moderation_transition($entity, $fromState,
     /* When a work-flow state [alone] is changed, in certain edge cases, the node's "changed" field is not updated,
     which can cause a node to be missed by childsite update-pulls. We will fix this here. */
     if ( !empty($entity->nid) ) {
-        $nowTime = time();
-        db_query("UPDATE node SET changed={$nowTime} WHERE nid={$entity->nid}");
+        db_query("UPDATE node SET changed=:now WHERE nid=:nid",array(':now'=>time(),':nid'=>$entity->nid));
     }
 
     usa_data_migration_schedualTriggerChildPull($entity, 'node');
@@ -240,7 +236,7 @@ function usa_data_migration_schedualTriggerChildPull($entity, $entityType) {
                 return;
             }
         }
-    }           
+    }
 
     $eid = false;
     if ( !empty($entity->nid) ) {
@@ -266,7 +262,7 @@ function usa_data_migration_schedualTriggerChildPull($entity, $entityType) {
 /**
  *  void usa_data_migration_printTaxonomyDump()
  *
- *  Print a MySqlDump of the taxonomy tables on this system, and then 
+ *  Print a MySqlDump of the taxonomy tables on this system, and then
  *  terminates the PHP thread.
  */
 function usa_data_migration_printTaxonomyDump() {
@@ -333,6 +329,8 @@ function usa_data_migration_printTaxonomyDump() {
         $returnData['taxFieldStructure_BundleImportCode'] = usa_data_migration_getExportTaxonomyStructureCode();
     }
 
+    $taxTpLvlParentNameFilter = mysqli::escape_string($taxTpLvlParentNameFilter);
+
     /* GET THE TIDS OF TERMS TO PUSH OUT */
     // If a since argument is given, then we are only processing recently changed terms
     if ( empty($_GET['since']) ) {
@@ -342,10 +340,14 @@ function usa_data_migration_printTaxonomyDump() {
             $tidQuery = "SELECT tid FROM `{$cmpDbName}`.taxonomy_tlt_name WHERE tlt_name='{$taxTpLvlParentNameFilter}' OR tlt_name='ALL' ";
         }
     } else {
+        $since = preg_replace('/\D/','',$_GET['since']);
+        $since = mysqli::escape_string($since);
         if ( $taxTpLvlParentNameFilter === false ) {
-            $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d WHERE d.changed > {$_GET['since']} OR d.created > {$_GET['since']}";
+            /* EDNARK: BAD DALE never from GET straight into query */
+            $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d WHERE d.changed > {$since} OR d.created > {$since}";
         } else {
-            $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d LEFT JOIN `{$cmpDbName}`.taxonomy_tlt_name tltn ON (tltn.tid=d.tid) WHERE ( d.changed > {$_GET['since']} OR d.created > {$_GET['since']} ) AND (tltn.tlt_name = '{$taxTpLvlParentNameFilter}' OR tltn.tlt_name = 'ALL') ";
+            /* EDNARK: BAD DALE never from GET straight into query */
+            $tidQuery = "SELECT d.tid FROM `{$cmpDbName}`.taxonomy_dates d LEFT JOIN `{$cmpDbName}`.taxonomy_tlt_name tltn ON (tltn.tid=d.tid) WHERE ( d.changed > {$since} OR d.created > {$since} ) AND (tltn.tlt_name = '{$taxTpLvlParentNameFilter}' OR tltn.tlt_name = 'ALL') ";
         }
     }
     // If we are NOT doing a "Local-Push", then we need to work in batches
@@ -374,7 +376,7 @@ function usa_data_migration_printTaxonomyDump() {
     // If there is no more nodes [in this batch], bail
     if ( count($tids) === 0 ) {
 
-        /* Unless batch is == 1. This is because we want to push at least 1 batch out, just in case 
+        /* Unless batch is == 1. This is because we want to push at least 1 batch out, just in case
         nothing has been added/changed but there are deleted items to push. */
         if ( $batch === 1 ) {
             $returnData['TaxDump_sqlDump'] .= "# No new entity data in this batch, not blocking because "
@@ -413,7 +415,7 @@ function usa_data_migration_printTaxonomyDump() {
 
     // taxonomy_term_data, taxonomy_index, taxonomy_term_hierarchy
     if ( $doLocalPush ) {
-        $returnData['TaxDump_sqlDump'] .= 
+        $returnData['TaxDump_sqlDump'] .=
             "\n"
             ."DELETE FROM taxonomy_term_data WHERE tid IN ({$tidQuery}); \n"
             ."INSERT INTO taxonomy_term_data SELECT * FROM `{$cmpDbName}`.taxonomy_term_data cmp WHERE cmp.tid IN ({$tidQuery}); \n"
@@ -426,11 +428,11 @@ function usa_data_migration_printTaxonomyDump() {
             ."\n";
     } else {
         $returnData['TaxDump_sqlDump'] .= usa_data_migration_getMySQLDump(
-            "taxonomy_term_data taxonomy_index taxonomy_term_hierarchy", 
-            "tid IN (SELECT entity_id FROM {$tmpTableName}) ", 
-            false, 
-            true, 
-            true, 
+            "taxonomy_term_data taxonomy_index taxonomy_term_hierarchy",
+            "tid IN (SELECT entity_id FROM {$tmpTableName}) ",
+            false,
+            true,
+            true,
             false
         ) . "\n";
     }
@@ -449,15 +451,15 @@ function usa_data_migration_printTaxonomyDump() {
     foreach ( $fieldTables as $fieldTable ) {
         if ( $doLocalPush ) {
             $tblHasdDataForTheseTerms = db_query("
-                SELECT COUNT(*) 
-                FROM {$fieldTable} 
-                WHERE entity_id IN ({$tidQuery}) AND entity_type='taxonomy_term' 
+                SELECT COUNT(*)
+                FROM {$fieldTable}
+                WHERE entity_id IN ({$tidQuery}) AND entity_type='taxonomy_term'
             ")->fetchColumn();
         } else {
             $tblHasdDataForTheseTerms = db_query("
-                SELECT COUNT(*) 
-                FROM {$fieldTable} 
-                WHERE entity_id IN (SELECT entity_id FROM {$tmpTableName}) AND entity_type='taxonomy_term' 
+                SELECT COUNT(*)
+                FROM {$fieldTable}
+                WHERE entity_id IN (SELECT entity_id FROM {$tmpTableName}) AND entity_type='taxonomy_term'
             ")->fetchColumn();
         }
         if ( intval($tblHasdDataForTheseTerms) > 0 ) {
@@ -468,7 +470,7 @@ function usa_data_migration_printTaxonomyDump() {
     if ( $doLocalPush ) {
 
         foreach ($dumpFieldTables as $dumpFieldTable) {
-            $returnData['TaxDump_sqlDump'] .= 
+            $returnData['TaxDump_sqlDump'] .=
                 "DELETE FROM {$dumpFieldTable} WHERE entity_type = 'taxonomy_term' AND entity_id IN ({$tidQuery}); \n"
                 ."INSERT INTO {$dumpFieldTable} SELECT * FROM `{$cmpDbName}`.{$dumpFieldTable} cmp WHERE cmp.entity_type = 'taxonomy_term' AND cmp.entity_id IN ({$tidQuery}); \n"
                 ."\n";
@@ -478,11 +480,11 @@ function usa_data_migration_printTaxonomyDump() {
 
         // Dump field-data/revision tables that contain information for the interested terms
         $returnData['TaxDump_sqlDump'] .= usa_data_migration_getMySQLDump(
-            implode(' ', $dumpFieldTables), 
-            "entity_id IN (SELECT entity_id FROM {$tmpTableName}) ", 
-            false, 
-            true, 
-            true, 
+            implode(' ', $dumpFieldTables),
+            "entity_id IN (SELECT entity_id FROM {$tmpTableName}) ",
+            false,
+            true,
+            true,
             false
         );
     }
@@ -515,7 +517,7 @@ function usa_data_migration_printTaxonomyDump() {
         print serialize($returnData);
         exit();
     }
-    
+
 }
 
 /**
@@ -631,7 +633,7 @@ function usa_data_migration_printNodeDump() {
     // If there are no more nodes [in this batch], bail
     if ( count($nids) === 0 ) {
 
-        /* Unless batch is == 1. This is because we want to push at least 1 batch out, just in case 
+        /* Unless batch is == 1. This is because we want to push at least 1 batch out, just in case
         nothing has been added/changed but there are deleted items to push. */
         if ( $batch === 1 ) {
             if ( !isset($returnData['NodeDump_sqlDump']) ) {
@@ -650,7 +652,7 @@ function usa_data_migration_printNodeDump() {
         @ob_end_clean(); @ob_end_clean(); @ob_end_clean();
         exit('NO MORE DATA');
     }
-    
+
     // Obtain S3 configuration
     if ( function_exists('_s3fs_get_config') ) {
        $returnData['s3Config'] = _s3fs_get_config();
@@ -672,7 +674,7 @@ function usa_data_migration_printNodeDump() {
     // file_managed, relation, relation_bundles, relation_revision, relation_type, field_data_endpoints, field_revision_endpoints
     if ( $batch === 1 ) {
         if ( $doLocalPush ) {
-            $returnData['NodeDump_sqlDump'] .= 
+            $returnData['NodeDump_sqlDump'] .=
                 "\n"
                 ."DELETE FROM file_managed; \n"
                 ."INSERT INTO file_managed SELECT * FROM `{$cmpDbName}`.file_managed; \n"
@@ -697,12 +699,12 @@ function usa_data_migration_printNodeDump() {
                 ."\n";
         } else {
             $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
-                "file_managed relation relation_bundles relation_revision relation_type field_data_endpoints field_revision_endpoints", 
-                '', 
-                false, 
-                true, 
-                true, 
-                false, 
+                "file_managed relation relation_bundles relation_revision relation_type field_data_endpoints field_revision_endpoints",
+                '',
+                false,
+                true,
+                true,
+                false,
                 true
             )."\n";
         }
@@ -728,39 +730,39 @@ function usa_data_migration_printNodeDump() {
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node",
-            "nid IN (SELECT entity_id FROM {$tmpTableName})", 
-            false, 
-            true, 
-            true, 
-            false, 
+            "nid IN (SELECT entity_id FROM {$tmpTableName})",
+            false,
+            true,
+            true,
+            false,
             false
         )."\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_revision WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node_revision",
-            "nid IN (SELECT entity_id FROM {$tmpTableName}) AND vid = (SELECT n2.vid FROM node n2 WHERE n2.nid = node_revision.nid)", 
-            false, 
-            true, 
-            true, 
-            false, 
+            "nid IN (SELECT entity_id FROM {$tmpTableName}) AND vid = (SELECT n2.vid FROM node n2 WHERE n2.nid = node_revision.nid)",
+            false,
+            true,
+            true,
+            false,
             false
         )."\n";
 
         $returnData['NodeDump_sqlDump'] .= "DELETE FROM node_access WHERE nid IN ({$nidList});\n";
         $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
             "node_access",
-            "nid IN (SELECT entity_id FROM {$tmpTableName})", 
-            false, 
-            true, 
-            true, 
-            false, 
+            "nid IN (SELECT entity_id FROM {$tmpTableName})",
+            false,
+            true,
+            true,
+            false,
             false
         )."\n";
     }
 
     // Wipe the UID info from node on the child-site
-    $returnData['NodeDump_sqlDump'] .= 
+    $returnData['NodeDump_sqlDump'] .=
         "\n"
         ."UPDATE node SET uid = 1; \n"
         ."UPDATE node_revision SET uid = 1;\n\n";
@@ -777,30 +779,30 @@ function usa_data_migration_printNodeDump() {
             array_unshift($fieldTables, $fieldTable); // prepends this element back into the array [at the beginning]
         }
     }
-    
+
     // If we have nodes to dump, dump each field for this node
     if ( !empty($nidList) ) {
 
         foreach ( $fieldTables as $fieldTable ) {
 
             $tblHasdDataForTheseNodes = db_query("
-                SELECT COUNT(*) 
-                FROM {$fieldTable} 
-                WHERE entity_id IN ({$nidQuery}) AND entity_type='node' 
+                SELECT COUNT(*)
+                FROM {$fieldTable}
+                WHERE entity_id IN ({$nidQuery}) AND entity_type='node'
             ")->fetchColumn();
             if ( intval($tblHasdDataForTheseNodes) > 0 ) {
-                
+
                 if ( $doLocalPush ) {
 
                     // If a nodes has [historically] had information in this field, wipe information for this node in this field
                     // This is to catch edge-cases where information in a field has been erased in the current/published node-revision
                     if ( strpos($fieldTable, 'field_revision_field_') !== false ) {
                         $dataField = str_replace('field_revision_field_', 'field_data_field_', $fieldTable);
-                        $returnData['NodeDump_sqlDump'] .= 
+                        $returnData['NodeDump_sqlDump'] .=
                             "DELETE IGNORE FROM {$dataField} WHERE entity_type = 'node' AND entity_id IN ({$nidQuery}); \n";
                     }
 
-                    $returnData['NodeDump_sqlDump'] .= 
+                    $returnData['NodeDump_sqlDump'] .=
                         "DELETE FROM {$fieldTable} WHERE entity_type = 'node' AND entity_id IN ({$nidQuery}); \n"
                         ."INSERT INTO {$fieldTable} SELECT * FROM `{$cmpDbName}`.{$fieldTable} cmp WHERE cmp.entity_type = 'node' AND cmp.entity_id IN ({$nidQuery}); \n"
                         ."\n";
@@ -811,17 +813,17 @@ function usa_data_migration_printNodeDump() {
                     // This is to catch edge-cases where information in a field has been erased in the current/published node-revision
                     if ( strpos($fieldTable, 'field_revision_field_') !== false ) {
                         $dataField = str_replace('field_revision_field_', 'field_data_field_', $fieldTable);
-                        $returnData['NodeDump_sqlDump'] .= 
+                        $returnData['NodeDump_sqlDump'] .=
                             "DELETE IGNORE FROM {$dataField} WHERE entity_type = 'node' AND entity_id IN ({$nidList});\n";
                     }
 
                     $returnData['NodeDump_sqlDump'] .= "\nDELETE FROM {$fieldTable} WHERE entity_type = 'node' AND entity_id IN ({$nidList});\n";
                     $returnData['NodeDump_sqlDump'] .= usa_data_migration_getMySQLDump(
-                        $fieldTable, 
-                        "entity_id IN (SELECT entity_id FROM {$tmpTableName}) AND revision_id = (SELECT n2.vid FROM node n2 WHERE n2.nid = entity_id)", 
-                        false, 
-                        true, 
-                        true, 
+                        $fieldTable,
+                        "entity_id IN (SELECT entity_id FROM {$tmpTableName}) AND revision_id = (SELECT n2.vid FROM node n2 WHERE n2.nid = entity_id)",
+                        false,
+                        true,
+                        true,
                         false
                     );
                 }
@@ -858,20 +860,20 @@ function usa_data_migration_printNodeDump() {
         print serialize($returnData);
         exit();
     }
-    
+
 }
 
 /*
  * string usa_data_migration_getExportTaxonomyStructureCode()
  *
- * Obtains the same code you would see when going to ~/admin/structure/taxonomy/export and 
+ * Obtains the same code you would see when going to ~/admin/structure/taxonomy/export and
  * ticking all checkboxes on that form.
  *
- * This essentially is a wrapper function to _bundle_copy_export_data(), which expects to be given 
- * Drupal-form data. This function creates/emulates the Drupal-form data and triggers that 
+ * This essentially is a wrapper function to _bundle_copy_export_data(), which expects to be given
+ * Drupal-form data. This function creates/emulates the Drupal-form data and triggers that
  * function with "all checkboxes ticked".
  *
- * This function returns a string to be given to importTaxonomyStructureWithCode(), either on 
+ * This function returns a string to be given to importTaxonomyStructureWithCode(), either on
  * this site, or another.
  */
 function usa_data_migration_getExportTaxonomyStructureCode() {
@@ -923,14 +925,14 @@ function usa_data_migration_getExportTaxonomyStructureCode() {
 /*
  * string usa_data_migration_getExportNodeStructureCode()
  *
- * Obtains the same code you would see when going to ~/admin/structure/types/export and 
+ * Obtains the same code you would see when going to ~/admin/structure/types/export and
  * ticking desiered checkboxes on that form.
  *
- * This essentially is a wrapper function to _bundle_copy_export_data(), which expects to be given 
- * Drupal-form data. This function creates/emulates the Drupal-form data and triggers that 
+ * This essentially is a wrapper function to _bundle_copy_export_data(), which expects to be given
+ * Drupal-form data. This function creates/emulates the Drupal-form data and triggers that
  * function with the "nessesary checkboxes ticked".
  *
- * This function returns a string to be given to importNodeStructureWithCode(), either on 
+ * This function returns a string to be given to importNodeStructureWithCode(), either on
  * this site, or another.
  */
 function usa_data_migration_getExportNodeStructureCode() {
@@ -993,13 +995,13 @@ function usa_data_migration_getAllFieldTables() {
     $ret = array();
 
     foreach ( db_query("SHOW TABLES") as $tbl ) {
-        
+
         $tblInfo = array_values( (array) $tbl );
         $tbl = $tblInfo[0];
-        
+
         // If this one of the field_revision_field_* or field_data_field_* tables...
         if ( strpos($tbl, 'field_revision_field_') !== false || strpos($tbl, 'field_data_field_') !== false ) {
-        
+
             // If this table has entity_id and entity_type fields...
             if ( db_field_exists($tbl, 'entity_id') && db_field_exists($tbl, 'entity_type') ) {
                 $ret[] = $tbl;
@@ -1013,7 +1015,7 @@ function usa_data_migration_getAllFieldTables() {
 /**
  * void usa_data_migration_updateTopLevelTaxonomyNameTbl()
  *
- * This function will lookup the highest parent of each 
+ * This function will lookup the highest parent of each
  * term given, and update the taxonomy_tlt_name table
  */
 function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
@@ -1025,7 +1027,7 @@ function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
 
     foreach ( $tids as $tid ) {
 
-        $vocabId = db_query("SELECT vid FROM taxonomy_term_data WHERE tid={$tid}")->fetchColumn();
+        $vocabId = db_query("SELECT vid FROM taxonomy_term_data WHERE tid=:tid",array(':tid'=>$tid))->fetchColumn();
         if ( intval($siteStructVocabId) === intval($vocabId) ) {
             // then this is a site-structure taxonomy-term
             $parents = taxonomy_get_parents_all($tid);
@@ -1036,8 +1038,7 @@ function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
             $tltName = 'ALL';
         }
 
-        db_query("DELETE FROM taxonomy_tlt_name WHERE tid = {$tid}; "
-            ."INSERT IGNORE INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, '{$tltName}') ");
+        db_query("REPLACE INTO taxonomy_tlt_name (tid, tlt_name) VALUES (:tid,:tltName)",array(':tid'=>$tid,':tltName'=>$tltName));
 
     }
 
