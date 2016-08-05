@@ -1,5 +1,0 @@
-name = Asset Fix Utility
-description = Scripts to convert HTML-Assets to Text-Assets
-package = CTAC
-core = 7.x
-files[] = asset_fix.module

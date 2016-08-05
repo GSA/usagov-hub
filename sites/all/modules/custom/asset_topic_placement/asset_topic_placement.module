@@ -96,99 +96,124 @@ function _taxonomy_manager_form_fixer(&$form)
 function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id)
 {
     drupal_add_js("jQuery(document).ready(function(){ setTimeout(setupAssetTopicEvents,200) });", 'inline');
-    if (!empty($form['#term']['field_asset_order_content']['und'])) {
-        $js_inline = array(
-            'NodeInfoCache = ( typeof NodeInfoCache != "undefined" ? NodeInfoCache : {} );'
-        );
-
-        $assets = $form['#term']['field_asset_order_content']['und'];
-        $asset_nids = [];
-        foreach ( $assets as $asset )
+    if ( empty($form['#term']) ) { return; }
+    $field_asset_order_content  = [];
+    $field_asset_topic_taxonomy = [];
+    if ( is_array($form['#term']) )
+    {
+        if ( !empty($form['#term']['field_asset_order_content'])
+          && !empty($form['#term']['field_asset_order_content']['und']) )
         {
-            $asset_nids[] = $asset['target_id'];
+            $field_asset_order_content = $form['#term']['field_asset_order_content']['und'];
         }
-        $nids   = array_unique(array_map('intval',$asset_nids));
-        // Note this node info in a global NodeInfoCache JavaScript variable
-        $nodes = __get_node_info($nids);
-        foreach ( $nodes as $node )
+        if ( !empty($form['#term']['field_asset_topic_taxonomy'])
+          && !empty($form['#term']['field_asset_topic_taxonomy']['und']) )
         {
-            $js_inline[] = "NodeInfoCache['n". $node->nid ."'] = ".json_encode($node).";";
+            $field_asset_topic_taxonomy = $form['#term']['field_asset_topic_taxonomy']['und'];
         }
-
-        $topics = $form['#term']['field_asset_topic_taxonomy']['und'];
-        $nutCacheKey = '';
-        foreach ( $topics as $topic )
+    } else if ( is_object($form['#term']) ) {
+        if ( !empty($form['#term']->field_asset_order_content)
+          && !empty($form['#term']->field_asset_order_content['und']) )
         {
-            $nutCacheKey += 't'.intval($topic['tid']);
+            $field_asset_order_content = $form['#term']->field_asset_order_content['und'];
         }
-        $cachedNodes = json_encode($nodes);
-
-        if ( !empty($nutCacheKey) )
+        if ( !empty($form['#term']->field_asset_topic_taxonomy)
+          && !empty($form['#term']->field_asset_topic_taxonomy['und']) )
         {
-            $js_inline[] = "
-                if ( typeof NodeUnderTopicCache === 'undefined' ) {
-                    NodeUnderTopicCache = {};
-                }
-                NodeUnderTopicCache[{$nutCacheKey}] = {$cachedNodes};
-            ";
+            $field_asset_topic_taxonomy = $form['#term']->field_asset_topic_taxonomy['und'];
         }
-
-        drupal_add_js(implode("\n",$js_inline), 'inline');
-
-        // var nutCacheKey = 't' + tidAssetTopics.join('t', tidAssetTopics);
-        // jQuery.get('/atm/get-nodes-under-topics?terms='+tidAssetTopics.join(','), function (nodes) 
-        //
-        //     // Cache what nodes are under this/these topic(s)
-        //     NodeUnderTopicCache[nutCacheKey] = nodes;
-
-
-        // foreach ($assets as $assetNidContainer) {
-        //     $nid = $assetNidContainer['target_id'];
-        //
-        //     // Get the revision of the published version of this node
-        //     $targetRevId = db_query("
-        //         SELECT r.vid
-        //         FROM node n
-        //         LEFT JOIN node_revision r ON ( r.nid = n.nid AND r.vid= n.vid )
-        //         WHERE n.nid = :nid AND n.status = 1 AND r.status = 1
-        //     ",array(':nid'=>$nid))->fetchColumn();
-        //     $wasPublished = 1;
-        //
-        //     // If the node has never been published yet, then default to the latest revision
-        //     if ($targetRevId == false) {
-        //         $targetRevId = db_query("
-        //             SELECT vid
-        //             FROM node_revision
-        //             WHERE nid = :nid
-        //             ORDER BY vid DESC
-        //             LIMIT 1
-        //         ",array(':nid'=>$nid))->fetchColumn();
-        //         $wasPublished = 0;
-        //     }
-        //
-        //     if ($targetRevId==false) {
-        //         continue;
-        //     }
-        //
-        //     // Obtain node info
-        //     $nodeInfo = db_query("
-        //         SELECT
-        //             nid,
-        //             title,
-        //             type,
-        //             field_priority_value AS 'priority',
-        //             p.revision_id AS 'vid',
-        //             {$wasPublished} AS 'haspubrevision'
-        //         FROM node n
-        //         LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = :rid )
-        //         WHERE n.nid = :nid
-        //     ",array(':nid'=>$nid,':rid'=>$targetRevId))->fetchAll();
-        //     $nodeInfo = isset($nodeInfo[0]) ? $nodeInfo[0] : array() ;
-        //
-        //     // Note this node info in a global NodeInfoCache JavaScript variable
-        //     drupal_add_js("NodeInfoCache['n{$nid}'] = ".json_encode($nodeInfo), 'inline');
-        // }
     }
+
+    $js_inline = array(
+        'NodeInfoCache = ( typeof NodeInfoCache != "undefined" ? NodeInfoCache : {} );'
+    );
+    $assets = $field_asset_order_content;
+    $asset_nids = [];
+    foreach ( $assets as $asset )
+    {
+        $asset_nids[] = $asset['target_id'];
+    }
+    $nids   = array_unique(array_map('intval',$asset_nids));
+    // Note this node info in a global NodeInfoCache JavaScript variable
+    $nodes = __get_node_info($nids);
+    foreach ( $nodes as $node )
+    {
+        $js_inline[] = "NodeInfoCache['n". $node->nid ."'] = ".json_encode($node).";";
+    }
+
+    $topics = $field_asset_topic_taxonomy;
+    $nutCacheKey = '';
+    foreach ( $topics as $topic )
+    {
+        $nutCacheKey += 't'.intval($topic['tid']);
+    }
+    $cachedNodes = json_encode($nodes);
+
+    if ( !empty($nutCacheKey) )
+    {
+        $js_inline[] = "
+            if ( typeof NodeUnderTopicCache === 'undefined' ) {
+                NodeUnderTopicCache = {};
+            }
+            NodeUnderTopicCache[{$nutCacheKey}] = {$cachedNodes};
+        ";
+    }
+
+    drupal_add_js(implode("\n",$js_inline), 'inline');
+
+    // var nutCacheKey = 't' + tidAssetTopics.join('t', tidAssetTopics);
+    // jQuery.get('/atm/get-nodes-under-topics?terms='+tidAssetTopics.join(','), function (nodes)
+    //
+    //     // Cache what nodes are under this/these topic(s)
+    //     NodeUnderTopicCache[nutCacheKey] = nodes;
+
+
+    // foreach ($assets as $assetNidContainer) {
+    //     $nid = $assetNidContainer['target_id'];
+    //
+    //     // Get the revision of the published version of this node
+    //     $targetRevId = db_query("
+    //         SELECT r.vid
+    //         FROM node n
+    //         LEFT JOIN node_revision r ON ( r.nid = n.nid AND r.vid= n.vid )
+    //         WHERE n.nid = :nid AND n.status = 1 AND r.status = 1
+    //     ",array(':nid'=>$nid))->fetchColumn();
+    //     $wasPublished = 1;
+    //
+    //     // If the node has never been published yet, then default to the latest revision
+    //     if ($targetRevId == false) {
+    //         $targetRevId = db_query("
+    //             SELECT vid
+    //             FROM node_revision
+    //             WHERE nid = :nid
+    //             ORDER BY vid DESC
+    //             LIMIT 1
+    //         ",array(':nid'=>$nid))->fetchColumn();
+    //         $wasPublished = 0;
+    //     }
+    //
+    //     if ($targetRevId==false) {
+    //         continue;
+    //     }
+    //
+    //     // Obtain node info
+    //     $nodeInfo = db_query("
+    //         SELECT
+    //             nid,
+    //             title,
+    //             type,
+    //             field_priority_value AS 'priority',
+    //             p.revision_id AS 'vid',
+    //             {$wasPublished} AS 'haspubrevision'
+    //         FROM node n
+    //         LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = :rid )
+    //         WHERE n.nid = :nid
+    //     ",array(':nid'=>$nid,':rid'=>$targetRevId))->fetchAll();
+    //     $nodeInfo = isset($nodeInfo[0]) ? $nodeInfo[0] : array() ;
+    //
+    //     // Note this node info in a global NodeInfoCache JavaScript variable
+    //     drupal_add_js("NodeInfoCache['n{$nid}'] = ".json_encode($nodeInfo), 'inline');
+    // }
 
 }
 
@@ -364,6 +389,7 @@ function __get_node_info($nids)
         $nids = array($nids);
     }
     $nids = array_unique(array_map('intval',$nids));
+    if ( empty($nids) ) { return []; }
     $info = db_query("
         SELECT
         	n.nid, 	n.title,
