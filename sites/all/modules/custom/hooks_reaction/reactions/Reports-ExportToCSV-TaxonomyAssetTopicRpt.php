@@ -43,7 +43,7 @@ hooks_reaction_add("HOOK_views_post_render",
             $prependMarkup = '<a style="float: right" rendersource="'.$thisFile.'" href="javascript: getReport(\''.uniqid().'\'); void(0);">Export to Excel</a>';
             $output = $prependMarkup.$output;
 
-            drupal_add_js('sites/all/modules/hooks_reaction/reactions/Reports-ExportToCSV-TaxonomyAssetTopicRpt.js');
+            drupal_add_js('sites/all/modules/custom/hooks_reaction/reactions/Reports-ExportToCSV-TaxonomyAssetTopicRpt.js');
         }
     }
 );
