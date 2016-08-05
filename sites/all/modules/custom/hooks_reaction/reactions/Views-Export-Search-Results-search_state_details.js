@@ -11,7 +11,7 @@ function getReport(reqId, noInit) {
                 </div>\
                 <div id="reportDownloadingUiText" style="background-color: white; border: 1px solid gray; position: absolute; margin-left: 33%; width: 33%; line-height: 25px; padding: 20px; top: 200px;">\
                     <span id="reportDownloadingUiProgress">\
-                        <img style="float: left; padding-right: 10px" src="/sites/all/modules/taxonomy_manager/images/ajax-loader.gif" />\
+                        <img style="float: left; padding-right: 10px" src="/sites/all/modules/contrib/taxonomy_manager/images/ajax-loader.gif" />\
                         Processing, please wait...\
                     </span>\
                     <span id="reportDownloadingUiComplete" style="display: none;">\
