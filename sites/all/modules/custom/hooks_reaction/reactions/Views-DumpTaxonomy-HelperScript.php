@@ -42,15 +42,15 @@ hooks_reaction_add("HOOK_views_pre_execute",
     }
 );
 
-if ( !class_exists('SimpleXMLExtended') ) {
-    class SimpleXMLExtended extends SimpleXMLElement {
-        public function addCData($cdata_text) {
-            $node = dom_import_simplexml($this);
-            $no   = $node->ownerDocument;
-            $node->appendChild($no->createCDATASection($cdata_text));
-        }
-    }
-}
+// if ( !class_exists('SimpleXMLExtended') ) {
+//     class SimpleXMLExtended extends SimpleXMLElement {
+//         public function addCData($cdata_text) {
+//             $node = dom_import_simplexml($this);
+//             $no   = $node->ownerDocument;
+//             $node->appendChild($no->createCDATASection($cdata_text));
+//         }
+//     }
+// }
 
 function tidToXML($tid) {
 
