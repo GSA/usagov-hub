@@ -1064,8 +1064,8 @@ function usa_data_migration_updateTopLevelTaxonomyNameTbl($tids) {
             $tltName = 'ALL';
         }
 
-        db_query("DELETE FROM taxonomy_tlt_name WHERE tid = {$tid}; "
-            ."INSERT IGNORE INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, '{$tltName}') ");
+        db_query("DELETE FROM taxonomy_tlt_name WHERE tid = {$tid}; ");
+        db_query("INSERT IGNORE INTO taxonomy_tlt_name (tid, tlt_name) VALUES ({$tid}, '{$tltName}'); ");
 
     }
 
