@@ -1,0 +1,14 @@
+name = USASearch Field
+description = Provides a USASearch field, which may be used to search unique affiliate ids.
+core = 7.x
+configure = admin/config/search/usasearch
+package = USASearch
+
+dependencies[] = usasearch
+
+; Information added by Drupal.org packaging script on 2015-11-13
+version = "7.x-4.4"
+core = "7.x"
+project = "usasearch"
+datestamp = "1447386026"
+
