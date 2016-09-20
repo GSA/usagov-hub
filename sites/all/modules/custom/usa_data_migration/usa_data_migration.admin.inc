@@ -77,29 +77,55 @@ function usa_data_migration_config_form() {
 
             case 'Pull ALL taxonomy-entities Now':
                 ini_set('error_reporting', E_ALL);
+                /* Since this may be a long-running process, close the
+                connection with the client and continue running */
+                #if ( $terminateThreadOnCompletion && function_exists('fastcgi_finish_request') ) {
+                if ( function_exists('fastcgi_finish_request') ) {
+                    drupal_set_message('usa_data_migration_synchTaxonomyFromTarget() is running.', 'status');
+                    $q = !empty($_GET['force']) ? array('force'=>1) : array();
+                    $url = url(current_path(), array('query'=>$q,'absolute'=>TRUE, 'external'=>FALSE));
+                    session_write_close();
+                    header('Location: ' . $url, TRUE, 302);
+                    while ( @ob_get_length() ) { @ob_end_clean(); }
+                    flush();
+                    fastcgi_finish_request();
+                }
                 $target = variable_get('udm_pull_from_taxtarget');
                 $ret = usa_data_migration_synchTaxonomyFromTarget($target, false);
-                drupal_set_message(
-                    'usa_data_migration_synchTaxonomyFromTarget() returned: ' . $ret,
-                    'status'
-                );
+                // drupal_set_message(
+                //     'usa_data_migration_synchTaxonomyFromTarget() returned: ' . $ret,
+                //     'status'
+                // );
                 break;
 
             case 'Pull ALL nodes-entities now':
                 ini_set('error_reporting', E_ALL);
+                /* Since this may be a long-running process, close the
+                connection with the client and continue running */
+                #if ( $terminateThreadOnCompletion && function_exists('fastcgi_finish_request') ) {
+                if ( function_exists('fastcgi_finish_request') ) {
+                    drupal_set_message('usa_data_migration_synchNodesFromTarget() is running.', 'status');
+                    $q = !empty($_GET['force']) ? array('force'=>1) : array();
+                    $url = url(current_path(), array('query'=>$q,'absolute'=>TRUE, 'external'=>FALSE));
+                    session_write_close();
+                    header('Location: ' . $url, TRUE, 302);
+                    while ( @ob_get_length() ) { @ob_end_clean(); }
+                    flush();
+                    fastcgi_finish_request();
+                }
                 $target = variable_get('udm_pull_from_nodetarget');
                 $onlyCertainType = ( empty($_REQUEST['dopullnodetype']) ? '' : $_REQUEST['dopullnodetype'] );
                 $ret = usa_data_migration_synchNodesFromTarget($target, false, 50, 0, 0, false, $onlyCertainType);
-                drupal_set_message(
-                    'usa_data_migration_synchNodesFromTarget() returned: ' . $ret,
-                    'status'
-                );
+                // drupal_set_message(
+                //     'usa_data_migration_synchNodesFromTarget() returned: ' . $ret,
+                //     'status'
+                // );
                 break;
 
-            case 'Clear Log':
-                variable_set('udm_log', array());
-                drupal_set_message('Log cleared', 'status');
-                break;
+            // case 'Clear Log':
+            //     variable_set('udm_log', array());
+            //     drupal_set_message('Log cleared', 'status');
+            //     break;
 
             default:
                 @ob_end_clean(); @ob_end_clean(); @ob_end_clean();
@@ -152,9 +178,9 @@ function usa_data_migration_config_form() {
     $form = array();
 
     $form['udmmode'] = array(
-        '#type' => 'fieldset', 
-        '#title' => 'Mode', 
-        '#collapsible' => false, 
+        '#type' => 'fieldset',
+        '#title' => 'Mode',
+        '#collapsible' => false,
         '#collapsed' => false,
     );
 
@@ -171,9 +197,9 @@ function usa_data_migration_config_form() {
     );
 
     $form['actions'] = array(
-        '#type' => 'fieldset', 
-        '#title' => 'Actions', 
-        '#collapsible' => true, 
+        '#type' => 'fieldset',
+        '#title' => 'Actions',
+        '#collapsible' => true,
         '#collapsed' => true,
         '#states' => array(
             'invisible' => array(
@@ -183,9 +209,9 @@ function usa_data_migration_config_form() {
     );
 
     $form['actions']['dopulltax']['clear_acts'] = array(
-        '#type' => 'fieldset', 
-        '#title' => 'Clearing Actions', 
-        '#collapsible' => true, 
+        '#type' => 'fieldset',
+        '#title' => 'Clearing Actions',
+        '#collapsible' => true,
         '#collapsed' => true,
     );
 
@@ -200,9 +226,9 @@ function usa_data_migration_config_form() {
     );
 
     $form['actions']['dopulltax']['updatepull_acts'] = array(
-        '#type' => 'fieldset', 
-        '#title' => 'Update-Pull Actions', 
-        '#collapsible' => false, 
+        '#type' => 'fieldset',
+        '#title' => 'Update-Pull Actions',
+        '#collapsible' => false,
         '#collapsed' => false,
     );
 
@@ -213,9 +239,9 @@ function usa_data_migration_config_form() {
     );
 
     $form['actions']['dopulltax']['fullpull_acts'] = array(
-        '#type' => 'fieldset', 
-        '#title' => 'Full-Pull Actions', 
-        '#collapsible' => true, 
+        '#type' => 'fieldset',
+        '#title' => 'Full-Pull Actions',
+        '#collapsible' => true,
         '#collapsed' => true,
     );
 
@@ -234,36 +260,81 @@ function usa_data_migration_config_form() {
         '#type' => 'textfield',
     );
 
-    $form['actions']['log'] = array(
-        '#type' => 'textarea',
-        '#title' => 'Log:',
-        '#default_value' => 'To be populated by AJAX/JavaScript, please wait...',
-        '#size' => '75',
-    );
-    $actionLogSize = ( file_exists(usa_data_migration_action_log_location()) ? filesize(usa_data_migration_action_log_location()) : 0 );
-    drupal_add_js(
-        "
-            jQuery(document).ready( function () {
-                setInterval( function () {
-
-                    // Pull the [action] error log into the UI
-                    jQuery.get('/udm-action-log?offset={$actionLogSize}', function (data) {
-                        var jqLogUi = jQuery('#edit-log');
-                        var logUi = jQuery('#edit-log').get(0);
-                        jqLogUi.val( jQuery.trim(data) );
-                        logUi.scrollTop = logUi.scrollHeight;
-                    });
-
-                }, 1500);
-            });
-        ", 
-        'inline'
-    );
+    // $form['actions']['log'] = array(
+    //     '#type' => 'textarea',
+    //     '#title' => 'Log:',
+    //     '#default_value' => 'To be populated by AJAX/JavaScript, please wait...',
+    //     '#size' => '75',
+	// 			'#field_prefix' => '&nbsp; <button id="toggleLogsButton" type="button" onclick="return toggleLogs(this);">Start &gt;&nbsp;&nbsp;</button>'
+    // );
+    // $actionLogSize = ( file_exists(usa_data_migration_action_log_location()) ? filesize(usa_data_migration_action_log_location()) : 0 );
+    // drupal_add_js(
+    //     "
+	// 						var logCheckInterval  = null;
+	// 						var logCheckCountdown = null;
+	// 						function toggleLogs( button )
+	// 						{
+	// 							if ( button.innerHTML == 'Start &gt;&nbsp;&nbsp;' )
+	// 							{
+	// 									startCheckingLogs();
+	// 									button.innerHTML = 'Stop &gt;&nbsp;&nbsp;';
+    //
+	// 									clearInterval( logCheckCountdown );
+	// 									logCheckCountdown = null;
+	// 									var b = button;
+	// 									logCheckCountdown = setInterval( function() {
+	// 										if ( 				b.innerHTML == 'Stop &gt;&nbsp;&nbsp;' ) {
+	// 												 				b.innerHTML =  'Stop &nbsp;&gt;&nbsp;';
+	// 										} else if ( b.innerHTML == 'Stop &nbsp;&gt;&nbsp;') {
+	// 											          b.innerHTML =  'Stop &nbsp;&nbsp;&gt;';
+	// 										} else if ( b.innerHTML == 'Stop &nbsp;&nbsp;&gt;') {
+	// 											          b.innerHTML =  'Stop &nbsp;&nbsp;&lt;';
+	// 										} else if ( b.innerHTML == 'Stop &nbsp;&nbsp;&lt;') {
+	// 											          b.innerHTML =  'Stop &nbsp;&lt;&nbsp;';
+	// 										} else if ( b.innerHTML == 'Stop &nbsp;&lt;&nbsp;') {
+	// 											          b.innerHTML =  'Stop &lt;&nbsp;&nbsp;';
+	// 										} else if ( b.innerHTML == 'Stop &lt;&nbsp;&nbsp;') {
+	// 											          b.innerHTML =  'Stop &gt;&nbsp;&nbsp;';
+	// 										}
+	// 									}, 250 );
+	// 							} else {
+	// 								stopCheckingLogs();
+	// 								button.innerHTML = 'Start &gt;&nbsp;&nbsp;';
+	// 							}
+	// 							return false;
+	// 						}
+	// 						function startCheckingLogs()
+	// 						{
+	// 							if ( logCheckInterval ) { return; }
+	// 							var doCheck = function ()
+	// 							{
+	// 									// Pull the [action] error log into the UI
+	// 									jQuery.get('/udm-action-log?offset={$actionLogSize}', function (data)
+	// 									{
+	// 											var jqLogUi = jQuery('#edit-log');
+	// 											var logUi = jQuery('#edit-log').get(0);
+	// 											jqLogUi.val( jQuery.trim(data) );
+	// 											logUi.scrollTop = logUi.scrollHeight;
+	// 									});
+	// 							}
+	// 							doCheck();
+	// 							logCheckInterval = setInterval( doCheck, 5000 );
+	// 						}
+	// 						function stopCheckingLogs()
+	// 						{
+	// 							clearInterval( logCheckInterval );
+	// 							logCheckInterval = null;
+	// 							clearInterval( logCheckCountdown );
+	// 							logCheckCountdown = null;
+	// 						}
+    //     ",
+    //     'inline'
+    // );
 
     $form['serversettings'] = array(
-        '#type' => 'fieldset', 
-        '#title' => 'Taxonomy/Content Server Settings', 
-        '#collapsible' => true, 
+        '#type' => 'fieldset',
+        '#title' => 'Taxonomy/Content Server Settings',
+        '#collapsible' => true,
         '#collapsed' => false,
         '#states' => array(
             'invisible' => array(
@@ -282,9 +353,9 @@ function usa_data_migration_config_form() {
     );
 
     $form['serversettings']['bundlesset'] = array(
-        '#type' => 'fieldset', 
-        '#title' => 'Serve bundles', 
-        '#collapsible' => true, 
+        '#type' => 'fieldset',
+        '#title' => 'Serve bundles',
+        '#collapsible' => true,
         '#collapsed' => true,
     );
 
@@ -354,9 +425,9 @@ function usa_data_migration_config_form() {
     );
 
     $form['pullsettings'] = array(
-        '#type' => 'fieldset', 
-        '#title' => 'Pull Settings', 
-        '#collapsible' => true, 
+        '#type' => 'fieldset',
+        '#title' => 'Pull Settings',
+        '#collapsible' => true,
         '#collapsed' => false,
         '#states' => array(
             'invisible' => array(
@@ -390,7 +461,7 @@ function usa_data_migration_config_form() {
         '#size' => '5',
         '#field_suffix' => 'minutes',
         '#description' => '<b>Warning:</b> For this functionality to work, either; Drupal-Cron must fire at least this frequently, '
-            .'<b>- OR -</b> Linux-Cron needs to touch (<small>i.e. curl or wget</small>) the URL: http://' . $_SERVER['HTTP_HOST'] 
+            .'<b>- OR -</b> Linux-Cron needs to touch (<small>i.e. curl or wget</small>) the URL: http://' . $_SERVER['HTTP_HOST']
             .'/usa-data-migration/udm-cron-task<br/>'
             .'Notice: Setting this value also means that this module will never pull <i>more frequently</i> than the given input '
             .'(<small>even if Drupal-cron were to fire every 30 seconds</small>).',
@@ -407,8 +478,8 @@ function usa_data_migration_config_form() {
 
     $form['pullsettings']['udm_alter_entities_settings'] = array(
         '#type' => 'fieldset',
-        '#title' => 'Entity Alteration Options', 
-        '#collapsible' => false, 
+        '#title' => 'Entity Alteration Options',
+        '#collapsible' => false,
         '#collapsed' => false,
     );
 
@@ -437,8 +508,8 @@ function usa_data_migration_config_form() {
 
     $form['pullsettings']['udm_tax_filter_settings'] = array(
         '#type' => 'fieldset',
-        '#title' => 'Taxonomy filtration settings', 
-        '#collapsible' => true, 
+        '#title' => 'Taxonomy filtration settings',
+        '#collapsible' => true,
         '#collapsed' => false,
         '#states' => array(
             'invisible' => array(
@@ -467,8 +538,8 @@ function usa_data_migration_config_form() {
 
     $form['pullsettings']['udm_tax_del_settings'] = array(
         '#type' => 'fieldset',
-        '#title' => 'Term deletion settings', 
-        '#collapsible' => true, 
+        '#title' => 'Term deletion settings',
+        '#collapsible' => true,
         '#collapsed' => false,
         '#states' => array(
             'invisible' => array(
@@ -491,8 +562,8 @@ function usa_data_migration_config_form() {
 
     $form['pullsettings']['udm_tax_delbyfield_settings'] = array(
         '#type' => 'fieldset',
-        '#title' => 'Term deletion settings', 
-        '#collapsible' => true, 
+        '#title' => 'Term deletion settings',
+        '#collapsible' => true,
         '#collapsed' => false,
         '#states' => array(
             'invisible' => array(
@@ -514,7 +585,7 @@ function usa_data_migration_config_form() {
         '#field_prefix' => 'the ',
         '#field_suffix' => 'field...',
     );
-    
+
     $form['pullsettings']['udm_tax_delbyfield_settings']['udm_tax_delbyfield_fieldval'] = array(
         '#type' => 'textfield',
         '#title' => '',
@@ -522,26 +593,26 @@ function usa_data_migration_config_form() {
         '#field_prefix' => 'is set to the value; ',
     );
 
-    $logHtml = '';
-    foreach ( array_reverse( variable_get('udm_log', array()) ) as $index => $logItem ) {
-        if ( $index !== 0 ) { $logHtml .= "\n"; }
-        $logHtml .= date('Y-m-d g:ia', $logItem['time']) . ' - ' . $logItem['msg'];
-    }
-    $form['log'] = array(
-        '#type' => 'fieldset', 
-        '#title' => 'Log', 
-        '#collapsible' => true, 
-        '#collapsed' => true,
-    );
-    $form['log']['clearlog'] = array(
-        '#type' => 'submit',
-        '#value' => 'Clear Log',
-    );
-    $form['log']['logdata'] = array(
-        '#type' => 'item', 
-        '#title' => 'Log Data:', 
-        '#markup' => '<pre>' . $logHtml . '</pre>',
-    );
+    // $logHtml = '';
+    // foreach ( array_reverse( variable_get('udm_log', array()) ) as $index => $logItem ) {
+    //     if ( $index !== 0 ) { $logHtml .= "\n"; }
+    //     $logHtml .= date('Y-m-d g:ia', $logItem['time']) . ' - ' . $logItem['msg'];
+    // }
+    // $form['log'] = array(
+    //     '#type' => 'fieldset',
+    //     '#title' => 'Log',
+    //     '#collapsible' => true,
+    //     '#collapsed' => true,
+    // );
+    // $form['log']['clearlog'] = array(
+    //     '#type' => 'submit',
+    //     '#value' => 'Clear Log',
+    // );
+    // $form['log']['logdata'] = array(
+    //     '#type' => 'item',
+    //     '#title' => 'Log Data:',
+    //     '#markup' => '<pre>' . $logHtml . '</pre>',
+    // );
 
     /* Adding Data alter setting */
     $form['alterdatasetting'] = array(
