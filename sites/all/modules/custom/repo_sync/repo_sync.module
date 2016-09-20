@@ -853,11 +853,11 @@ function repo_sync_logEvent($print, $strMessage, $isVerbose = true) {
     $msg = "Repo-Sync Message: ".$strMessage;
     if ( $isVerbose ) {
         if ( intval($settings['useslackverbose']) === 1 ) {
-            slack_send_message($msg, $settings['slackchannelverbose']);
+            slack_send_message(slack_get_default_webhook_url(),$msg, $settings['slackchannelverbose'],['type'=>'','icon'=>0,'emoji'=>0]);
         }
     } else {
         if ( intval($settings['useslack']) === 1 ) {
-            slack_send_message($msg, $settings['slackchannel']);
+            slack_send_message(slack_get_default_webhook_url(),$msg, $settings['slackchannelverbose'],['type'=>'','icon'=>0,'emoji'=>0]);
         }
     }
 
