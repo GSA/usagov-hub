@@ -1,0 +1,119 @@
+<?php
+
+/**
+ * @file
+ * Relation Add View module file.
+ */
+
+/**
+ * Get a list of all enabled views with relation_add_view displays.
+ *
+ * @return array
+ *   A list of views as "Name : Title" keyed by 'view_name:display_id'.
+ */
+function relation_add_views_get_views() {
+  $views = array();
+
+  $displays = views_get_applicable_views('relation_add_views display');
+  foreach ($displays as $data) {
+    list($view, $display_id) = $data;
+    $views[$view->name . ':' . $display_id] = $view->name . ' - ' . $view->display[$display_id]->display_title;
+  }
+
+  return $views;
+}
+
+/**
+ * Add extra form element to relation add widget settings.
+ *
+ * @param array $field
+ *   Field settings.
+ * @param array $instance
+ *   Field instance settings.
+ * @param array $form
+ *   Form element to relation add widget settings.
+ */
+function relation_add_views_extra_field_widget_settings_form($field, $instance, &$form) {
+  $settings = $instance['widget']['settings'];
+
+  $form['views'] = array(
+    '#type' => 'select',
+    '#title' => t('View'),
+    '#default_value' => isset($settings['views']) ? $settings['views'] : '',
+    '#options' => relation_add_views_get_views(),
+    '#empty_option' => t('- Select -'),
+    '#description' => t(
+      'Please select the view to browse available entities for this relation.'
+    ),
+    '#required' => FALSE,
+    '#weight' => 10,
+  );
+}
+
+/**
+ * Views backend relation autocomplet callback.
+ *
+ * @return array|bool
+ *   Return autocomplet suggestions.
+ */
+function relation_add_views_autocomplet($field, $instance, $type, $direction, $target_bundles, $string) {
+  $suggestions = array();
+
+  list($view_name, $display) = explode(':', $instance['widget']['settings']['views']);
+
+  $view = views_get_view($view_name);
+  if (!$view || !isset($view->display[$display]) || !$view->access($display)) {
+    watchdog('relation_add_views', 'The view %view_name is no longer eligible for the %field_name field.', array('%view_name' => $view_name, '%field_name' => $this->instance['label']), WATCHDOG_WARNING);
+    return FALSE;
+  }
+  $view->set_display($display);
+
+  // Make sure the query is not cached.
+  $view->is_cacheable = FALSE;
+
+  $relation_add_views_options = array(
+    'match' => $string,
+    'match_operator' => 'CONTAINS',
+  );
+  $view->display_handler->set_option('relation_add_views_options', $relation_add_views_options);
+
+  $result = $view->execute_display($display);
+
+  if ($result) {
+    $entity_infos = entity_get_info();
+    foreach ($entity_infos as $entity_type => $entity_info) {
+      if ($entity_info['base table'] == $view->base_table) {
+        $target_type = $entity_type;
+      }
+    }
+
+    $entities = entity_load($target_type, array_keys($result));
+    foreach ($entities as $id => $entity) {
+      $label = entity_label($target_type, $entity);
+      $title = $result[$id];
+      $bundle = '';
+      if ($instance['widget']['settings']['relation_endpoint_bundle_display']) {
+        list(, , $bundle) = entity_extract_ids($target_type, $entity);
+        if (!empty($bundle)) {
+          $bundle = ' - (' . $bundle . ')';
+        }
+      }
+
+      $suggestions[$label . $bundle . ' [' . $target_type . ':' . $id . ']'] = $title;
+    }
+  }
+
+  return $suggestions;
+}
+
+
+/**
+ * Implements hook_views_api().
+ */
+function relation_add_views_views_api() {
+  $path = drupal_get_path('module', 'relation_add_views');
+  return array(
+    'api' => '3',
+    'path' => $path . '/views',
+  );
+}

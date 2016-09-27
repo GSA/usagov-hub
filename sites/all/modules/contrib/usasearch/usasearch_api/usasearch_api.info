@@ -1,0 +1,18 @@
+name = USASearch API
+description = Provides integration with USA Search its API.
+core = 7.x
+configure = admin/config/search/usasearch
+package = USASearch
+
+files[] = UsaSearchClient.inc
+dependencies[] = usasearch
+dependencies[] = composer_manager
+dependencies[] = ctools
+
+
+; Information added by Drupal.org packaging script on 2015-11-13
+version = "7.x-4.4"
+core = "7.x"
+project = "usasearch"
+datestamp = "1447386026"
+

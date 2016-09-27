@@ -1,0 +1,548 @@
+<?php
+
+function asset_topic_placement_init() {
+
+    // On any taxonomy edit-page or site_strucutre_taxonomy adding-page...
+    if (
+        strpos(request_uri(), 'taxonomy/term/') !== false && strpos(request_uri(), '/edit') !== false
+        || strpos(request_uri(), '/admin/structure/taxonomy/site_strucutre_taxonomy/add') !== false
+        || strpos(request_uri(), '/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy') !== false
+    ) {
+
+        // Include asset_topic_placement.js
+        drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/jquery.waituntilexists.js', 'file');
+        drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement.js', 'file');
+        drupal_add_css(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement.css', 'file');
+
+    }
+}
+
+/*
+ * Implements HOOK_menu()
+ */
+function asset_topic_placement_menu() {
+    $items = array();
+
+    // Ajax handeler for getting nodes under given Asset-Topic(s)
+    $items['atm/get-nodes-under-topics'] = array(
+        'title' => 'Get Nodes Under Topics',
+        'description' => 'AJAX return for nodes under given Asset-Topics',
+        'page callback' => 'asset_topic_placement_ajaxReturnNodesUnderTopics',
+        'access callback' => 'user_is_logged_in',
+        'type' => MENU_CALLBACK
+    );
+
+    // Ajax handeler for getting node data by nid
+    $items['atm/get-nodes-data'] = array(
+        'title' => 'Get Data for Nodes-IDs',
+        'description' => 'AJAX return',
+        'page callback' => 'asset_topic_placement_ajaxReturnNodesInfo',
+        'access callback' => 'user_is_logged_in',
+        'type' => MENU_CALLBACK
+    );
+
+    return $items;
+}
+
+function _taxonomy_manager_form_fixer(&$form)
+{
+    $form['assetTopicTrigger'] = array(
+      '#markup' => "<script>setTimeout(setupAssetTopicEvents,200);</script>",
+      '#weight' => 1000,
+    );
+    if (!empty($form['#term']['field_asset_order_content']['und'])) {
+        $js_inline = array(
+            'NodeInfoCache = ( typeof NodeInfoCache != "undefined" ? NodeInfoCache : {} );'
+        );
+
+        $assets = $form['#term']['field_asset_order_content']['und'];
+        $asset_nids = [];
+        foreach ( $assets as $asset )
+        {
+            $asset_nids[] = $asset['target_id'];
+        }
+        $nids   = array_unique(array_map('intval',$asset_nids));
+        // Note this node info in a global NodeInfoCache JavaScript variable
+        $nodes = __get_node_info($nids);
+        foreach ( $nodes as $node )
+        {
+            $js_inline[] = "NodeInfoCache['n". $node->nid ."'] = ".json_encode($node).";";
+        }
+
+        $topics = $form['#term']['field_asset_topic_taxonomy']['und'];
+        $nutCacheKey = '';
+        foreach ( $topics as $topic )
+        {
+            $nutCacheKey += 't'.intval($topic['tid']);
+        }
+        $cachedNodes = json_encode($nodes);
+
+        if ( !empty($nutCacheKey) )
+        {
+            $js_inline[] = "
+                if ( typeof NodeUnderTopicCache === 'undefined' ) {
+                    NodeUnderTopicCache = {};
+                }
+                NodeUnderTopicCache[{$nutCacheKey}] = {$cachedNodes};
+            ";
+        }
+        $form['assetTopicJS'] = array(
+          '#markup' => "<script>". implode("\n",$js_inline) ."</script>",
+          '#weight' => -10,
+        );
+    }
+}
+
+function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id)
+{
+    drupal_add_js("jQuery(document).ready(function(){ setTimeout(setupAssetTopicEvents,200) });", 'inline');
+    if ( empty($form['#term']) ) { return; }
+    $field_asset_order_content  = [];
+    $field_asset_topic_taxonomy = [];
+    if ( is_array($form['#term']) )
+    {
+        if ( !empty($form['#term']['field_asset_order_content'])
+          && !empty($form['#term']['field_asset_order_content']['und']) )
+        {
+            $field_asset_order_content = $form['#term']['field_asset_order_content']['und'];
+        }
+        if ( !empty($form['#term']['field_asset_topic_taxonomy'])
+          && !empty($form['#term']['field_asset_topic_taxonomy']['und']) )
+        {
+            $field_asset_topic_taxonomy = $form['#term']['field_asset_topic_taxonomy']['und'];
+        }
+    } else if ( is_object($form['#term']) ) {
+        if ( !empty($form['#term']->field_asset_order_content)
+          && !empty($form['#term']->field_asset_order_content['und']) )
+        {
+            $field_asset_order_content = $form['#term']->field_asset_order_content['und'];
+        }
+        if ( !empty($form['#term']->field_asset_topic_taxonomy)
+          && !empty($form['#term']->field_asset_topic_taxonomy['und']) )
+        {
+            $field_asset_topic_taxonomy = $form['#term']->field_asset_topic_taxonomy['und'];
+        }
+    }
+
+    $js_inline = array(
+        'NodeInfoCache = ( typeof NodeInfoCache != "undefined" ? NodeInfoCache : {} );'
+    );
+    $assets = $field_asset_order_content;
+    $asset_nids = [];
+    foreach ( $assets as $asset )
+    {
+        $asset_nids[] = $asset['target_id'];
+    }
+    $nids   = array_unique(array_map('intval',$asset_nids));
+    // Note this node info in a global NodeInfoCache JavaScript variable
+    $nodes = __get_node_info($nids);
+    foreach ( $nodes as $node )
+    {
+        $js_inline[] = "NodeInfoCache['n". $node->nid ."'] = ".json_encode($node).";";
+    }
+
+    $topics = $field_asset_topic_taxonomy;
+    $nutCacheKey = '';
+    foreach ( $topics as $topic )
+    {
+        $nutCacheKey += 't'.intval($topic['tid']);
+    }
+    $cachedNodes = json_encode($nodes);
+
+    if ( !empty($nutCacheKey) )
+    {
+        $js_inline[] = "
+            if ( typeof NodeUnderTopicCache === 'undefined' ) {
+                NodeUnderTopicCache = {};
+            }
+            NodeUnderTopicCache[{$nutCacheKey}] = {$cachedNodes};
+        ";
+    }
+
+    drupal_add_js(implode("\n",$js_inline), 'inline');
+
+    // var nutCacheKey = 't' + tidAssetTopics.join('t', tidAssetTopics);
+    // jQuery.get('/atm/get-nodes-under-topics?terms='+tidAssetTopics.join(','), function (nodes)
+    //
+    //     // Cache what nodes are under this/these topic(s)
+    //     NodeUnderTopicCache[nutCacheKey] = nodes;
+
+
+    // foreach ($assets as $assetNidContainer) {
+    //     $nid = $assetNidContainer['target_id'];
+    //
+    //     // Get the revision of the published version of this node
+    //     $targetRevId = db_query("
+    //         SELECT r.vid
+    //         FROM node n
+    //         LEFT JOIN node_revision r ON ( r.nid = n.nid AND r.vid= n.vid )
+    //         WHERE n.nid = :nid AND n.status = 1 AND r.status = 1
+    //     ",array(':nid'=>$nid))->fetchColumn();
+    //     $wasPublished = 1;
+    //
+    //     // If the node has never been published yet, then default to the latest revision
+    //     if ($targetRevId == false) {
+    //         $targetRevId = db_query("
+    //             SELECT vid
+    //             FROM node_revision
+    //             WHERE nid = :nid
+    //             ORDER BY vid DESC
+    //             LIMIT 1
+    //         ",array(':nid'=>$nid))->fetchColumn();
+    //         $wasPublished = 0;
+    //     }
+    //
+    //     if ($targetRevId==false) {
+    //         continue;
+    //     }
+    //
+    //     // Obtain node info
+    //     $nodeInfo = db_query("
+    //         SELECT
+    //             nid,
+    //             title,
+    //             type,
+    //             field_priority_value AS 'priority',
+    //             p.revision_id AS 'vid',
+    //             {$wasPublished} AS 'haspubrevision'
+    //         FROM node n
+    //         LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = :rid )
+    //         WHERE n.nid = :nid
+    //     ",array(':nid'=>$nid,':rid'=>$targetRevId))->fetchAll();
+    //     $nodeInfo = isset($nodeInfo[0]) ? $nodeInfo[0] : array() ;
+    //
+    //     // Note this node info in a global NodeInfoCache JavaScript variable
+    //     drupal_add_js("NodeInfoCache['n{$nid}'] = ".json_encode($nodeInfo), 'inline');
+    // }
+
+}
+
+function asset_topic_placement_ajaxReturnNodesUnderTopics() {
+
+    @ob_end_clean();
+    while (@ob_end_clean());
+    header('Content-Type: application/json');
+
+    // Obtain terms argument
+    if (empty($_REQUEST['terms'])) {
+        exit('{}');
+        # Error - no terms argument supplied');
+    }
+
+    // MySQL string sanitization
+    // $terms     = explode(',', $_REQUEST['terms']);
+    // $msqlTerms = [];
+    // foreach ($terms as $term) {
+    //     $msqlTerms[] = intval($term);
+    // }
+    //$msqlTerms = implode(',', $msqlTerms);
+    $tids = array_unique(array_map('intval',explode(',', $_REQUEST['terms'])));
+    if ( empty($tids) )
+    {
+        echo '{}';
+        exit();
+    }
+
+    /* Get all node-ids that are associated with the given Asset-Topic terms, based
+     on the information in the field_data_field_asset_topic_taxonomy table */
+    $nids = db_query("
+      SELECT t.entity_id
+      FROM field_data_field_asset_topic_taxonomy t
+			   LEFT JOIN node_deleted d
+                   ON ( t.entity_id = d.nid AND d.deletion_state='soft' )
+      WHERE
+			   t.entity_type = 'node'
+         AND d.deletion_state IS NULL
+         AND field_asset_topic_taxonomy_tid IN (:tids)
+    ",array(':tids'=>$tids))->fetchCol();
+    if (count($nids) === 0) {
+        echo '{}';
+        exit();
+    }
+
+    // Get information on these nodes
+    $nodes = [];
+    // foreach ($nids as $nid) {
+    //     // If this is a broken pointer (if this node-id dosnt exist), ignore...
+    //     if (db_query('SELECT count(*) FROM node WHERE nid = :nid',array(':nid'=>$nid))->fetchColumn() == 0) {
+    //         continue;
+    //     }
+    //
+    //     // Get the revision of the published version of this node
+    //     $targetRevId = db_query("
+    //         SELECT r.vid
+    //         FROM node n
+    //         LEFT JOIN node_revision r ON ( r.nid = n.nid AND r.vid= n.vid )
+    //         WHERE n.nid = :nid AND n.status = 1 AND r.status = 1
+    //     ",array(':nid'=>$nid))->fetchColumn();
+    //     $wasPublished = 1;
+    //
+    //     // If the node has never been published yet, then default to the latest revision
+    //     if ($targetRevId == false) {
+    //         $targetRevId = db_query("
+    //             SELECT vid
+    //             FROM node_revision
+    //             WHERE nid = :nid
+    //             ORDER BY vid DESC
+    //             LIMIT 1
+    //         ",array(':nid'=>$nid))->fetchColumn();
+    //         $wasPublished = 0;
+    //     }
+    //
+    //     // Obtain node info
+    //     $thisNode = db_query("
+    //         SELECT
+    //             nid,
+    //             title,
+    //             type,
+    //             field_priority_value AS 'priority',
+    //             p.revision_id AS 'vid',
+    //             {$wasPublished} AS 'haspubrevision'
+    //         FROM node n
+    //         LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = {$targetRevId} )
+    //         WHERE n.nid = {$nid}
+    //     ",array(':rid'=>$targetRevId,':nid'=>$nid))->fetchAll();
+    //     $nodes[] = $thisNode[0];
+    // }
+    $nodes = __get_node_info($nids);
+    echo json_encode($nodes);
+
+    exit();
+}
+
+function asset_topic_placement_ajaxReturnNodesInfo() {
+
+    @ob_end_clean();
+    while (@ob_end_clean());
+    header('Content-Type: application/json');
+
+    // Obtain nids argument
+    if ( empty($_REQUEST['nids']) ) {
+        exit('Error - no nids argument supplied');
+    }
+
+    // MySQL string sanitization and get Node-IDs
+    // $nids     = explode(',', $_REQUEST['nids']);
+    // $msqlNids = [];
+    // foreach ($nids as $nid) {
+    //     $msqlNids[] = intval($nid);
+    // }
+    $nids   = array_unique(array_map('intval',explode(',', $_REQUEST['nids'])));
+
+    // Get information on these nodes
+    $nodes = [];
+    // foreach ($nids as $nid) {
+    //
+    //     // Get the revision of the published version of this node
+    //     $targetRevId = db_query("
+    //         SELECT r.vid
+    //         FROM node n
+    //         LEFT JOIN node_revision r ON ( r.nid = n.nid AND r.vid= n.vid )
+    //         WHERE n.nid = :nid AND n.status = 1 AND r.status = 1
+    //     ",array(':nid'=>$nid))->fetchColumn();
+    //     $wasPublished = 1;
+    //
+    //     // If the node has never been published yet, then default to the latest revision
+    //     if ($targetRevId == false) {
+    //         $targetRevId = db_query("
+    //             SELECT vid
+    //             FROM node_revision
+    //             WHERE nid = :nid
+    //             ORDER BY vid DESC
+    //             LIMIT 1
+    //         ",array(':nid'=>$nid))->fetchColumn();
+    //         $wasPublished = 0;
+    //     }
+    //
+    //     /* If we still couldn't find the $targetRevId, then this node doesn't
+    //     exists, (this is a broken reference), ignore/skip. */
+    //     if ($targetRevId === false) {
+    //         continue;
+    //     }
+    //
+    //     // Obtain node info
+    //     $thisNode = db_query("
+    //         SELECT
+    //             nid,
+    //             title,
+    //             type,
+    //             field_priority_value AS 'priority',
+    //             p.revision_id AS 'vid',
+    //             {$wasPublished} AS 'haspubrevision'
+    //         FROM node n
+    //         LEFT JOIN field_revision_field_priority p ON ( p.entity_id = n.nid AND p.revision_id = :rid )
+    //         WHERE n.nid = :nid
+    //     ",array(':nid'=>$nid,':rid'=>$targetRevId))->fetchAll();
+    //     $nodes[] = $thisNode[0];
+    //     $nodes = isset($thisNode[0]) ? $thisNode[0] : array() ;
+    // }
+    $nodes = __get_node_info($nids);
+    echo json_encode($nodes);
+
+    exit();
+}
+
+function __get_node_info($nids)
+{
+    if ( ! is_array($nids) )
+    {
+        $nids = array($nids);
+    }
+    $nids = array_unique(array_map('intval',$nids));
+    if ( empty($nids) ) { return []; }
+    $info = db_query("
+        SELECT
+        	n.nid, 	n.title,
+        	n.type,	p.field_priority_value AS 'priority',
+        	IF (n.vid IS NOT NULL, n.vid,MAX(r.vid) ) AS 'vid',
+        	IF (n.vid IS NULL, IF (MAX(r.vid)>0, 1,0  ), 1) AS 'haspubrevision'
+        FROM
+        	node n
+        	LEFT JOIN node_revision r
+                ON ( r.nid = n.nid )
+        	LEFT JOIN field_revision_field_priority p
+                ON ( p.entity_id = n.nid AND p.revision_id = n.vid )
+        WHERE n.nid IN (:nids)
+        GROUP BY n.nid",array(':nids'=>$nids))->fetchAll();
+    return $info;
+}
+
+/// When a Term updates, go ahead and vet it's Region's Assets and remove any bad ones
+function asset_topic_placement_taxonomy_term_presave($term)
+{
+    /// grab existing region/asset maps
+    // $topics  = field_get_items('taxonomy_term', $term, 'field_asset_topic_taxonomy');
+    // $assets  = [];
+    // foreach ( ['bottom','carousel','content','menu','sidebar'] as $region )
+    // {
+    //     $region_assets = field_get_items('taxonomy_term', $term, 'field_asset_order_'.$region);
+    //     foreach ( $region_assets as $asset )
+    //     {
+    //         $assets[$asset['target_id']] = array( 'nid'=>$asset['target_id'], ''=>'' );
+    //     }
+    // }
+
+    /// for a page term, get all of it's region's asset id
+    /// match the assets against how many topics they share with the page
+    /// return any assets that do not share any topics with their page
+    /// return a list of unwated assets for each region
+    $sql = "
+        SELECT
+            pageRegion.region as region,
+            pageRegion.target_id as nid,
+            SUM(nodeTopic.entity_id IS NOT NULL) as remainingTopics
+        FROM
+            (
+                ( SELECT 'bottom' as region, entity_id, field_asset_order_bottom_target_id as target_id
+                  FROM field_data_field_asset_order_bottom WHERE entity_id = :tid
+                ) UNION (
+                  SELECT 'carousel' as region, entity_id, field_asset_order_carousel_target_id
+                  FROM field_data_field_asset_order_carousel WHERE entity_id = :tid
+                ) UNION (
+                  SELECT 'content' as region, entity_id, field_asset_order_content_target_id
+                  FROM field_data_field_asset_order_content WHERE entity_id = :tid
+                ) UNION (
+                  SELECT 'menu' as region, entity_id, field_asset_order_menu_target_id
+                  FROM field_data_field_asset_order_menu WHERE entity_id = :tid
+                ) UNION (
+                  SELECT 'sidebar' as region, entity_id, field_asset_order_sidebar_target_id
+                  FROM field_data_field_asset_order_sidebar WHERE entity_id = :tid
+                )
+            ) pageRegion
+            JOIN field_data_field_asset_topic_taxonomy pageTopic
+                ON ( pageTopic.entity_id = pageRegion.entity_id )
+            LEFT JOIN field_data_field_asset_topic_taxonomy nodeTopic
+                ON ( nodeTopic.field_asset_topic_taxonomy_tid = pageTopic.field_asset_topic_taxonomy_tid
+                     AND nodeTopic.entity_id = pageRegion.target_id )
+        GROUP BY pageRegion.region, pageRegion.target_id
+        HAVING remainingTopics = 0
+    ";
+    /// put them in this format list[region]=array(1,2,3)
+    $remove = [];
+    $removable_assets = db_query($sql,array(':tid'=>$term->tid));
+    foreach ( $removable_assets as $asset )
+    {
+        if ( !isset($remove[$asset->region]) ) { $remove[$asset->region] = array(); }
+        $remove[$asset->region][] = $asset->nid;
+    }
+    /// remove any unwanted asset ids from each region's table
+    foreach ( $remove as $region=>$nids )
+    {
+        $sql = "DELETE FROM field_data_field_asset_order_{$region} WHERE entity_id = :tid AND field_asset_order_{$region}_target_id IN (:nids)";
+        db_query($sql,array( ':tid'=>$term->tid, ':nids'=>$nids ));
+    }
+}
+
+/// When a Node changes it's topics, go out and find any affected Terms and fix them
+function asset_topic_placement_node_update($node)
+{
+
+    /// must be the published revision
+    if ( $node->status==NODE_NOT_PUBLISHED )
+    {
+        return;
+    }
+
+    /// find a list of topic_ids that need to be removed O(2n)-O(4n)
+    $new = [];
+    $removed_asset_topics = [];
+
+    $new_topics = field_get_items('node', $node, 'field_asset_topic_taxonomy');
+    foreach ($new_topics as $topic) {
+        if (isset($topic['tid'])) {
+            $new[$topic['tid']] = $topic['tid'];
+        }
+    }
+    $old_topics = field_get_items('node', $node->original, 'field_asset_topic_taxonomy');
+    foreach ($old_topics as $topic) {
+        if (isset($topic['tid']) && !isset($new[$topic['tid']])) {
+                $removed_asset_topics[$topic['tid']] = $topic['tid'];
+        }
+    }
+
+    /// now we have a list of topic_ids that have been removed
+    if (empty($removed_asset_topics)) {
+        return;
+    }
+    /// find all pages that reference the removed topic_ids
+    /// delete each page's content_region references to node (unless the node shared another tpoic)
+    foreach ( ['bottom','carousel','content','menu','sidebar'] as $region )
+    {
+        $pages_to_remove_assets_from_sql = "
+            SELECT
+                pageRegion.entity_id,
+                pageRegion.field_asset_order_{$region}_target_id,
+                SUM(nodeTopic.entity_id IS NOT NULL) as remainingTopics
+            FROM
+                field_data_field_asset_order_{$region} pageRegion
+                JOIN field_data_field_asset_topic_taxonomy pageTopic
+                    ON ( pageTopic.entity_id = pageRegion.entity_id )
+                LEFT JOIN field_data_field_asset_topic_taxonomy nodeTopic
+                    ON ( nodeTopic.field_asset_topic_taxonomy_tid = pageTopic.field_asset_topic_taxonomy_tid
+                         AND nodeTopic.entity_id = pageRegion.field_asset_order_{$region}_target_id
+                         AND nodeTopic.field_asset_topic_taxonomy_tid NOT IN (:removed_asset_topics) )
+            WHERE
+                pageRegion.field_asset_order_{$region}_target_id = :nid
+            GROUP BY pageRegion.entity_id, pageRegion.field_asset_order_{$region}_target_id
+            HAVING remainingTopics = 0
+        ";
+        $query_params = [':removed_asset_topics'=>$removed_asset_topics,':nid'=>$node->nid];
+
+        $ridin_dirty_sql = "
+            INSERT IGNORE INTO taxonomy_dates (tid)
+            SELECT entity_id FROM ( $pages_to_remove_assets_from_sql ) AS r
+                ON DUPLICATE KEY UPDATE changed=CURRENT_TIMESTAMP
+        ";
+        db_query($ridin_dirty_sql,$query_params);
+
+        $remove_from_region_sql = "
+            DELETE IGNORE field_data_field_asset_order_{$region}
+            FROM field_data_field_asset_order_{$region}
+                JOIN ( $pages_to_remove_assets_from_sql	) AS removeFrom
+                    USING ( entity_id, field_asset_order_{$region}_target_id )
+        ";
+        db_query($remove_from_region_sql,$query_params);
+
+    }
+
+}

@@ -1,0 +1,559 @@
+<?php
+
+// Always load these module-extensions (usa_data_migration.server.inc and usa_data_migration.client.inc)
+module_load_include('inc', 'usa_data_migration', 'usa_data_migration.client');
+module_load_include('inc', 'usa_data_migration', 'usa_data_migration.server');
+
+/* This is for the CLIENT - if the current requesting-page (URL) is locked [due to an ongoing
+synch operation], lagg HERE, DURRING DRUPAL BOOTSTRAP, until the synch operation completes.
+This need to be done here, NOT during HOOK_init() because this needs to execute before the menu-router
+fetches the target term from the database.
+*/
+// if ( usa_data_migration_lagIfRequestingLockedPage() ) {
+//     drupal_add_js(
+//         "
+//             jQuery(document).ready( function () {
+//                 console.log('DevNote: This page was lagged as your request for this page was made during a data-migration related to this content.');
+//             })
+//         ",
+//         "inline"
+//     );
+// }
+
+/*
+ * Implements HOOK_init()
+ */
+function usa_data_migration_init() {
+
+    // This is for the SERVER - trigger content-push (really, trigger the childsites to pull)
+    if ( !empty($_SESSION['udm_push_eid']) && !empty($_SESSION['udm_push_type']) ) {
+
+        $eid = $_SESSION['udm_push_eid'];
+        $etype = $_SESSION['udm_push_type'];
+        drupal_add_js(
+            "
+                jQuery(document).ready( function () {
+                    console.log('Telling the CMP {$etype} {$eid} needs to be pushed to child-sites...');
+                    var pushURL = '/udm-trigger-pull-on-child-sites?eid={$eid}&etype={$etype}';
+                    jQuery.get(pushURL, function (data) {
+                        console.log('Push has completed, CMP end responded with: '+data);
+                    });
+                })
+            ",
+            "inline"
+        );
+    }
+
+}
+
+/*
+ * Implements HOOK_menu()
+ */
+function usa_data_migration_menu() {
+
+    $items = array();
+
+    // Configuration page
+    $items['admin/content/usa-data-migration'] = array(
+        'title' => 'USA Content Migration',
+        'description' => 'Configure the USA Data Migration',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('usa_data_migration_config_form'),
+        'access callback' => 'usa_data_migration_hasAdminAccess',
+        'type' => MENU_NORMAL_ITEM,
+        'file' => 'usa_data_migration.admin.inc',
+    );
+
+    // Menu item to server taxonomy data from this environment to a requester
+    $items['get-taxonomy-dump'] = array(
+        'title' => 'Taxonomy dump',
+        'description' => 'Returns a MySQL Taxonomy dump',
+        'page callback' => 'usa_data_migration_printTaxonomyDump',
+        'access callback' => true,
+        'type' => MENU_CALLBACK,
+    );
+
+    // Menu item to server taxonomy data from this environment to a requester
+    $items['get-node-dump'] = array(
+        'title' => 'Node dump',
+        'description' => 'Returns a node dump',
+        'page callback' => 'usa_data_migration_printNodeDump',
+        'access callback' => true,
+        'type' => MENU_CALLBACK,
+    );
+
+  // Menu item to server taxonomy data from this environment to a requester
+    $items['usa-data-migration/udm-cron-task'] = array(
+        'title' => 'Content Pull',
+        'description' => '@TODO - Write a description here',
+        'page callback' => 'usa_data_migration_menu_cron',
+        'access callback' => true,
+        'type' => MENU_CALLBACK
+    );
+
+    // Menu item to receive push requests
+    $items['udm-do-pull-now'] = array(
+        'title' => 'Push Request Receiver',
+        'description' => 'This page receives a push-request',
+        'page callback' => 'usa_data_migration_updatePull',
+        'access callback' => true,
+        'type' => MENU_CALLBACK,
+    );
+
+    // Menu item to receive push requests
+    $items['dev/udm-debug-and-status'] = array(
+        'title' => 'Page-Lock Debug info',
+        'description' => 'Prints page-locking debug info',
+        'page callback' => 'usa_data_migration_debugShowPageLockingStatusPage',
+        'access callback' => true,
+        'type' => MENU_CALLBACK,
+    );
+
+    // Menu item to receive push requests
+    $items['udm-trigger-pull-on-child-sites'] = array(
+        'title' => 'Push Request Receiver',
+        'description' => 'Tells child-sites to do an update-pull',
+        'page callback' => 'usa_data_migration_triggerUpdatePullOnAllChildSites',
+        'access callback' => true,
+        'type' => MENU_CALLBACK,
+    );
+
+    // Menu item to obtain action-log information
+    // $items['udm-action-log'] = array(
+    //     'title' => 'Print error_log from actions',
+    //     'description' => 'Print error_log messages from actions',
+    //     'page callback' => 'usa_data_migration_print_action_log',
+    //     'access callback' => true,
+    //     'type' => MENU_CALLBACK
+    // );
+
+    // The following is just a hacky way of saying this code should be fiered any time Drupal-cache is flushed
+    usa_data_migration_ensureTaxonomyDateTableExsists();
+    usa_data_migration_ensureFileManagedTableHasTypeField();
+
+    return $items;
+}
+
+/* Used for menu-callbacks to determine weather or not the current
+user should have access to UDM administrative-pages */
+function usa_data_migration_hasAdminAccess() {
+
+    global $user;
+    if ( !empty($user->roles) ) {
+        foreach ( $user->roles as $role ) {
+            if ( $role === 'administrator' ) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+function usa_data_migration_menu_alter(&$items) {
+
+    $items['admin/structure/taxonomy_manager/childform']['page callback'] = 'taxonomy_manager_tree_build_child_form_HACK';
+}
+
+function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
+
+  $params = $_GET;
+  $form_state = form_state_defaults();
+  $form_state['method'] = 'get';
+  $form_state['values'] = array();
+  $form_state['process_input'] = TRUE;
+  $form_state['input'] = array();
+  $form_state['complete form'] = array();
+
+  $tids = array();
+  if (isset($params['#terms_to_expand']) && $params['#terms_to_expand'] != 0) {
+    // convert to array
+    $tids = explode(',', $params['#terms_to_expand']);
+  }
+
+  if (count($tids) == 1) {
+    $language = _taxonomy_manager_term_get_lang($tids[0]);
+  }
+  else {
+    $language = $params['language'];
+  }
+
+  $child_form = array(
+    '#type' => 'taxonomy_manager_tree',
+    '#vid' => $vid,
+    '#parent' => $parent,
+    '#pager' => TRUE,
+    '#language' => $language,
+    '#terms_to_expand' => $tids,
+    '#siblings_page' => 1,
+  );
+
+  $opertions_callback = 'taxonomy_manager_' . str_replace('-', '_', $tree_id) . '_operations';
+  if (function_exists($opertions_callback)) {
+    $child_form['#operations_callback'] = $opertions_callback;
+  }
+
+  $link_callback = 'taxonomy_manager_' . str_replace('-', '_', $tree_id) . '_link';
+  if (function_exists($link_callback)) {
+    $child_form['#link_callback'] = $link_callback;
+  }
+
+  _taxonomy_manager_tree_sub_forms_set_parents($params['form_parents'], $parent, $child_form);
+
+  $child_form = form_builder('taxonomy_manager_form', $child_form, $form_state);
+
+    foreach ( $child_form['#elements'] as &$element ) {
+        $expLink = explode('/', $element['checkbox']['#link']);
+        $tid = array_pop($expLink);
+        $term = taxonomy_term_load($tid);
+
+        $genMenu = false;
+        if ( !empty($term->field_generate_menu['und'][0]['value']) && $term->field_generate_menu['und'][0]['value'] === 'yes' ) {
+            $genMenu = true;
+        }
+
+        $genPage = false;
+        if ( !empty($term->field_generate_page['und'][0]['value']) && $term->field_generate_page['und'][0]['value'] === 'yes' ) {
+            $genPage = true;
+        }
+
+        $friendlyURL = '-!UNSET-SETTING!-';
+        if ( isset($term->field_friendly_url['und'][0]['value']) ) {
+            $friendlyURL = $term->field_friendly_url['und'][0]['value'];
+        }
+
+        $pageType = '-!UNSET-SETTING!-';
+        if ( !empty($term->field_type_of_page_to_generate['und'][0]['value']) ) {
+            $pageType = $term->field_type_of_page_to_generate['und'][0]['value'];
+        }
+
+        $element['checkbox']['#field_suffix'] = '<span  class="exta-info"> - '
+            .( $genMenu ? 'Generates <b>Menu Item</b>. ' : '' )
+            .( $genPage ? 'Generates <b>'.$pageType.'</b> page. ' : ( $genMenu ? 'Points to '.$friendlyURL : '' ) )
+            .'</span>';
+    }
+
+  print drupal_json_output(array('data' => drupal_render($child_form)));
+  ajax_footer();
+
+}
+
+/*
+ * Implements HOOK_cron()
+ */
+function usa_data_migration_cron() {
+
+    if ( intval(variable_get('udm_do_pushoncron', false)) !== 0 ) {
+
+        // MUST pass false to this function, or else this PHP-thread will die here
+        usa_data_migration_triggerUpdatePullOnAllChildSites(false);
+    }
+
+}
+
+/* This is used as a menu-callback */
+function usa_data_migration_menu_cron() {
+
+    if ( intval(variable_get('udm_do_pull', false)) === 0 ) {
+        @ob_end_clean();
+        while (@ob_end_clean());
+        print "Service not enabled";
+        exit();
+    }
+
+    usa_data_migration_cron();
+    return "Cron-task executed, and completed.";
+}
+
+function usa_data_migration_log($msg) {
+//     $log = variable_get('udm_log', array());
+//     $log[] = array(
+//         'time' => time(),
+//         'msg' => $msg
+//     );
+//     variable_set('udm_log', array_slice($log, -25));
+    usa_data_migration_error_log($msg);
+}
+
+/*
+ * A wrapper function to usa_data_migration_error_log() for this module
+ */
+function usa_data_migration_error_log($msg) {
+
+    // $logs = variable_get('udm_error_logs', array());
+    // $logs[time()] = $msg;
+    // variable_set('udm_error_logs', array_slice($logs, -100));
+    //
+    // @file_put_contents(usa_data_migration_action_log_location(), trim($msg)."\n", FILE_APPEND);
+
+    error_log($msg);
+}
+
+function usa_data_migration_print_action_log() {
+
+    // $offset = -1;
+    // if ( !empty($_REQUEST['offset']) ) {
+    //     $offset = intval($_REQUEST['offset']);
+    // }
+    //
+    // @ob_end_clean();
+    // while (@ob_end_clean());
+    //
+    // header('Content-Type: text');
+    //
+    // if ( file_exists(usa_data_migration_action_log_location()) ) {
+    //     print file_get_contents(usa_data_migration_action_log_location(), false, null, $offset);
+    // }
+
+    exit();
+}
+
+function usa_data_migration_action_log_location() {
+    return false;
+    // return variable_get('udm_action_log_location', '/tmp/udm-action.log');
+
+}
+
+function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
+
+    if ( $form_id === 'taxonomy_manager_form' && strpos(request_uri(), 'voc/site_strucutre_taxonomy') !== false ) {
+
+        // Handel form submission here
+        if ( isset($_REQUEST['op']) ) {
+
+            $changeField = false;
+            $setValue = false;
+            switch ( $_REQUEST['op'] ) {
+                case 'Set "Generate Page" field to "Yes"':
+                    $changeField = 'field_generate_page';
+                    $setValue = 'yes';
+                    break;
+                case 'Set "Generate Page" field to "No"':
+                    $changeField = 'field_generate_page';
+                    $setValue = 'no';
+                    break;
+                case 'Set "Generate Menu Item" field to "Yes"':
+                    $changeField = 'field_generate_menu';
+                    $setValue = 'yes';
+                    break;
+                case 'Set "Generate Menu Item" field to "No"':
+                    $changeField = 'field_generate_menu';
+                    $setValue = 'no';
+                    break;
+                case 'Set "Page Type" fields':
+                    if ( !empty($_REQUEST['pagetypevalue']) ) {
+                        $changeField = 'field_type_of_page_to_generate';
+                        $setValue = trim($_REQUEST['pagetypevalue']);
+                    }
+                    break;
+                default:
+                    // do nothing
+                    break;
+            }
+
+            if ( $changeField !== false && $setValue !== false ) {
+
+                $selectedTids = usa_data_migration_form_getTaxonomyMangerTickedItems($_REQUEST['taxonomy']['manager']['tree']);
+                foreach ($selectedTids as $tid) {
+                    $term = taxonomy_term_load($tid);
+                    $term->$changeField = array(
+                        'und' => array(
+                            0 => array(
+                                'value' => $setValue
+                            )
+                        )
+                    );
+                    taxonomy_term_save($term);
+                    dsm("Set the {$changeField} field in term-{$term->tid} (\"{$term->name}\") to value; {$term->{$changeField}['und'][0]['value']}");
+                }
+            }
+
+        }
+
+        $form['toolbar']['showbatchopts'] = array(
+            '#value' => 'Batch Operations',
+            '#theme' => 'no_submit_button',
+            '#attributes' => array(
+                'class' => 'taxonomy-manager-buttons bulk',
+                'onclick' => "jQuery('#edit-bulk').slideToggle()"
+            )
+        );
+
+        $form['toolbar']['batchoptsform'] = array(
+            '#type' => 'fieldset',
+            '#title' => 'Batch Operations',
+            '#description' => 'Note: The following operations will be applied onto taxonomy-terms whos checkboxes are '
+                .'ticked/checked (<small>in the form below</small>).<br/>Mind that <b>only</b> terms which are ticked '
+                .'will be effected - unticked child-terms to a ticked-term do <i>not</i> automatically get updated in '
+                .'a bulk-operation.<br/><br/>',
+            '#attributes' => array(
+                'style' => 'display: none;',
+                'id' => 'edit-bulk'
+            )
+        );
+
+        $form['toolbar']['batchoptsform']['genpageyes'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Page" field to "Yes"',
+        );
+        $form['toolbar']['batchoptsform']['genpageno'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Page" field to "No"',
+        );
+        $form['toolbar']['batchoptsform']['genmenuyes'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Menu Item" field to "Yes"',
+        );
+        $form['toolbar']['batchoptsform']['genmenuno'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Generate Menu Item" field to "No"',
+        );
+
+        $form['toolbar']['batchoptsform']['batchoptsformpagetype'] = array(
+            '#type' => 'fieldset',
+            '#title' => 'Page-Type Batch-Operation',
+        );
+        $form['toolbar']['batchoptsform']['batchoptsformpagetype']['pagetypevalue'] = array(
+            '#type' => 'select',
+            '#field_prefix' => 'For all ticked/checked terms, set the "Type of page to generate" field to: ',
+            '#options' => array(
+                'generic-navigation-page' => 'Generic navigation page',
+                'generic-content-page' => 'Generic content page',
+                '50-state-page' => '50-state page',
+                'a-z-page' => 'A-Z page',
+                'more' => '“More topics” navigation page',
+                'home' => 'Home page',
+            ),
+        );
+        $form['toolbar']['batchoptsform']['batchoptsformpagetype']['pagetypeset'] = array(
+            '#type' => 'button',
+            '#value' => 'Set "Page Type" fields',
+        );
+
+    }
+
+}
+
+function usa_data_migration_form_getTaxonomyMangerTickedItems($recusiveSearch = array()) {
+
+    $ret = array();
+
+    // We expect to be given arrays only
+    if ( !is_array($recusiveSearch) ) {
+        return array();
+    }
+
+    foreach ($recusiveSearch as $key => $data) {
+
+        // Check for checkbox-tick
+        if ( isset($data['tid']) ) {
+            if ( !empty($data['checkbox']) ) {
+                $ret[] = intval($data['checkbox']);
+            }
+        }
+
+        if ( !empty($data['children']) ) {
+            $ret = array_merge($ret, usa_data_migration_form_getTaxonomyMangerTickedItems($data['children']));
+        }
+
+    }
+
+    return $ret;
+}
+
+/**
+* string cssFriendlyString(string inputString[, string/array $charactersToRemove, bool forceLowerCase = true])
+*
+* alias to getEasyCompareString() since these 2 functions require the same functionality.
+* See tha function for documentation.
+*/
+if ( function_exists('cssFriendlyString') === false ) {
+   function cssFriendlyString($inputString, $charactersToRemove = ' -_/!?@#$%^&*()[]{}<>\'"', $forceLowerCase = true, $trimString = true) {
+       return getEasyCompareString($inputString, $charactersToRemove, $forceLowerCase, $trimString);
+   }
+}
+
+/**
+* string getEasyCompareString(string inputString[, string/array $charactersToRemove, bool forceLowerCase = true])
+*
+* Returns the given string with certain characters removed, and converted to lowercase if desiered.
+* This makes things easier to compare two strings in certain situations.
+*/
+if ( function_exists('getEasyCompareString') === false ) {
+   function getEasyCompareString($inputString, $charactersToRemove = " -_/\\!?@#$%^&*'\"()[]{}<>", $forceLowerCase = true, $trimString = true, $stripUnicodeCharacters = true, $replaceCharsWith = '-', $killRepeatingReplacements = true) {
+
+       $ret = $inputString;
+
+       if ( is_null($charactersToRemove) ) {
+           $charactersToRemove = " -_/\\!?@#$%^&*'\"()[]{}<>";
+       }
+
+       if ( !is_array($charactersToRemove) ) {
+           $charactersToRemove = str_split($charactersToRemove);
+       }
+       $charactersToRemove[] = '%20';
+
+       foreach ( $charactersToRemove as $charToRemove ) {
+           $ret = str_replace($charToRemove, $replaceCharsWith, $ret);
+       }
+
+       if ( $forceLowerCase ) {
+           $ret = strtolower( $ret );
+       }
+
+       if ( $trimString ) {
+           $ret = trim( $ret );
+       }
+
+       if ( $stripUnicodeCharacters ) {
+           $ret = stripUnicode($ret, $replaceCharsWith);
+       }
+
+       if ( $replaceCharsWith !== '' && $killRepeatingReplacements == true ) {
+           while ( strpos($ret, $replaceCharsWith . $replaceCharsWith) !== false ) {
+               $ret = str_replace($replaceCharsWith . $replaceCharsWith, $replaceCharsWith, $ret);
+           }
+       }
+
+       return $ret;
+   }
+}
+
+/**
+* string stripUnicode(string $inputString)
+*
+* Returns $inputString with all Unicode characters stripped
+*/
+if ( function_exists('stripUnicode') === false ) {
+   function stripUnicode($inputString, $replaceUnicodeCharsWith = '') {
+
+       $removeCharacters = array();
+       for ( $x = strlen($inputString) - 1 ; $x > -1 ; $x-- ) {
+           $thisChar = $inputString[$x];
+           $charCode = ord($thisChar);
+           if (
+               ( 96 < $charCode && $charCode < 123 )
+               || ( 64 < $charCode && $charCode < 91 )
+               || ( 47 < $charCode && $charCode < 58 )
+           ) {
+               // Then this is a character, a-z, A-Z, or 0-1
+           } else {
+               $removeCharacters[$thisChar] = $thisChar;
+           }
+       }
+
+       $inputString = str_replace(array_values($removeCharacters), $replaceUnicodeCharsWith, $inputString);
+
+       return $inputString;
+   }
+}
+
+if ( function_exists('usa_data_migration_should_slack') === false ) {
+    function usa_data_migration_should_slack()
+    {
+      return ( function_exists('slack_send_message') && in_array(
+        strtolower(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')),
+        ['production','prod','prd','staging','stage','stg','testing','test','tst'])
+      );
+    }
+}

@@ -1,0 +1,14 @@
+name = USASearch Images
+description = Provides image search for the USA Search module.
+core = 7.x
+configure = admin/config/search/usasearch
+package = USASearch
+
+dependencies[] = usasearch_api
+
+; Information added by Drupal.org packaging script on 2015-11-13
+version = "7.x-4.4"
+core = "7.x"
+project = "usasearch"
+datestamp = "1447386026"
+
