@@ -4,21 +4,21 @@
 module_load_include('inc', 'usa_data_migration', 'usa_data_migration.client');
 module_load_include('inc', 'usa_data_migration', 'usa_data_migration.server');
 
-/* This is for the CLIENT - if the current requesting-page (URL) is locked [due to an ongoing 
-synch operation], lagg HERE, DURRING DRUPAL BOOTSTRAP, until the synch operation completes. 
+/* This is for the CLIENT - if the current requesting-page (URL) is locked [due to an ongoing
+synch operation], lagg HERE, DURRING DRUPAL BOOTSTRAP, until the synch operation completes.
 This need to be done here, NOT during HOOK_init() because this needs to execute before the menu-router
 fetches the target term from the database.
 */
-if ( usa_data_migration_lagIfRequestingLockedPage() ) {
-    drupal_add_js(
-        "
-            jQuery(document).ready( function () {
-                console.log('DevNote: This page was lagged as your request for this page was made during a data-migration related to this content.');
-            })
-        ",
-        "inline"
-    );
-}
+// if ( usa_data_migration_lagIfRequestingLockedPage() ) {
+//     drupal_add_js(
+//         "
+//             jQuery(document).ready( function () {
+//                 console.log('DevNote: This page was lagged as your request for this page was made during a data-migration related to this content.');
+//             })
+//         ",
+//         "inline"
+//     );
+// }
 
 /*
  * Implements HOOK_init()
@@ -52,7 +52,7 @@ function usa_data_migration_init() {
 function usa_data_migration_menu() {
 
     $items = array();
-    
+
     // Configuration page
     $items['admin/content/usa-data-migration'] = array(
         'title' => 'USA Content Migration',
@@ -119,13 +119,13 @@ function usa_data_migration_menu() {
     );
 
     // Menu item to obtain action-log information
-    $items['udm-action-log'] = array(
-        'title' => 'Print error_log from actions',
-        'description' => 'Print error_log messages from actions',
-        'page callback' => 'usa_data_migration_print_action_log',
-        'access callback' => true,
-        'type' => MENU_CALLBACK
-    );
+    // $items['udm-action-log'] = array(
+    //     'title' => 'Print error_log from actions',
+    //     'description' => 'Print error_log messages from actions',
+    //     'page callback' => 'usa_data_migration_print_action_log',
+    //     'access callback' => true,
+    //     'type' => MENU_CALLBACK
+    // );
 
     // The following is just a hacky way of saying this code should be fiered any time Drupal-cache is flushed
     usa_data_migration_ensureTaxonomyDateTableExsists();
@@ -134,7 +134,7 @@ function usa_data_migration_menu() {
     return $items;
 }
 
-/* Used for menu-callbacks to determine weather or not the current 
+/* Used for menu-callbacks to determine weather or not the current
 user should have access to UDM administrative-pages */
 function usa_data_migration_hasAdminAccess() {
 
@@ -151,7 +151,7 @@ function usa_data_migration_hasAdminAccess() {
 }
 
 function usa_data_migration_menu_alter(&$items) {
-    
+
     $items['admin/structure/taxonomy_manager/childform']['page callback'] = 'taxonomy_manager_tree_build_child_form_HACK';
 }
 
@@ -244,7 +244,7 @@ function taxonomy_manager_tree_build_child_form_HACK($tree_id, $vid, $parent) {
 function usa_data_migration_cron() {
 
     if ( intval(variable_get('udm_do_pushoncron', false)) !== 0 ) {
-        
+
         // MUST pass false to this function, or else this PHP-thread will die here
         usa_data_migration_triggerUpdatePullOnAllChildSites(false);
     }
@@ -266,12 +266,12 @@ function usa_data_migration_menu_cron() {
 }
 
 function usa_data_migration_log($msg) {
-    $log = variable_get('udm_log', array());
-    $log[] = array(
-        'time' => time(),
-        'msg' => $msg
-    );
-    variable_set('udm_log', array_slice($log, -25));
+//     $log = variable_get('udm_log', array());
+//     $log[] = array(
+//         'time' => time(),
+//         'msg' => $msg
+//     );
+//     variable_set('udm_log', array_slice($log, -25));
     usa_data_migration_error_log($msg);
 }
 
@@ -280,37 +280,37 @@ function usa_data_migration_log($msg) {
  */
 function usa_data_migration_error_log($msg) {
 
-    $logs = variable_get('udm_error_logs', array());
-    $logs[time()] = $msg;
-    variable_set('udm_error_logs', array_slice($logs, -100));
-
-    @file_put_contents(usa_data_migration_action_log_location(), trim($msg)."\n", FILE_APPEND);
+    // $logs = variable_get('udm_error_logs', array());
+    // $logs[time()] = $msg;
+    // variable_set('udm_error_logs', array_slice($logs, -100));
+    //
+    // @file_put_contents(usa_data_migration_action_log_location(), trim($msg)."\n", FILE_APPEND);
 
     error_log($msg);
 }
 
 function usa_data_migration_print_action_log() {
 
-    $offset = -1;
-    if ( !empty($_REQUEST['offset']) ) {
-        $offset = intval($_REQUEST['offset']);
-    }
-
-    @ob_end_clean();
-    while (@ob_end_clean());
-
-    header('Content-Type: text');
-
-    if ( file_exists(usa_data_migration_action_log_location()) ) {
-        print file_get_contents(usa_data_migration_action_log_location(), false, null, $offset);
-    }
+    // $offset = -1;
+    // if ( !empty($_REQUEST['offset']) ) {
+    //     $offset = intval($_REQUEST['offset']);
+    // }
+    //
+    // @ob_end_clean();
+    // while (@ob_end_clean());
+    //
+    // header('Content-Type: text');
+    //
+    // if ( file_exists(usa_data_migration_action_log_location()) ) {
+    //     print file_get_contents(usa_data_migration_action_log_location(), false, null, $offset);
+    // }
 
     exit();
 }
 
 function usa_data_migration_action_log_location() {
-
-    return variable_get('udm_action_log_location', '/tmp/udm-action.log');
+    return false;
+    // return variable_get('udm_action_log_location', '/tmp/udm-action.log');
 
 }
 
@@ -347,7 +347,7 @@ function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
                     }
                     break;
                 default:
-                    // do nothing 
+                    // do nothing
                     break;
             }
 
@@ -369,7 +369,7 @@ function usa_data_migration_form_alter(&$form, &$form_state, $form_id) {
             }
 
         }
-        
+
         $form['toolbar']['showbatchopts'] = array(
             '#value' => 'Batch Operations',
             '#theme' => 'no_submit_button',
@@ -481,40 +481,40 @@ if ( function_exists('cssFriendlyString') === false ) {
 */
 if ( function_exists('getEasyCompareString') === false ) {
    function getEasyCompareString($inputString, $charactersToRemove = " -_/\\!?@#$%^&*'\"()[]{}<>", $forceLowerCase = true, $trimString = true, $stripUnicodeCharacters = true, $replaceCharsWith = '-', $killRepeatingReplacements = true) {
-       
+
        $ret = $inputString;
-       
+
        if ( is_null($charactersToRemove) ) {
            $charactersToRemove = " -_/\\!?@#$%^&*'\"()[]{}<>";
        }
-       
+
        if ( !is_array($charactersToRemove) ) {
            $charactersToRemove = str_split($charactersToRemove);
        }
        $charactersToRemove[] = '%20';
-       
+
        foreach ( $charactersToRemove as $charToRemove ) {
            $ret = str_replace($charToRemove, $replaceCharsWith, $ret);
        }
-       
+
        if ( $forceLowerCase ) {
            $ret = strtolower( $ret );
        }
-       
+
        if ( $trimString ) {
            $ret = trim( $ret );
        }
-       
+
        if ( $stripUnicodeCharacters ) {
            $ret = stripUnicode($ret, $replaceCharsWith);
        }
-       
+
        if ( $replaceCharsWith !== '' && $killRepeatingReplacements == true ) {
            while ( strpos($ret, $replaceCharsWith . $replaceCharsWith) !== false ) {
                $ret = str_replace($replaceCharsWith . $replaceCharsWith, $replaceCharsWith, $ret);
            }
        }
-       
+
        return $ret;
    }
 }
@@ -526,7 +526,7 @@ if ( function_exists('getEasyCompareString') === false ) {
 */
 if ( function_exists('stripUnicode') === false ) {
    function stripUnicode($inputString, $replaceUnicodeCharsWith = '') {
-       
+
        $removeCharacters = array();
        for ( $x = strlen($inputString) - 1 ; $x > -1 ; $x-- ) {
            $thisChar = $inputString[$x];
@@ -541,9 +541,19 @@ if ( function_exists('stripUnicode') === false ) {
                $removeCharacters[$thisChar] = $thisChar;
            }
        }
-       
+
        $inputString = str_replace(array_values($removeCharacters), $replaceUnicodeCharsWith, $inputString);
-       
+
        return $inputString;
    }
+}
+
+if ( function_exists('usa_data_migration_should_slack') === false ) {
+    function usa_data_migration_should_slack()
+    {
+      return ( function_exists('slack_send_message') && in_array(
+        strtolower(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')),
+        ['production','prod','prd','staging','stage','stg','testing','test','tst'])
+      );
+    }
 }

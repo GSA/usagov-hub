@@ -6,12 +6,24 @@ function usa_data_migration_triggerUpdatePullOnAllChildSites($killThreadOnComple
 
     // Post debug into into Slack
     $thisFunct = __FUNCTION__;
+<<<<<<< HEAD
     slack_send_message(
         "Notice: {$thisFunct}() has triggered ".( isset($_SESSION['udm_push_eid']) ? "since {$_SESSION['udm_push_type']} {$_SESSION['udm_push_eid']} was modified." : "[via cron]."),
         "#cmp-notify-verbose", 
         $_SERVER['HTTP_HOST']
     );
 
+=======
+    if(usa_data_migration_should_slack()){
+        slack_send_message(
+            slack_get_default_webhook_url(),
+            "Notice: {$thisFunct}() has triggered ".( isset($_SESSION['udm_push_eid']) ? "since {$_SESSION['udm_push_type']} {$_SESSION['udm_push_eid']} was modified." : "[via cron]."),
+            "#cmp-notify-verbose",
+            $_SERVER['HTTP_HOST'],
+            ['type'=>'','icon'=>0,'emoji'=>0]
+        );
+    }
+>>>>>>> testing
     // Lets not bee too trigger-happy - don't poke the child-sites any more than once every minute
     $lastTUPOACS = variable_get('udm_last_tupoacs', -3);
     $lastTUPOACS_ago = time() - $lastTUPOACS;
@@ -552,7 +564,6 @@ function usa_data_migration_printTaxonomyDump() {
  *  Prints a dump of information descirinb nodes in this system and terminates the PHP thread.
  */
 function usa_data_migration_printNodeDump() {
-
     // Validation
     if ( intval(variable_get('udm_allow_pull', false)) === 0 ) {
         @ob_end_clean();
@@ -569,13 +580,15 @@ function usa_data_migration_printNodeDump() {
     if ( empty($_REQUEST['batch']) || intval($_REQUEST['batch']) === 0 ) {
         @ob_end_clean();
         while (@ob_end_clean());
-        print "Missing or bad batch argument in request - this argument must be an integer greater than 0";
+        print "Missing or bad batch argument in request - this argument must be an integer greater than 0 ".print_r($_GET,1);
+        usa_data_migration_error_log('Missing or bad batch argument in request');
         exit();
     }
     if ( empty($_REQUEST['size']) || intval($_REQUEST['size']) === 0 ) {
         @ob_end_clean();
         while (@ob_end_clean());
         print "Missing or bad size argument in request - this argument must be an integer greater than 0";
+        usa_data_migration_error_log('Missing or bad size argument in request');
         exit();
     }
 
