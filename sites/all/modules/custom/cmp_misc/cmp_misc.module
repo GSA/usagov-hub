@@ -321,7 +321,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
         'file_content_type_node_form',  'directory_record_content_type_node_form',
         'multimedia_content_type_node_form' ))) {
 
-            drupal_add_js(drupal_get_path('module', 'cmp_misc') .'/js/set_today_option.js');
+            drupal_add_js(drupal_get_path('module', 'cmp_misc') .'/js/set_today_options.js');
 
     }
 
