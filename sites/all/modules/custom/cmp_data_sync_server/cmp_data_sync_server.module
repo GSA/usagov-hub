@@ -22,6 +22,7 @@ function _cdss_setup_content_index()
 function _cdss_setup_drupal()
 {
     _cdss_setup_queue();
+    _cdss_setup_term_changed_timestamp();
 }
 
 function _cdss_setup_queue()
@@ -36,7 +37,8 @@ function _cdss_add_entity_to_queue($entity)
   $queue = DrupalQueue::get('cmp_data_sync');
   $q_data = array(
     'entity_id'   => $int,
-    'entity_type' => $string
+    'entity_type' => $string,
+    'entity'      => json_encode($entity)
   );
   $queue->createItem($q_item);
 }
@@ -70,7 +72,11 @@ function _cdss_process_queue()
   while ( ($time_spent+$avg_time) < $max_time )
   {
     $queue = DrupalQueue::get('cmp_data_sync');
-    _cdss_process_queue_entity($queue);
+    $result = _cdss_process_queue_entity($queue);
+    if ( $result==='no-more-queued-items' )
+    {
+        break;
+    }
     $loops++;
     $loop_time  = time();
     $time_spent = $start_time-$loop_time
@@ -83,6 +89,9 @@ function _cdss_send_to_elasticsearch()
 
 }
 
+function _cdss_setup_term_changed_timestamp()
+{
+}
 
 /*
  * Implements HOOK_menu()
