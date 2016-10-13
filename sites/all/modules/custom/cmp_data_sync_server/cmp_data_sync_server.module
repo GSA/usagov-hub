@@ -1,5 +1,88 @@
 <?php
 
+function _cdss_setup()
+{
+    _cdss_setup_elasticsearch();
+    _cdss_setup_drupal();
+}
+
+function _cdss_setup_elasticsearch()
+{
+    _cdss_setup_schema_index();
+    _cdss_setup_content_index();
+}
+
+function _cdss_setup_schema_index()
+{}
+
+function _cdss_setup_content_index()
+{}
+
+
+function _cdss_setup_drupal()
+{
+    _cdss_setup_queue();
+}
+
+function _cdss_setup_queue()
+{
+  $queue = DrupalQueue::get('cmp_data_sync');
+  $queue->createQueue();
+}
+
+function _cdss_add_entity_to_queue($entity)
+{
+  // - unique upon entity_ids
+  $queue = DrupalQueue::get('cmp_data_sync');
+  $q_data = array(
+    'entity_id'   => $int,
+    'entity_type' => $string
+  );
+  $queue->createItem($q_item);
+}
+
+function _cdss_process_queue_entity()
+{
+  $queue = DrupalQueue::get('cmp_data_sync');
+
+  $lease_time=10;
+  $q_item = $queue->claimItem($lease_time);
+  if ( empty(!$q_item) )
+  {
+      $success = _cdss_send_to_elasticsearch( $q_item->data, $timeout=10 );
+      if ( $success===true )
+      {
+        $queue->deleteItem($q_item);
+      } else {
+        $queue->releaseItem($q_item);
+      }
+  }
+}
+
+function _cdss_process_queue()
+{
+  $max_time   = 30; // should determine this number dynamically
+  $start_time = time();
+  $loop_time  = $start_time;
+  $time_spent = $start_time-$loop_time;
+  $loops      = 0;
+  $avg_time   = 0;
+  while ( ($time_spent+$avg_time) < $max_time )
+  {
+    $queue = DrupalQueue::get('cmp_data_sync');
+    _cdss_process_queue_entity($queue);
+    $loops++;
+    $loop_time  = time();
+    $time_spent = $start_time-$loop_time
+    $avg_time   = $time_spent/$loops;
+  }
+}
+
+function _cdss_send_to_elasticsearch()
+{
+
+}
+
 
 /*
  * Implements HOOK_menu()
