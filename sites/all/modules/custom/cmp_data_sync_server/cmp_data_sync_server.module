@@ -109,11 +109,11 @@ function _cdss_setup_schema_index()
                         'data' => $data,
                 );
 
-        $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-schema/', $options);
-
-
+        $result = drupal_http_request('http://elasticsearch_server:9200/cmp-data-schema/', $options);
+        return $result;
     } catch(Exception $exception){
         dsm($exception);
+        return false;
     }
 }
 
@@ -138,11 +138,12 @@ function _cdss_schema_to_elasticsearch()
                         'data' => $json_object,
                 );
 
-        $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-schema/schema/', $options);
-
+        $result = drupal_http_request('http://elasticsearch_server:9200/cmp-data-schema/schema/', $options);
+        return $result;
     } catch(Exception $exception){
         dsm($exception);
-    }
+        return false;
+   }
 }
 
 function _cdss_setup_content_index()
@@ -152,8 +153,8 @@ function _cdss_setup_content_index()
                 $data = '{
                     "settings" : {
                         "index" : {
-                            "number_of_shards" : 1, 
-                            "number_of_replicas" : 0 
+                            "number_of_shards" : 1,
+                            "number_of_replicas" : 0
                         }
                     },
                     "mappings": {
@@ -172,10 +173,11 @@ function _cdss_setup_content_index()
                                     'data' => $data,
                             );
 
-                $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-entities2/', $options);
-                dsm($result);
+                $result = drupal_http_request('http://elasticsearch_server:9200/cmp-data-entities/', $options);
+                return $result;
             } catch(Exception $exception){
                 dsm($exception);
+                return false;
             }
 }
 
@@ -252,9 +254,9 @@ function _cdss_send_to_elasticsearch($e_id, $e_type)
     }
 
     if(!empty($entity)){
-        
+
         try{
-           
+
             $jentity = json_encode($entity);
             //dsm($jentity);
 
@@ -315,6 +317,12 @@ function cmp_data_sync_server_menu() {
 }
 
 function cmp_data_sync_server_test(){
-
+    $p = drupal_get_query_parameters();
+    if ( !empty($p['function']) && function_exists('_cdss_'.$p['function']) )
+    {
+        $_p = $p;
+        unset($_p['function']);
+        dsm([$p['function'],call_user_func_array( '_cdss_'.$p['function'] , array_keys($_p) )]);
+    }
     return 'test';
 }
