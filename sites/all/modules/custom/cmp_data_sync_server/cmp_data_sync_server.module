@@ -184,7 +184,6 @@ function _cdss_setup_content_index()
 function _cdss_setup_drupal()
 {
     _cdss_setup_queue();
-    _cdss_setup_term_changed_timestamp();
 }
 
 function _cdss_setup_queue()
@@ -265,35 +264,13 @@ function _cdss_send_to_elasticsearch($e_id, $e_type)
                             'data' => $jentity,
                     );
 
-            $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-entities2/entities/'. $e_type . '_' . $e_id, $options);
+            $result = drupal_http_request('http://elasticsearch_server:9200/cmp-data-entities/entities/'. $e_type . '_' . $e_id, $options);
             dsm($result);
 
         } catch(Exception $exception){
             dsm($exception);
         }
 
-    }
-}
-
-function _cdss_setup_term_changed_timestamp()
-{
-    if (!field_info_field('changed')) {
-        $field = array(
-          'field_name' => 'changed',
-          'cardinality' => 1,
-          'type' => 'text',
-        );
-        field_create_field($field);
-
-
-        $instance = array( 'field_name' => $field['field_name'],
-                'entity_type' => 'taxonomy_term',
-                'bundle' => 'site_strucutre_taxonomy',
-                'label' => 'Changed Time',
-                'description' => '',
-                'required' => FALSE,
-        );
-        field_create_instance($instance);
     }
 }
 
