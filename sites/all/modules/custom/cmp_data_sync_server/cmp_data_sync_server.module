@@ -1,4 +1,7 @@
 <?php
+/* NOTE: INSTALL TAXONOMY_CHANGED MODULE AND REMOVE _cdss_setup_term_changed_timestamp LOGIC */
+
+
 
 function _cdss_setup()
 {
@@ -12,12 +15,169 @@ function _cdss_setup_elasticsearch()
     _cdss_setup_content_index();
 }
 
+function _getExportTaxonomyStructureCode() {
+
+    $selected_bundles = array();
+    foreach ( _bundle_copy_bundle_info('taxonomy_term', TRUE) as $machineName => $label ) {
+        $selected_bundles[$machineName] = $machineName;
+    }
+
+    $instances = array();
+    foreach ($selected_bundles as $key => $bundle) {
+        if ($key === $bundle) {
+          $instances += field_info_instances('taxonomy_term', $bundle);
+        }
+    }
+    ksort($instances);
+
+    $selectedFields = array();
+    foreach ( $instances as $machineName => $fieldInfo ) {
+        $selectedFields[$machineName] = $machineName;
+    }
+
+    $fieldGroupIds = array();
+    $fieldGroupData = array();
+    $all_groups = function_exists('field_group_info_groups') ? field_group_info_groups() : array();
+    if ( !empty($all_groups) && !empty($all_groups['taxonomy_term']) ) {
+        foreach ($all_groups['taxonomy_term'] as $vocabName => $formData) {
+            foreach ($formData['form'] as $groupName => $data) {
+                $fieldGroupIds[$data->id] = $data->id;
+                $fieldGroupData[$data->id] = $data;
+            }
+        }
+    }
+
+    $selected_data = array(
+        1 => array(
+            'bundles' => $selected_bundles
+        ),
+        2 => array(
+            'fields' => $selectedFields,
+            'fieldgroups' => $fieldGroupIds,
+            'fieldgroups-full' => $fieldGroupData,
+        ),
+    );
+
+    return _bundle_copy_export_data('taxonomy_term', $selected_data);
+}
+
+function _getExportNodeStructureCode() {
+
+    $selected_bundles = variable_get('udm_conttypes', array());
+
+    $instances = array();
+    foreach ($selected_bundles as $key => $bundle) {
+        if ($key === $bundle) {
+          $instances += field_info_instances('node', $bundle);
+        }
+    }
+    ksort($instances);
+
+    $selectedFields = array();
+    foreach ( $instances as $machineName => $fieldInfo ) {
+        $selectedFields[$machineName] = $machineName;
+    }
+
+    $selected_data = array(
+        1 => array(
+            'bundles' => $selected_bundles
+        ),
+        2 => array(
+            'fields' => $selectedFields
+        ),
+    );
+
+    return _bundle_copy_export_data('node', $selected_data);
+}
+
 function _cdss_setup_schema_index()
-{}
+{
+
+    //create schema index
+    try{
+        $data = '{
+            "settings" : {
+                "index" : {
+                    "number_of_shards" : 1,
+                    "number_of_replicas" : 0
+                }
+            }
+        }';
+
+        $options = array(
+                        'method' => 'PUT',
+                        'data' => $data,
+                );
+
+        $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-schema/', $options);
+
+
+    } catch(Exception $exception){
+        dsm($exception);
+    }
+}
+
+function _cdss_schema_to_elasticsearch()
+{
+    //add schema data
+    try{
+
+        $schema_taxonomy = _getExportTaxonomyStructureCode();
+        $schema_taxonomy_sha1 = sha1($schema_taxonomy);
+        $schema_node = _getExportNodeStructureCode();
+        $schema_node_sha1 = sha1($schema_node);
+
+
+        $arr = array('taxonomy_sha1' => $schema_taxonomy_sha1, 'taxonomy' => $schema_taxonomy, 'node_sha1' =>$schema_node_sha1, 'nodes' => $schema_node);
+
+        $json_object = json_encode($arr);
+
+
+        $options = array(
+                        'method' => 'POST',
+                        'data' => $json_object,
+                );
+
+        $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-schema/schema/', $options);
+
+    } catch(Exception $exception){
+        dsm($exception);
+    }
+}
 
 function _cdss_setup_content_index()
-{}
+{
 
+            try{
+                $data = '{
+                    "settings" : {
+                        "index" : {
+                            "number_of_shards" : 1, 
+                            "number_of_replicas" : 0 
+                        }
+                    },
+                    "mappings": {
+                       "entities": {
+                         "properties": {
+                           "changed": {
+                             "type": "integer"
+                           }
+                         }
+                       }
+                     }
+                }';
+
+                    $options = array(
+                                    'method' => 'PUT',
+                                    'data' => $data,
+                            );
+
+                $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-entities2/', $options);
+                dsm($result);
+            } catch(Exception $exception){
+                dsm($exception);
+            }
+}
 
 function _cdss_setup_drupal()
 {
@@ -31,14 +191,13 @@ function _cdss_setup_queue()
   $queue->createQueue();
 }
 
-function _cdss_add_entity_to_queue($entity)
+function _cdss_add_entity_to_queue($e_id, $e_type)
 {
   // - unique upon entity_ids
   $queue = DrupalQueue::get('cmp_data_sync');
-  $q_data = array(
-    'entity_id'   => $int,
-    'entity_type' => $string,
-    'entity'      => json_encode($entity)
+  $q_item = array(
+    'entity_id'   => $e_id,
+    'entity_type' => $e_type
   );
   $queue->createItem($q_item);
 }
@@ -79,25 +238,67 @@ function _cdss_process_queue()
     }
     $loops++;
     $loop_time  = time();
-    $time_spent = $start_time-$loop_time
+    $time_spent = $start_time-$loop_time;
     $avg_time   = $time_spent/$loops;
   }
 }
 
-function _cdss_send_to_elasticsearch()
+function _cdss_send_to_elasticsearch($e_id, $e_type)
 {
+    if($e_type === 'node'){
+        $entity = node_load($e_id);
+    } elseif($e_type === 'term') {
+        $entity = taxonomy_term_load($entity);
+    }
 
+    if(!empty($entity)){
+        
+        try{
+           
+            $jentity = json_encode($entity);
+            //dsm($jentity);
+
+            $options = array(
+                            'method' => 'PUT',
+                            'data' => $jentity,
+                    );
+
+            $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-entities2/entities/'. $e_type . '_' . $e_id, $options);
+            dsm($result);
+
+        } catch(Exception $exception){
+            dsm($exception);
+        }
+
+    }
 }
 
 function _cdss_setup_term_changed_timestamp()
 {
+    if (!field_info_field('changed')) {
+        $field = array(
+          'field_name' => 'changed',
+          'cardinality' => 1,
+          'type' => 'text',
+        );
+        field_create_field($field);
+
+
+        $instance = array( 'field_name' => $field['field_name'],
+                'entity_type' => 'taxonomy_term',
+                'bundle' => 'site_strucutre_taxonomy',
+                'label' => 'Changed Time',
+                'description' => '',
+                'required' => FALSE,
+        );
+        field_create_instance($instance);
+    }
 }
 
 /*
  * Implements HOOK_menu()
  */
 function cmp_data_sync_server_menu() {
-
 
     $items = array();
 
@@ -114,138 +315,6 @@ function cmp_data_sync_server_menu() {
 }
 
 function cmp_data_sync_server_test(){
-
-
-
-    function getExportTaxonomyStructureCode() {
-
-        $selected_bundles = array();
-        foreach ( _bundle_copy_bundle_info('taxonomy_term', TRUE) as $machineName => $label ) {
-            $selected_bundles[$machineName] = $machineName;
-        }
-
-        $instances = array();
-        foreach ($selected_bundles as $key => $bundle) {
-            if ($key === $bundle) {
-              $instances += field_info_instances('taxonomy_term', $bundle);
-            }
-        }
-        ksort($instances);
-
-        $selectedFields = array();
-        foreach ( $instances as $machineName => $fieldInfo ) {
-            $selectedFields[$machineName] = $machineName;
-        }
-
-        $fieldGroupIds = array();
-        $fieldGroupData = array();
-        $all_groups = function_exists('field_group_info_groups') ? field_group_info_groups() : array();
-        if ( !empty($all_groups) && !empty($all_groups['taxonomy_term']) ) {
-            foreach ($all_groups['taxonomy_term'] as $vocabName => $formData) {
-                foreach ($formData['form'] as $groupName => $data) {
-                    $fieldGroupIds[$data->id] = $data->id;
-                    $fieldGroupData[$data->id] = $data;
-                }
-            }
-        }
-
-        $selected_data = array(
-            1 => array(
-                'bundles' => $selected_bundles
-            ),
-            2 => array(
-                'fields' => $selectedFields,
-                'fieldgroups' => $fieldGroupIds,
-                'fieldgroups-full' => $fieldGroupData,
-            ),
-        );
-
-        return _bundle_copy_export_data('taxonomy_term', $selected_data);
-
-    }
-
-
-
-
-
-    function getExportNodeStructureCode() {
-
-        $selected_bundles = variable_get('udm_conttypes', array());
-
-        $instances = array();
-        foreach ($selected_bundles as $key => $bundle) {
-            if ($key === $bundle) {
-              $instances += field_info_instances('node', $bundle);
-            }
-        }
-        ksort($instances);
-
-        $selectedFields = array();
-        foreach ( $instances as $machineName => $fieldInfo ) {
-            $selectedFields[$machineName] = $machineName;
-        }
-
-        $selected_data = array(
-            1 => array(
-                'bundles' => $selected_bundles
-            ),
-            2 => array(
-                'fields' => $selectedFields
-            ),
-        );
-
-        return _bundle_copy_export_data('node', $selected_data);
-
-    }
-
-
-    $schema_taxonomy = getExportTaxonomyStructureCode();
-    $schema_taxonomy_sha1 = sha1($schema_taxonomy);
-    $schema_node = getExportNodeStructureCode();
-    $schema_node_sha1 = sha1($schema_node);
-
-
-    $arr = array('taxonomy_sha1' => $schema_taxonomy_sha1, 'taxonomy' => $schema_taxonomy, 'node_sha1' =>$schema_node_sha1, 'nodes' => $schema_node);
-    $json_object = json_encode($arr);
-
-
-    try{
-        $data = '{
-            "settings" : {
-                "index" : {
-                    "number_of_shards" : 1,
-                    "number_of_replicas" : 0
-                }
-            }
-        }';
-
-            $options = array(
-                            'method' => 'PUT',
-                            'data' => $data,
-                    );
-
-            $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-schema/', $options);
-        dsm($result);
-
-
-
-
-        $data = $json_object;
-
-        $options = array(
-                        'method' => 'POST',
-                        'data' => $data,
-                );
-
-        $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-schema/schema/', $options);
-        dsm($result);
-
-    } catch(Exception $whatever){
-        dsm($whatever);
-    }
-
-
-
 
     return 'test';
 }
