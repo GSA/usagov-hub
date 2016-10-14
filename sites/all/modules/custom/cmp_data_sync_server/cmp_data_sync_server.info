@@ -4,3 +4,4 @@ package = CTAC
 core = 7.x
 files[] = cmp_data_sync_server.module
 dependencies[] = bundle_copy
+dependencies[] = taxonomy_changed

@@ -122,8 +122,8 @@ function cmp_data_sync_test(){
         $data = '{
             "settings" : {
                 "index" : {
-                    "number_of_shards" : 1, 
-                    "number_of_replicas" : 0 
+                    "number_of_shards" : 1,
+                    "number_of_replicas" : 0
                 }
             }
         }';
@@ -161,13 +161,13 @@ function cmp_data_sync_test(){
         }
 
         if(!empty($entity)){
-            
+
             try{
                 $data = '{
                     "settings" : {
                         "index" : {
-                            "number_of_shards" : 1, 
-                            "number_of_replicas" : 0 
+                            "number_of_shards" : 1,
+                            "number_of_replicas" : 0
                         }
                     }
                 }';
@@ -191,7 +191,7 @@ function cmp_data_sync_test(){
                                 'data' => $jentity,
                         );
 
-                $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-entities/entities/', $options);
+                $result = drupal_http_request('http://10.0.2.2:9200/cmp-data-entities/entity/', $options);
                 dsm($result);
 
             } catch(Exception $whatever){
