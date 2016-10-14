@@ -212,7 +212,12 @@ function _cdss_send_schema_to_elasticsearch()
                 'data'   => json_encode($data),
             )
         );
-        return ($response->code === '200');
+        if ( $response->code === '200' )
+        {
+            return true;
+        } else {
+            return false;
+        }
     } catch(Exception $exception){
         dsm($exception);
         return false;
@@ -329,7 +334,12 @@ function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $lease_time=10)
         /// that should really be fatal and return NULL
         /// for now we are assuming anything but 200
         /// means a temporary problem and we will return FALSE
-        return ($response->code === '201' || $response->code === '200');
+        if ( $response->code === '201' || $response->code === '200' )
+        {
+            return true;
+        } else {
+            return false;
+        }
     } catch(Exception $exception){
         dsm($exception);
         return false;
