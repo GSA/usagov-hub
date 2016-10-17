@@ -200,7 +200,6 @@ function _cdss_send_schema_to_elasticsearch()
 {
     try{
         $schema_node          = _getExportNodeStructureCode();
-        dsm($schema_node);
         $schema_taxonomy      = _getExportTaxonomyStructureCode();
         $schema_node_sha1     = sha1($schema_node);
         $schema_taxonomy_sha1 = sha1($schema_taxonomy);
@@ -449,6 +448,9 @@ function _getExportNodeStructureCode()
 {
 
         $selected_bundles = variable_get('cdss_node_bundles', array());
+
+        // Remove this after we truely set the cdss_node_bundles variable
+        $selected_bundles = variable_get('udm_conttypes', array());
 
         $instances = array();
         foreach ($selected_bundles as $key => $bundle) {
