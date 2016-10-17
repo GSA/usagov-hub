@@ -37,13 +37,15 @@ function cmp_data_sync_server_cron()
 
 function _cdss_setup_elasticsearch()
 {
-    _cdss_setup_schema_index();
-    _cdss_setup_content_index();
+    $schema_success = _cdss_setup_schema_index();
+    $content_success = _cdss_setup_content_index();
+    return $schema_success && $content_success;
 }
 function _cdss_teardown_elasticsearch()
 {
-    _cdss_teardown_schema_index();
-    _cdss_teardown_content_index();
+    $schema_success = _cdss_teardown_schema_index();
+    $content_success = _cdss_teardown_content_index();
+    return $schema_success && $content_success;
 }
 
 function _cdss_setup_schema_index()
@@ -198,6 +200,7 @@ function _cdss_send_schema_to_elasticsearch()
 {
     try{
         $schema_node          = _getExportNodeStructureCode();
+        dsm($schema_node);
         $schema_taxonomy      = _getExportTaxonomyStructureCode();
         $schema_node_sha1     = sha1($schema_node);
         $schema_taxonomy_sha1 = sha1($schema_taxonomy);
@@ -214,7 +217,7 @@ function _cdss_send_schema_to_elasticsearch()
                 'data'   => json_encode($data),
             )
         );
-        if ( $response->code === '200' )
+        if ( $response->code === '200' || $response->code === '201' )
         {
             return true;
         } else {
@@ -256,24 +259,29 @@ function _cdss_process_queue()
 {
     $queue = DrupalQueue::get('cmp_data_sync');
 
-    $max_time   = intval(ini_get("max_execution_time"))*.9;
-    $start_time = time();
-    $loop_time  = $start_time;
-    $time_spent = $start_time-$loop_time;
-    $loops      = 0;
-    $avg_time   = 0;
+    // $max_time   = intval(ini_get("max_execution_time"))*.9;
+    // $start_time = time();
+    // $loop_time  = $start_time;
+    // $time_spent = $start_time-$loop_time;
+    // $loops      = 0;
+    // $avg_time   = 0;
 
-    while ( ($time_spent+$avg_time) < $max_time )
+    // while ( ($time_spent+$avg_time) < $max_time )
+    // {
+    //     $result = _cdss_process_queue_item($queue);
+    //     if ( $result===null )
+    //     {
+    //         break; // no more queue items - we got them all
+    //     }
+    //     $loops++;
+    //     $loop_time  = time();
+    //     $time_spent = $start_time-$loop_time;
+    //     $avg_time   = $time_spent/$loops;
+    // }
+
+    while( $queue->numberOfItems() > 0 )
     {
-        $result = _cdss_process_queue_item($queue);
-        if ( $result===null )
-        {
-            break; // no more queue items - we got them all
-        }
-        $loops++;
-        $loop_time  = time();
-        $time_spent = $start_time-$loop_time;
-        $avg_time   = $time_spent/$loops;
+        _cdss_process_queue_item($queue);
     }
 }
 
@@ -387,7 +395,6 @@ function _cdss_load_sanitized_term($e_id)
     {
         $term->parent = $parent;
     }
-
     return $term;
 }
 
@@ -440,29 +447,31 @@ function _getExportTaxonomyStructureCode()
 
 function _getExportNodeStructureCode()
 {
-    $selected_bundles = variable_get('cdss_node_bundles', array());
 
-    $instances = array();
-    foreach ($selected_bundles as $key => $bundle) {
-        if ($key === $bundle) {
-            $instances += field_info_instances('node', $bundle);
+        $selected_bundles = variable_get('cdss_node_bundles', array());
+
+        $instances = array();
+        foreach ($selected_bundles as $key => $bundle) {
+            if ($key === $bundle) {
+              $instances += field_info_instances('node', $bundle);
+            }
         }
-    }
-    ksort($instances);
+        ksort($instances);
 
-    $selectedFields = array();
-    foreach ( $instances as $machineName => $fieldInfo ) {
-        $selectedFields[$machineName] = $machineName;
-    }
+        $selectedFields = array();
+        foreach ( $instances as $machineName => $fieldInfo ) {
+            $selectedFields[$machineName] = $machineName;
+        }
 
-    $selected_data = array(
-        1 => array(
-            'bundles' => $selected_bundles
-        ),
-        2 => array(
-            'fields' => $selectedFields
-        ),
-    );
+        $selected_data = array(
+            1 => array(
+                'bundles' => $selected_bundles
+            ),
+            2 => array(
+                'fields' => $selectedFields
+            ),
+        );
 
-    return _bundle_copy_export_data('node', $selected_data);
+
+        return _bundle_copy_export_data('node', $selected_data);
 }
