@@ -181,6 +181,8 @@ function _cdss_teardown_drupal_queue()
 }
 function _cdss_setup_drupal_vars()
 {
+    /// check this logic: don't want to clobber with empty values if already exists
+
     variable_set('cdss_node_bundles',array());
     variable_set('cdss_term_bundles',array());
 }
@@ -226,7 +228,8 @@ function _cdss_send_schema_to_elasticsearch()
 
 function _cdss_add_entity_to_queue($e_id, $e_type)
 {
-    // - unique upon entity_ids
+    /// an entity_id should only be in the Q once,
+    /// any new entries for an entity should replace older one
     $queue = DrupalQueue::get('cmp_data_sync');
     $queue->createItem(array(
         'entity_id'   => $e_id,
@@ -272,7 +275,6 @@ function _cdss_process_queue()
         $time_spent = $start_time-$loop_time;
         $avg_time   = $time_spent/$loops;
     }
-    _cdss_process_queue_item($queue);
 }
 
 function _cdss_process_queue_item($queue)
@@ -309,9 +311,9 @@ function _cdss_process_queue_item($queue)
 function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $lease_time=10)
 {
     if ( $e_type === 'node' ) {
-        $entity = node_load($e_id);
+        $entity = _cdss_load_sanitized_node($e_id);
     } elseif ( $e_type === 'taxonomy_term' ) {
-        $entity = taxonomy_term_load($e_id);
+        $entity = _cdss_load_sanitized_term($e_id);
     } else {
         return null;
     }
@@ -343,6 +345,50 @@ function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $lease_time=10)
         dsm($exception);
         return false;
     }
+}
+
+function _cdss_load_sanitized_node($e_id)
+{
+    $node = node_load($e_id);
+    if(empty($node))
+    {
+        return $node;
+    }
+
+    $node->uid = 1;
+    unset($node->workbench_moderation);
+    unset($node->revision_timestamp);
+    unset($node->revision_uid);
+    unset($node->vid);
+    unset($node->path);
+    unset($node->picture);
+    $node->field_owner = array();
+    unset($node->cid);
+    unset($node->last_comment_timestamp);
+    unset($node->last_comment_name);
+    unset($node->last_comment_uid);
+    unset($node->comment_count);
+
+    return $node;
+}
+function _cdss_load_sanitized_term($e_id)
+{
+    $term = taxonomy_term_load($e_id);
+    if(empty($term))
+    {
+        return $term;
+    }
+
+    $parent = db_query(
+        'SELECT parent FROM {taxonomy_term_hierarchy} where tid=:tid',
+        array(':tid'=>$e_id)
+    )->fetchField();
+    if ( !empty($parent) && $parent!=='0' && $parent!==0 )
+    {
+        $term->parent = $parent;
+    }
+
+    return $term;
 }
 
 function _getExportTaxonomyStructureCode()

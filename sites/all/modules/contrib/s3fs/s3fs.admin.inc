@@ -360,6 +360,7 @@ function s3fs_settings_validate($form, &$form_state) {
   $config_from_form = _s3fs_convert_form_state_to_config($form_state);
   // Get all the saved settings from s3fs_get_config(), then override them with the config from the form.
   $config = array_merge(_s3fs_get_config(), $config_from_form);
+  dsm(['config'=>$config]);
   _s3fs_validate_config($config);
 }
 
@@ -467,4 +468,3 @@ function _s3fs_refresh_cache_submit($form, &$form_state) {
 function _s3fs_copy_local_submit($form, &$form_state) {
   _s3fs_copy_file_system_to_s3($form_state['triggering_element']['#name']);
 }
-

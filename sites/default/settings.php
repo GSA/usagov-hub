@@ -52,9 +52,9 @@
  * @see conf_path()
  */
 
-/* 
+/*
   ==== ENVIRONMENTAL VARIABLES ====
-  
+
   Before we do anything, we want certain environmental variables to dictate Drupal settings for this environment.
   Doing this makes it much easier for us to spin up a new environment without the need to configure very much in the new environment.
 */
@@ -64,7 +64,7 @@ global $envToDrupalMap;
 $envToDrupalMap = array(
 
     /* Add Env->Drupal vars here, to be typecast into STRINGS */
-    'strings' => array( 
+    'strings' => array(
 
         /* Drupal variables, strings, used by Drupal-core */
         'site_name' => 'CMP_DRUPAL_SITE_NAME',
@@ -100,10 +100,10 @@ $envToDrupalMap = array(
 
         's3fs_bucket'     => 'CMP_AWS_S3_BUCKET',
         's3fs_region'     => 'CMP_AWS_S3_REGION',
-        's3fs_customhost' => 'CMP_DRUPAL_S3FS_CUSTOMHOST',
-        's3fs_cname'      => 'CMP_DRUPAL_S3FS_CNAME',
+        's3fs_hostname'   => 'CMP_DRUPAL_S3FS_HOSTNAME',
+        's3fs_domain'     => 'CMP_DRUPAL_S3FS_DOMAIN',
         's3fs_use_relative_urls' => 'CMP_DRUPAL_S3FS_USE_RELATIVE_URLS',
-        's3fs_use_relative_urls' => 'CMP_DRUPAL_S3FS_IGNORE_CACHE',
+        's3fs_ignore_cache' => 'CMP_DRUPAL_S3FS_IGNORE_CACHE',
 
         /* Drupal variables, strings, used by the smtp module */
         'smtp_host'       => 'CMP_DRUPAL_SMTP_HOST',
@@ -137,6 +137,9 @@ $envToDrupalMap = array(
 
         /* Drupal variables, integers, used by the s3fs module */
         's3fs_allow_relative' => 'CMP_DRUPAL_S3FS_ALLOW_RELATIVE',
+        's3fs_use_https'      => 'CMP_DRUPAL_S3FS_USE_HTTPS',
+        's3fs_use_cname'      => 'CMP_DRUPAL_S3FS_USE_CNAME',
+        's3fs_use_customhost' => 'CMP_DRUPAL_S3FS_USE_CUSTOMHOST',
 
         /* Drupal variables, strings, used by the smtp module */
         'smtp_on'        => 'CMP_DRUPAL_SMTP_ON',
@@ -147,7 +150,7 @@ $envToDrupalMap = array(
     ),
 
     'booleans' => array( /* Add Env->Drupal vars here, to be typecast into BOOLEANS */
-        
+
     ),
 );
 
