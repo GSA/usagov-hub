@@ -306,7 +306,7 @@ function _cdss_log( $message, $destination='php' )
                  strtolower(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')),
                  ['production','prod','prd',
                   'staging','stage','stg',
-                  'testing','test','tst'])))
+                  'testing','test','tst']))
     {
         slack_send_message(
             slack_get_default_webhook_url(),
