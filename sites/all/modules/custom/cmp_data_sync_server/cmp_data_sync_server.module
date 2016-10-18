@@ -1,10 +1,18 @@
 <?php
-/* NOTE: INSTALL TAXONOMY_CHANGED MODULE AND REMOVE _cdss_setup_term_changed_timestamp LOGIC */
 
 function cmp_data_sync_server_menu()
 {
     $items = array();
     // Configuration page
+    $items['admin/config/cmp-data-sync-server'] = array(
+        'title'           => 'CMP Data Sync To ElasticSearch',
+        'description'     => 'Testing',
+        'page callback'   => 'drupal_get_form',
+        'page arguments'  => array('cmp_data_sync_server_admin'),
+        'access callback' => true,
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
     $items['admin/content/cmp-data-sync-server'] = array(
         'title'           => 'CMP Data Sync To ElasticSearch',
         'description'     => 'Testing',
@@ -14,7 +22,6 @@ function cmp_data_sync_server_menu()
     );
     return $items;
 }
-
 function cmp_data_sync_server_test()
 {
     $p = drupal_get_query_parameters();
@@ -29,9 +36,17 @@ function cmp_data_sync_server_test()
 
 function cmp_data_sync_server_cron()
 {
-    _cdss_process_queue();
 }
-
+function cmp_data_sync_server_cron_queue_info()
+{
+    /// will pull items off the queue while cron is running
+    $queues = array();
+    $queues['cmp_data_sync'] = array(
+      'worker callback' => '_cdss_process_queue_item',
+      'time'            => 60
+    );
+    return $queues;
+}
 
 /// private setup functions
 
@@ -45,7 +60,6 @@ function _cdss_teardown_elasticsearch()
     _cdss_teardown_schema_index();
     _cdss_teardown_content_index();
 }
-
 function _cdss_setup_schema_index()
 {
     try{
@@ -97,7 +111,6 @@ function _cdss_teardown_schema_index()
         return false;
     }
 }
-
 function _cdss_setup_content_index()
 {
     try{
@@ -182,9 +195,18 @@ function _cdss_teardown_drupal_queue()
 function _cdss_setup_drupal_vars()
 {
     /// check this logic: don't want to clobber with empty values if already exists
-
-    variable_set('cdss_node_bundles',array());
-    variable_set('cdss_term_bundles',array());
+    if ( variable_get('cdss_node_bundles')===null )
+    {
+        variable_set('cdss_node_bundles',array());
+    }
+    if ( variable_get('cdss_term_bundles')===null )
+    {
+        variable_set('cdss_term_bundles',array());
+    }
+    if ( variable_get('cdss_elasticsearch_server')===null )
+    {
+        variable_set('cdss_elasticsearch_server','');
+    }
 }
 function _cdss_teardown_drupal_vars()
 {
@@ -193,38 +215,6 @@ function _cdss_teardown_drupal_vars()
 }
 
 /// private action functions
-
-function _cdss_send_schema_to_elasticsearch()
-{
-    try{
-        $schema_node          = _getExportNodeStructureCode();
-        $schema_taxonomy      = _getExportTaxonomyStructureCode();
-        $schema_node_sha1     = sha1($schema_node);
-        $schema_taxonomy_sha1 = sha1($schema_taxonomy);
-        $data = array(
-            'taxonomy_sha1' => $schema_taxonomy_sha1,
-            'taxonomy'      => $schema_taxonomy,
-            'node_sha1'     => $schema_node_sha1,
-            'nodes'         => $schema_node
-        );
-        $response = drupal_http_request(
-            'http://elasticsearch_server:9200/cmp-data-schema/schema/node_taxonomy',
-            array(
-                'method' => 'PUT',
-                'data'   => json_encode($data),
-            )
-        );
-        if ( $response->code === '200' )
-        {
-            return true;
-        } else {
-            return false;
-        }
-    } catch(Exception $exception){
-        dsm($exception);
-        return false;
-    }
-}
 
 function _cdss_add_entity_to_queue($e_id, $e_type)
 {
@@ -236,115 +226,103 @@ function _cdss_add_entity_to_queue($e_id, $e_type)
         'entity_type' => $e_type
     ));
 }
-
-function _cdss_add_all_nodes_to_queue()
+function _cdss_process_queue_item($q_item_data)
 {
-    $selected_bundles = variable_get('cdss_node_bundles', array());
-    // SELECT nid FROM nodes WHERE type in ( selected_bundles )
-    // steal query for figuring out which nodes are elligable from old module
-}
-
-function _cdss_add_all_terms_to_queue()
-{
-    $selected_bundles = variable_get('cdss_term_bundles', array());
-    // SELECT tid FROM taxonomy_term_data WHERE vid in ( selected_bundles ) just 42 ?
-    // will we ever care about asset_topic or any other vocabularies ?
-}
-
-
-function _cdss_process_queue()
-{
-    $queue = DrupalQueue::get('cmp_data_sync');
-
-    $max_time   = intval(ini_get("max_execution_time"))*.9;
-    $start_time = time();
-    $loop_time  = $start_time;
-    $time_spent = $start_time-$loop_time;
-    $loops      = 0;
-    $avg_time   = 0;
-
-    while ( ($time_spent+$avg_time) < $max_time )
-    {
-        $result = _cdss_process_queue_item($queue);
-        if ( $result===null )
-        {
-            break; // no more queue items - we got them all
-        }
-        $loops++;
-        $loop_time  = time();
-        $time_spent = $start_time-$loop_time;
-        $avg_time   = $time_spent/$loops;
-    }
-}
-
-function _cdss_process_queue_item($queue)
-{
-    $lease_time = 10;
-
-    $q_item = $queue->claimItem($lease_time);
-    if ( empty($q_item) )
-    {
-        return null;
-    }
     $success = _cdss_send_entity_to_elasticsearch(
-        $q_item->data['entity_id'],
-        $q_item->data['entity_type'],
-        $lease_time
+        $q_item_data['entity_id'],
+        $q_item_data['entity_type']
     );
-    if ( $success===null )
+    if ( $success===false )
     {
-        /// fatal error : couldn't find node
-        /// we can't possibly process this
-        /// just remove it
-        $queue->deleteItem($q_item);
-    } else if ( $success===true ) {
-        $queue->deleteItem($q_item);
-    } else {
-        /// success===false means there was a non-fatal problem
-        /// talking to elasticsearch
-        /// we can put this back and try again later
-        $queue->releaseItem($q_item);
+        throw new Exception('Failed to process queue item. Try again later.');
     }
-    return $success;
+    return true;
 }
 
-function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $lease_time=10)
+function _cdss_send_schema_to_elasticsearch()
 {
-    if ( $e_type === 'node' ) {
-        $entity = _cdss_load_sanitized_node($e_id);
-    } elseif ( $e_type === 'taxonomy_term' ) {
-        $entity = _cdss_load_sanitized_term($e_id);
-    } else {
-        return null;
-    }
-    if(empty($entity))
-    {
-        return null;
-    }
     try{
-        /// put with an explicit ID will act as an upsert
+        $schema_node      = _getExportNodeStructureCode();
+        $schema_term      = _getExportTaxonomyStructureCode();
+        $schema_node_sha1 = sha1($schema_node);
+        $schema_term_sha1 = sha1($schema_term);
+        $data = array(
+            'term'      => $schema_term,
+            'node'      => $schema_node,
+            'term_sha1' => $schema_term_sha1,
+            'node_sha1' => $schema_node_sha1,
+        );
         $response = drupal_http_request(
-            'http://elasticsearch_server:9200/cmp-data-entities/entity/'.$e_type.'_'.$e_id,
+            'http://elasticsearch_server:9200/cmp-data-schema/schema/node_taxonomy',
             array(
-                'method'  => 'PUT',
-                'data'    => json_encode($entity),
-                'timeout' => $lease_time
+                'method' => 'PUT',
+                'data'   => json_encode($data),
             )
         );
-        /// there are probably some response codes
-        /// that should really be fatal and return NULL
-        /// for now we are assuming anything but 200/201
-        /// means a temporary problem and we will return FALSE
         if ( $response->code === '201' || $response->code === '200' )
         {
             return true;
         } else {
+            dsm($response);
             return false;
         }
     } catch(Exception $exception){
         dsm($exception);
         return false;
     }
+}
+function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $timeout=10)
+{
+    if ( $e_type === 'node' ) {
+        $entity = _cdss_load_sanitized_node($e_id);
+    } elseif ( $e_type === 'taxonomy_term' ) {
+        $entity = _cdss_load_sanitized_term($e_id);
+    } else {
+        return true; /// remove from queue
+    }
+    if(empty($entity))
+    {
+        return true; /// remove from queue
+    }
+    // try{
+    /// put with an explicit ID will act as an upsert
+    $response = drupal_http_request(
+        'http://elasticsearch_server:9200/cmp-data-entities/entity/'.$e_type.'_'.$e_id,
+        array(
+            'method'  => 'PUT',
+            'data'    => json_encode($entity),
+            'timeout' => $timeout
+        )
+    );
+    /// there are probably some response codes
+    /// that should really be fatal and return NULL
+    /// for now we are assuming anything but 200/201
+    /// means a temporary problem and we will return FALSE
+    if ( $response->code === '201' || $response->code === '200' )
+    {
+        return true; /// remove from queue
+    } else {
+        return false; /// keep in queue, try again
+    }
+    // } catch(Exception $exception){
+    //     dsm($exception);
+    //     return false; /// keep in queue, try again
+    // }
+    /// uncaught exception will be handled by queue cron processor : keep in queue, try again
+}
+
+function _cdss_add_all_nodes_to_queue()
+{
+    $selected_bundles = variable_get('cdss_node_bundles', array());
+    // SELECT nid FROM nodes WHERE type in ( selected_bundles ) and status=1
+    // do we need to specifically consider soft deleted nodes?
+    // steal query for figuring out which nodes are elligable from old module
+}
+function _cdss_add_all_terms_to_queue()
+{
+    $selected_bundles = variable_get('cdss_term_bundles', array());
+    // SELECT tid FROM taxonomy_term_data WHERE vid in ( selected_bundles )
+    // will we ever care about asset_topic or any other vocabularies ?
 }
 
 function _cdss_load_sanitized_node($e_id)
@@ -394,10 +372,10 @@ function _cdss_load_sanitized_term($e_id)
 function _getExportTaxonomyStructureCode()
 {
     $selected_bundles = variable_get('cdss_term_bundles', array());
-    $selected_bundles = array();
-    foreach ( _bundle_copy_bundle_info('taxonomy_term', TRUE) as $machineName => $label ) {
-        $selected_bundles[$machineName] = $machineName;
-    }
+    // $selected_bundles = array();
+    // foreach ( _bundle_copy_bundle_info('taxonomy_term', TRUE) as $machineName => $label ) {
+    //     $selected_bundles[$machineName] = $machineName;
+    // }
 
     $instances = array();
     foreach ($selected_bundles as $key => $bundle) {
@@ -437,7 +415,6 @@ function _getExportTaxonomyStructureCode()
 
     return _bundle_copy_export_data('taxonomy_term', $selected_data);
 }
-
 function _getExportNodeStructureCode()
 {
     $selected_bundles = variable_get('cdss_node_bundles', array());
@@ -466,3 +443,59 @@ function _getExportNodeStructureCode()
 
     return _bundle_copy_export_data('node', $selected_data);
 }
+
+// function _cdss_process_queue()
+// {
+//     $queue = DrupalQueue::get('cmp_data_sync');
+//
+//     $max_time   = intval(ini_get("max_execution_time"))*.9;
+//     $start_time = time();
+//     $loop_time  = $start_time;
+//     $time_spent = $start_time-$loop_time;
+//     $loops      = 0;
+//     $avg_time   = 0;
+//
+//     while ( ($time_spent+$avg_time) < $max_time )
+//     {
+//         $result = _cdss_process_queue_item($queue);
+//         if ( $result===null )
+//         {
+//             break; // no more queue items - we got them all
+//         }
+//         $loops++;
+//         $loop_time  = time();
+//         $time_spent = $start_time-$loop_time;
+//         $avg_time   = $time_spent/$loops;
+//     }
+// }
+
+// function _cdss_process_queue_item($queue)
+// {
+//     $lease_time = 10;
+//
+//     $q_item = $queue->claimItem($lease_time);
+//     if ( empty($q_item) )
+//     {
+//         return null;
+//     }
+//     $success = _cdss_send_entity_to_elasticsearch(
+//         $q_item->data['entity_id'],
+//         $q_item->data['entity_type'],
+//         $lease_time
+//     );
+//     if ( $success===null )
+//     {
+//         /// fatal error : couldn't find node
+//         /// we can't possibly process this
+//         /// just remove it
+//         $queue->deleteItem($q_item);
+//     } else if ( $success===true ) {
+//         $queue->deleteItem($q_item);
+//     } else {
+//         /// success===false means there was a non-fatal problem
+//         /// talking to elasticsearch
+//         /// we can put this back and try again later
+//         $queue->releaseItem($q_item);
+//     }
+//     return $success;
+// }
