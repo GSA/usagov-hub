@@ -1,4 +1,5 @@
 <?php
+
 $GLOBALS['cdss_queued_entities'] = array();
 
 function cmp_data_sync_server_menu()
@@ -35,22 +36,25 @@ function cmp_data_sync_server_test()
     return 'test';
 }
 
-function cmp_data_sync_server_cron()
-{
-}
+// function cmp_data_sync_server_cron()
+// {
+// }
 function cmp_data_sync_server_cron_queue_info()
 {
     /// will pull items off the queue while cron is running
     $queues = array();
     $queues['cmp_data_sync'] = array(
       'worker callback' => '_cdss_process_queue_item',
-      'time'            => 60
+      'time'            => 30
     );
     return $queues;
 }
-function cmp_data_sync_server_entity_insert($entity, $type){
-    if($type === 'node'){
-        if($entity->status === 1){
+function cmp_data_sync_server_entity_insert($entity, $type)
+{
+    if($type === 'node')
+    {
+        if($entity->status === 1)
+        {
             if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->nid]) )
             {
                 _cdss_add_entity_to_queue($entity->nid, $type);
@@ -58,7 +62,8 @@ function cmp_data_sync_server_entity_insert($entity, $type){
             }
         }
     }
-    if($type === 'taxonomy_term'){
+    if($type === 'taxonomy_term')
+    {
         if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->tid]) )
         {
             _cdss_add_entity_to_queue($entity->tid, $type);
@@ -66,9 +71,12 @@ function cmp_data_sync_server_entity_insert($entity, $type){
         }
     }
 }
-function cmp_data_sync_server_entity_update($entity, $type) {
-    if($type === 'node'){
-        if($entity->status === 1){
+function cmp_data_sync_server_entity_update($entity, $type)
+{
+    if($type === 'node')
+    {
+        if($entity->status === 1)
+        {
             if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->nid]) )
             {
                 _cdss_add_entity_to_queue($entity->nid, $type);
@@ -76,7 +84,8 @@ function cmp_data_sync_server_entity_update($entity, $type) {
             }
         }
     }
-    if($type === 'taxonomy_term'){
+    if($type === 'taxonomy_term')
+    {
         if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->tid]) )
         {
             _cdss_add_entity_to_queue($entity->tid, $type);
@@ -119,9 +128,11 @@ function _cdss_setup_schema_index()
                 'data' => $data,
             );
             $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', $options);
-            if ( !($response->code === '400' || $response->code === '200') )
+            if (  $response->code === '200' )
             {
-                /// couldn't create
+                _cdss_log('Info: CDSS '.__FUNCTION__.' Created ElasticSearch Index for CMP Schema : '.$response->data);
+            } else if ( !($response->code === '400' || $response->code === '200') ) {
+                _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Schema : '.$response->data);
                 return false;
             }
         }
@@ -129,10 +140,11 @@ function _cdss_setup_schema_index()
         if ( $response->code === '200' )
         {
             return true;
+        } else {
+            return _cdss_send_schema_to_elasticsearch();
         }
-        return _cdss_send_schema_to_elasticsearch();
-    } catch(Exception $exception){
-        dsm($exception);
+    } catch(Exception $e){
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
         return false;
     }
 }
@@ -149,12 +161,13 @@ function _cdss_teardown_schema_index()
         $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', $options);
         if ( $response->code === '200' )
         {
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Deleted ElasticSearch Index for CMP Schema : '.$response->data);
             return true;
         } else {
             return false;
         }
-    } catch(Exception $exception){
-        dsm($exception);
+    } catch(Exception $e){
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString() );
         return false;
     }
 }
@@ -187,14 +200,16 @@ function _cdss_setup_content_index()
             'data'   => $data,
         );
         $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', $options);
-        if ( $response->code === '400' || $response->code === '200' )
+        if (  $response->code === '200' )
         {
+            _cdss_log('Info: Created ElasticSearch Index for CMP Content : '.$response->data);
             return true;
-        } else {
+        } else if ( !($response->code === '400' || $response->code === '200') ) {
+            _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Content : '.$response->data);
             return false;
         }
-    } catch(Exception $exception){
-        dsm($exception);
+    } catch(Exception $e){
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
         return false;
     }
 }
@@ -211,12 +226,13 @@ function _cdss_teardown_content_index()
         $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', $options);
         if ( $response->code === '200' )
         {
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Deleted ElasticSearch Index for CMP Content : '.$response->data);
             return true;
         } else {
             return false;
         }
-    } catch(Exception $exception){
-        dsm($exception);
+    } catch(Exception $e){
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
         return false;
     }
 }
@@ -240,6 +256,7 @@ function _cdss_setup_drupal_queue()
         $queue->createQueue();
         return true;
     } catch (Exception $e) {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
         return false;
     }
 }
@@ -250,6 +267,7 @@ function _cdss_teardown_drupal_queue()
         $queue->deleteQueue();
         return true;
     } catch (Exception $e) {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
         return false;
     }
 }
@@ -278,6 +296,28 @@ function _cdss_teardown_drupal_vars()
 
 /// private action functions
 
+function _cdss_log( $message, $destination='php' )
+{
+    if ( $destination == 'php' ) {
+        error_log($message);
+    } else if ( $destination == 'slack'
+             && function_exists('slack_send_message')
+             && in_array(
+                 strtolower(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')),
+                 ['production','prod','prd',
+                  'staging','stage','stg',
+                  'testing','test','tst'])))
+    {
+        slack_send_message(
+            slack_get_default_webhook_url(),
+            $message,
+            "#cmp-notify",
+            $_SERVER['HTTP_HOST'],
+            ['type'=>'','icon'=>0,'emoji'=>0]
+        );
+    }
+}
+
 function _cdss_add_entity_to_queue($e_id, $e_type)
 {
     /// an entity_id should only be in the Q once,
@@ -288,8 +328,10 @@ function _cdss_add_entity_to_queue($e_id, $e_type)
             'entity_id'   => $e_id,
             'entity_type' => $e_type
         ));
+        _cdss_log('Info: CDSS '.__FUNCTION__.' : entity_id='.$e_id.' entity_type='.$e_type);
         return true;
     } catch (Exception $e) {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : entity_id='.$e_id.' entity_type='.$e_type .' : '. $e->getMessage() .' : '. $e->getTraceAsString());
         return false;
     }
 }
@@ -301,9 +343,10 @@ function _cdss_process_queue_item($q_item_data)
     );
     if ( $success===false )
     {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' putting back in queue : entity_id='.$q_item_data['entity_id'].' entity_type='.$q_item_data['entity_type'] );
         throw new Exception('Failed to process queue item. Try again later.');
     }
-    return true;
+    return $success;
 }
 
 function _cdss_send_schema_to_elasticsearch()
@@ -329,9 +372,10 @@ function _cdss_send_schema_to_elasticsearch()
         );
         if ( $response->code === '201' || $response->code === '200' )
         {
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Sent : '.$response->data);
             return true;
         } else {
-            dsm($response);
+            _cdss_log('Fail: CDSS '.__FUNCTION__.' Not Sent : '.$response->data);
             return false;
         }
     } catch(Exception $exception){
@@ -383,15 +427,33 @@ function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $timeout=10)
 function _cdss_add_all_nodes_to_queue()
 {
     $selected_bundles = variable_get('cdss_node_bundles', array());
-    // SELECT nid FROM nodes WHERE type in ( selected_bundles ) and status=1
-    // do we need to specifically consider soft deleted nodes?
-    // steal query for figuring out which nodes are elligable from old module
+    $result = db_query(
+        'SELECT nid FROM node WHERE type in (:types) and ( status=1 OR deleted=1 )',
+        array(':types'=>$selected_bundles)
+    );
+    $success = 0;
+    while ( $e_id = $result->fetchField() )
+    {
+        $success += _cdss_add_entity_to_queue($e_id, 'node');
+    }
+    return array('success'=>$success,'count'=>$result->rowCount());
 }
 function _cdss_add_all_terms_to_queue()
 {
     $selected_bundles = variable_get('cdss_term_bundles', array());
-    // SELECT tid FROM taxonomy_term_data WHERE vid in ( selected_bundles )
-    // will we ever care about asset_topic or any other vocabularies ?
+    $result = db_query(
+        'SELECT tid
+         FROM taxonomy_term_data d
+	     JOIN taxonomy_vocabulary v on ( d.vid = v.vid )
+         WHERE v.machine_name in (:vocabs)',
+        array(':vocabs'=>$selected_bundles)
+    );
+    $success = 0;
+    while ( $e_id = $result->fetchField() )
+    {
+        $success += _cdss_add_entity_to_queue($e_id, 'taxonomy_term');
+    }
+    return array('success'=>$success,'count'=>$result->rowCount());
 }
 
 function _cdss_load_sanitized_node($e_id)
@@ -485,7 +547,6 @@ function _getExportTaxonomyStructureCode()
 }
 function _getExportNodeStructureCode()
 {
-
 	$selected_bundles = variable_get('cdss_node_bundles', array());
 
 	$instances = array();

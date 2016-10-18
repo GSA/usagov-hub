@@ -14,12 +14,8 @@ function cmp_data_sync_server_enable()
     _cdss_setup_elasticsearch();
     _cdss_setup_drupal();
 
-    /// should we fill index automatically on creation
-    // or force admin to trigger this manually ?
-    // _cdss_add_all_nodes_to_queue();
-    // _cdss_add_all_terms_to_queue();
 }
 function cmp_data_sync_server_disable()
 {
-   
+
 }
