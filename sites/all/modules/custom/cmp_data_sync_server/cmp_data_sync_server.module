@@ -1,4 +1,5 @@
 <?php
+$GLOBALS['cdss_queued_entities'] = array();
 
 function cmp_data_sync_server_menu()
 {
@@ -46,6 +47,42 @@ function cmp_data_sync_server_cron_queue_info()
       'time'            => 60
     );
     return $queues;
+}
+function cmp_data_sync_server_entity_insert($entity, $type){
+    if($type === 'node'){
+        if($entity->status === 1){
+            if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->nid]) ) 
+            {
+                _cdss_add_entity_to_queue($entity->nid, $type);
+                $GLOBALS['cdss_queued_entities'][$type.$entity->nid] = true;
+            }
+        }
+    }
+    if($type === 'taxonomy_term'){
+        if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->tid]) ) 
+        {
+            _cdss_add_entity_to_queue($entity->tid, $type);
+            $GLOBALS['cdss_queued_entities'][$type.$entity->tid] = true;
+        }
+    }
+}
+function cmp_data_sync_server_entity_update($entity, $type) {
+    if($type === 'node'){
+        if($entity->status === 1){
+            if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->nid]) ) 
+            {
+                _cdss_add_entity_to_queue($entity->nid, $type);
+                $GLOBALS['cdss_queued_entities'][$type.$entity->nid] = true;
+            }
+        }
+    }
+    if($type === 'taxonomy_term'){
+        if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->tid]) ) 
+        {
+            _cdss_add_entity_to_queue($entity->tid, $type);
+            $GLOBALS['cdss_queued_entities'][$type.$entity->tid] = true;
+        }
+    }
 }
 
 /// private setup functions
