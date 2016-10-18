@@ -52,13 +52,15 @@ function cmp_data_sync_server_cron_queue_info()
 
 function _cdss_setup_elasticsearch()
 {
-    _cdss_setup_schema_index();
-    _cdss_setup_content_index();
+    $schema_success = _cdss_setup_schema_index();
+    $content_success = _cdss_setup_content_index();
+    return $schema_success && $content_success;
 }
 function _cdss_teardown_elasticsearch()
 {
-    _cdss_teardown_schema_index();
-    _cdss_teardown_content_index();
+    $schema_success = _cdss_teardown_schema_index();
+    $content_success = _cdss_teardown_content_index();
+    return $schema_success && $content_success;
 }
 function _cdss_setup_schema_index()
 {
@@ -327,121 +329,125 @@ function _cdss_add_all_terms_to_queue()
 
 function _cdss_load_sanitized_node($e_id)
 {
-    $node = node_load($e_id);
-    if(empty($node))
-    {
-        return $node;
-    }
+$node = node_load($e_id);
+if(empty($node))
+{
+	return $node;
+}
 
-    $node->uid = 1;
-    unset($node->workbench_moderation);
-    unset($node->revision_timestamp);
-    unset($node->revision_uid);
-    unset($node->vid);
-    unset($node->path);
-    unset($node->picture);
-    $node->field_owner = array();
-    unset($node->cid);
-    unset($node->last_comment_timestamp);
-    unset($node->last_comment_name);
-    unset($node->last_comment_uid);
-    unset($node->comment_count);
+$node->uid = 1;
+unset($node->workbench_moderation);
+unset($node->revision_timestamp);
+unset($node->revision_uid);
+unset($node->vid);
+unset($node->path);
+unset($node->picture);
+$node->field_owner = array();
+unset($node->cid);
+unset($node->last_comment_timestamp);
+unset($node->last_comment_name);
+unset($node->last_comment_uid);
+unset($node->comment_count);
 
-    return $node;
+return $node;
 }
 function _cdss_load_sanitized_term($e_id)
 {
-    $term = taxonomy_term_load($e_id);
-    if(empty($term))
-    {
-        return $term;
-    }
+$term = taxonomy_term_load($e_id);
+if(empty($term))
+{
+	return $term;
+}
 
-    $parent = db_query(
-        'SELECT parent FROM {taxonomy_term_hierarchy} where tid=:tid',
-        array(':tid'=>$e_id)
-    )->fetchField();
-    if ( !empty($parent) && $parent!=='0' && $parent!==0 )
-    {
-        $term->parent = $parent;
-    }
-
-    return $term;
+$parent = db_query(
+	'SELECT parent FROM {taxonomy_term_hierarchy} where tid=:tid',
+	array(':tid'=>$e_id)
+)->fetchField();
+if ( !empty($parent) && $parent!=='0' && $parent!==0 )
+{
+	$term->parent = $parent;
+}
+return $term;
 }
 
 function _getExportTaxonomyStructureCode()
 {
-    $selected_bundles = variable_get('cdss_term_bundles', array());
-    // $selected_bundles = array();
-    // foreach ( _bundle_copy_bundle_info('taxonomy_term', TRUE) as $machineName => $label ) {
-    //     $selected_bundles[$machineName] = $machineName;
-    // }
+$selected_bundles = variable_get('cdss_term_bundles', array());
+// $selected_bundles = array();
+// foreach ( _bundle_copy_bundle_info('taxonomy_term', TRUE) as $machineName => $label ) {
+//     $selected_bundles[$machineName] = $machineName;
+// }
 
-    $instances = array();
-    foreach ($selected_bundles as $key => $bundle) {
-        if ($key === $bundle) {
-            $instances += field_info_instances('taxonomy_term', $bundle);
-        }
-    }
-    ksort($instances);
+$instances = array();
+foreach ($selected_bundles as $key => $bundle) {
+	if ($key === $bundle) {
+		$instances += field_info_instances('taxonomy_term', $bundle);
+	}
+}
+ksort($instances);
 
-    $selectedFields = array();
-    foreach ( $instances as $machineName => $fieldInfo ) {
-        $selectedFields[$machineName] = $machineName;
-    }
+$selectedFields = array();
+foreach ( $instances as $machineName => $fieldInfo ) {
+	$selectedFields[$machineName] = $machineName;
+}
 
-    $fieldGroupIds = array();
-    $fieldGroupData = array();
-    $all_groups = function_exists('field_group_info_groups') ? field_group_info_groups() : array();
-    if ( !empty($all_groups) && !empty($all_groups['taxonomy_term']) ) {
-        foreach ($all_groups['taxonomy_term'] as $vocabName => $formData) {
-            foreach ($formData['form'] as $groupName => $data) {
-                $fieldGroupIds[$data->id] = $data->id;
-                $fieldGroupData[$data->id] = $data;
-            }
-        }
-    }
+$fieldGroupIds = array();
+$fieldGroupData = array();
+$all_groups = function_exists('field_group_info_groups') ? field_group_info_groups() : array();
+if ( !empty($all_groups) && !empty($all_groups['taxonomy_term']) ) {
+	foreach ($all_groups['taxonomy_term'] as $vocabName => $formData) {
+		foreach ($formData['form'] as $groupName => $data) {
+			$fieldGroupIds[$data->id] = $data->id;
+			$fieldGroupData[$data->id] = $data;
+		}
+	}
+}
 
-    $selected_data = array(
-        1 => array(
-            'bundles' => $selected_bundles
-        ),
-        2 => array(
-            'fields' => $selectedFields,
-            'fieldgroups' => $fieldGroupIds,
-            'fieldgroups-full' => $fieldGroupData,
-        ),
-    );
+$selected_data = array(
+	1 => array(
+		'bundles' => $selected_bundles
+	),
+	2 => array(
+		'fields' => $selectedFields,
+		'fieldgroups' => $fieldGroupIds,
+		'fieldgroups-full' => $fieldGroupData,
+	),
+);
 
-    return _bundle_copy_export_data('taxonomy_term', $selected_data);
+return _bundle_copy_export_data('taxonomy_term', $selected_data);
 }
 function _getExportNodeStructureCode()
 {
-    $selected_bundles = variable_get('cdss_node_bundles', array());
 
-    $instances = array();
-    foreach ($selected_bundles as $key => $bundle) {
-        if ($key === $bundle) {
-            $instances += field_info_instances('node', $bundle);
-        }
-    }
-    ksort($instances);
+	$selected_bundles = variable_get('cdss_node_bundles', array());
 
-    $selectedFields = array();
-    foreach ( $instances as $machineName => $fieldInfo ) {
-        $selectedFields[$machineName] = $machineName;
-    }
+	// Remove this after we truely set the cdss_node_bundles variable
+	$selected_bundles = variable_get('udm_conttypes', array());
 
-    $selected_data = array(
-        1 => array(
-            'bundles' => $selected_bundles
-        ),
-        2 => array(
-            'fields' => $selectedFields
-        ),
-    );
+	$instances = array();
+	foreach ($selected_bundles as $key => $bundle) {
+		if ($key === $bundle) {
+		  $instances += field_info_instances('node', $bundle);
+		}
+	}
+	ksort($instances);
 
-    return _bundle_copy_export_data('node', $selected_data);
+	$selectedFields = array();
+	foreach ( $instances as $machineName => $fieldInfo ) {
+		$selectedFields[$machineName] = $machineName;
+	}
+
+	$selected_data = array(
+		1 => array(
+			'bundles' => $selected_bundles
+		),
+		2 => array(
+			'fields' => $selectedFields
+		),
+	);
+
+
+	return _bundle_copy_export_data('node', $selected_data);
 }
 
 // function _cdss_process_queue()
@@ -485,7 +491,6 @@ function _getExportNodeStructureCode()
 //     );
 //     if ( $success===null )
 //     {
-//         /// fatal error : couldn't find node
 //         /// we can't possibly process this
 //         /// just remove it
 //         $queue->deleteItem($q_item);
