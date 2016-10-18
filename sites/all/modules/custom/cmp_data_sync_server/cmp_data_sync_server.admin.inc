@@ -1,6 +1,7 @@
 <?php
 
-function cmp_data_sync_server_admin() {
+function cmp_data_sync_server_admin()
+{
   $form = array();
 
   $node_bundles = array();

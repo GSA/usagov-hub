@@ -52,41 +52,48 @@ function cmp_data_sync_server_cron_queue_info()
 
 function _cdss_setup_elasticsearch()
 {
-    $schema_success = _cdss_setup_schema_index();
+    $schema_success  = _cdss_setup_schema_index();
     $content_success = _cdss_setup_content_index();
     return $schema_success && $content_success;
 }
 function _cdss_teardown_elasticsearch()
 {
-    $schema_success = _cdss_teardown_schema_index();
+    $schema_success  = _cdss_teardown_schema_index();
     $content_success = _cdss_teardown_content_index();
     return $schema_success && $content_success;
 }
 function _cdss_setup_schema_index()
 {
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
     try{
-        $response = drupal_http_request('http://elasticsearch_server:9200/cmp-data-schema', array('method'=>'HEAD') );
-        if ( $response->code === '200' ) { return true; }
-
-        $data = '{
-            "settings" : {
-                "index" : {
-                    "number_of_shards" : 1,
-                    "number_of_replicas" : 0
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
+        if ( $response->code !== '200' )
+        {
+            $data = '{
+                "settings" : {
+                    "index" : {
+                        "number_of_shards" : 1,
+                        "number_of_replicas" : 0
+                    }
                 }
+            }';
+            $options = array(
+                'method' => 'PUT',
+                'data' => $data,
+            );
+            $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', $options);
+            if ( !($response->code === '400' || $response->code === '200') )
+            {
+                /// couldn't create
+                return false;
             }
-        }';
-        $options = array(
-            'method' => 'PUT',
-            'data' => $data,
-        );
-        $response = drupal_http_request('http://elasticsearch_server:9200/cmp-data-schema', $options);
-        if ( $response->code === '400' || $response->code === '200' )
+        }
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema/schema/node_term', array('method'=>'HEAD') );
+        if ( $response->code === '200' )
         {
             return true;
-        } else {
-            return false;
         }
+        return _cdss_send_schema_to_elasticsearch();
     } catch(Exception $exception){
         dsm($exception);
         return false;
@@ -94,14 +101,15 @@ function _cdss_setup_schema_index()
 }
 function _cdss_teardown_schema_index()
 {
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
     try{
-        $response = drupal_http_request('http://elasticsearch_server:9200/cmp-data-schema', array('method'=>'HEAD') );
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
         if ( $response->code === '404' ) { return true; }
 
         $options = array(
             'method' => 'DELETE'
         );
-        $response = drupal_http_request('http://elasticsearch_server:9200/cmp-data-schema', $options);
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', $options);
         if ( $response->code === '200' )
         {
             return true;
@@ -115,8 +123,9 @@ function _cdss_teardown_schema_index()
 }
 function _cdss_setup_content_index()
 {
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
     try{
-        $response = drupal_http_request('http://elasticsearch_server:9200/cmp-data-entities', array('method'=>'HEAD') );
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', array('method'=>'HEAD') );
         if ( $response->code === '200' ) { return true; }
 
         $data = '{
@@ -140,7 +149,7 @@ function _cdss_setup_content_index()
             'method' => 'PUT',
             'data'   => $data,
         );
-        $response = drupal_http_request('http://elasticsearch_server:9200/cmp-data-entities', $options);
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', $options);
         if ( $response->code === '400' || $response->code === '200' )
         {
             return true;
@@ -154,14 +163,15 @@ function _cdss_setup_content_index()
 }
 function _cdss_teardown_content_index()
 {
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
     try{
-        $response = drupal_http_request('http://elasticsearch_server:9200/cmp-data-entities', array('method'=>'HEAD') );
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', array('method'=>'HEAD') );
         if ( $response->code === '404' ) { return true; }
 
         $options = array(
             'method' => 'DELETE'
         );
-        $response = drupal_http_request('http://elasticsearch_server:9200/cmp-data-entities', $options);
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', $options);
         if ( $response->code === '200' )
         {
             return true;
@@ -176,23 +186,35 @@ function _cdss_teardown_content_index()
 
 function _cdss_setup_drupal()
 {
-    _cdss_setup_drupal_queue();
-    _cdss_setup_drupal_vars();
+    $queue_success = _cdss_setup_drupal_queue();
+    $vars_success  = _cdss_setup_drupal_vars();
+    return $queue_success && $vars_success;
 }
 function _cdss_teardown_drupal()
 {
-    _cdss_teardown_drupal_queue();
-    _cdss_teardown_drupal_vars();
+    $queue_success = _cdss_teardown_drupal_queue();
+    $vars_success  = _cdss_teardown_drupal_vars();
+    return $queue_success && $vars_success;
 }
 function _cdss_setup_drupal_queue()
 {
-    $queue = DrupalQueue::get('cmp_data_sync');
-    $queue->createQueue();
+    try {
+        $queue = DrupalQueue::get('cmp_data_sync');
+        $queue->createQueue();
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
 }
 function _cdss_teardown_drupal_queue()
 {
-    $queue = DrupalQueue::get('cmp_data_sync');
-    $queue->deleteQueue();
+    try {
+        $queue = DrupalQueue::get('cmp_data_sync');
+        $queue->deleteQueue();
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
 }
 function _cdss_setup_drupal_vars()
 {
@@ -214,6 +236,7 @@ function _cdss_teardown_drupal_vars()
 {
     variable_del('cdss_node_bundles');
     variable_del('cdss_term_bundles');
+    return true;
 }
 
 /// private action functions
@@ -222,11 +245,16 @@ function _cdss_add_entity_to_queue($e_id, $e_type)
 {
     /// an entity_id should only be in the Q once,
     /// any new entries for an entity should replace older one
-    $queue = DrupalQueue::get('cmp_data_sync');
-    $queue->createItem(array(
-        'entity_id'   => $e_id,
-        'entity_type' => $e_type
-    ));
+    try {
+        $queue = DrupalQueue::get('cmp_data_sync');
+        $queue->createItem(array(
+            'entity_id'   => $e_id,
+            'entity_type' => $e_type
+        ));
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
 }
 function _cdss_process_queue_item($q_item_data)
 {
@@ -243,6 +271,7 @@ function _cdss_process_queue_item($q_item_data)
 
 function _cdss_send_schema_to_elasticsearch()
 {
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
     try{
         $schema_node      = _getExportNodeStructureCode();
         $schema_term      = _getExportTaxonomyStructureCode();
@@ -255,7 +284,7 @@ function _cdss_send_schema_to_elasticsearch()
             'node_sha1' => $schema_node_sha1,
         );
         $response = drupal_http_request(
-            'http://elasticsearch_server:9200/cmp-data-schema/schema/node_taxonomy',
+            $elasticsearch_server.'/cmp-data-schema/schema/node_term',
             array(
                 'method' => 'PUT',
                 'data'   => json_encode($data),
@@ -286,10 +315,11 @@ function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $timeout=10)
     {
         return true; /// remove from queue
     }
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
     // try{
     /// put with an explicit ID will act as an upsert
     $response = drupal_http_request(
-        'http://elasticsearch_server:9200/cmp-data-entities/entity/'.$e_type.'_'.$e_id,
+        $elasticsearch_server.'/cmp-data-entities/entity/'.$e_type.'_'.$e_id,
         array(
             'method'  => 'PUT',
             'data'    => json_encode($entity),
@@ -329,92 +359,92 @@ function _cdss_add_all_terms_to_queue()
 
 function _cdss_load_sanitized_node($e_id)
 {
-$node = node_load($e_id);
-if(empty($node))
-{
-	return $node;
-}
+    $node = node_load($e_id);
+    if(empty($node))
+    {
+    	return $node;
+    }
 
-$node->uid = 1;
-unset($node->workbench_moderation);
-unset($node->revision_timestamp);
-unset($node->revision_uid);
-unset($node->vid);
-unset($node->path);
-unset($node->picture);
-$node->field_owner = array();
-unset($node->cid);
-unset($node->last_comment_timestamp);
-unset($node->last_comment_name);
-unset($node->last_comment_uid);
-unset($node->comment_count);
+    $node->uid = 1;
+    unset($node->workbench_moderation);
+    unset($node->revision_timestamp);
+    unset($node->revision_uid);
+    unset($node->vid);
+    unset($node->path);
+    unset($node->picture);
+    $node->field_owner = array();
+    unset($node->cid);
+    unset($node->last_comment_timestamp);
+    unset($node->last_comment_name);
+    unset($node->last_comment_uid);
+    unset($node->comment_count);
 
-return $node;
+    return $node;
 }
 function _cdss_load_sanitized_term($e_id)
 {
-$term = taxonomy_term_load($e_id);
-if(empty($term))
-{
-	return $term;
-}
+    $term = taxonomy_term_load($e_id);
+    if(empty($term))
+    {
+    	return $term;
+    }
 
-$parent = db_query(
-	'SELECT parent FROM {taxonomy_term_hierarchy} where tid=:tid',
-	array(':tid'=>$e_id)
-)->fetchField();
-if ( !empty($parent) && $parent!=='0' && $parent!==0 )
-{
-	$term->parent = $parent;
-}
-return $term;
+    $parent = db_query(
+    	'SELECT parent FROM {taxonomy_term_hierarchy} where tid=:tid',
+    	array(':tid'=>$e_id)
+    )->fetchField();
+    if ( !empty($parent) && $parent!=='0' && $parent!==0 )
+    {
+    	$term->parent = $parent;
+    }
+    return $term;
 }
 
 function _getExportTaxonomyStructureCode()
 {
-$selected_bundles = variable_get('cdss_term_bundles', array());
-// $selected_bundles = array();
-// foreach ( _bundle_copy_bundle_info('taxonomy_term', TRUE) as $machineName => $label ) {
-//     $selected_bundles[$machineName] = $machineName;
-// }
+    $selected_bundles = variable_get('cdss_term_bundles', array());
+    // $selected_bundles = array();
+    // foreach ( _bundle_copy_bundle_info('taxonomy_term', TRUE) as $machineName => $label ) {
+    //     $selected_bundles[$machineName] = $machineName;
+    // }
 
-$instances = array();
-foreach ($selected_bundles as $key => $bundle) {
-	if ($key === $bundle) {
-		$instances += field_info_instances('taxonomy_term', $bundle);
-	}
-}
-ksort($instances);
+    $instances = array();
+    foreach ($selected_bundles as $key => $bundle) {
+    	if ($key === $bundle) {
+    		$instances += field_info_instances('taxonomy_term', $bundle);
+    	}
+    }
+    ksort($instances);
 
-$selectedFields = array();
-foreach ( $instances as $machineName => $fieldInfo ) {
-	$selectedFields[$machineName] = $machineName;
-}
+    $selectedFields = array();
+    foreach ( $instances as $machineName => $fieldInfo ) {
+    	$selectedFields[$machineName] = $machineName;
+    }
 
-$fieldGroupIds = array();
-$fieldGroupData = array();
-$all_groups = function_exists('field_group_info_groups') ? field_group_info_groups() : array();
-if ( !empty($all_groups) && !empty($all_groups['taxonomy_term']) ) {
-	foreach ($all_groups['taxonomy_term'] as $vocabName => $formData) {
-		foreach ($formData['form'] as $groupName => $data) {
-			$fieldGroupIds[$data->id] = $data->id;
-			$fieldGroupData[$data->id] = $data;
-		}
-	}
-}
+    $fieldGroupIds = array();
+    $fieldGroupData = array();
+    $all_groups = function_exists('field_group_info_groups') ? field_group_info_groups() : array();
+    if ( !empty($all_groups) && !empty($all_groups['taxonomy_term']) ) {
+    	foreach ($all_groups['taxonomy_term'] as $vocabName => $formData) {
+    		foreach ($formData['form'] as $groupName => $data) {
+    			$fieldGroupIds[$data->id] = $data->id;
+    			$fieldGroupData[$data->id] = $data;
+    		}
+    	}
+    }
 
-$selected_data = array(
-	1 => array(
-		'bundles' => $selected_bundles
-	),
-	2 => array(
-		'fields' => $selectedFields,
-		'fieldgroups' => $fieldGroupIds,
-		'fieldgroups-full' => $fieldGroupData,
-	),
-);
+    $selected_data = array(
+    	1 => array(
+    		'bundles' => $selected_bundles
+    	),
+    	2 => array(
+    		'fields' => $selectedFields,
+    		'fieldgroups' => $fieldGroupIds,
+    		'fieldgroups-full' => $fieldGroupData,
+    	),
+    );
 
-return _bundle_copy_export_data('taxonomy_term', $selected_data);
+    return _bundle_copy_export_data('taxonomy_term', $selected_data);
 }
 function _getExportNodeStructureCode()
 {
