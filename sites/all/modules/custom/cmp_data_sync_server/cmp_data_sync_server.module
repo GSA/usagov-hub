@@ -8,9 +8,9 @@ function cmp_data_sync_server_menu()
     // Configuration page
     $items['admin/config/cmp-data-sync-server'] = array(
         'title'           => 'CMP Data Sync To ElasticSearch',
-        'description'     => 'Testing',
+        'description'     => 'Settings',
         'page callback'   => 'drupal_get_form',
-        'page arguments'  => array('cmp_data_sync_server_admin'),
+        'page arguments'  => array('cmp_data_sync_server_config_form'),
         'access callback' => true,
         'type'            => MENU_CALLBACK,
         'file'            => 'cmp_data_sync_server.admin.inc'
@@ -110,7 +110,7 @@ function _cdss_teardown_elasticsearch()
 }
 function _cdss_setup_schema_index()
 {
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     try{
         $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
         if ( $response->code !== '200' )
@@ -130,9 +130,9 @@ function _cdss_setup_schema_index()
             $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', $options);
             if (  $response->code === '200' )
             {
-                _cdss_log('Info: CDSS '.__FUNCTION__.' Created ElasticSearch Index for CMP Schema : '.$response->data);
+                _cdss_log('Info: CDSS '.__FUNCTION__.' Created ElasticSearch Index for CMP Schema : response='.$response->data);
             } else if ( !($response->code === '400' || $response->code === '200') ) {
-                _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Schema : '.$response->data);
+                _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Schema : response='.$response->data);
                 return false;
             }
         }
@@ -150,7 +150,7 @@ function _cdss_setup_schema_index()
 }
 function _cdss_teardown_schema_index()
 {
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     try{
         $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
         if ( $response->code === '404' ) { return true; }
@@ -161,7 +161,7 @@ function _cdss_teardown_schema_index()
         $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', $options);
         if ( $response->code === '200' )
         {
-            _cdss_log('Info: CDSS '.__FUNCTION__.' Deleted ElasticSearch Index for CMP Schema : '.$response->data);
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Deleted ElasticSearch Index for CMP Schema : response='.$response->data);
             return true;
         } else {
             return false;
@@ -173,7 +173,7 @@ function _cdss_teardown_schema_index()
 }
 function _cdss_setup_content_index()
 {
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     try{
         $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', array('method'=>'HEAD') );
         if ( $response->code === '200' ) { return true; }
@@ -186,7 +186,7 @@ function _cdss_setup_content_index()
                 }
             },
             "mappings": {
-                "entities": {
+                "entity": {
                     "properties": {
                         "changed": {
                             "type": "integer"
@@ -202,10 +202,10 @@ function _cdss_setup_content_index()
         $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', $options);
         if (  $response->code === '200' )
         {
-            _cdss_log('Info: Created ElasticSearch Index for CMP Content : '.$response->data);
+            _cdss_log('Info: Created ElasticSearch Index for CMP Content : response='.$response->data);
             return true;
         } else if ( !($response->code === '400' || $response->code === '200') ) {
-            _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Content : '.$response->data);
+            _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Content : response='.$response->data);
             return false;
         }
     } catch(Exception $e){
@@ -215,7 +215,7 @@ function _cdss_setup_content_index()
 }
 function _cdss_teardown_content_index()
 {
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     try{
         $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', array('method'=>'HEAD') );
         if ( $response->code === '404' ) { return true; }
@@ -226,7 +226,7 @@ function _cdss_teardown_content_index()
         $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', $options);
         if ( $response->code === '200' )
         {
-            _cdss_log('Info: CDSS '.__FUNCTION__.' Deleted ElasticSearch Index for CMP Content : '.$response->data);
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Deleted ElasticSearch Index for CMP Content : response='.$response->data);
             return true;
         } else {
             return false;
@@ -343,15 +343,14 @@ function _cdss_process_queue_item($q_item_data)
     );
     if ( $success===false )
     {
-        _cdss_log('Fail: CDSS '.__FUNCTION__.' putting back in queue : entity_id='.$q_item_data['entity_id'].' entity_type='.$q_item_data['entity_type'] );
-        throw new Exception('Failed to process queue item. Try again later.');
+        throw new Exception('Failed to process queue item. Will try again later.');
     }
     return $success;
 }
 
 function _cdss_send_schema_to_elasticsearch()
 {
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     try{
         $schema_node      = _getExportNodeStructureCode();
         $schema_term      = _getExportTaxonomyStructureCode();
@@ -372,14 +371,14 @@ function _cdss_send_schema_to_elasticsearch()
         );
         if ( $response->code === '201' || $response->code === '200' )
         {
-            _cdss_log('Info: CDSS '.__FUNCTION__.' Sent : '.$response->data);
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Schema Sent : response='.$response->data);
             return true;
         } else {
-            _cdss_log('Fail: CDSS '.__FUNCTION__.' Not Sent : '.$response->data);
+            _cdss_log('Fail: CDSS '.__FUNCTION__.' Schema Not Sent : response='.$response->data);
             return false;
         }
-    } catch(Exception $exception){
-        dsm($exception);
+    } catch(Exception $e) {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '. $e->getMessage() .' : '. $e->getTraceAsString());
         return false;
     }
 }
@@ -390,14 +389,16 @@ function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $timeout=10)
     } elseif ( $e_type === 'taxonomy_term' ) {
         $entity = _cdss_load_sanitized_term($e_id);
     } else {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity could not be loaded, removing from queue : entity_id='.$e_id.' entity_type='.$e_type);
         return true; /// remove from queue
     }
     if(empty($entity))
     {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity empty, removing from queue : entity_id='.$e_id.' entity_type='.$e_type);
         return true; /// remove from queue
     }
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server','http://elasticsearch_server:9200');
-    // try{
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    // try{ // leave these exceptions for _cron_queue_info
     /// put with an explicit ID will act as an upsert
     $response = drupal_http_request(
         $elasticsearch_server.'/cmp-data-entities/entity/'.$e_type.'_'.$e_id,
@@ -413,17 +414,26 @@ function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $timeout=10)
     /// means a temporary problem and we will return FALSE
     if ( $response->code === '201' || $response->code === '200' )
     {
+        _cdss_log('Info: CDSS '.__FUNCTION__.' Indexed : entity_id='.$e_id.' entity_type='.$e_type);
         return true; /// remove from queue
     } else {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Not Indexed : entity_id='.$e_id.' entity_type='.$e_type.' response='.$response->data);
         return false; /// keep in queue, try again
     }
+    // // leave these exceptions for _cron_queue_info
     // } catch(Exception $exception){
     //     dsm($exception);
     //     return false; /// keep in queue, try again
     // }
-    /// uncaught exception will be handled by queue cron processor : keep in queue, try again
+    /// uncaught exception should be handled by _cron_queue_info
+    /// which will keep this item in the queue and try again
 }
 
+function _cdss_add_all_to_queue()
+{
+    _cdss_add_all_nodes_to_queue();
+    _cdss_add_all_terms_to_queue();
+}
 function _cdss_add_all_nodes_to_queue()
 {
     $selected_bundles = variable_get('cdss_node_bundles', array());
@@ -436,7 +446,7 @@ function _cdss_add_all_nodes_to_queue()
     {
         $success += _cdss_add_entity_to_queue($e_id, 'node');
     }
-    return array('success'=>$success,'count'=>$result->rowCount());
+    _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$result->rowCount());
 }
 function _cdss_add_all_terms_to_queue()
 {
@@ -453,7 +463,7 @@ function _cdss_add_all_terms_to_queue()
     {
         $success += _cdss_add_entity_to_queue($e_id, 'taxonomy_term');
     }
-    return array('success'=>$success,'count'=>$result->rowCount());
+    _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$result->rowCount());
 }
 
 function _cdss_load_sanitized_node($e_id)
@@ -575,30 +585,43 @@ function _getExportNodeStructureCode()
 	return _bundle_copy_export_data('node', $selected_data);
 }
 
-// function _cdss_process_queue()
-// {
-//     $queue = DrupalQueue::get('cmp_data_sync');
-//
-//     $max_time   = intval(ini_get("max_execution_time"))*.9;
-//     $start_time = time();
-//     $loop_time  = $start_time;
-//     $time_spent = $start_time-$loop_time;
-//     $loops      = 0;
-//     $avg_time   = 0;
-//
-//     while ( ($time_spent+$avg_time) < $max_time )
-//     {
-//         $result = _cdss_process_queue_item($queue);
-//         if ( $result===null )
-//         {
-//             break; // no more queue items - we got them all
-//         }
-//         $loops++;
-//         $loop_time  = time();
-//         $time_spent = $start_time-$loop_time;
-//         $avg_time   = $time_spent/$loops;
-//     }
-// }
+function _cdss_process_queue()
+{
+    $queue = DrupalQueue::get('cmp_data_sync');
+    $max_time   = (floatval(ini_get("max_execution_time"))*.9)-timer_read('page');
+    $start_time = microtime(TRUE);
+    $loop_time  = $start_time;
+    $time_spent = $start_time-$loop_time;
+    $loops      = 0;
+    $avg_time   = 0;
+    $lease_time = 10;
+
+    $queued_item_count = $queue->numberOfItems();
+    $attempted = 0;
+    while ( ($time_spent+$avg_time) < $max_time )
+    {
+        $q_item = $queue->claimItem($lease_time);
+        if ( empty($q_item) )
+        {
+            /// we done
+            break;
+        }
+        $attempted++;
+        try
+        {
+            _cdss_process_queue_item($q_item->data);
+            $success++;
+        } catch(Exception $e) {
+            $queue->releaseItem($q_item);
+        }
+        $loops++;
+        $loop_time  = microtime(TRUE);
+        $time_spent = $start_time-$loop_time;
+        $avg_time   = $time_spent/$loops;
+    }
+    _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$attempted.' of '.$queued_item_count.' total');
+
+}
 
 // function _cdss_process_queue_item($queue)
 // {
