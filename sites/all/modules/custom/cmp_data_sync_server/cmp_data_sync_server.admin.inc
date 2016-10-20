@@ -60,38 +60,86 @@ function cmp_data_sync_server_config_form()
   //     '#description' => 'Send all node content to elasticsearch'
   // );
   //
-  // $form['cdss_index_all_terms'] = array(
-  //     '#type'   => 'submit',
-  //     '#value'  => 'Index Taxonomies',
-  //     '#prefix' => '<div class="form-item form-type-button form-item-cdsc-index-all-terms">',
-  //     '#suffix' => '</div>',
-  //     '#description' => 'Send all taxnomy terms to elasticsearch'
-  // );
-  //
-  // $form['actions']['cdss_index_everything'] = array(
-  //     '#type'   => 'submit',
-  //     '#value'  => 'Index Everything',
-  //     '#prefix' => '<div class="form-item form-type-button form-item-cdsc-index-everything">',
-  //     '#suffix' => '<div id="cdss-index-everything-ajax-response"></div></div>',
-  //     '#description' => 'Send all nodes and taxnomy terms to elasticsearch',
-  //     '#submit' => array('_cdss_other_callback')
-  // );
+   $form['cdss_index_all_terms'] = array(
+       '#type'   => 'submit',
+       '#value'  => 'Index Taxonomies',
+       '#prefix' => '<div class="form-item form-type-button form-item-cdsc-index-all-terms">',
+       '#suffix' => '</div>',
+       '#description' => 'Send all taxnomy terms to elasticsearch'
+   );
 
+  $form['cdss_ajax_add_all_to_queue'] = array(
+    '#type' => 'item',
+    '#title' => 'Add All nodes and terms to Queue',
+    '#markup' => '
+    <script>
+      function ajax_add_all_to_queue()
+      {
+        jQuery.ajax({
+          url: "/admin/config/cmp-data-sync-server/add_all_to_queue",
+          success:function(data) {
+            jQuery("#cdss_ajax_add_all_to_queue_response").html("SUCCESS");
+          },
+          error:function(data) {
+            jQuery("#cdss_ajax_add_all_to_queue_response").html("FAILURE");
+          }
+        });
+      }
+    </script><div class="form-item form-type-button form-item-cdsc-ajax-add-all-to-queue">
+    <input type="button" onclick="ajax_add_all_to_queue();" value="Add All to Queue" class="form-submit"/></div>
+    <div id="cdss_ajax_add_all_to_queue_response"></div>'
+  );
+
+  $form['cdss_ajax_process_queue'] = array(
+    '#type' => 'item',
+    '#title' => 'Index Everything Ajax',
+    '#markup' => '
+    <script>
+      function ajax_process_queue()
+      {
+        jQuery.ajax({
+          url: "/admin/config/cmp-data-sync-server/process_queue",
+          success:function(data) {
+            jQuery("#cdss_ajax_process_queue_response").html("SUCCESS");
+          },
+          error:function(data) {
+            jQuery("#cdss_ajax_process_queue_response").html("FAILURE");
+          }
+        });
+      }
+    </script><div class="form-item form-type-button form-item-cdsc-ajax-process-queue">
+    <input type="button" onclick="ajax_process_queue();" value="Process Queue" class="form-submit"/></div>
+    <div id="cdss_ajax_process_queue_response"></div>'
+  );
+  
   return system_settings_form($form);
 }
+function _cdss_ajax_process_queue()
+{
+  drupal_json_output(['called'=>__FUNCTION__]);
+  _cdss_finish_request();
+  _cdss_process_queue();
+}
 
-// function _cdss_finish_request($message="")
-// {
-//     if ( function_exists('fastcgi_finish_request') )
-//     {
-//         if ( !empty($message) ) { drupal_set_message($message, 'warning'); }
-//         $url = url(current_path(), array('query'=>drupal_get_query_parameters(),'absolute'=>TRUE, 'external'=>FALSE));
-//         drupal_goto($url);
-//         session_write_close();
-//         while ( @ob_get_length() ) { @ob_end_clean(); }
-//         flush();
-//         fastcgi_finish_request();
-//         set_time_limit(0);
-//         ini_set('max_execution_time',0);
-//     }
-// }
+function _cdss_ajax_add_all_to_queue()
+{
+  drupal_json_output(['called'=>__FUNCTION__]);
+  _cdss_finish_request();
+  _cdss_add_all_to_queue();
+}
+
+function _cdss_finish_request()
+{
+  ignore_user_abort(1);
+  //ob_start();
+  //$contentLength = ob_get_length(); 
+  //header("Content-Length: $contentLength");
+  //header('Connection: close');
+  while(@ob_get_level() > 0) { @ob_end_flush(); }
+  @ob_flush();
+  @flush(); 
+  if (session_id()) session_write_close();
+  fastcgi_finish_request();
+  set_time_limit(0);
+  ini_set('max_execution_time',0);
+}

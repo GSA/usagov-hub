@@ -2,6 +2,10 @@
 
 $GLOBALS['cdss_queued_entities'] = array();
 
+define('CDSS_SUCCESS',   TRUE  );
+define('CDSS_TRY_AGAIN', FALSE );
+define('CDSS_FATAL',     NULL  );
+
 function cmp_data_sync_server_menu()
 {
     $items = array();
@@ -11,6 +15,22 @@ function cmp_data_sync_server_menu()
         'description'     => 'Settings',
         'page callback'   => 'drupal_get_form',
         'page arguments'  => array('cmp_data_sync_server_config_form'),
+        'access callback' => true,
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/config/cmp-data-sync-server/process_queue'] = array(
+        'title'           => 'Process Queue',
+        'description'     => 'Process Queue',
+        'page callback'   => '_cdss_ajax_process_queue',
+        'access callback' => true,
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/config/cmp-data-sync-server/add_all_to_queue'] = array(
+        'title'           => 'Add all to Queue',
+        'description'     => 'Add all to Queue',
+        'page callback'   => '_cdss_ajax_add_all_to_queue',
         'access callback' => true,
         'type'            => MENU_CALLBACK,
         'file'            => 'cmp_data_sync_server.admin.inc'
@@ -329,10 +349,10 @@ function _cdss_add_entity_to_queue($e_id, $e_type)
             'entity_type' => $e_type
         ));
         _cdss_log('Info: CDSS '.__FUNCTION__.' : entity_id='.$e_id.' entity_type='.$e_type);
-        return true;
+        return CDSS_SUCCESS;
     } catch (Exception $e) {
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : entity_id='.$e_id.' entity_type='.$e_type .' : '. $e->getMessage() .' : '. $e->getTraceAsString());
-        return false;
+        return CDSS_TRY_AGAIN;
     }
 }
 function _cdss_process_queue_item($q_item_data)
@@ -341,7 +361,7 @@ function _cdss_process_queue_item($q_item_data)
         $q_item_data['entity_id'],
         $q_item_data['entity_type']
     );
-    if ( $success===false )
+    if ( $success===CDSS_TRY_AGAIN )
     {
         throw new Exception('Failed to process queue item. Will try again later.');
     }
@@ -389,13 +409,13 @@ function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $timeout=10)
     } elseif ( $e_type === 'taxonomy_term' ) {
         $entity = _cdss_load_sanitized_term($e_id);
     } else {
-        _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity could not be loaded, removing from queue : entity_id='.$e_id.' entity_type='.$e_type);
-        return true; /// remove from queue
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity type unknown, removing from queue : entity_id='.$e_id.' entity_type='.$e_type);
+        return CDSS_FATAL; /// remove from queue
     }
     if(empty($entity))
     {
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity empty, removing from queue : entity_id='.$e_id.' entity_type='.$e_type);
-        return true; /// remove from queue
+        return CDSS_FATAL; /// remove from queue
     }
     $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     // try{ // leave these exceptions for _cron_queue_info
@@ -415,10 +435,10 @@ function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $timeout=10)
     if ( $response->code === '201' || $response->code === '200' )
     {
         _cdss_log('Info: CDSS '.__FUNCTION__.' Indexed : entity_id='.$e_id.' entity_type='.$e_type);
-        return true; /// remove from queue
+        return CDSS_SUCCESS; /// remove from queue
     } else {
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Not Indexed : entity_id='.$e_id.' entity_type='.$e_type.' response='.$response->data);
-        return false; /// keep in queue, try again
+        return CDSS_TRY_AGAIN; /// keep in queue, try again
     }
     // // leave these exceptions for _cron_queue_info
     // } catch(Exception $exception){
@@ -442,9 +462,12 @@ function _cdss_add_all_nodes_to_queue()
         array(':types'=>$selected_bundles)
     );
     $success = 0;
+    $cnt=0;
     while ( $e_id = $result->fetchField() )
     {
+        _cdss_log('Number of times run this looop:'.$cnt);
         $success += _cdss_add_entity_to_queue($e_id, 'node');
+        $cnt++;
     }
     _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$result->rowCount());
 }
@@ -588,19 +611,27 @@ function _getExportNodeStructureCode()
 function _cdss_process_queue()
 {
     $queue = DrupalQueue::get('cmp_data_sync');
-    $max_time   = (floatval(ini_get("max_execution_time"))*.9)-timer_read('page');
-    $start_time = microtime(TRUE);
-    $loop_time  = $start_time;
-    $time_spent = $start_time-$loop_time;
-    $loops      = 0;
-    $avg_time   = 0;
+
+    //$max_time   = (floatval(ini_get("max_execution_time"))*.9);
+    //if ( $max_time )
+    //{
+    //    $max_time = timer_read('page');
+    //}
+    //$start_time = microtime(TRUE);
+    //$loop_time  = $start_time;
+    //$time_spent = $start_time-$loop_time;
+    //$loops      = 0;
+    //$avg_time   = 0;
+
     $lease_time = 10;
 
-    $queued_item_count = $queue->numberOfItems();
+    $queued_item_count = $queue->numberOfItems($lease_time);
     $attempted = 0;
-    while ( ($time_spent+$avg_time) < $max_time )
+    $success   = 0;
+    //while ( ($time_spent+$avg_time) < $max_time )
+    while( $queue->numberOfItems()>0 )
     {
-        $q_item = $queue->claimItem($lease_time);
+        $q_item = $queue->claimItem();
         if ( empty($q_item) )
         {
             /// we done
@@ -609,15 +640,29 @@ function _cdss_process_queue()
         $attempted++;
         try
         {
-            _cdss_process_queue_item($q_item->data);
+            $result = _cdss_process_queue_item($q_item->data);
+            if ( $result===CDSS_FATAL )
+            {
+                /// we can't possibly process this
+                /// just remove it
+                $queue->deleteItem($q_item);
+            } else if ( $result===CDSS_SUCCESS ) {
+                $queue->deleteItem($q_item);
+            } else {
+                /// success===CDSS_TRY_AGAIN means there was a non-fatal problem
+                /// while talking to elasticsearch
+                /// we can put this back and try again later
+                $queue->releaseItem($q_item);
+            }
             $success++;
         } catch(Exception $e) {
+            _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception releasing q_item: '.$e->getMessage() .' : '. $e->getTraceAsString() );
             $queue->releaseItem($q_item);
         }
-        $loops++;
-        $loop_time  = microtime(TRUE);
-        $time_spent = $start_time-$loop_time;
-        $avg_time   = $time_spent/$loops;
+        //$loops++;
+        //$loop_time  = microtime(TRUE);
+        //$time_spent = $start_time-$loop_time;
+        //$avg_time   = $time_spent/$loops;
     }
     _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$attempted.' of '.$queued_item_count.' total');
 
