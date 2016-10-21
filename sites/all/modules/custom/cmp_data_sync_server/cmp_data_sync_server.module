@@ -120,13 +120,15 @@ function _cdss_setup_elasticsearch()
 {
     $schema_success  = _cdss_setup_schema_index();
     $content_success = _cdss_setup_content_index();
-    return $schema_success && $content_success;
+    $status_success  = _cdss_setup_status_index();
+    return $schema_success && $content_success && $status_success;
 }
 function _cdss_teardown_elasticsearch()
 {
     $schema_success  = _cdss_teardown_schema_index();
     $content_success = _cdss_teardown_content_index();
-    return $schema_success && $content_success;
+    $status_success  = _cdss_teardown_status_index();
+    return $schema_success && $content_success && $status_success;
 }
 function _cdss_setup_schema_index()
 {
@@ -256,6 +258,62 @@ function _cdss_teardown_content_index()
         return false;
     }
 }
+function _cdss_setup_status_index()
+{
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    try{
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-status', array('method'=>'HEAD') );
+        if ( $response->code === '200' ) { return true; }
+
+        $data = '{
+            "settings" : {
+                "index" : {
+                    "number_of_shards" : 1,
+                    "number_of_replicas" : 0
+                }
+            }
+        }';
+        $options = array(
+            'method' => 'PUT',
+            'data'   => $data,
+        );
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-status', $options);
+        if (  $response->code === '200' )
+        {
+            _cdss_log('Info: Created ElasticSearch Index for CMP Status Checks : response='.$response->data);
+            return true;
+        } else if ( !($response->code === '400' || $response->code === '200') ) {
+            _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Status Checks : response='.$response->data);
+            return false;
+        }
+    } catch(Exception $e){
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
+        return false;
+    }
+}
+function _cdss_teardown_status_index()
+{
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    try{
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-status', array('method'=>'HEAD') );
+        if ( $response->code === '404' ) { return true; }
+
+        $options = array(
+            'method' => 'DELETE'
+        );
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-status', $options);
+        if ( $response->code === '200' )
+        {
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Deleted ElasticSearch Index for CMP Status Checks : response='.$response->data);
+            return true;
+        } else {
+            return false;
+        }
+    } catch(Exception $e){
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
+        return false;
+    }
+}
 
 function _cdss_setup_drupal()
 {
@@ -357,6 +415,10 @@ function _cdss_add_entity_to_queue($e_id, $e_type)
 }
 function _cdss_process_queue_item($q_item_data)
 {
+    if ( empty($q_data['entity_id']) || empty($q_data['entity_type']) )
+    {
+        return CDSS_FATAL;
+    }
     $success = _cdss_send_entity_to_elasticsearch(
         $q_item_data['entity_id'],
         $q_item_data['entity_type']
@@ -612,26 +674,14 @@ function _cdss_process_queue()
 {
     $queue = DrupalQueue::get('cmp_data_sync');
 
-    //$max_time   = (floatval(ini_get("max_execution_time"))*.9);
-    //if ( $max_time )
-    //{
-    //    $max_time = timer_read('page');
-    //}
-    //$start_time = microtime(TRUE);
-    //$loop_time  = $start_time;
-    //$time_spent = $start_time-$loop_time;
-    //$loops      = 0;
-    //$avg_time   = 0;
-
     $lease_time = 10;
-
     $queued_item_count = $queue->numberOfItems($lease_time);
     $attempted = 0;
     $success   = 0;
     //while ( ($time_spent+$avg_time) < $max_time )
     while( $queue->numberOfItems()>0 )
     {
-        $q_item = $queue->claimItem();
+        $q_item = $queue->claimItem($lease_time);
         if ( empty($q_item) )
         {
             /// we done
@@ -659,10 +709,6 @@ function _cdss_process_queue()
             _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception releasing q_item: '.$e->getMessage() .' : '. $e->getTraceAsString() );
             $queue->releaseItem($q_item);
         }
-        //$loops++;
-        //$loop_time  = microtime(TRUE);
-        //$time_spent = $start_time-$loop_time;
-        //$avg_time   = $time_spent/$loops;
     }
     _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$attempted.' of '.$queued_item_count.' total');
 
@@ -697,3 +743,35 @@ function _cdss_process_queue()
 //     }
 //     return $success;
 // }
+/*
+cmp-data-status/check/current
+{
+    data_verification_failure = FALSE,
+    term_sha1 = "",
+    node_sha1 = "",
+    node:{
+        'type1': { 'count': 111 },
+        'type2': { 'count': 222 }
+    }
+    term:{
+        'vocabA': { 'count': 333 },
+        'vocabB': { 'count': 444 }
+    }
+}
+
+
+
+cmp-data-status/check/schema  : true        
+cmp-data-status/check/content : timestamp   
+
+cmp - set sha1 = fff 
+cmp - updates elasticsearch
+cmp - check elasticsearch
+
+
+Then elastic search takes a shit....
+Then elastic search loses half of data...but keeps check correct as true....
+Then CMP cant update because of shit
+CHILD should see sha1-check=fff but actual-sha1=zzz
+
+*/

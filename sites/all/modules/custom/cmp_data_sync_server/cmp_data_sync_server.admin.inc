@@ -52,22 +52,6 @@ function cmp_data_sync_server_config_form()
       '#markup' => $queued_item_count
   );
 
-  // $form['cdss_index_all_nodes'] = array(
-  //     '#type'   => 'submit',
-  //     '#value'  => 'Index Content',
-  //     '#prefix' => '<div class="form-item form-type-button form-item-cdsc-index-all-nodes">',
-  //     '#suffix' => '</div>',
-  //     '#description' => 'Send all node content to elasticsearch'
-  // );
-  //
-   $form['cdss_index_all_terms'] = array(
-       '#type'   => 'submit',
-       '#value'  => 'Index Taxonomies',
-       '#prefix' => '<div class="form-item form-type-button form-item-cdsc-index-all-terms">',
-       '#suffix' => '</div>',
-       '#description' => 'Send all taxnomy terms to elasticsearch'
-   );
-
   $form['cdss_ajax_add_all_to_queue'] = array(
     '#type' => 'item',
     '#title' => 'Add All nodes and terms to Queue',
@@ -126,6 +110,14 @@ function _cdss_ajax_add_all_to_queue()
   drupal_json_output(['called'=>__FUNCTION__]);
   _cdss_finish_request();
   _cdss_add_all_to_queue();
+}
+
+function _cdss_ajax_full_sync()
+{
+  drupal_json_output(['called'=>__FUNCTION__]);
+  _cdss_finish_request();
+  _cdss_add_all_to_queue();
+  _cdss_process_queue();
 }
 
 function _cdss_finish_request()
