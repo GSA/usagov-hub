@@ -4,6 +4,12 @@ function cmp_data_sync_server_config_form()
 {
   $form = array();
 
+  $form['cdss_syncing_enabled'] = array(
+    '#type' => 'checkbox',
+    '#title' => 'Syncing Enabled',
+    '#default_value' => variable_get('cdss_syncing_enabled',false)
+  );
+
   $node_bundles = array();
   foreach ( _bundle_copy_bundle_info('node', TRUE) as $bundle_name => $data )
   {
@@ -42,14 +48,30 @@ function cmp_data_sync_server_config_form()
 
   /// these belong in seperate tab
 
-  $queue = $queue = DrupalQueue::get('cmp_data_sync');
-  $queued_item_count = $queue->numberOfItems();
-  /// should link to admin/config/system/queue-ui
-  /// should ajax update the count
-  $form['cdss_queue_status'] = array(
-      '#type' => 'item',
-      '#title' => 'Items remaining in queue',
-      '#markup' => $queued_item_count
+  $queue = DrupalQueue::get('cmp_data_sync');
+  $queued_item_count = (int)$queue->numberOfItems();
+  $form['cdss_ajax_check_queue_status'] = array(
+    '#type' => 'item',
+    '#title' => 'Queue Status',
+    '#markup' => '
+    <script>
+      function ajax_check_queue_status()
+      {
+        jQuery("#cdss_ajax_check_queue_status_response").html("LOADING");
+        jQuery.ajax({
+          url: "/admin/config/cmp-data-sync-server/check_queue_status",
+          success:function(data) {
+            jQuery("#cdss_ajax_check_queue_status_response").html("Items:"+data.queued_item_count);
+          },
+          error:function(data) {
+            jQuery("#cdss_ajax_check_queue_status_response").html("ajax failure");
+          }
+        });
+      }
+    </script>
+    <div class="form-item form-type-button form-item-cdsc-ajax-check-queue-status">
+    <input type="button" onclick="ajax_check_queue_status();" value="Check Queue Status" class="form-submit"/>
+    <div id="cdss_ajax_check_queue_status_response" style="display:inline;">Items:'.$queued_item_count.'</div></div>'
   );
 
   $form['cdss_ajax_add_all_to_queue'] = array(
@@ -59,19 +81,20 @@ function cmp_data_sync_server_config_form()
     <script>
       function ajax_add_all_to_queue()
       {
+        jQuery("#cdss_ajax_add_all_to_queue_response").html("LOADING");
         jQuery.ajax({
           url: "/admin/config/cmp-data-sync-server/add_all_to_queue",
           success:function(data) {
-            jQuery("#cdss_ajax_add_all_to_queue_response").html("SUCCESS");
+            jQuery("#cdss_ajax_add_all_to_queue_response").html("queueing");
           },
           error:function(data) {
-            jQuery("#cdss_ajax_add_all_to_queue_response").html("FAILURE");
+            jQuery("#cdss_ajax_add_all_to_queue_response").html("failure");
           }
         });
       }
     </script><div class="form-item form-type-button form-item-cdsc-ajax-add-all-to-queue">
-    <input type="button" onclick="ajax_add_all_to_queue();" value="Add All to Queue" class="form-submit"/></div>
-    <div id="cdss_ajax_add_all_to_queue_response"></div>'
+    <input type="button" onclick="ajax_add_all_to_queue();" value="Add All to Queue" class="form-submit"/>
+    <div id="cdss_ajax_add_all_to_queue_response" style="display:inline;"></div></div>'
   );
 
   $form['cdss_ajax_process_queue'] = array(
@@ -81,28 +104,38 @@ function cmp_data_sync_server_config_form()
     <script>
       function ajax_process_queue()
       {
+        jQuery("#cdss_ajax_add_all_to_queue_response").html("LOADING");
         jQuery.ajax({
           url: "/admin/config/cmp-data-sync-server/process_queue",
           success:function(data) {
-            jQuery("#cdss_ajax_process_queue_response").html("SUCCESS");
+            jQuery("#cdss_ajax_process_queue_response").html("processing");
           },
           error:function(data) {
-            jQuery("#cdss_ajax_process_queue_response").html("FAILURE");
+            jQuery("#cdss_ajax_process_queue_response").html("failure");
           }
         });
       }
     </script><div class="form-item form-type-button form-item-cdsc-ajax-process-queue">
-    <input type="button" onclick="ajax_process_queue();" value="Process Queue" class="form-submit"/></div>
-    <div id="cdss_ajax_process_queue_response"></div>'
+    <input type="button" onclick="ajax_process_queue();" value="Process Queue" class="form-submit"/>
+    <div id="cdss_ajax_process_queue_response" style="display:inline;"></div></div>'
   );
 
   return system_settings_form($form);
 }
+
+function _cdss_ajax_check_queue_status()
+{
+  $queue = DrupalQueue::get('cmp_data_sync');
+  $queued_item_count = (int)$queue->numberOfItems();
+  drupal_json_output(['called'=>__FUNCTION__,'queued_item_count'=>$queued_item_count]);
+}
+
 function _cdss_ajax_process_queue()
 {
   drupal_json_output(['called'=>__FUNCTION__]);
   _cdss_finish_request();
   _cdss_process_queue();
+  exit;
 }
 
 function _cdss_ajax_add_all_to_queue()
@@ -110,6 +143,7 @@ function _cdss_ajax_add_all_to_queue()
   drupal_json_output(['called'=>__FUNCTION__]);
   _cdss_finish_request();
   _cdss_add_all_to_queue();
+  exit;
 }
 
 function _cdss_ajax_full_sync()
@@ -118,20 +152,17 @@ function _cdss_ajax_full_sync()
   _cdss_finish_request();
   _cdss_add_all_to_queue();
   _cdss_process_queue();
+  exit;
 }
 
 function _cdss_finish_request()
 {
   ignore_user_abort(1);
-  //ob_start();
-  //$contentLength = ob_get_length();
-  //header("Content-Length: $contentLength");
-  //header('Connection: close');
   while(@ob_get_level() > 0) { @ob_end_flush(); }
   @ob_flush();
   @flush();
   if (session_id()) session_write_close();
   fastcgi_finish_request();
-  set_time_limit(360);
-  ini_set('max_execution_time',360);
+  set_time_limit(600);
+  ini_set('max_execution_time',600);
 }

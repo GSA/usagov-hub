@@ -1,7 +1,5 @@
 <?php
 
-$GLOBALS['cdss_queued_entities'] = array();
-
 define('CDSS_SUCCESS',   TRUE  );
 define('CDSS_TRY_AGAIN', FALSE );
 define('CDSS_FATAL',     NULL  );
@@ -35,6 +33,14 @@ function cmp_data_sync_server_menu()
         'type'            => MENU_CALLBACK,
         'file'            => 'cmp_data_sync_server.admin.inc'
     );
+    $items['admin/config/cmp-data-sync-server/check_queue_status'] = array(
+        'title'           => 'Check Queue Status',
+        'description'     => 'Display Queue Status',
+        'page callback'   => '_cdss_ajax_check_queue_status',
+        'access callback' => true,
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
     $items['admin/content/cmp-data-sync-server'] = array(
         'title'           => 'CMP Data Sync To ElasticSearch',
         'description'     => 'Testing',
@@ -51,7 +57,14 @@ function cmp_data_sync_server_test()
     {
         $_p = $p;
         unset($_p['function']);
-        dsm([$p['function'],call_user_func_array( '_cdss_'.$p['function'] , array_keys($_p) )]);
+        dsm([
+            $p['function'],
+            array_keys($_p),
+            call_user_func_array(
+                '_cdss_'.$p['function'],
+                array_keys($_p)
+            )
+        ]);
     }
     return 'test';
 }
@@ -66,19 +79,16 @@ function cmp_data_sync_server_cron_queue_info()
     );
     return $queues;
 }
-
-/// deletion logic
-
 function cmp_data_sync_server_taxonomy_term_delete($term)
 {
     db_query(
-        "REPLACE INTO {cdss_deleted_terms} (uuid,tid,vid,title,changed)
-         VALUES (:uuid,:tid,:vid,:title,UNIX_TIMESTAMP(NOW()))",
+        "REPLACE INTO {cdss_deleted_terms} (uuid,tid,vid,name,changed)
+         VALUES (:uuid,:tid,:vid,:name,UNIX_TIMESTAMP(NOW()))",
         array(
             ':uuid'  => $term->uuid,
             ':tid'   => $term->tid,
             ':vid'   => $term->vid,
-            ':title' => $term->title
+            ':name'  => substr($term->name,0,255)
         )
     );
     _cdss_add_entity_to_queue($term->uuid, 'deleted_term');
@@ -276,12 +286,17 @@ function _cdss_setup_drupal_vars()
     {
         variable_set('cdss_elasticsearch_server','');
     }
+    if ( variable_get('cdss_syncing_enabled')===null )
+    {
+        variable_set('cdss_syncing_enabled',false);
+    }
 }
 function _cdss_teardown_drupal_vars()
 {
     variable_del('cdss_node_bundles');
     variable_del('cdss_term_bundles');
     variable_del('cdss_elasticsearch_server');
+    variable_del('cdss_syncing_enabled');
     return true;
 }
 
@@ -539,17 +554,17 @@ function _cdss_load_sanitized_term($e_uuid)
 }
 function _cdss_load_deleted_term($e_uuid)
 {
-    $results = db_query(
-    	'SELECT uuid,tid,vid,title,changed
+    $result = db_query(
+    	'SELECT uuid,tid,vid,name,changed
          FROM {cdss_deleted_terms} WHERE uuid=:uuid LIMIT 1',
     	array(':uuid'=>$e_uuid)
-    )->fetchAssoc();
-    foreach ( $results as $result )
+    )->fetchObject();
+    if ( $result===false )
     {
-        $result['deleted'] = 1;
-        return (object)$result;
+        return null;
     }
-    return null;
+    $result->deleted = 1;
+    return $result;
 }
 
 function _getExportTaxonomyStructureCode()
@@ -628,6 +643,19 @@ function _getExportNodeStructureCode()
 	return _bundle_copy_export_data('node', $selected_data);
 }
 
+
+function _cdss_syncing_disabled()
+{
+    $var = db_query(
+        'SELECT value FROM {variable} where name=:name',
+        array(':name'=>'cdss_syncing_enabled')
+    )->fetchObject();
+    if ( empty($var) )
+    {
+        return true;
+    }
+    return ! boolval(unserialize($var->value));
+}
 function _cdss_process_queue()
 {
     $queue = DrupalQueue::get('cmp_data_sync');
@@ -636,9 +664,14 @@ function _cdss_process_queue()
     $queued_item_count = $queue->numberOfItems($lease_time);
     $attempted = 0;
     $success   = 0;
-    //while ( ($time_spent+$avg_time) < $max_time )
+    $loop = 0;
     while( $queue->numberOfItems()>0 )
     {
+        if ( ($loop%10)==0 && _cdss_syncing_disabled() )
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Syncing Disabled, stopped processing');
+            break;
+        }
+        $loop++;
         $q_item = $queue->claimItem($lease_time);
         if ( empty($q_item) )
         {

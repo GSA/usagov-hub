@@ -45,8 +45,8 @@ function cmp_data_sync_server_schema()
         'not null' => TRUE,
         'default' => 0,
       ),
-      'title' => array(
-        'description' => 'Term title.',
+      'name' => array(
+        'description' => 'Term Name.',
         'type' => 'varchar',
         'length' => 255,
         'not null' => FALSE,
