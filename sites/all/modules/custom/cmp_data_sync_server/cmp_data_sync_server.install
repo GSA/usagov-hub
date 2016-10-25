@@ -5,12 +5,14 @@ function cmp_data_sync_server_install()
 }
 function cmp_data_sync_server_uninstall()
 {
-    _cdss_teardown_elasticsearch();
-    _cdss_teardown_drupal();
+    module_load_include('module', 'cmp_data_sync_server', 'cmp_data_sync_server');
+    //_cdss_teardown_elasticsearch();
+    //_cdss_teardown_drupal();
 }
 
 function cmp_data_sync_server_enable()
 {
+    module_load_include('module', 'cmp_data_sync_server', 'cmp_data_sync_server');
     _cdss_setup_elasticsearch();
     _cdss_setup_drupal();
 
@@ -23,30 +25,28 @@ function cmp_data_sync_server_disable()
 function cmp_data_sync_server_schema()
 {
   $schema['cdss_deleted_terms'] = array(
-    // Example (partial) specification for table "node".
     'description' => 'Stores deleted terms.',
     'fields' => array(
       'tid' => array(
         'description' => 'taxonomy id.',
-        'type' => 'int(10)',
+        'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
       'vid' => array(
         'description' => 'The previous vocab id.',
-        'type' => 'int(10)',
+        'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
         'default' => 0,
       ),
       'changed' => array(
-        'description' => 'The time this term was deleted.',
-        'type' => 'int(11)',
+        'description' => 'The time of deletion.',
+        'type' => 'int',
         'not null' => TRUE,
-        'default' => 'now()',
       ),
       'title' => array(
-        'description' => 'The old title of this term.',
+        'description' => 'The title.',
         'type' => 'varchar',
         'length' => 255,
         'not null' => FALSE,
