@@ -525,7 +525,6 @@ function _cdss_load_sanitized_term($e_uuid)
     {
         return null;
     }
-
     $parent = db_query(
     	'SELECT parent FROM {taxonomy_term_hierarchy} where tid=:tid',
     	array(':tid'=>$term->tid)
@@ -534,6 +533,7 @@ function _cdss_load_sanitized_term($e_uuid)
     {
     	$term->parent = $parent;
     }
+    $term->type = 'taxonomy_term';
     $term->deleted = 0;
     return $term;
 }
