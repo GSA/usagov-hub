@@ -52,6 +52,9 @@ function cmp_data_sync_server_menu()
 }
 function cmp_data_sync_server_test()
 {
+
+    $e = entity_uuid_load('node',array('59094880-2232-4805-bbe8-d5e6ccb4cad0'));
+kprint_r($e);die;
     $p = drupal_get_query_parameters();
     if ( !empty($p['function']) && function_exists('_cdss_'.$p['function']) )
     {
@@ -668,6 +671,7 @@ function _cdss_process_queue()
     while( $queue->numberOfItems()>0 )
     {
         if ( ($loop%10)==0 && _cdss_syncing_disabled() )
+        {
             _cdss_log('Info: CDSS '.__FUNCTION__.' Syncing Disabled, stopped processing');
             break;
         }
