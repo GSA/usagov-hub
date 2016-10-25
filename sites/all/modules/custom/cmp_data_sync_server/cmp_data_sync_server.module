@@ -56,9 +56,6 @@ function cmp_data_sync_server_test()
     return 'test';
 }
 
-// function cmp_data_sync_server_cron()
-// {
-// }
 function cmp_data_sync_server_cron_queue_info()
 {
     /// will pull items off the queue while cron is running
@@ -69,63 +66,22 @@ function cmp_data_sync_server_cron_queue_info()
     );
     return $queues;
 }
-function cmp_data_sync_server_entity_insert($entity, $type)
-{
-    if($type === 'node')
-    {
-        if($entity->status === 1)
-        {
-            if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->nid]) )
-            {
-                _cdss_add_entity_to_queue($entity->nid, $type);
-                $GLOBALS['cdss_queued_entities'][$type.$entity->nid] = true;
-            }
-        }
-    }
-    if($type === 'taxonomy_term')
-    {
-        if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->tid]) )
-        {
-            _cdss_add_entity_to_queue($entity->tid, $type);
-            $GLOBALS['cdss_queued_entities'][$type.$entity->tid] = true;
-        }
-    }
-}
-function cmp_data_sync_server_entity_update($entity, $type)
-{
-    if($type === 'node')
-    {
-        if($entity->status === 1)
-        {
-            if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->nid]) )
-            {
-                _cdss_add_entity_to_queue($entity->nid, $type);
-                $GLOBALS['cdss_queued_entities'][$type.$entity->nid] = true;
-            }
-        }
-    }
-    if($type === 'taxonomy_term')
-    {
-        if ( empty($GLOBALS['cdss_queued_entities'][$type.$entity->tid]) )
-        {
-            _cdss_add_entity_to_queue($entity->tid, $type);
-            $GLOBALS['cdss_queued_entities'][$type.$entity->tid] = true;
-        }
-    }
-}
 
 /// deletion logic
+
 function cmp_data_sync_server_taxonomy_term_delete($term)
 {
     db_query(
-        "REPLACE INTO {cdss_deleted_terms} (tid,vid,title) VALUES (:tid,:vid,:title)",
+        "REPLACE INTO {cdss_deleted_terms} (uuid,tid,vid,title,changed)
+         VALUES (:uuid,:tid,:vid,:title,UNIX_TIMESTAMP(NOW()))",
         array(
-            ':tid'=>$term->tid,
-            ':vid'=>$term->vid,
-            ':title'=>$term->title
+            ':uuid'  => $term->uuid,
+            ':tid'   => $term->tid,
+            ':vid'   => $term->vid,
+            ':title' => $term->title
         )
     );
-    _cdss_add_entity_to_queue($term->tid, 'deleted_term');
+    _cdss_add_entity_to_queue($term->uuid, 'deleted_term');
 }
 
 /// private setup functions
@@ -383,6 +339,7 @@ function _cdss_teardown_drupal_vars()
 {
     variable_del('cdss_node_bundles');
     variable_del('cdss_term_bundles');
+    variable_del('cdss_elasticsearch_server');
     return true;
 }
 
@@ -410,31 +367,33 @@ function _cdss_log( $message, $destination='php' )
     }
 }
 
-function _cdss_add_entity_to_queue($e_id, $e_type)
+function _cdss_add_entity_to_queue($e_uuid, $e_type)
 {
-    /// an entity_id should only be in the Q once,
+    /// an entity_uuid should only be in the Q once,
     /// any new entries for an entity should replace older one
     try {
         $queue = DrupalQueue::get('cmp_data_sync');
         $queue->createItem(array(
-            'entity_id'   => $e_id,
+            'entity_uuid' => $e_uuid,
             'entity_type' => $e_type
         ));
-        _cdss_log('Info: CDSS '.__FUNCTION__.' : entity_id='.$e_id.' entity_type='.$e_type);
+        _cdss_log('Info: CDSS '.__FUNCTION__.' : entity_uuid='.$e_uuid.' entity_type='.$e_type);
         return CDSS_SUCCESS;
     } catch (Exception $e) {
-        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : entity_id='.$e_id.' entity_type='.$e_type .' : '. $e->getMessage() .' : '. $e->getTraceAsString());
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : entity_uuid='.$e_uuid.' entity_type='.$e_type .' : '. $e->getMessage() .' : '. $e->getTraceAsString());
         return CDSS_TRY_AGAIN;
     }
 }
 function _cdss_process_queue_item($q_item_data)
 {
-    if ( empty($q_data['entity_id']) || empty($q_data['entity_type']) )
+    /// don't handle exceptions here
+    /// let exceptions rise up to whatever is calling this function
+    if ( empty($q_data['entity_uuid']) || empty($q_data['entity_type']) )
     {
         return CDSS_FATAL;
     }
     $success = _cdss_send_entity_to_elasticsearch(
-        $q_item_data['entity_id'],
+        $q_item_data['entity_uuid'],
         $q_item_data['entity_type']
     );
     if ( $success===CDSS_TRY_AGAIN )
@@ -478,28 +437,28 @@ function _cdss_send_schema_to_elasticsearch()
         return false;
     }
 }
-function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $timeout=10)
+function _cdss_send_entity_to_elasticsearch($e_uuid, $e_type, $timeout=10)
 {
     if ( $e_type === 'node' ) {
-        $entity = _cdss_load_sanitized_node($e_id);
+        $entity = _cdss_load_sanitized_node($e_uuid);
     } elseif ( $e_type === 'taxonomy_term' ) {
-        $entity = _cdss_load_sanitized_term($e_id);
+        $entity = _cdss_load_sanitized_term($e_uuid);
     } elseif ( $e_type === 'deleted_term' ) {
-        $entity = _cdss_load_deleted_term($e_id);
+        $entity = _cdss_load_deleted_term($e_uuid);
     } else {
-        _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity type unknown, removing from queue : entity_id='.$e_id.' entity_type='.$e_type);
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity type unknown, removing from queue : entity_uuid='.$e_uuid.' entity_type='.$e_type);
         return CDSS_FATAL; /// remove from queue
     }
     if(empty($entity))
     {
-        _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity empty, removing from queue : entity_id='.$e_id.' entity_type='.$e_type);
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity empty, removing from queue : entity_uuid='.$e_uuid.' entity_type='.$e_type);
         return CDSS_FATAL; /// remove from queue
     }
     $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     // try{ // leave these exceptions for _cron_queue_info
     /// put with an explicit ID will act as an upsert
     $response = drupal_http_request(
-        $elasticsearch_server.'/cmp-data-entities/entity/'.$e_type.'_'.$e_id,
+        $elasticsearch_server.'/cmp-data-entities/entity/'.$e_uuid,
         array(
             'method'  => 'PUT',
             'data'    => json_encode($entity),
@@ -512,10 +471,10 @@ function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $timeout=10)
     /// means a temporary problem and we will return FALSE
     if ( $response->code === '201' || $response->code === '200' )
     {
-        _cdss_log('Info: CDSS '.__FUNCTION__.' Indexed : entity_id='.$e_id.' entity_type='.$e_type);
+        _cdss_log('Info: CDSS '.__FUNCTION__.' Indexed : entity_uuid='.$e_uuid.' entity_type='.$e_type);
         return CDSS_SUCCESS; /// remove from queue
     } else {
-        _cdss_log('Fail: CDSS '.__FUNCTION__.' Not Indexed : entity_id='.$e_id.' entity_type='.$e_type.' response='.$response->data);
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Not Indexed : entity_uuid='.$e_uuid.' entity_type='.$e_type.' response='.$response->data);
         return CDSS_TRY_AGAIN; /// keep in queue, try again
     }
     // // leave these exceptions for _cron_queue_info
@@ -536,42 +495,48 @@ function _cdss_add_all_nodes_to_queue()
 {
     $selected_bundles = variable_get('cdss_node_bundles', array());
     $result = db_query(
-        'SELECT nid FROM node WHERE type in (:types) and ( status=1 OR deleted=1 )',
+        'SELECT uuid FROM node WHERE type in (:types) and ( status=1 OR deleted=1 )',
         array(':types'=>$selected_bundles)
     );
     $success = 0;
     $cnt=0;
-    while ( $e_id = $result->fetchField() )
+    while ( $e_uuid = $result->fetchField() )
     {
-        _cdss_log('Number of times run this looop:'.$cnt);
-        $success += _cdss_add_entity_to_queue($e_id, 'node');
+        $success += _cdss_add_entity_to_queue($e_uuid, 'node');
         $cnt++;
     }
     _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$result->rowCount());
 }
 function _cdss_add_all_terms_to_queue()
 {
+    /// loop through all active terms - add them to the queue
     $selected_bundles = variable_get('cdss_term_bundles', array());
     $result = db_query(
-        'SELECT tid
+        'SELECT uuid
          FROM taxonomy_term_data d
 	     JOIN taxonomy_vocabulary v on ( d.vid = v.vid )
          WHERE v.machine_name in (:vocabs)',
         array(':vocabs'=>$selected_bundles)
     );
     $success = 0;
-    while ( $e_id = $result->fetchField() )
+    while ( $e_uuid = $result->fetchField() )
     {
-        $success += _cdss_add_entity_to_queue($e_id, 'taxonomy_term');
+        $success += _cdss_add_entity_to_queue($e_uuid, 'taxonomy_term');
     }
     /// loop through all deleted terms - add them to the queue
-    /// $success += _cdss_add_entity_to_queue($e_id, 'deleted_term');
+    $result = db_query(
+        'SELECT uuid FROM cdss_deleted_terms'
+    );
+    while ( $e_uuid = $result->fetchField() )
+    {
+        $success += _cdss_add_entity_to_queue($e_uuid, 'deleted_term');
+    }
     _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$result->rowCount());
 }
 
-function _cdss_load_sanitized_node($e_id)
+function _cdss_load_sanitized_node($e_uuid)
 {
-    $node = node_load($e_id);
+    $node = entity_uuid_load('node',$e_uuid);
     if(empty($node))
     {
     	return $node;
@@ -593,9 +558,9 @@ function _cdss_load_sanitized_node($e_id)
 
     return $node;
 }
-function _cdss_load_sanitized_term($e_id)
+function _cdss_load_sanitized_term($e_uuid)
 {
-    $term = taxonomy_term_load($e_id);
+    $term = entity_uuid_load('taxonomy_term',$e_uuid);
     if(empty($term))
     {
     	return $term;
@@ -603,7 +568,7 @@ function _cdss_load_sanitized_term($e_id)
 
     $parent = db_query(
     	'SELECT parent FROM {taxonomy_term_hierarchy} where tid=:tid',
-    	array(':tid'=>$e_id)
+    	array(':tid'=>$term->tid)
     )->fetchField();
     if ( !empty($parent) && $parent!=='0' && $parent!==0 )
     {
@@ -612,14 +577,16 @@ function _cdss_load_sanitized_term($e_id)
     $term->deleted = false;
     return $term;
 }
-function _cdss_load_deleted_term($e_id)
+function _cdss_load_deleted_term($e_uuid)
 {
     $results = db_query(
-    	'SELECT tid,vid,title,changed,1 as deleted FROM {cdss_deleted_terms} where tid=:tid LIMIT 1',
-    	array(':tid'=>$e_id)
+    	'SELECT uuid,tid,vid,title,changed
+         FROM {cdss_deleted_terms} WHERE uuid=:uuid LIMIT 1',
+    	array(':uuid'=>$e_uuid)
     )->fetchAssoc();
     foreach ( $results as $result )
     {
+        $result['deleted'] = true;
         return (object)$result;
     }
     return null;
@@ -744,65 +711,3 @@ function _cdss_process_queue()
     _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$attempted.' of '.$queued_item_count.' total');
 
 }
-
-// function _cdss_process_queue_item($queue)
-// {
-//     $lease_time = 10;
-//
-//     $q_item = $queue->claimItem($lease_time);
-//     if ( empty($q_item) )
-//     {
-//         return null;
-//     }
-//     $success = _cdss_send_entity_to_elasticsearch(
-//         $q_item->data['entity_id'],
-//         $q_item->data['entity_type'],
-//         $lease_time
-//     );
-//     if ( $success===null )
-//     {
-//         /// we can't possibly process this
-//         /// just remove it
-//         $queue->deleteItem($q_item);
-//     } else if ( $success===true ) {
-//         $queue->deleteItem($q_item);
-//     } else {
-//         /// success===false means there was a non-fatal problem
-//         /// talking to elasticsearch
-//         /// we can put this back and try again later
-//         $queue->releaseItem($q_item);
-//     }
-//     return $success;
-// }
-/*
-cmp-data-status/check/current
-{
-    data_verification_failure = FALSE,
-    term_sha1 = "",
-    node_sha1 = "",
-    node:{
-        'type1': { 'count': 111 },
-        'type2': { 'count': 222 }
-    }
-    term:{
-        'vocabA': { 'count': 333 },
-        'vocabB': { 'count': 444 }
-    }
-}
-
-
-
-cmp-data-status/check/schema  : true
-cmp-data-status/check/content : timestamp
-
-cmp - set sha1 = fff
-cmp - updates elasticsearch
-cmp - check elasticsearch
-
-
-Then elastic search takes a shit....
-Then elastic search loses half of data...but keeps check correct as true....
-Then CMP cant update because of shit
-CHILD should see sha1-check=fff but actual-sha1=zzz
-
-*/

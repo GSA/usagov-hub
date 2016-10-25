@@ -19,7 +19,6 @@ function cmp_data_sync_server_enable()
 }
 function cmp_data_sync_server_disable()
 {
-
 }
 
 function cmp_data_sync_server_schema()
@@ -27,40 +26,45 @@ function cmp_data_sync_server_schema()
   $schema['cdss_deleted_terms'] = array(
     'description' => 'Stores deleted terms.',
     'fields' => array(
+      'uuid' => array(
+        'description' => 'Term UUID.',
+        'type' => 'char',
+        'length' => 36,
+        'not null' => TRUE
+      ),
       'tid' => array(
-        'description' => 'taxonomy id.',
+        'description' => 'Term ID.',
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
       'vid' => array(
-        'description' => 'The previous vocab id.',
+        'description' => 'Vocab ID.',
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
         'default' => 0,
       ),
-      'changed' => array(
-        'description' => 'The time of deletion.',
-        'type' => 'int',
-        'not null' => TRUE,
-      ),
       'title' => array(
-        'description' => 'The title.',
+        'description' => 'Term title.',
         'type' => 'varchar',
         'length' => 255,
         'not null' => FALSE,
         'default' => '',
       ),
+      'changed' => array(
+        'description' => 'Time of deletion.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
     ),
     'indexes' => array(
-      'cdsc_term_deleted' => array('changed'),
+      'cdsc_term_changed' => array('changed')
     ),
     'unique keys' => array(
-      'cdsc_tid_vid' => array('tid', 'vid'),
-      'cdsc_vid' => array('vid'),
+      'cdsc_tid_vid' => array('tid', 'vid')
     ),
-    'primary key' => array('tid'),
+    'primary key' => array('uuid')
   );
   return $schema;
 }
