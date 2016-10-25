@@ -95,7 +95,7 @@ function cmp_data_sync_server_config_form()
     <input type="button" onclick="ajax_process_queue();" value="Process Queue" class="form-submit"/></div>
     <div id="cdss_ajax_process_queue_response"></div>'
   );
-  
+
   return system_settings_form($form);
 }
 function _cdss_ajax_process_queue()
@@ -124,14 +124,14 @@ function _cdss_finish_request()
 {
   ignore_user_abort(1);
   //ob_start();
-  //$contentLength = ob_get_length(); 
+  //$contentLength = ob_get_length();
   //header("Content-Length: $contentLength");
   //header('Connection: close');
   while(@ob_get_level() > 0) { @ob_end_flush(); }
   @ob_flush();
-  @flush(); 
+  @flush();
   if (session_id()) session_write_close();
   fastcgi_finish_request();
-  set_time_limit(0);
-  ini_set('max_execution_time',0);
+  set_time_limit(360);
+  ini_set('max_execution_time',360);
 }
