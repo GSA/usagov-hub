@@ -19,3 +19,48 @@ function cmp_data_sync_server_disable()
 {
 
 }
+
+function cmp_data_sync_server_schema()
+{
+  $schema['cdss_deleted_terms'] = array(
+    // Example (partial) specification for table "node".
+    'description' => 'Stores deleted terms.',
+    'fields' => array(
+      'tid' => array(
+        'description' => 'taxonomy id.',
+        'type' => 'int(10)',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'vid' => array(
+        'description' => 'The previous vocab id.',
+        'type' => 'int(10)',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'changed' => array(
+        'description' => 'The time this term was deleted.',
+        'type' => 'int(11)',
+        'not null' => TRUE,
+        'default' => 'now()',
+      ),
+      'title' => array(
+        'description' => 'The old title of this term.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+    ),
+    'indexes' => array(
+      'cdsc_term_deleted' => array('changed'),
+    ),
+    'unique keys' => array(
+      'cdsc_tid_vid' => array('tid', 'vid'),
+      'cdsc_vid' => array('vid'),
+    ),
+    'primary key' => array('tid'),
+  );
+  return $schema;
+}

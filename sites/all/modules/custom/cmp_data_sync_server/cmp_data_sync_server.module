@@ -114,6 +114,20 @@ function cmp_data_sync_server_entity_update($entity, $type)
     }
 }
 
+/// deletion logic
+function cmp_data_sync_server_taxonomy_term_delete($term)
+{
+    db_query(
+        "REPLACE INTO {cdss_deleted_terms} (tid,vid,title) VALUES (:tid,:vid,:title)",
+        array(
+            ':tid'=>$term->tid,
+            ':vid'=>$term->vid,
+            ':title'=>$term->title
+        )
+    );
+    _cdss_add_entity_to_queue($term->tid, 'deleted_term');
+}
+
 /// private setup functions
 
 function _cdss_setup_elasticsearch()
@@ -470,6 +484,8 @@ function _cdss_send_entity_to_elasticsearch($e_id, $e_type, $timeout=10)
         $entity = _cdss_load_sanitized_node($e_id);
     } elseif ( $e_type === 'taxonomy_term' ) {
         $entity = _cdss_load_sanitized_term($e_id);
+    } elseif ( $e_type === 'deleted_term' ) {
+        $entity = _cdss_load_deleted_term($e_id);
     } else {
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity type unknown, removing from queue : entity_id='.$e_id.' entity_type='.$e_type);
         return CDSS_FATAL; /// remove from queue
@@ -548,6 +564,8 @@ function _cdss_add_all_terms_to_queue()
     {
         $success += _cdss_add_entity_to_queue($e_id, 'taxonomy_term');
     }
+    /// loop through all deleted terms - add them to the queue
+    /// $success += _cdss_add_entity_to_queue($e_id, 'deleted_term');
     _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$result->rowCount());
 }
 
@@ -591,7 +609,20 @@ function _cdss_load_sanitized_term($e_id)
     {
     	$term->parent = $parent;
     }
+    $term->deleted = false;
     return $term;
+}
+function _cdss_load_deleted_term($e_id)
+{
+    $results = db_query(
+    	'SELECT tid,vid,title,changed,1 as deleted FROM {cdss_deleted_terms} where tid=:tid LIMIT 1',
+    	array(':tid'=>$e_id)
+    )->fetchAssoc();
+    foreach ( $results as $result )
+    {
+        return (object)$result;
+    }
+    return null;
 }
 
 function _getExportTaxonomyStructureCode()
@@ -761,10 +792,10 @@ cmp-data-status/check/current
 
 
 
-cmp-data-status/check/schema  : true        
-cmp-data-status/check/content : timestamp   
+cmp-data-status/check/schema  : true
+cmp-data-status/check/content : timestamp
 
-cmp - set sha1 = fff 
+cmp - set sha1 = fff
 cmp - updates elasticsearch
 cmp - check elasticsearch
 
