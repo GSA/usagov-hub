@@ -6,8 +6,8 @@ function cmp_data_sync_server_install()
 function cmp_data_sync_server_uninstall()
 {
     module_load_include('module', 'cmp_data_sync_server', 'cmp_data_sync_server');
-    //_cdss_teardown_elasticsearch();
-    //_cdss_teardown_drupal();
+    _cdss_teardown_elasticsearch();
+    _cdss_teardown_drupal();
 }
 
 function cmp_data_sync_server_enable()
