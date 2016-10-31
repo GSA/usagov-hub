@@ -104,7 +104,6 @@ function cmp_data_sync_server_config_form()
     <script>
       function ajax_process_queue()
       {
-        jQuery("#cdss_ajax_add_all_to_queue_response").html("LOADING");
         jQuery.ajax({
           url: "/admin/config/cmp-data-sync-server/process_queue",
           success:function(data) {

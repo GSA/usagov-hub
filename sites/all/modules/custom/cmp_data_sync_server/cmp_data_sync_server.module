@@ -527,6 +527,8 @@ function _cdss_load_sanitized_node($e_uuid)
     unset($node->last_comment_uid);
     unset($node->comment_count);
 
+    _cdss_add_reference_bundles($node);
+
     return $node;
 }
 function _cdss_load_sanitized_term($e_uuid)
@@ -548,9 +550,15 @@ function _cdss_load_sanitized_term($e_uuid)
     if ( !empty($parent) && $parent!=='0' && $parent!==0 )
     {
     	$term->parent = $parent;
+    } else {
+        $term->parent = null;
     }
     $term->type = 'taxonomy_term';
     $term->deleted = 0;
+    /// type, parent, and deleted need to be referenced in the schema too somehow
+    /// remove all relation_add fields and make them regular relation fields or strings or something
+    _cdss_add_top_level_term($term);
+    _cdss_add_reference_bundles($term);
     return $term;
 }
 function _cdss_load_deleted_term($e_uuid)
@@ -644,7 +652,6 @@ function _getExportNodeStructureCode()
 	return _bundle_copy_export_data('node', $selected_data);
 }
 
-
 function _cdss_syncing_disabled()
 {
     $var = db_query(
@@ -688,16 +695,13 @@ function _cdss_process_queue()
             {
                 /// we can't possibly process this
                 /// just remove it
-                _cdss_log('Info: CDSS '.__FUNCTION__.' Fatal error, removing item from queue');
                 $queue->deleteItem($q_item);
             } else if ( $result===CDSS_SUCCESS ) {
-                _cdss_log('Info: CDSS '.__FUNCTION__.' Success, removing item from queue');
                 $queue->deleteItem($q_item);
             } else {
                 /// success===CDSS_TRY_AGAIN means there was a non-fatal problem
                 /// while talking to elasticsearch
                 /// we can put this back and try again later
-                _cdss_log('Info: CDSS '.__FUNCTION__.' Failure, returning item to queue');
                 $queue->releaseItem($q_item);
             }
             $success++;
@@ -708,4 +712,95 @@ function _cdss_process_queue()
     }
     _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$attempted.' of '.$queued_item_count.' total');
 
+}
+
+function _cdss_add_top_level_term( &$term )
+{
+    $term->top_level_term = 3062;
+}
+
+function _cdss_add_reference_bundles( &$entity )
+{
+    if ( empty($entity) ) { return false; }
+    try
+    {
+        $uuid_bundles =& _cdss_uuid_bundles();
+        if ( $entity->type=='taxonomy_term' )
+        {
+            $entity_type   = $entity->type;
+            $entity_bundle = $entity->vocabulary_machine_name;
+        } else {
+            $entity_type   = 'node';
+            $entity_bundle = $entity->type;
+        }
+        $fields = field_info_instances($entity_type,$entity_bundle);
+        foreach ( array_keys($fields) as $field )
+        {
+            if ( !isset($entity->$field) || !isset($entity->$field['und']) )
+            {
+                continue;
+            }
+            $field_info = field_info_field($field);
+            if ( !isset($field_info['type'])
+              || !in_array($field_info['type'],
+                           ['taxonomy_term_reference','relation_add','entityreference']) )
+            {
+                continue;
+            }
+            foreach ( $entity->$field['und'] as $i=>$ref )
+            {
+                if ( isset($ref['tid']) && is_string($ref['tid']) && strlen($ref['tid'])==36 )
+                {
+                    if ( isset($uuid_bundles[$ref['tid']]) )
+                    {
+                        $entity->$field['und'][$i]['type']   = $uuid_bundles[$ref['tid']]['type'];
+                        $entity->$field['und'][$i]['bundle'] = $uuid_bundles[$ref['tid']]['bundle'];
+                    }
+                } else if ( isset($ref['target_id']) && is_string($ref['target_id']) && strlen($ref['target_id'])==36 ) {
+                    if ( isset($uuid_bundles[$ref['target_id']]) )
+                    {
+                        $entity->$field['und'][$i]['type']   = $uuid_bundles[$ref['target_id']]['type'];
+                        $entity->$field['und'][$i]['bundle'] = $uuid_bundles[$ref['target_id']]['bundle'];
+                    }
+                } else if ( isset($ref['endpoints']) && !empty($ref['endpoints']['und']) ) {
+                    foreach ( $ref['endpoints']['und'] as $ep )
+                    {
+                        if ( isset($ep['entity_id'])
+                          && strlen($ep['entity_id'])==36
+                          && $ep['entity_id']!=$entity->uuid )
+                        {
+                            if ( isset($uuid_bundles[$ep['entity_id']]) )
+                            {
+                                $entity->$field['endpoints']['und'][$i]['type']   = $uuid_bundles[$ep['entity_id']]['type'];
+                                $entity->$field['endpoints']['und'][$i]['bundle'] = $uuid_bundles[$ep['entity_id']]['bundle'];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    } catch( Exception $e ) {
+        return false;
+    }
+}
+function &_cdss_uuid_bundles( $refresh=false )
+{
+    $uuid_bundles = &drupal_static(__FUNCTION__);
+    if ( $uuid_bundles===null || $refresh )
+    {
+        $uuid_bundles = db_query("
+            ( SELECT uuid,
+                     'taxonomy_term' as 'type',
+                     machine_name    as 'bundle'
+              FROM   taxonomy_term_data  d
+                JOIN taxonomy_vocabulary v
+                        ON d.vid=v.vid )
+            UNION
+            ( SELECT uuid, 'node', type FROM node )
+        ")->fetchAllAssoc('uuid',PDO::FETCH_ASSOC);
+        # UNION
+        # ( SELECT uuid, 'user', 'user' FROM users )
+    }
+    return $uuid_bundles;
 }
