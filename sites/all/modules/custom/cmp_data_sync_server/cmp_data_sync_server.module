@@ -543,23 +543,46 @@ function _cdss_load_sanitized_term($e_uuid)
     {
         return null;
     }
-    $parent = db_query(
-    	'SELECT parent FROM {taxonomy_term_hierarchy} where tid=:tid',
-    	array(':tid'=>$term->tid)
-    )->fetchField();
-    if ( !empty($parent) && $parent!=='0' && $parent!==0 )
-    {
-    	$term->parent = $parent;
-    } else {
-        $term->parent = null;
-    }
     $term->type = 'taxonomy_term';
     $term->deleted = 0;
-    /// type, parent, and deleted need to be referenced in the schema too somehow
-    /// remove all relation_add fields and make them regular relation fields or strings or something
+
+    _cdss_add_term_parent($term);
     _cdss_add_top_level_term($term);
     _cdss_add_reference_bundles($term);
     return $term;
+}
+
+function _cdss_add_term_parent( &$term )
+{
+    if ( !isset($term->parent) )
+    {
+        $parent_uuid = db_query(
+            'SELECT p.uuid
+             FROM {taxonomy_term_hierarchy} h
+                JOIN {taxonomy_term_data}   p ON ( p.tid=h.parent )
+             WHERE h.tid=:tid',
+            array(':tid'=>$term->tid)
+        )->fetchField();
+        if ( !empty($parent_uuid) )
+        {
+            $term->parent = $parent_uuid;
+        }
+    }
+}
+function _cdss_add_top_level_term( &$term )
+{
+    $term->field_for_use_by_text = '';
+    $all_parents = taxonomy_get_parents_all($term->tid);
+    if ( !empty($all_parents) )
+    {
+        $top_parent = array_pop($all_parents);
+        if ( !empty($top_parent) && !empty($top_parent->name) )
+        {
+            $term->field_for_use_by_text = array("und" => array(array(
+                "value" => $top_parent->name
+            )));
+        }
+    }
 }
 function _cdss_load_deleted_term($e_uuid)
 {
@@ -712,11 +735,6 @@ function _cdss_process_queue()
     }
     _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$attempted.' of '.$queued_item_count.' total');
 
-}
-
-function _cdss_add_top_level_term( &$term )
-{
-    $term->top_level_term = 3062;
 }
 
 function _cdss_add_reference_bundles( &$entity )
