@@ -527,6 +527,11 @@ function _cdss_load_sanitized_node($e_uuid)
     unset($node->last_comment_uid);
     unset($node->comment_count);
 
+    if ( isset($node->for_use_by_text) && !isset($node->for_use_by) )
+    {
+        $node->for_use_by = $node->for_use_by_text;
+    }
+
     _cdss_add_reference_bundles($node);
 
     return $node;
@@ -547,7 +552,10 @@ function _cdss_load_sanitized_term($e_uuid)
     $term->deleted = 0;
 
     _cdss_add_term_parent($term);
-    _cdss_add_top_level_term($term);
+    if ( $term->vocabulary_machine_name == 'site_strucutre_taxonomy' )
+    {
+        _cdss_add_top_level_term($term);
+    }
     _cdss_add_reference_bundles($term);
     return $term;
 }
@@ -556,7 +564,8 @@ function _cdss_add_term_parent( &$term )
 {
     if ( !isset($term->parent) )
     {
-        $parent_uuid = db_query(
+        $term->parent = null;
+        $parent_uuid  = db_query(
             'SELECT p.uuid
              FROM {taxonomy_term_hierarchy} h
                 JOIN {taxonomy_term_data}   p ON ( p.tid=h.parent )
@@ -571,14 +580,14 @@ function _cdss_add_term_parent( &$term )
 }
 function _cdss_add_top_level_term( &$term )
 {
-    $term->field_for_use_by_text = '';
+    $term->field_for_use_by = '';
     $all_parents = taxonomy_get_parents_all($term->tid);
     if ( !empty($all_parents) )
     {
         $top_parent = array_pop($all_parents);
         if ( !empty($top_parent) && !empty($top_parent->name) )
         {
-            $term->field_for_use_by_text = array("und" => array(array(
+            $term->field_for_use_by = array("und" => array(array(
                 "value" => $top_parent->name
             )));
         }
