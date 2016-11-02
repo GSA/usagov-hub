@@ -191,6 +191,9 @@ function _cdss_setup_content_index()
                     "properties": {
                         "changed": {
                             "type": "integer"
+                        },
+                        "field_for_use_by": {
+                            "type": "nested"
                         }
                     }
                 }
@@ -527,9 +530,9 @@ function _cdss_load_sanitized_node($e_uuid)
     unset($node->last_comment_uid);
     unset($node->comment_count);
 
-    if ( isset($node->for_use_by_text) && !isset($node->for_use_by) )
+    if ( isset($node->field_for_use_by_text) && !isset($node->field_for_use_by) )
     {
-        $node->for_use_by = $node->for_use_by_text;
+        $node->field_for_use_by = $node->field_for_use_by_text;
     }
 
     _cdss_add_reference_bundles($node);
@@ -552,10 +555,7 @@ function _cdss_load_sanitized_term($e_uuid)
     $term->deleted = 0;
 
     _cdss_add_term_parent($term);
-    if ( $term->vocabulary_machine_name == 'site_strucutre_taxonomy' )
-    {
-        _cdss_add_top_level_term($term);
-    }
+    _cdss_add_top_level_term($term);
     _cdss_add_reference_bundles($term);
     return $term;
 }
@@ -580,18 +580,29 @@ function _cdss_add_term_parent( &$term )
 }
 function _cdss_add_top_level_term( &$term )
 {
-    $term->field_for_use_by = '';
-    $all_parents = taxonomy_get_parents_all($term->tid);
-    if ( !empty($all_parents) )
+    /// all terms should have a field_for_use_by
+    if ( $term->vocabulary_machine_name == 'site_strucutre_taxonomy' )
     {
-        $top_parent = array_pop($all_parents);
-        if ( !empty($top_parent) && !empty($top_parent->name) )
+        $all_parents = taxonomy_get_parents_all($term->tid);
+        if ( !empty($all_parents) )
         {
-            $term->field_for_use_by = array("und" => array(array(
-                "value" => $top_parent->name
-            )));
+            $top_parent = array_pop($all_parents);
+            if ( !empty($top_parent) && !empty($top_parent->name) )
+            {
+                $term->field_for_use_by = array("und"=>array(array(
+                    "value" => $top_parent->name
+                )));
+            }
+        }
+    } else if ( !isset($term->field_for_use_by) ) {
+        if ( isset($term->field_for_use_by_text) )
+        {
+            $term->field_for_use_by = $term->field_for_use_by_text;
+        } else {
+            $term->field_for_use_by = null;
         }
     }
+
 }
 function _cdss_load_deleted_term($e_uuid)
 {

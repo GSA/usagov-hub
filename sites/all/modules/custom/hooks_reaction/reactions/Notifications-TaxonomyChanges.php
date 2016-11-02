@@ -129,6 +129,10 @@ hooks_reaction_add("HOOK_taxonomy_term_delete",
  */
 function cleanSiteStructTerm_clearDeletedTopics($term) {
 
+    if ( empty($term->field_asset_topic_taxonomy['und']) )
+    {
+        return $term;
+    }
     foreach ( $term->field_asset_topic_taxonomy['und'] as $index => $tidContainer) {
 
         $checkTid = $tidContainer['tid'];
@@ -181,10 +185,11 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
 
         // Check if the URL is being changed
         if ( property_exists($termOld,'field_friendly_url') && property_exists($termNew,'field_friendly_url')
-             && ( empty($termOld->field_friendly_url) !== empty($termNew->field_friendly_url)
-               || empty($termOld->field_friendly_url['und']) !== empty($termNew->field_friendly_url['und'])
-               || empty($termOld->field_friendly_url['und'][0]) !== empty($termNew->field_friendly_url['und'][0])
-               || trim($termOld->field_friendly_url['und'][0]['value']) !== trim($termNew->field_friendly_url['und'][0]['value'])
+             && (!empty($termOld->field_friendly_url['und'])             || !empty($termNew->field_friendly_url['und']) )
+             && ( empty($termOld->field_friendly_url)                    !== empty($termNew->field_friendly_url)
+               || empty($termOld->field_friendly_url['und'])             !== empty($termNew->field_friendly_url['und'])
+               || empty($termOld->field_friendly_url['und'][0])          !== empty($termNew->field_friendly_url['und'][0])
+               ||  trim($termOld->field_friendly_url['und'][0]['value']) !==  trim($termNew->field_friendly_url['und'][0]['value'])
             )
         ) {
             informPmTeamOfPageChange(
