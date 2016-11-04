@@ -6,16 +6,22 @@ function cmp_data_sync_server_install()
 function cmp_data_sync_server_uninstall()
 {
     module_load_include('module', 'cmp_data_sync_server', 'cmp_data_sync_server');
-    _cdss_teardown_elasticsearch();
     _cdss_teardown_drupal();
+    if ( _cdss_validate_elasticsearch_server() )
+    {
+      _cdss_teardown_elasticsearch();
+    }
 }
 
 function cmp_data_sync_server_enable()
 {
     module_load_include('module', 'cmp_data_sync_server', 'cmp_data_sync_server');
-    _cdss_setup_elasticsearch();
     _cdss_setup_drupal();
-
+    if ( _cdss_validate_elasticsearch_server() )
+    {
+      _cdss_setup_elasticsearch();
+      _cdss_send_schema_to_elasticsearch();
+    }
 }
 function cmp_data_sync_server_disable()
 {

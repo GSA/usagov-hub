@@ -17,6 +17,38 @@ function cmp_data_sync_server_menu()
         'type'            => MENU_CALLBACK,
         'file'            => 'cmp_data_sync_server.admin.inc'
     );
+    $items['admin/config/cmp-data-sync-server/validate_elasticsearch'] = array(
+        'title'           => 'Validate Elasticsearch',
+        'description'     => 'Validate Elasticsearch',
+        'page callback'   => '_cdss_ajax_validate_elasticsearch',
+        'access callback' => true,
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/config/cmp-data-sync-server/setup_elasticsearch'] = array(
+        'title'           => 'Setup Elasticsearch',
+        'description'     => 'Setup Elasticsearch',
+        'page callback'   => '_cdss_ajax_setup_elasticsearch',
+        'access callback' => true,
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/config/cmp-data-sync-server/sync_schema'] = array(
+        'title'           => 'Send Schema to Elasticsearch',
+        'description'     => 'Send Schema to Elasticsearch',
+        'page callback'   => '_cdss_ajax_sync_schema',
+        'access callback' => true,
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/config/cmp-data-sync-server/full_sync'] = array(
+        'title'           => 'Full Site Sync',
+        'description'     => 'Send all content to Elasticsearch',
+        'page callback'   => '_cdss_ajax_full_sync',
+        'access callback' => true,
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
     $items['admin/config/cmp-data-sync-server/process_queue'] = array(
         'title'           => 'Process Queue',
         'description'     => 'Process Queue',
@@ -94,6 +126,48 @@ function cmp_data_sync_server_taxonomy_term_delete($term)
     _cdss_add_entity_to_queue($term->uuid, 'deleted_term');
 }
 
+$GLOBALS['CDSS_PROCESS_QUEUE_AFTER_PAGE_LOAD'] = false;
+function cmp_data_sync_server_exit()
+{
+  if ( !empty($GLOBALS['CDSS_PROCESS_QUEUE_AFTER_PAGE_LOAD'])
+    && variable_get('cdss_immediate_sync') )
+  {
+    /// run in the background
+    _cdss_finish_request();
+    _cdss_process_queue();
+  }
+}
+
+function cmp_data_sync_server_entity_insert($entity, $type)
+{
+  _cdss_sync_entity($entity, $type);
+}
+function cmp_data_sync_server_entity_update($entity, $type)
+{
+  _cdss_sync_entity($entity, $type);
+}
+function _cdss_sync_entity($entity, $type)
+{
+  /// might have already synced this entity
+  if ( empty(variable_get('cdss_syncing_enabled'))
+  || ( isset($entity->uuid)
+      && !empty($GLOBALS['cdss_queued_entities'][$entity->uuid]) ) )
+  {
+      return;
+  }
+  /// node && published && of-syncable-type
+  /// term && of-syncable-vocabulary
+  if ( ( $type === 'node'
+            && $entity->status === 1
+            && in_array($entity->type,
+                        variable_get('cdss_node_bundles',array())) )
+    || ( $type === 'taxonomy_term'
+            && in_array($entity->vocabulary_machine_name,
+                           variable_get('cdss_term_bundles',array())) ))
+  {
+    _cdss_add_entity_to_queue($entity->uuid, $type);
+  }
+}
 
 /// private setup functions
 
@@ -132,17 +206,13 @@ function _cdss_setup_schema_index()
             if (  $response->code === '200' )
             {
                 _cdss_log('Info: CDSS '.__FUNCTION__.' Created ElasticSearch Index for CMP Schema : response='.$response->data);
-            } else if ( !($response->code === '400' || $response->code === '200') ) {
-                _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Schema : response='.$response->data);
-                return false;
+                return true;
+            } else if ( $response->code === '400' || $response->code === '200' ) {
+                _cdss_log('Info: CDSS '.__FUNCTION__.' ElasticSearch Index for CMP Schema already exists : response='.$response->data);
+                return true;
             }
-        }
-        $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema/schema/node_term', array('method'=>'HEAD') );
-        if ( $response->code === '200' )
-        {
-            return true;
-        } else {
-            return _cdss_send_schema_to_elasticsearch();
+            _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Schema : response='.$response->data);
+            return false;
         }
     } catch(Exception $e){
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
@@ -206,12 +276,14 @@ function _cdss_setup_content_index()
         $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', $options);
         if (  $response->code === '200' )
         {
-            _cdss_log('Info: Created ElasticSearch Index for CMP Content : response='.$response->data);
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Created ElasticSearch Index for CMP Content : response='.$response->data);
             return true;
-        } else if ( !($response->code === '400' || $response->code === '200') ) {
-            _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Content : response='.$response->data);
-            return false;
+        } else if ( $response->code === '400' || $response->code === '200' ) {
+            _cdss_log('Info: CDSS '.__FUNCTION__.' ElasticSearch Index for CMP Content already exists : response='.$response->data);
+            return true;
         }
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Content : response='.$response->data);
+        return false;
     } catch(Exception $e){
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
         return false;
@@ -277,7 +349,18 @@ function _cdss_teardown_drupal_queue()
 }
 function _cdss_setup_drupal_vars()
 {
-    /// check this logic: don't want to clobber with empty values if already exists
+    if ( variable_set('queue_class_cdss_queue')===null )
+    {
+        variable_set('queue_class_cdss_queue', 'CDSSQueue');
+    }
+    if ( variable_get('cdss_syncing_enabled')===null )
+    {
+        variable_set('cdss_syncing_enabled',false);
+    }
+    if ( variable_get('cdss_immediate_sync')===null )
+    {
+        variable_set('cdss_immediate_sync',true);
+    }
     if ( variable_get('cdss_node_bundles')===null )
     {
         variable_set('cdss_node_bundles',array());
@@ -290,19 +373,64 @@ function _cdss_setup_drupal_vars()
     {
         variable_set('cdss_elasticsearch_server','');
     }
-    if ( variable_get('cdss_syncing_enabled')===null )
-    {
-        variable_set('cdss_syncing_enabled',false);
-    }
 }
 function _cdss_teardown_drupal_vars()
 {
+    variable_del('cdss_syncing_enabled');
+    variable_del('cdss_immediate_sync');
     variable_del('cdss_node_bundles');
     variable_del('cdss_term_bundles');
     variable_del('cdss_elasticsearch_server');
-    variable_del('cdss_syncing_enabled');
     return true;
 }
+
+function _cdss_validate_elasticsearch_server()
+{
+  $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+  if ( empty($elasticsearch_server) )
+  {
+    return false;
+  }
+  try{
+      $response = drupal_http_request($elasticsearch_server, array('method'=>'HEAD') );
+      if ( $response->code !== '200' )
+      {
+          return false;
+      }
+      return true;
+  } catch(Exception $e){
+      return false;
+  }
+}
+function _cdss_validate_elasticsearch_content_index()
+{
+  $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+  try{
+      $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', array('method'=>'HEAD') );
+      if ( $response->code !== '200' )
+      {
+        return false;
+      }
+      return true;
+  } catch(Exception $e){
+      return false;
+  }
+}
+function _cdss_validate_elasticsearch_schema_index()
+{
+  $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+  try{
+      $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema/schema/node_term', array('method'=>'HEAD') );
+      if ( $response->code !== '200' )
+      {
+        return false;
+      }
+      return true;
+  } catch(Exception $e){
+      return false;
+  }
+}
+
 
 /// private action functions
 
@@ -330,15 +458,14 @@ function _cdss_log( $message, $destination='php' )
 
 function _cdss_add_entity_to_queue($e_uuid, $e_type)
 {
-    /// an entity_uuid should only be in the Q once,
-    /// any new entries for an entity should replace older one
     try {
         $queue = DrupalQueue::get('cmp_data_sync');
         $queue->createItem(array(
-            'entity_uuid' => $e_uuid,
-            'entity_type' => $e_type
+            'uuid' => $e_uuid,
+            'type' => $e_type
         ));
         _cdss_log('Info: CDSS '.__FUNCTION__.' : entity_uuid='.$e_uuid.' entity_type='.$e_type);
+        $GLOBALS['CDSS_PROCESS_QUEUE_AFTER_PAGE_LOAD'] = true;
         return true;
     } catch (Exception $e) {
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : entity_uuid='.$e_uuid.' entity_type='.$e_type .' : '. $e->getMessage() .' : '. $e->getTraceAsString());
@@ -349,14 +476,14 @@ function _cdss_process_queue_item($q_item_data)
 {
     /// don't handle exceptions here
     /// let exceptions rise up to whatever is calling this function
-    if ( empty($q_item_data['entity_uuid']) || empty($q_item_data['entity_type']) )
+    if ( empty($q_item_data['uuid']) || empty($q_item_data['type']) )
     {
         _cdss_log('Info: CDSS '.__FUNCTION__.' malformed queue data : '.print_r($q_item_data,1));
         return CDSS_FATAL;
     }
     $success = _cdss_send_entity_to_elasticsearch(
-        $q_item_data['entity_uuid'],
-        $q_item_data['entity_type']
+        $q_item_data['uuid'],
+        $q_item_data['type']
     );
     if ( $success===CDSS_TRY_AGAIN )
     {
