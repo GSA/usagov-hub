@@ -279,6 +279,15 @@ function _cdss_ajax_sync_schema()
     'sync'=>_cdss_send_schema_to_elasticsearch()?"success":"failure"
   ]);
 }
+function _cdss_ajax_full_sync()
+{
+  drupal_json_output(['called'=>__FUNCTION__]);
+  _cdss_finish_request();
+  _cdss_add_all_to_queue();
+  _cdss_cancel_immediate_sync();
+  _cdss_process_queue();
+  exit;
+}
 
 function _cdss_ajax_check_queue_status()
 {
@@ -288,32 +297,20 @@ function _cdss_ajax_check_queue_status()
     'queued_item_count'=>(int)$queue->numberOfItems()
   ]);
 }
-
 function _cdss_ajax_process_queue()
 {
   drupal_json_output(['called'=>__FUNCTION__]);
   _cdss_finish_request();
-  $GLOBALS['CDSS_PROCESS_QUEUE_AFTER_PAGE_LOAD'] = false;
+  _cdss_cancel_immediate_sync();
   _cdss_process_queue();
   exit;
 }
-
 function _cdss_ajax_add_all_to_queue()
 {
   drupal_json_output(['called'=>__FUNCTION__]);
   _cdss_finish_request();
   _cdss_add_all_to_queue();
-  $GLOBALS['CDSS_PROCESS_QUEUE_AFTER_PAGE_LOAD'] = false;
-  exit;
-}
-
-function _cdss_ajax_full_sync()
-{
-  drupal_json_output(['called'=>__FUNCTION__]);
-  _cdss_finish_request();
-  _cdss_add_all_to_queue();
-  $GLOBALS['CDSS_PROCESS_QUEUE_AFTER_PAGE_LOAD'] = false;
-  _cdss_process_queue();
+  _cdss_cancel_immediate_sync();
   exit;
 }
 

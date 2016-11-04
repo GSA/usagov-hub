@@ -1,9 +1,9 @@
 <?php
 
-class CDSSQueue extends SystemQueue {
+class CDSQueue extends SystemQueue {
 
   public function numberOfItems() {
-    return db_query('SELECT COUNT(item_id) FROM {cdss_queue} WHERE name = :name', array(':name' => $this->name))->fetchField();
+    return db_query('SELECT COUNT(item_id) FROM {cds_queue} WHERE name = :name', array(':name' => $this->name))->fetchField();
   }
 
   public function createItem($data) {
@@ -11,7 +11,7 @@ class CDSSQueue extends SystemQueue {
     {
         return false;
     }
-    $query = db_merge('cdss_queue')
+    $query = db_merge('cds_queue')
         ->key(array('name'=>$this->name, 'data_uuid' => $data['uuid']))
         ->fields(array(
             'data_uuid' => $data['uuid'],
@@ -30,7 +30,7 @@ class CDSSQueue extends SystemQueue {
     while (TRUE) {
       $query = "
         SELECT data, data_uuid
-        FROM {cdss_queue} q
+        FROM {cds_queue} q
         WHERE ( expire = 0 OR expire < :tstamp )
               AND name = :name
         ORDER BY created, item_id ASC
@@ -46,7 +46,7 @@ class CDSSQueue extends SystemQueue {
         // continue to use REQUEST_TIME instead of the current time(), we steal
         // time from the lease, and will tend to reset items before the lease
         // should really expire.
-        $update = db_update('cdss_queue')
+        $update = db_update('cds_queue')
           ->fields(array(
             'expire' => time() + $lease_time,
           ))
@@ -66,7 +66,7 @@ class CDSSQueue extends SystemQueue {
   }
 
   public function releaseItem($item) {
-    $update = db_update('cdss_queue')
+    $update = db_update('cds_queue')
       ->fields(array(
         'expire' => 0,
       ))
@@ -75,13 +75,13 @@ class CDSSQueue extends SystemQueue {
   }
 
   public function deleteItem($item) {
-    db_delete('cdss_queue')
+    db_delete('cds_queue')
       ->condition('data_uuid', $item->data_uuid)
       ->execute();
   }
 
   public function deleteQueue() {
-    db_delete('cdss_queue')
+    db_delete('cds_queue')
       ->condition('name', $this->name)
       ->execute();
   }
