@@ -10,68 +10,68 @@ function cmp_data_sync_server_menu()
 {
     $items = array();
     // Configuration page
-    $items['admin/config/cmp-data-sync-server'] = array(
-        'title'           => 'CMP Data Sync To ElasticSearch',
+    $items['admin/content/cmp-data-sync-server'] = array(
+        'title'           => 'CMP Data Sync',
         'description'     => 'Settings',
         'page callback'   => 'drupal_get_form',
         'page arguments'  => array('cmp_data_sync_server_config_form'),
-        'access callback' => true,
-        'type'            => MENU_CALLBACK,
+        'access arguments' => array('administer cmp data sync'),
+        'type'            => MENU_NORMAL_ITEM,
         'file'            => 'cmp_data_sync_server.admin.inc'
     );
-    $items['admin/config/cmp-data-sync-server/validate_elasticsearch'] = array(
+    $items['admin/content/cmp-data-sync-server/api/validate_elasticsearch'] = array(
         'title'           => 'Validate Elasticsearch',
         'description'     => 'Validate Elasticsearch',
         'page callback'   => '_cdss_ajax_validate_elasticsearch',
-        'access callback' => true,
+        'access arguments' => array('administer cmp data sync'),
         'type'            => MENU_CALLBACK,
         'file'            => 'cmp_data_sync_server.admin.inc'
     );
-    $items['admin/config/cmp-data-sync-server/setup_elasticsearch'] = array(
+    $items['admin/content/cmp-data-sync-server/api/setup_elasticsearch'] = array(
         'title'           => 'Setup Elasticsearch',
         'description'     => 'Setup Elasticsearch',
         'page callback'   => '_cdss_ajax_setup_elasticsearch',
-        'access callback' => true,
+        'access arguments' => array('administer cmp data sync'),
         'type'            => MENU_CALLBACK,
         'file'            => 'cmp_data_sync_server.admin.inc'
     );
-    $items['admin/config/cmp-data-sync-server/sync_schema'] = array(
+    $items['admin/content/cmp-data-sync-server/api/sync_schema'] = array(
         'title'           => 'Send Schema to Elasticsearch',
         'description'     => 'Send Schema to Elasticsearch',
         'page callback'   => '_cdss_ajax_sync_schema',
-        'access callback' => true,
+        'access arguments' => array('administer cmp data sync'),
         'type'            => MENU_CALLBACK,
         'file'            => 'cmp_data_sync_server.admin.inc'
     );
-    $items['admin/config/cmp-data-sync-server/full_sync'] = array(
+    $items['admin/content/cmp-data-sync-server/api/full_sync'] = array(
         'title'           => 'Full Site Sync',
         'description'     => 'Send all content to Elasticsearch',
         'page callback'   => '_cdss_ajax_full_sync',
-        'access callback' => true,
+        'access arguments' => array('administer cmp data sync'),
         'type'            => MENU_CALLBACK,
         'file'            => 'cmp_data_sync_server.admin.inc'
     );
-    $items['admin/config/cmp-data-sync-server/process_queue'] = array(
+    $items['admin/content/cmp-data-sync-server/api/process_queue'] = array(
         'title'           => 'Process Queue',
         'description'     => 'Process Queue',
         'page callback'   => '_cdss_ajax_process_queue',
-        'access callback' => true,
+        'access arguments' => array('administer cmp data sync'),
         'type'            => MENU_CALLBACK,
         'file'            => 'cmp_data_sync_server.admin.inc'
     );
-    $items['admin/config/cmp-data-sync-server/add_all_to_queue'] = array(
+    $items['admin/content/cmp-data-sync-server/api/add_all_to_queue'] = array(
         'title'           => 'Add all to Queue',
         'description'     => 'Add all to Queue',
         'page callback'   => '_cdss_ajax_add_all_to_queue',
-        'access callback' => true,
+        'access arguments' => array('administer cmp data sync'),
         'type'            => MENU_CALLBACK,
         'file'            => 'cmp_data_sync_server.admin.inc'
     );
-    $items['admin/config/cmp-data-sync-server/check_queue_status'] = array(
+    $items['admin/content/cmp-data-sync-server/api/check_queue_status'] = array(
         'title'           => 'Check Queue Status',
         'description'     => 'Display Queue Status',
         'page callback'   => '_cdss_ajax_check_queue_status',
-        'access callback' => true,
+        'access arguments' => array('administer cmp data sync'),
         'type'            => MENU_CALLBACK,
         'file'            => 'cmp_data_sync_server.admin.inc'
     );
@@ -80,11 +80,19 @@ function cmp_data_sync_server_menu()
         'title'           => 'CMP Data Sync To ElasticSearch',
         'description'     => 'Testing',
         'page callback'   => 'cmp_data_sync_server_test',
-        'access callback' => true,
+        'access arguments' => array('administer cmp data sync'),
         'type'            => MENU_CALLBACK,
     );
     /**/
     return $items;
+}
+function cmp_data_sync_server_permission()
+{
+  return array(
+    'administer cmp data sync' => array(
+      'title' => t('Administer Childsite Syncing behavior'),
+    )
+  );
 }
 
 /// drupal hooks
@@ -94,8 +102,8 @@ function cmp_data_sync_server_cron_queue_info()
     /// will pull items off the queue while cron is running
     $queues = array();
     $queues['cmp_data_sync'] = array(
-      'worker callback' => '_cdss_process_queue_item',
-      'time'            => 30
+        'worker callback' => '_cdss_process_queue_item',
+        'time'            => 30
     );
     return $queues;
 }
@@ -116,48 +124,80 @@ function cmp_data_sync_server_taxonomy_term_delete( $term )
 
 function cmp_data_sync_server_exit()
 {
-  if ( !empty($GLOBALS['cdss_queued_entities'])
-    && variable_get('cdss_immediate_sync') )
-  {
-    /// run in the background
-    _cdss_finish_request();
-    _cdss_process_queue();
-  }
+    if ( !empty($GLOBALS['cdss_queued_entities'])
+      && variable_get('cdss_immediate_sync') )
+    {
+        /// run in the background
+        _cdss_finish_request();
+        _cdss_process_queue();
+    }
 }
 function _cdss_cancel_immediate_sync()
 {
   $GLOBALS['cdss_queued_entities'] = array();
 }
 
+
+function cmp_data_sync_server_workbench_moderation_transition($entity, $fromState, $toState)
+{
+    /// make sure we are acting on the proper revision - might need to load another version of the node or something
+
+    /* When a work-flow state [alone] is changed, in certain edge cases, the node's "changed" field is not updated,
+    which can cause a node to be missed by childsite update-pulls. We will fix this here.
+    We only care if the published version changes however */
+    _cdss_log('Info: CDSS '.__FUNCTION__.' uuid:'.$entity->uuid .' from:'.$fromState .' to:'.$toState);
+    if ( empty($entity->uuid) && $fromState!=='published' && $toState!=='published' )
+    {
+        _cdss_log('Info: CDSS '.__FUNCTION__.' ignoring this transition');
+        return;
+    }
+    if ( !empty($entity->nid) )
+    {
+        $entity->changed = time();
+        db_query("UPDATE node SET changed=:changed WHERE uuid=:uuid",
+                  array( ':changed'=>$entity->changed, ':uuid'=>$entity->uuid ));
+        _cdss_entity_queue( $entity, 'node' );
+
+    } else if ( !empty($entity->tid) ) {
+        $entity->changed = time();
+        db_query("UPDATE taxonomy_term_data SET changed=:changed WHERE uuid=:uuid",
+                  array( ':changed'=>$entity->changed, ':uuid'=>$entity->uuid ));
+        _cdss_entity_queue( $entity, 'taxnomy_term' );
+    }
+}
 function cmp_data_sync_server_entity_insert( $entity, $type )
 {
-  _cdss_entity_queue($entity, $type);
+    _cdss_entity_queue($entity, $type);
 }
 function cmp_data_sync_server_entity_update( $entity, $type )
 {
-  _cdss_entity_queue($entity, $type);
+    _cdss_entity_queue($entity, $type);
 }
 function _cdss_entity_queue( $entity, $type )
 {
-  /// might have already synced this entity during current page load
-  if ( empty(variable_get('cdss_syncing_enabled'))
-    || ( isset($entity->uuid)
+    /// might have already synced this entity during current page load
+    if ( empty(variable_get('cdss_syncing_enabled'))
+    ||    empty($entity->uuid)
+    || ( !empty($entity->uuid)
       && !empty($GLOBALS['cdss_queued_entities'][$entity->uuid]) ) )
-  {
-      return;
-  }
-  /// node && published && of-syncable-type
-  /// term && of-syncable-vocabulary
-  if ( ( $type === 'node'
-            && $entity->status === 1
-            && in_array($entity->type,
-                        variable_get('cdss_node_bundles',array())) )
+    {
+        _cdss_log('DBG: CDSS '.__FUNCTION__.' skipping duplicate  : uuid='.$entity->uuid);
+        return;
+    }
+    /// node && published && of-syncable-type
+    /// term && of-syncable-vocabulary
+    if ( ( $type === 'node'
+        //&& $entity->status === 1
+        && in_array($entity->type,
+                    variable_get('cdss_node_bundles',array())) )
     || ( $type === 'taxonomy_term'
-            && in_array($entity->vocabulary_machine_name,
-                           variable_get('cdss_term_bundles',array())) ))
-  {
-    _cdss_add_entity_to_queue($entity->uuid, $type);
-  }
+        && in_array($entity->vocabulary_machine_name,
+                    variable_get('cdss_term_bundles',array())) ) )
+    {
+        _cdss_add_entity_to_queue($entity->uuid, $type);
+    } else {
+        _cdss_log('DBG: CDSS '.__FUNCTION__.' skipping, not syncable  : uuid='.$entity->uuid.' s='.$entity->status.' t='.$entity->type);
+    }
 }
 
 /// setup functions
@@ -340,9 +380,9 @@ function _cdss_teardown_drupal_queue()
 }
 function _cdss_setup_drupal_vars()
 {
-    if ( variable_set('queue_class_cdss_queue')===null )
+    if ( variable_set('queue_class_cmp_data_sync')===null )
     {
-        variable_set('queue_class_cdss_queue', 'CDSSQueue');
+        variable_set('queue_class_cmp_data_sync', 'CDSQueue');
     }
     if ( variable_get('cdss_syncing_enabled')===null )
     {
@@ -367,6 +407,7 @@ function _cdss_setup_drupal_vars()
 }
 function _cdss_teardown_drupal_vars()
 {
+    variable_del('queue_class_cmp_data_sync');
     variable_del('cdss_syncing_enabled');
     variable_del('cdss_immediate_sync');
     variable_del('cdss_node_bundles');
@@ -439,6 +480,7 @@ function _cdss_syncing_disabled()
 
 function _cdss_process_queue()
 {
+    _cdss_log('Info: CDSS '.__FUNCTION__);
     $queue = DrupalQueue::get('cmp_data_sync');
 
     $lease_time = 10;
@@ -494,6 +536,7 @@ function _cdss_process_queue_item( $q_item_data )
         _cdss_log('Info: CDSS '.__FUNCTION__.' malformed queue data : '.print_r($q_item_data,1));
         return CDSS_FATAL;
     }
+    _cdss_log('Info: CDSS '.__FUNCTION__.' '.$q_item_data['uuid']);
     $success = _cdss_send_entity_to_elasticsearch(
         $q_item_data['uuid'],
         $q_item_data['type']
@@ -621,7 +664,7 @@ function _cdss_add_all_terms_to_queue()
     $result = db_query(
         'SELECT uuid
          FROM taxonomy_term_data d
-	     JOIN taxonomy_vocabulary v on ( d.vid = v.vid )
+         JOIN taxonomy_vocabulary v on ( d.vid = v.vid )
          WHERE v.machine_name in (:vocabs)',
         array(':vocabs'=>$selected_bundles)
     );
@@ -666,12 +709,12 @@ function _cdss_load_sanitized_node( $e_uuid )
     $nodes = entity_uuid_load('node',array($e_uuid));
     if(empty($nodes))
     {
-    	return null;
+        return null;
     }
     $node = array_shift($nodes);
     if(empty($node))
     {
-    	return null;
+        return null;
     }
 
     unset($node->uid);
@@ -720,9 +763,9 @@ function _cdss_load_sanitized_term( $e_uuid )
 function _cdss_load_deleted_term( $e_uuid )
 {
     $result = db_query(
-    	'SELECT uuid,tid,vid,name,changed
+        'SELECT uuid,tid,vid,name,changed
          FROM {cds_deleted_terms} WHERE uuid=:uuid LIMIT 1',
-    	array(':uuid'=>$e_uuid)
+        array(':uuid'=>$e_uuid)
     )->fetchObject();
     if ( $result===false )
     {
@@ -852,70 +895,70 @@ function _cdss_export_taxonomy_structure()
 
     $instances = array();
     foreach ($selected_bundles as $key => $bundle) {
-    	if ($key === $bundle) {
-    		$instances += field_info_instances('taxonomy_term', $bundle);
-    	}
+        if ($key === $bundle) {
+            $instances += field_info_instances('taxonomy_term', $bundle);
+        }
     }
     ksort($instances);
 
     $selectedFields = array();
     foreach ( $instances as $machineName => $fieldInfo ) {
-    	$selectedFields[$machineName] = $machineName;
+        $selectedFields[$machineName] = $machineName;
     }
 
     $fieldGroupIds = array();
     $fieldGroupData = array();
     $all_groups = function_exists('field_group_info_groups') ? field_group_info_groups() : array();
     if ( !empty($all_groups) && !empty($all_groups['taxonomy_term']) ) {
-    	foreach ($all_groups['taxonomy_term'] as $vocabName => $formData) {
-    		foreach ($formData['form'] as $groupName => $data) {
-    			$fieldGroupIds[$data->id] = $data->id;
-    			$fieldGroupData[$data->id] = $data;
-    		}
-    	}
+        foreach ($all_groups['taxonomy_term'] as $vocabName => $formData) {
+            foreach ($formData['form'] as $groupName => $data) {
+                $fieldGroupIds[$data->id] = $data->id;
+                $fieldGroupData[$data->id] = $data;
+            }
+        }
     }
 
     $selected_data = array(
-    	1 => array(
-    		'bundles' => $selected_bundles
-    	),
-    	2 => array(
-    		'fields' => $selectedFields,
-    		'fieldgroups' => $fieldGroupIds,
-    		'fieldgroups-full' => $fieldGroupData,
-    	),
+        1 => array(
+            'bundles' => $selected_bundles
+        ),
+        2 => array(
+            'fields' => $selectedFields,
+            'fieldgroups' => $fieldGroupIds,
+            'fieldgroups-full' => $fieldGroupData,
+        ),
     );
 
     return _bundle_copy_export_data('taxonomy_term', $selected_data);
 }
 function _cdss_export_node_structure()
 {
-	$selected_bundles = variable_get('cdss_node_bundles', array());
+    $selected_bundles = variable_get('cdss_node_bundles', array());
 
-	$instances = array();
-	foreach ($selected_bundles as $key => $bundle) {
-		if ($key === $bundle) {
-		  $instances += field_info_instances('node', $bundle);
-		}
-	}
-	ksort($instances);
+    $instances = array();
+    foreach ($selected_bundles as $key => $bundle) {
+        if ($key === $bundle) {
+          $instances += field_info_instances('node', $bundle);
+        }
+    }
+    ksort($instances);
 
-	$selectedFields = array();
-	foreach ( $instances as $machineName => $fieldInfo ) {
-		$selectedFields[$machineName] = $machineName;
-	}
+    $selectedFields = array();
+    foreach ( $instances as $machineName => $fieldInfo ) {
+        $selectedFields[$machineName] = $machineName;
+    }
 
-	$selected_data = array(
-		1 => array(
-			'bundles' => $selected_bundles
-		),
-		2 => array(
-			'fields' => $selectedFields
-		),
-	);
+    $selected_data = array(
+        1 => array(
+            'bundles' => $selected_bundles
+        ),
+        2 => array(
+            'fields' => $selectedFields
+        ),
+    );
 
 
-	return _bundle_copy_export_data('node', $selected_data);
+    return _bundle_copy_export_data('node', $selected_data);
 }
 
 function &_cdss_uuid_bundles( $refresh=false )
@@ -961,6 +1004,19 @@ function _cdss_log( $message, $destination='php' )
             ['type'=>'','icon'=>0,'emoji'=>0]
         );
     }
+}
+
+function _cdss_finish_request()
+{
+    _cdss_log('Info: CDSS '.__FUNCTION__);
+  ignore_user_abort(1);
+  while(@ob_get_level() > 0) { @ob_end_flush(); }
+  @ob_flush();
+  @flush();
+  if (session_id()) session_write_close();
+  fastcgi_finish_request();
+  set_time_limit(600);
+  ini_set('max_execution_time',600);
 }
 
 /** /

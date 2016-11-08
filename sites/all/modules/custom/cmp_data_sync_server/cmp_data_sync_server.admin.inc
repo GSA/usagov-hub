@@ -26,7 +26,7 @@ function cmp_data_sync_server_config_form()
       {
         jQuery("#cdss_ajax_full_sync_response").html("LOADING");
         jQuery.ajax({
-          url: "/admin/config/cmp-data-sync-server/full_sync",
+          url: "/admin/content/cmp-data-sync-server/api/full_sync",
           success:function(data) {
             jQuery("#cdss_ajax_full_sync_response").html("queueing");
           },
@@ -93,7 +93,7 @@ function cmp_data_sync_server_config_form()
       {
         jQuery("#cdss_ajax_check_queue_status_response").html("LOADING");
         jQuery.ajax({
-          url: "/admin/config/cmp-data-sync-server/check_queue_status",
+          url: "/admin/content/cmp-data-sync-server/api/check_queue_status",
           success:function(data) {
             jQuery("#cdss_ajax_check_queue_status_response").html("Items:"+data.queued_item_count);
           },
@@ -117,7 +117,7 @@ function cmp_data_sync_server_config_form()
       {
         jQuery("#cdss_ajax_add_all_to_queue_response").html("LOADING");
         jQuery.ajax({
-          url: "/admin/config/cmp-data-sync-server/add_all_to_queue",
+          url: "/admin/content/cmp-data-sync-server/api/add_all_to_queue",
           success:function(data) {
             jQuery("#cdss_ajax_add_all_to_queue_response").html("queueing");
           },
@@ -139,7 +139,7 @@ function cmp_data_sync_server_config_form()
       function ajax_process_queue()
       {
         jQuery.ajax({
-          url: "/admin/config/cmp-data-sync-server/process_queue",
+          url: "/admin/content/cmp-data-sync-server/api/process_queue",
           success:function(data) {
             jQuery("#cdss_ajax_process_queue_response").html("processing");
           },
@@ -178,7 +178,7 @@ function cmp_data_sync_server_config_form()
       function ajax_validate_elasticsearch()
       {
         jQuery.ajax({
-          url: "/admin/config/cmp-data-sync-server/validate_elasticsearch",
+          url: "/admin/content/cmp-data-sync-server/api/validate_elasticsearch",
           success:function(data) {
             console.log(data);
             status  = " server:"+ (data.server?"<span style=\"color:green\">good</span>":"<span style=\"color:red\">bad</span>");
@@ -207,7 +207,7 @@ function cmp_data_sync_server_config_form()
         function ajax_setup_elasticsearch()
         {
           jQuery.ajax({
-            url: "/admin/config/cmp-data-sync-server/setup_elasticsearch",
+            url: "/admin/content/cmp-data-sync-server/api/setup_elasticsearch",
             success:function(data) {
               status  = " server:"+ (data.server?"<span style=\"color:green\">good</span>":"<span style=\"color:red\">bad</span>");
               status += " schema-index:"+ (data.schema_index?"<span style=\"color:green\">good</span>":"<span style=\"color:red\">bad</span>");
@@ -235,7 +235,7 @@ function cmp_data_sync_server_config_form()
       function ajax_sync_schema()
       {
         jQuery.ajax({
-          url: "/admin/config/cmp-data-sync-server/sync_schema",
+          url: "/admin/content/cmp-data-sync-server/api/sync_schema",
           success:function(data) {
             console.info(data);
             jQuery("#cdss_ajax_sync_schema_response").html(data.sync);
@@ -312,16 +312,4 @@ function _cdss_ajax_add_all_to_queue()
   _cdss_add_all_to_queue();
   _cdss_cancel_immediate_sync();
   exit;
-}
-
-function _cdss_finish_request()
-{
-  ignore_user_abort(1);
-  while(@ob_get_level() > 0) { @ob_end_flush(); }
-  @ob_flush();
-  @flush();
-  if (session_id()) session_write_close();
-  fastcgi_finish_request();
-  set_time_limit(600);
-  ini_set('max_execution_time',600);
 }
