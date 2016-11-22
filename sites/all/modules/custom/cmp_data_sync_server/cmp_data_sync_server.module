@@ -452,7 +452,7 @@ function _cdss_validate_elasticsearch_schema_index()
 {
   $elasticsearch_server = variable_get('cdss_elasticsearch_server');
   try{
-      $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema/schema/node_term', array('method'=>'HEAD') );
+      $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
       if ( $response->code !== '200' )
       {
         return false;

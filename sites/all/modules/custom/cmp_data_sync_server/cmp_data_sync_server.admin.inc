@@ -115,7 +115,7 @@ function cmp_data_sync_server_config_form()
     <script>
       function ajax_add_all_to_queue()
       {
-        jQuery("#cdss_ajax_add_all_to_queue_response").html("LOADING");
+        jQuery("#cdss_ajax_add_all_to_queue_response").html("loading");
         jQuery.ajax({
           url: "/admin/content/cmp-data-sync-server/api/add_all_to_queue",
           success:function(data) {
@@ -138,6 +138,7 @@ function cmp_data_sync_server_config_form()
     <script>
       function ajax_process_queue()
       {
+        jQuery("#cdss_ajax_process_queue_response").html("loading");
         jQuery.ajax({
           url: "/admin/content/cmp-data-sync-server/api/process_queue",
           success:function(data) {
@@ -177,6 +178,7 @@ function cmp_data_sync_server_config_form()
     <script>
       function ajax_validate_elasticsearch()
       {
+        jQuery("#cdss_ajax_validate_elasticsearch_response").html("loading");
         jQuery.ajax({
           url: "/admin/content/cmp-data-sync-server/api/validate_elasticsearch",
           success:function(data) {
@@ -206,6 +208,7 @@ function cmp_data_sync_server_config_form()
       <script>
         function ajax_setup_elasticsearch()
         {
+          jQuery("#cdss_ajax_setup_elasticsearch_response").html("loading");
           jQuery.ajax({
             url: "/admin/content/cmp-data-sync-server/api/setup_elasticsearch",
             success:function(data) {
@@ -234,14 +237,13 @@ function cmp_data_sync_server_config_form()
     <script>
       function ajax_sync_schema()
       {
+        jQuery("#cdss_ajax_sync_schema_response").html("loading");
         jQuery.ajax({
           url: "/admin/content/cmp-data-sync-server/api/sync_schema",
           success:function(data) {
-            console.info(data);
             jQuery("#cdss_ajax_sync_schema_response").html(data.sync);
           },
           error:function(data) {
-            console.error(data);
             jQuery("#cdss_ajax_sync_schema_response").html("failure");
           }
         });
