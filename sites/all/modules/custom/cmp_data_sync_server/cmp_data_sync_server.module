@@ -736,6 +736,36 @@ function _cdss_load_sanitized_node( $e_uuid )
         $node->field_for_use_by = $node->field_for_use_by_text;
     }
 
+    $s3path  = '//'. variable_get('s3fs_bucket') .'.s3.amazonaws.com/';
+    $s3regex = '/s3\:\/{2,3}/i';
+    if ( isset($node->field_file_media)
+      && isset($node->field_file_media['und'])
+      && isset($node->field_file_media['und'][0])
+      && isset($node->field_file_media['und'][0]['uri']) )
+    {
+        $realURL = preg_replace($s3regex, $s3path, $node->field_file_media['und'][0]['uri'] );
+        // then plug the URL to the file into the "" field
+        $node->field_file_media_url = array(
+            'und' => array(
+                0 => array(
+                    'value' => $realURL,
+                    'format' => null,
+                    'safe_value' => $realURL
+                )
+            )
+        );
+    }
+    if ( isset($node->field_html) )
+    {
+        $node->field_html['und'][0]['value']      = preg_replace($s3regex, $node->field_html['und'][0]['value'] );
+        $node->field_html['und'][0]['safe_value'] = preg_replace($s3regex, $node->field_html['und'][0]['safe_value'] );
+    }
+    if ( isset($node->body) && $node->type=='text_content_type')
+    {
+        $node->body['und'][0]['value']      = preg_replace($s3regex, $node->body['und'][0]['value'] );
+        $node->body['und'][0]['safe_value'] = preg_replace($s3regex, $node->body['und'][0]['safe_value'] );
+    }
+
     _cdss_add_reference_bundles($node);
 
     return $node;
