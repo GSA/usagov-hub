@@ -380,7 +380,7 @@ function _cdss_teardown_drupal_queue()
 }
 function _cdss_setup_drupal_vars()
 {
-    if ( variable_set('queue_class_cmp_data_sync')===null )
+    if ( variable_get('queue_class_cmp_data_sync')===null )
     {
         variable_set('queue_class_cmp_data_sync', 'CDSQueue');
     }
@@ -744,8 +744,9 @@ function _cdss_load_sanitized_node( $e_uuid )
       && isset($node->field_file_media['und'][0]['uri']) )
     {
         $realURL = preg_replace($s3regex, $s3path, $node->field_file_media['und'][0]['uri'] );
+        $node->field_file_media['und'][0]['uri']=$realURL;
         // then plug the URL to the file into the "" field
-        $node->field_file_media_url = array(
+        /*$node->field_file_media_url = array(
             'und' => array(
                 0 => array(
                     'value' => $realURL,
@@ -753,17 +754,26 @@ function _cdss_load_sanitized_node( $e_uuid )
                     'safe_value' => $realURL
                 )
             )
-        );
+        );*/
     }
+    if ( isset($node->field_file_text)
+      && isset($node->field_file_text['und'])
+      && isset($node->field_file_text['und'][0])
+      && isset($node->field_file_text['und'][0]['uri']) )
+    {
+        $realURL = preg_replace($s3regex, $s3path, $node->field_file_text['und'][0]['uri'] );
+        $node->field_file_text['und'][0]['uri']=$realURL;
+    }
+    
     if ( isset($node->field_html) )
     {
-        $node->field_html['und'][0]['value']      = preg_replace($s3regex, $node->field_html['und'][0]['value'] );
-        $node->field_html['und'][0]['safe_value'] = preg_replace($s3regex, $node->field_html['und'][0]['safe_value'] );
+        $node->field_html['und'][0]['value']      = preg_replace($s3regex, $s3path, $node->field_html['und'][0]['value'] );
+        $node->field_html['und'][0]['safe_value'] = preg_replace($s3regex, $s3path, $node->field_html['und'][0]['safe_value'] );
     }
     if ( isset($node->body) && $node->type=='text_content_type')
     {
-        $node->body['und'][0]['value']      = preg_replace($s3regex, $node->body['und'][0]['value'] );
-        $node->body['und'][0]['safe_value'] = preg_replace($s3regex, $node->body['und'][0]['safe_value'] );
+        $node->body['und'][0]['value']      = preg_replace($s3regex, $s3path, $node->body['und'][0]['value'] );
+        $node->body['und'][0]['safe_value'] = preg_replace($s3regex, $s3path, $node->body['und'][0]['safe_value'] );
     }
 
     _cdss_add_reference_bundles($node);
