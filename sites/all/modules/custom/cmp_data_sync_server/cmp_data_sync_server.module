@@ -134,7 +134,9 @@ function cmp_data_sync_server_exit()
 }
 function _cdss_cancel_immediate_sync()
 {
-  $GLOBALS['cdss_queued_entities'] = array();
+  global $config;
+  $config['cdss_immediate_sync'] = false;
+  //$GLOBALS['cdss_queued_entities'] = array();
 }
 
 
@@ -187,7 +189,7 @@ function _cdss_entity_queue( $entity, $type )
     /// node && published && of-syncable-type
     /// term && of-syncable-vocabulary
     if ( ( $type === 'node'
-        //&& $entity->status === 1
+        // && $entity->status === 1
         && in_array($entity->type,
                     variable_get('cdss_node_bundles',array())) )
     || ( $type === 'taxonomy_term'
@@ -588,6 +590,8 @@ function _cdss_send_entity_to_elasticsearch( $e_uuid, $e_type, $timeout=10 )
     {
         if ( $e_type === 'node' ) {
             $entity = _cdss_load_sanitized_node($e_uuid);
+        } elseif ( $e_type === 'deleted_node' ) {
+            $entity = _cdss_load_deleted_node($e_uuid);
         } elseif ( $e_type === 'taxonomy_term' ) {
             $entity = _cdss_load_sanitized_term($e_uuid);
         } elseif ( $e_type === 'deleted_term' ) {
@@ -647,13 +651,13 @@ function _cdss_add_all_nodes_to_queue()
 {
     $selected_bundles = variable_get('cdss_node_bundles', array());
     $result = db_query(
-        'SELECT uuid FROM node WHERE type in (:types) and ( status=1 OR deleted=1 )',
+        'SELECT uuid, deleted FROM node WHERE type in (:types) and ( status=1 OR deleted=1 ) ORDER BY changed desc',
         array(':types'=>$selected_bundles)
     );
     $success = 0;
-    while ( $e_uuid = $result->fetchField() )
+    foreach ( $result as $row )
     {
-        $success += _cdss_add_entity_to_queue($e_uuid, 'node');
+        $success += _cdss_add_entity_to_queue( $row->uuid, $row->deleted?'deleted_node':'node');
     }
     _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$result->rowCount());
 }
@@ -665,7 +669,8 @@ function _cdss_add_all_terms_to_queue()
         'SELECT uuid
          FROM taxonomy_term_data d
          JOIN taxonomy_vocabulary v on ( d.vid = v.vid )
-         WHERE v.machine_name in (:vocabs)',
+         WHERE v.machine_name in (:vocabs)
+         ORDER BY changed desc',
         array(':vocabs'=>$selected_bundles)
     );
     $total   = $result->rowCount();
@@ -703,7 +708,6 @@ function _cdss_add_entity_to_queue( $e_uuid, $e_type )
 }
 
 /// data acquisition
-
 function _cdss_load_sanitized_node( $e_uuid )
 {
     $nodes = entity_uuid_load('node',array($e_uuid));
@@ -764,7 +768,7 @@ function _cdss_load_sanitized_node( $e_uuid )
         $realURL = preg_replace($s3regex, $s3path, $node->field_file_text['und'][0]['uri'] );
         $node->field_file_text['und'][0]['uri']=$realURL;
     }
-    
+
     if ( isset($node->field_html) )
     {
         $node->field_html['und'][0]['value']      = preg_replace($s3regex, $s3path, $node->field_html['und'][0]['value'] );
@@ -778,7 +782,22 @@ function _cdss_load_sanitized_node( $e_uuid )
 
     _cdss_add_reference_bundles($node);
 
+    $node->status = "1";
     return $node;
+}
+function _cdss_load_deleted_node( $e_uuid )
+{
+    $result = db_query(
+        'SELECT uuid,nid,vid,title,changed,deleted
+         FROM {node} WHERE uuid=:uuid AND deleted=1 LIMIT 1',
+        array(':uuid'=>$e_uuid)
+    )->fetchObject();
+    if ( $result===false )
+    {
+        return null;
+    }
+    $result->status = "0";
+    return $result;
 }
 function _cdss_load_sanitized_term( $e_uuid )
 {

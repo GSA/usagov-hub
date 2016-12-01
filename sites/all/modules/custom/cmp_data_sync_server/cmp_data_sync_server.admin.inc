@@ -286,10 +286,7 @@ function _cdss_ajax_full_sync()
   drupal_json_output(['called'=>__FUNCTION__]);
   _cdss_finish_request();
   _cdss_add_all_to_queue();
-  //_cdss_cancel_immediate_sync();
- 
-  _cdss_process_queue();
-  exit;
+  /// let hook_exit run process_queue
 }
 
 function _cdss_ajax_check_queue_status()
