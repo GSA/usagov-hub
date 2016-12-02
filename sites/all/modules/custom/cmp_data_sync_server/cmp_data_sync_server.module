@@ -124,14 +124,11 @@ function cmp_data_sync_server_taxonomy_term_delete( $term )
 
 function cmp_data_sync_server_exit()
 {
-    _cdss_log('Info: CDSS '.__FUNCTION__.' qempty='.empty($GLOBALS['cdss_queued_entities'])
- .' immediate='.variable_get('cdss_immediate_sync'));
     if ( !empty($GLOBALS['cdss_queued_entities'])
       && variable_get('cdss_immediate_sync') )
     {
-        _cdss_log('Info: CDSS '.__FUNCTION__.' '.__LINE__.' call process_queue');
         /// run in the background
-        //_cdss_finish_request();
+        _cdss_finish_request();
         _cdss_process_queue();
     }
 }
@@ -150,10 +147,8 @@ function cmp_data_sync_server_workbench_moderation_transition($entity, $fromStat
     /* When a work-flow state [alone] is changed, in certain edge cases, the node's "changed" field is not updated,
     which can cause a node to be missed by childsite update-pulls. We will fix this here.
     We only care if the published version changes however */
-    _cdss_log('Info: CDSS '.__FUNCTION__.' uuid:'.$entity->uuid .' from:'.$fromState .' to:'.$toState);
     if ( empty($entity->uuid) && $fromState!=='published' && $toState!=='published' )
     {
-        _cdss_log('Info: CDSS '.__FUNCTION__.' ignoring this transition');
         return;
     }
     if ( !empty($entity->nid) )
@@ -186,7 +181,7 @@ function _cdss_entity_queue( $entity, $type )
     || ( !empty($entity->uuid)
       && !empty($GLOBALS['cdss_queued_entities'][$entity->uuid]) ) )
     {
-        _cdss_log('DBG: CDSS '.__FUNCTION__.' skipping duplicate  : uuid='.$entity->uuid);
+        _cdss_log('DBG: CDSS '.__FUNCTION__.' already queued  : uuid='.$entity->uuid);
         return;
     }
     /// node && published && of-syncable-type
@@ -211,7 +206,7 @@ function _cdss_entity_queue( $entity, $type )
         }
         _cdss_add_entity_to_queue($entity->uuid, $queue_type);
     } else {
-        _cdss_log('DBG: CDSS '.__FUNCTION__.' skipping, not syncable  : uuid='.$entity->uuid.' s='.$entity->status.' t='.$entity->type);
+        // _cdss_log('DBG: CDSS '.__FUNCTION__.' not syncable : uuid='.$entity->uuid.' s='.$entity->status.' t='.$entity->type);
     }
 }
 
@@ -495,7 +490,6 @@ function _cdss_syncing_disabled()
 
 function _cdss_process_queue()
 {
-    _cdss_log('Info: CDSS '.__FUNCTION__);
     $queue = DrupalQueue::get('cmp_data_sync');
 
     $lease_time = 10;
@@ -551,7 +545,6 @@ function _cdss_process_queue_item( $q_item_data )
         _cdss_log('Info: CDSS '.__FUNCTION__.' malformed queue data : '.print_r($q_item_data,1));
         return CDSS_FATAL;
     }
-    _cdss_log('Info: CDSS '.__FUNCTION__.' '.$q_item_data['uuid']);
     $success = _cdss_send_entity_to_elasticsearch(
         $q_item_data['uuid'],
         $q_item_data['type']
@@ -615,7 +608,6 @@ function _cdss_send_entity_to_elasticsearch( $e_uuid, $e_type, $timeout=10 )
         }
     } catch (Exception $e) {
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Load Exception, removing from queue : entity_uuid='.$e_uuid.' entity_type='.$e_type);
-        _cdss_log('Fail: CDSS '.print_r($e,1));
         return CDSS_FATAL; /// remove from queue
     }
     if(empty($entity))
@@ -665,7 +657,13 @@ function _cdss_add_all_nodes_to_queue()
 {
     $selected_bundles = variable_get('cdss_node_bundles', array());
     $result = db_query(
-        'SELECT uuid, deleted FROM node WHERE type in (:types) and ( status=1 OR deleted=1 ) ORDER BY changed desc',
+        "SELECT DISTINCT n.uuid, IF(d.deletion_state='soft',1,0) as deleted
+         FROM {node} n
+              LEFT JOIN {node_deleted} d
+                ON ( n.nid = d.nid )
+         WHERE type IN (:types)
+               AND ( status=1 OR d.deletion_state='soft' )
+         ORDER BY changed DESC",
         array(':types'=>$selected_bundles)
     );
     $success = 0;
@@ -680,7 +678,7 @@ function _cdss_add_all_terms_to_queue()
     /// loop through all active terms - add them to the queue
     $selected_bundles = variable_get('cdss_term_bundles', array());
     $result = db_query(
-        'SELECT uuid
+        'SELECT DISTINCT uuid
          FROM taxonomy_term_data d
          JOIN taxonomy_vocabulary v on ( d.vid = v.vid )
          WHERE v.machine_name in (:vocabs)
@@ -695,7 +693,7 @@ function _cdss_add_all_terms_to_queue()
     }
     /// loop through all deleted terms - add them to the queue
     $result = db_query(
-        'SELECT uuid FROM cds_deleted_terms'
+        'SELECT DISTINCT uuid FROM cds_deleted_terms'
     );
     $total += $result->rowCount();
     while ( $e_uuid = $result->fetchField() )
@@ -796,6 +794,11 @@ function _cdss_load_sanitized_node( $e_uuid )
 
     _cdss_add_reference_bundles($node);
 
+    /// we may not want to force this here
+    /// after a form submit and node_save we were wrongly seeing all status as 0
+    /// but during a full-sync there were correct seeing all status as 1
+    /// we are not taking into account the case where an item used to be published
+    /// but now is not published
     $node->status = "1";
     return $node;
 }
@@ -811,8 +814,7 @@ function _cdss_load_deleted_node( $e_uuid )
                 ON ( n.nid = d.nid )
          WHERE
             uuid=:uuid
-         LIMIT 1
-        ",
+         LIMIT 1",
         array(':uuid'=>$e_uuid)
     )->fetchObject();
     if ( $result===false )
@@ -1093,7 +1095,6 @@ function _cdss_log( $message, $destination='php' )
 
 function _cdss_finish_request()
 {
-    _cdss_log('Info: CDSS '.__FUNCTION__);
   ignore_user_abort(1);
   while(@ob_get_level() > 0) { @ob_end_flush(); }
   @ob_flush();

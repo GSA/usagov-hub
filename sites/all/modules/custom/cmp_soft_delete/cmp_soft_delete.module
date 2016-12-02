@@ -538,20 +538,18 @@ function _cmp_soft_delete_get_node_stat($nid)
 
 function _cmp_soft_delete_ridin_dirty($node)
 {
-  if ( module_exists('usa_data_migration') )
-  {
-      $nidsDeleted = variable_get('udm_nidsDeleted', array());
-      // Limit tracking to the last 50 nodes to save db space
-      // bad idea to put this udm logic into this module -
-      $nidsDeleted = array_unique($nidsDeleted);
-      $nidsDeleted = array_slice($nidsDeleted, -50);
-      $nidsDeleted[] = $node->nid;
-      variable_set('udm_nidsDeleted', $nidsDeleted);
-  }
-  _cdss_log('Info: CDSS '.__FUNCTION__.' DIRTY ');
+  // if ( module_exists('usa_data_migration') )
+  // {
+  //     $nidsDeleted = variable_get('udm_nidsDeleted', array());
+  //     // Limit tracking to the last 50 nodes to save db space
+  //     // bad idea to put this udm logic into this module -
+  //     $nidsDeleted = array_unique($nidsDeleted);
+  //     $nidsDeleted = array_slice($nidsDeleted, -50);
+  //     $nidsDeleted[] = $node->nid;
+  //     variable_set('udm_nidsDeleted', $nidsDeleted);
+  // }
   if ( module_exists('cmp_data_sync_server') )
   {
-      _cdss_log('Info: CDSS '.__FUNCTION__.' DIRTY : entity_uuid='.$node->uuid.' deleted='.$node->deleted);
       _cdss_entity_queue($node,'node');
   }
 }
