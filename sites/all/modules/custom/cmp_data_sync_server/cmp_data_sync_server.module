@@ -124,11 +124,14 @@ function cmp_data_sync_server_taxonomy_term_delete( $term )
 
 function cmp_data_sync_server_exit()
 {
+    _cdss_log('Info: CDSS '.__FUNCTION__.' qempty='.empty($GLOBALS['cdss_queued_entities'])
+ .' immediate='.variable_get('cdss_immediate_sync'));
     if ( !empty($GLOBALS['cdss_queued_entities'])
       && variable_get('cdss_immediate_sync') )
     {
+        _cdss_log('Info: CDSS '.__FUNCTION__.' '.__LINE__.' call process_queue');
         /// run in the background
-        _cdss_finish_request();
+        //_cdss_finish_request();
         _cdss_process_queue();
     }
 }
@@ -196,7 +199,17 @@ function _cdss_entity_queue( $entity, $type )
         && in_array($entity->vocabulary_machine_name,
                     variable_get('cdss_term_bundles',array())) ) )
     {
-        _cdss_add_entity_to_queue($entity->uuid, $type);
+        $queue_type = $type;
+        if ( $entity->deleted )
+        {
+            if ( $type=='node' )
+            {
+                $queue_type = 'deleted_node';
+            } else if ( $type=='taxonomy_term' ) {
+                $queue_type = 'deleted_term';
+            }
+        }
+        _cdss_add_entity_to_queue($entity->uuid, $queue_type);
     } else {
         _cdss_log('DBG: CDSS '.__FUNCTION__.' skipping, not syncable  : uuid='.$entity->uuid.' s='.$entity->status.' t='.$entity->type);
     }
@@ -602,6 +615,7 @@ function _cdss_send_entity_to_elasticsearch( $e_uuid, $e_type, $timeout=10 )
         }
     } catch (Exception $e) {
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Load Exception, removing from queue : entity_uuid='.$e_uuid.' entity_type='.$e_type);
+        _cdss_log('Fail: CDSS '.print_r($e,1));
         return CDSS_FATAL; /// remove from queue
     }
     if(empty($entity))
@@ -788,15 +802,27 @@ function _cdss_load_sanitized_node( $e_uuid )
 function _cdss_load_deleted_node( $e_uuid )
 {
     $result = db_query(
-        'SELECT uuid,nid,vid,title,changed,deleted
-         FROM {node} WHERE uuid=:uuid AND deleted=1 LIMIT 1',
+        "SELECT
+            n.uuid, n.status, n.nid, n.vid, n.title, n.changed,
+            IF(d.deletion_state='soft',1,0) as deleted
+         FROM
+            {node} n
+            LEFT JOIN {node_deleted} d
+                ON ( n.nid = d.nid )
+         WHERE
+            uuid=:uuid
+         LIMIT 1
+        ",
         array(':uuid'=>$e_uuid)
     )->fetchObject();
     if ( $result===false )
     {
         return null;
     }
-    $result->status = "0";
+    if ( $result->deleted )
+    {
+        $result->status = "0";
+    }
     return $result;
 }
 function _cdss_load_sanitized_term( $e_uuid )

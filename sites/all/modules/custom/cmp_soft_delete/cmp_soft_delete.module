@@ -453,10 +453,10 @@ function _cmp_soft_delete_do_soft_delete($node)
         ->execute();
 
     /// unpublish this node ?
-    $node->status=0;
+    $node->status  = 0;
+    $node->deleted = 1;
     node_save($node);
-
-    _cmp_soft_delete_ridin_dirty($node->nid);
+    _cmp_soft_delete_ridin_dirty($node);
 
     return TRUE;
 }
@@ -474,7 +474,7 @@ function _cmp_soft_delete_rescind_request($node)
         $num_deleted = db_delete("node_deleted")
                        ->condition("nid" , $node->nid)->execute();
         node_save($node);
-        _cmp_soft_delete_ridin_dirty($node->nid);
+        _cmp_soft_delete_ridin_dirty($node);
         return TRUE;
     }
 
@@ -493,8 +493,9 @@ function _cmp_soft_delete_undo_soft_delete($node)
     {
         $num_deleted = db_delete("node_deleted")
                        ->condition("nid" , $node->nid)->execute();
+        $node->deleted = 0;
         node_save($node);
-        _cmp_soft_delete_ridin_dirty($node->nid);
+        _cmp_soft_delete_ridin_dirty($node);
         return TRUE;
     }
 
@@ -535,7 +536,7 @@ function _cmp_soft_delete_get_node_stat($nid)
    return db_query("SELECT deletion_uid, deletion_timestamp, deletion_state FROM node_deleted WHERE nid = :nid", array(":nid"=>$nid))->fetchAssoc();
 }
 
-function _cmp_soft_delete_ridin_dirty($nid)
+function _cmp_soft_delete_ridin_dirty($node)
 {
   if ( module_exists('usa_data_migration') )
   {
@@ -544,9 +545,31 @@ function _cmp_soft_delete_ridin_dirty($nid)
       // bad idea to put this udm logic into this module -
       $nidsDeleted = array_unique($nidsDeleted);
       $nidsDeleted = array_slice($nidsDeleted, -50);
-      $nidsDeleted[] = $nid;
+      $nidsDeleted[] = $node->nid;
       variable_set('udm_nidsDeleted', $nidsDeleted);
   }
+  _cdss_log('Info: CDSS '.__FUNCTION__.' DIRTY ');
+  if ( module_exists('cmp_data_sync_server') )
+  {
+      _cdss_log('Info: CDSS '.__FUNCTION__.' DIRTY : entity_uuid='.$node->uuid.' deleted='.$node->deleted);
+      _cdss_entity_queue($node,'node');
+  }
+}
+function cmp_soft_delete_entity_load($entities, $type)
+{
+    if ( $type === 'node' )
+    {
+        foreach ( $entities as $theEntity )
+        {
+            $del = _cmp_soft_delete_get_node_stat($theEntity->nid);
+            if ( !empty($del) )
+            {
+                $theEntity->deleted            = ($del['deletion_state']=='soft')?1:0;
+                $theEntity->deletion_uid       = $row['deletion_uid'];
+                $theEntity->deletion_timestamp = $row['deletion_timestamp'];
+            }
+        }
+    }
 }
 
 // Some Views need to exclude soft-deleted content
