@@ -173,7 +173,11 @@ function cmp_data_sync_server_entity_update( $entity, $type )
 {
     _cdss_entity_queue($entity, $type);
 }
-function _cdss_entity_queue( $entity, $type )
+function cmp_data_sync_server_entity_delete( $entity, $type )
+{
+    _cdss_entity_queue($entity, $type, 'remove' );
+}
+function _cdss_entity_queue( $entity, $type, $remove=null )
 {
     /// might have already synced this entity during current page load
     if ( empty(variable_get('cdss_syncing_enabled'))
@@ -181,7 +185,7 @@ function _cdss_entity_queue( $entity, $type )
     || ( !empty($entity->uuid)
       && !empty($GLOBALS['cdss_queued_entities'][$entity->uuid]) ) )
     {
-        _cdss_log('DBG: CDSS '.__FUNCTION__.' already queued  : uuid='.$entity->uuid);
+        //_cdss_log('DBG: CDSS '.__FUNCTION__.' already queued  : uuid='.$entity->uuid);
         return;
     }
     /// node && published && of-syncable-type
@@ -195,8 +199,10 @@ function _cdss_entity_queue( $entity, $type )
                     variable_get('cdss_term_bundles',array())) ) )
     {
         $queue_type = $type;
-        if ( $entity->deleted )
+        if ( !empty($remove) )
         {
+            _cdss_add_entity_to_queue($entity->uuid, 'remove');
+        } else if ( $entity->deleted ) {
             if ( $type=='node' )
             {
                 $queue_type = 'deleted_node';
@@ -205,7 +211,7 @@ function _cdss_entity_queue( $entity, $type )
             }
         }
         _cdss_add_entity_to_queue($entity->uuid, $queue_type);
-    } else {
+        // } else {
         // _cdss_log('DBG: CDSS '.__FUNCTION__.' not syncable : uuid='.$entity->uuid.' s='.$entity->status.' t='.$entity->type);
     }
 }
@@ -542,7 +548,7 @@ function _cdss_process_queue_item( $q_item_data )
     /// let exceptions rise up to whatever is calling this function
     if ( empty($q_item_data['uuid']) || empty($q_item_data['type']) )
     {
-        _cdss_log('Info: CDSS '.__FUNCTION__.' malformed queue data : '.print_r($q_item_data,1));
+        //_cdss_log('Info: CDSS '.__FUNCTION__.' malformed queue data : '.print_r($q_item_data,1));
         return CDSS_FATAL;
     }
     $success = _cdss_send_entity_to_elasticsearch(
@@ -594,7 +600,9 @@ function _cdss_send_entity_to_elasticsearch( $e_uuid, $e_type, $timeout=10 )
 {
     try
     {
-        if ( $e_type === 'node' ) {
+        if ( $e_type === 'remove' ) {
+            return _cdss_remove_entity_from_elasticsearch($e_uuid);
+        } elseif ( $e_type === 'node' ) {
             $entity = _cdss_load_sanitized_node($e_uuid);
         } elseif ( $e_type === 'deleted_node' ) {
             $entity = _cdss_load_deleted_node($e_uuid);
@@ -647,7 +655,28 @@ function _cdss_send_entity_to_elasticsearch( $e_uuid, $e_type, $timeout=10 )
     /// uncaught exception should be handled by _cron_queue_info
     /// which will keep this item in the queue and try again
 }
-
+function _cdss_remove_entity_from_elasticsearch( $e_uuid, $timeout=10 )
+{
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    $response = drupal_http_request(
+        $elasticsearch_server.'/cmp-data-entities/entity/'.$e_uuid,
+        array(
+            'method'  => 'DELETE',
+            'timeout' => $timeout
+        )
+    );
+    if ( $response->code === '200' || $response->code === '404' )
+    {
+        _cdss_log('Info: CDSS '.__FUNCTION__.' Removed from Index : entity_uuid='.$e_uuid);
+        return CDSS_SUCCESS; /// remove from queue
+    } else {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Not Removed from Indexed : entity_uuid='.$e_uuid.' response='.$response->data);
+        return CDSS_TRY_AGAIN; /// keep in queue, try again
+    }
+    /// leave exceptions for _cron_queue_info
+    /// uncaught exception should be handled by _cron_queue_info
+    /// which will keep this item in the queue and try again
+}
 function _cdss_add_all_to_queue()
 {
     _cdss_add_all_nodes_to_queue();
@@ -711,7 +740,7 @@ function _cdss_add_entity_to_queue( $e_uuid, $e_type )
             'type' => $e_type
         ));
         $GLOBALS['cdss_queued_entities'][$e_uuid] = true;
-        _cdss_log('Info: CDSS '.__FUNCTION__.' : entity_uuid='.$e_uuid.' entity_type='.$e_type);
+        //_cdss_log('Info: CDSS '.__FUNCTION__.' : entity_uuid='.$e_uuid.' entity_type='.$e_type);
         return true;
     } catch (Exception $e) {
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : entity_uuid='.$e_uuid.' entity_type='.$e_type .' : '. $e->getMessage() .' : '. $e->getTraceAsString());
@@ -800,6 +829,10 @@ function _cdss_load_sanitized_node( $e_uuid )
     /// we are not taking into account the case where an item used to be published
     /// but now is not published
     $node->status = "1";
+    if ( !isset($node->deleted) )
+    {
+        $node->deleted = 0;
+    }
     return $node;
 }
 function _cdss_load_deleted_node( $e_uuid )
