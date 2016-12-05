@@ -173,9 +173,10 @@ function cmp_data_sync_server_entity_update( $entity, $type )
 {
     _cdss_entity_queue($entity, $type);
 }
-function cmp_data_sync_server_entity_delete( $entity, $type )
+function cmp_data_sync_server_node_delete( $entity )
 {
-    _cdss_entity_queue($entity, $type, 'remove' );
+    $entity->deleted = true;
+    _cdss_entity_queue($entity, 'node', 'remove');
 }
 function _cdss_entity_queue( $entity, $type, $remove=null )
 {
@@ -191,7 +192,7 @@ function _cdss_entity_queue( $entity, $type, $remove=null )
     /// node && published && of-syncable-type
     /// term && of-syncable-vocabulary
     if ( ( $type === 'node'
-        // && $entity->status === 1
+        && ( $entity->status === 1 || !empty($entity->deleted) )
         && in_array($entity->type,
                     variable_get('cdss_node_bundles',array())) )
     || ( $type === 'taxonomy_term'
@@ -201,15 +202,16 @@ function _cdss_entity_queue( $entity, $type, $remove=null )
         $queue_type = $type;
         if ( !empty($remove) )
         {
-            _cdss_add_entity_to_queue($entity->uuid, 'remove');
+            $queue_type = 'remove';
         } else if ( $entity->deleted ) {
-            if ( $type=='node' )
+            if ( $type === 'node' )
             {
                 $queue_type = 'deleted_node';
             } else if ( $type=='taxonomy_term' ) {
                 $queue_type = 'deleted_term';
             }
         }
+        _cdss_log('DBG: CDSS '.__FUNCTION__.' queueing : uuid='.$entity->uuid.' s='.$entity->status.' d='.$entity->deleted.' t='.$entity->type);
         _cdss_add_entity_to_queue($entity->uuid, $queue_type);
         // } else {
         // _cdss_log('DBG: CDSS '.__FUNCTION__.' not syncable : uuid='.$entity->uuid.' s='.$entity->status.' t='.$entity->type);

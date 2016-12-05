@@ -425,6 +425,8 @@ function _cmp_soft_delete_request_soft_delete($node)
             'deletion_state' => 'requested'
         ))
         ->execute();
+    /// should this auto-unpublish this node while we are waiting for soft delete approval?
+    /// $node->status=0
     node_save($node);
 
     return TRUE;
@@ -536,7 +538,7 @@ function _cmp_soft_delete_get_node_stat($nid)
    return db_query("SELECT deletion_uid, deletion_timestamp, deletion_state FROM node_deleted WHERE nid = :nid", array(":nid"=>$nid))->fetchAssoc();
 }
 
-function _cmp_soft_delete_ridin_dirty($node)
+function _cmp_soft_delete_ridin_dirty($node,$hard_delete=false)
 {
   // if ( module_exists('usa_data_migration') )
   // {
@@ -550,7 +552,7 @@ function _cmp_soft_delete_ridin_dirty($node)
   // }
   if ( module_exists('cmp_data_sync_server') )
   {
-      _cdss_entity_queue($node,'node');
+      _cdss_entity_queue($node,'node', $hard_delete?"remove":null );
   }
 }
 function cmp_soft_delete_entity_load($entities, $type)
@@ -563,8 +565,8 @@ function cmp_soft_delete_entity_load($entities, $type)
             if ( !empty($del) )
             {
                 $theEntity->deleted            = ($del['deletion_state']=='soft')?1:0;
-                $theEntity->deletion_uid       = $row['deletion_uid'];
-                $theEntity->deletion_timestamp = $row['deletion_timestamp'];
+                $theEntity->deletion_uid       = $del['deletion_uid'];
+                $theEntity->deletion_timestamp = $del['deletion_timestamp'];
             }
         }
     }

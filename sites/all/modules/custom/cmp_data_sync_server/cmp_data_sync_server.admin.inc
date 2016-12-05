@@ -14,7 +14,7 @@ function cmp_data_sync_server_config_form()
     '#type' => 'checkbox',
     '#title' => 'Immediate Syncing',
     '#description' => 'queued items are processed in the background after page load completes',
-    '#default_value' => variable_get('cdss_syncing_enabled',false)
+    '#default_value' => variable_get('cdss_immediate_sync',false)
   );
 
   $form['cdss_ajax_full_sync'] = array(
