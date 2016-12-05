@@ -345,7 +345,8 @@ function saml_sp_requirements($phase) {
     $error_type = isset($library['error']) ? drupal_ucfirst($library['error']) : '';
     $error_message = isset($library['error message']) ? $library['error message'] : '';
     $library_name = $t($library['name']);
-
+    if ( !empty($library['machine_name']) )
+    {
     if (empty($library['installed'])) {
       $requirements[$library['machine_name']] = array(
         'title' => $library_name,
@@ -368,6 +369,7 @@ function saml_sp_requirements($phase) {
         'severity' => REQUIREMENT_ERROR,
         'description' => $t('You need to download a later version of the !library and replace the old version located in the %path directory on your server.', array('!library' => l($library_name, $library['download url']), '%path' => $library['library path'])),
       );
+    }
     }
   }
 
