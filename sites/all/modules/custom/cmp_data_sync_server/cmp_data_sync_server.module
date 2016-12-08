@@ -90,7 +90,7 @@ function cmp_data_sync_server_permission()
 {
   return array(
     'administer cmp data sync' => array(
-      'title' => t('Administer Childsite Syncing behavior'),
+      'title' => t('Administer CMP Syncing behavior'),
     )
   );
 }
@@ -211,7 +211,7 @@ function _cdss_entity_queue( $entity, $type, $remove=null )
                 $queue_type = 'deleted_term';
             }
         }
-        _cdss_log('DBG: CDSS '.__FUNCTION__.' queueing : uuid='.$entity->uuid.' s='.$entity->status.' d='.$entity->deleted.' t='.$entity->type);
+        // _cdss_log('DBG: CDSS '.__FUNCTION__.' queueing : uuid='.$entity->uuid.' s='.$entity->status.' d='.$entity->deleted.' t='.$entity->type);
         _cdss_add_entity_to_queue($entity->uuid, $queue_type);
         // } else {
         // _cdss_log('DBG: CDSS '.__FUNCTION__.' not syncable : uuid='.$entity->uuid.' s='.$entity->status.' t='.$entity->type);
@@ -256,7 +256,7 @@ function _cdss_setup_schema_index()
             {
                 _cdss_log('Info: CDSS '.__FUNCTION__.' Created ElasticSearch Index for CMP Schema : response='.$response->data);
                 return true;
-            } else if ( $response->code === '400' || $response->code === '200' ) {
+            } else if ( $response->code === '400' || $response->code === '201' ) {
                 _cdss_log('Info: CDSS '.__FUNCTION__.' ElasticSearch Index for CMP Schema already exists : response='.$response->data);
                 return true;
             }
@@ -504,6 +504,10 @@ function _cdss_process_queue()
     $queued_item_count = $queue->numberOfItems($lease_time);
     $attempted = 0;
     $success   = 0;
+
+    $allowed_retry_attempts = 5;
+    $retry_attempts = [];
+
     $loop = 0;
     while( $queue->numberOfItems()>0 )
     {
@@ -522,6 +526,17 @@ function _cdss_process_queue()
         $attempted++;
         try
         {
+            if ( isset($retry_attempts[$q_item->data_uuid]) )
+            {
+                $retry_attempts[$q_item->data_uuid]++;
+            } else {
+                $retry_attempts[$q_item->data_uuid] = 0;
+            }
+            if ( $retry_attempts[$q_item->data_uuid] > $allowed_retry_attempts )
+            {
+                $queue->deleteItem($q_item);
+                continue;
+            }
             $result = _cdss_process_queue_item($q_item->data);
             if ( $result===CDSS_FATAL )
             {
@@ -1128,17 +1143,25 @@ function _cdss_log( $message, $destination='php' )
     }
 }
 
+$GLOBALS['_cdss_finished_request'] = false;
 function _cdss_finish_request()
 {
+  if ( !empty($GLOBALS['_cdss_finished_request']) )
+  {
+      return;
+  }
+  $GLOBALS['_cdss_finished_request'] = true;
+  $minutes_to_process = 10;
   ignore_user_abort(1);
   while(@ob_get_level() > 0) { @ob_end_flush(); }
   @ob_flush();
   @flush();
   if (session_id()) session_write_close();
   fastcgi_finish_request();
-  set_time_limit(600);
-  ini_set('max_execution_time',600);
+  set_time_limit($minutes_to_process*60);
+  ini_set('max_execution_time',$minutes_to_process*60);
 }
+
 
 /** /
 function cmp_data_sync_server_test()
