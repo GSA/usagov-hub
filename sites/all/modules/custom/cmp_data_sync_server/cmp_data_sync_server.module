@@ -310,14 +310,25 @@ function _cdss_setup_content_index()
                     "properties": {
                         "changed": {
                             "type": "integer"
-                        },
-                        "field_for_use_by": {
-                            "type": "nested"
                         }
                     }
                 }
             }
         }';
+        /*
+        "mappings": {
+            "entity": {
+                "properties": {
+                    "changed": {
+                        "type": "integer"
+                    },
+                    "field_for_use_by": {
+                        "type": "nested"
+                    }
+                }
+            }
+        }
+        */
         $options = array(
             'method' => 'PUT',
             'data'   => $data,
@@ -632,7 +643,7 @@ function _cdss_send_entity_to_elasticsearch( $e_uuid, $e_type, $timeout=10 )
             return CDSS_FATAL; /// remove from queue
         }
     } catch (Exception $e) {
-        _cdss_log('Fail: CDSS '.__FUNCTION__.' Load Exception, removing from queue : entity_uuid='.$e_uuid.' entity_type='.$e_type);
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Load Exception, removing from queue : entity_uuid='.$e_uuid.' entity_type='.$e_type.' msg:'.$e->getMessage());
         return CDSS_FATAL; /// remove from queue
     }
     if(empty($entity))
@@ -724,7 +735,7 @@ function _cdss_add_all_terms_to_queue()
     /// loop through all active terms - add them to the queue
     $selected_bundles = variable_get('cdss_term_bundles', array());
     $result = db_query(
-        'SELECT DISTINCT uuid
+        'SELECT DISTINCT uuid, changed
          FROM taxonomy_term_data d
          JOIN taxonomy_vocabulary v on ( d.vid = v.vid )
          WHERE v.machine_name in (:vocabs)
@@ -838,7 +849,7 @@ function _cdss_load_sanitized_node( $e_uuid )
         $node->body['und'][0]['safe_value'] = preg_replace($s3regex, $s3path, $node->body['und'][0]['safe_value'] );
     }
 
-    _cdss_add_reference_bundles($node);
+    _cdss_add_reference_info($node);
 
     /// we may not want to force this here
     /// after a form submit and node_save we were wrongly seeing all status as 0
@@ -894,7 +905,7 @@ function _cdss_load_sanitized_term( $e_uuid )
 
     _cdss_add_term_parent($term);
     _cdss_add_top_level_term($term);
-    _cdss_add_reference_bundles($term);
+    _cdss_add_reference_info($term);
     return $term;
 }
 function _cdss_load_deleted_term( $e_uuid )
@@ -956,12 +967,12 @@ function _cdss_add_top_level_term( &$term )
     }
 
 }
-function _cdss_add_reference_bundles( &$entity )
+function _cdss_add_reference_info( &$entity )
 {
     if ( empty($entity) ) { return false; }
     try
     {
-        $uuid_bundles =& _cdss_uuid_bundles();
+        $uuid_info =& _cdss_uuid_info();
         if ( $entity->type=='taxonomy_term' )
         {
             $entity_type   = $entity->type;
@@ -988,29 +999,32 @@ function _cdss_add_reference_bundles( &$entity )
             {
                 if ( isset($ref['tid']) && is_string($ref['tid']) && strlen($ref['tid'])==36 )
                 {
-                    if ( isset($uuid_bundles[$ref['tid']]) )
+                    if ( isset($uuid_info[$ref['tid']]) )
                     {
-                        $entity->$field['und'][$i]['type']   = $uuid_bundles[$ref['tid']]['type'];
-                        $entity->$field['und'][$i]['bundle'] = $uuid_bundles[$ref['tid']]['bundle'];
+                        $entity->$field['und'][$i]['type']   = $uuid_info[$ref['tid']]['type'];
+                        $entity->$field['und'][$i]['bundle'] = $uuid_info[$ref['tid']]['bundle'];
+                        $entity->$field['und'][$i]['uuid']   = $ref['tid'];
+                        $entity->$field['und'][$i]['tid']    = $uuid_info[$ref['tid']]['id'];
                     }
                 } else if ( isset($ref['target_id']) && is_string($ref['target_id']) && strlen($ref['target_id'])==36 ) {
-                    if ( isset($uuid_bundles[$ref['target_id']]) )
+                    if ( isset($uuid_info[$ref['target_id']]) )
                     {
-                        $entity->$field['und'][$i]['type']   = $uuid_bundles[$ref['target_id']]['type'];
-                        $entity->$field['und'][$i]['bundle'] = $uuid_bundles[$ref['target_id']]['bundle'];
+                        $entity->$field['und'][$i]['type']      = $uuid_info[$ref['target_id']]['type'];
+                        $entity->$field['und'][$i]['bundle']    = $uuid_info[$ref['target_id']]['bundle'];
+                        $entity->$field['und'][$i]['uuid']      = $ref['target_id'];
+                        $entity->$field['und'][$i]['target_id'] = $uuid_info[$ref['target_id']]['id'];
                     }
                 } else if ( isset($ref['endpoints']) && !empty($ref['endpoints']['und']) ) {
-                    foreach ( $ref['endpoints']['und'] as $ep )
+                    foreach ( $ref['endpoints']['und'] as $j=>$ep )
                     {
-                        if ( isset($ep['entity_id'])
-                          && strlen($ep['entity_id'])==36
-                          && $ep['entity_id']!=$entity->uuid )
+                        /// convert entity_id to uuids
+                        if ( isset($ep['entity_id'])      && is_string($ep['entity_id'])
+                          && strlen($ep['entity_id'])==36 && isset($uuid_info[$ep['entity_id']]) )
                         {
-                            if ( isset($uuid_bundles[$ep['entity_id']]) )
-                            {
-                                $entity->$field['endpoints']['und'][$i]['type']   = $uuid_bundles[$ep['entity_id']]['type'];
-                                $entity->$field['endpoints']['und'][$i]['bundle'] = $uuid_bundles[$ep['entity_id']]['bundle'];
-                            }
+                            $entity->$field['und'][$i]['endpoints']['und'][$j]['type']      = $uuid_info[$ep['entity_id']]['type'];
+                            $entity->$field['und'][$i]['endpoints']['und'][$j]['bundle']    = $uuid_info[$ep['entity_id']]['bundle'];
+                            $entity->$field['und'][$i]['endpoints']['und'][$j]['uuid']      = $ep['entity_id'];
+                            $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_id'] = $uuid_info[$ep['entity_id']]['id'];
                         }
                     }
                 }
@@ -1098,25 +1112,26 @@ function _cdss_export_node_structure()
     return _bundle_copy_export_data('node', $selected_data);
 }
 
-function &_cdss_uuid_bundles( $refresh=false )
+function &_cdss_uuid_info( $refresh=false )
 {
-    $uuid_bundles = &drupal_static(__FUNCTION__);
-    if ( $uuid_bundles===null || $refresh )
+    $uuid_info = &drupal_static(__FUNCTION__);
+    if ( $uuid_info===null || $refresh )
     {
-        $uuid_bundles = db_query("
+        $uuid_info = db_query("
             ( SELECT uuid,
                      'taxonomy_term' as 'type',
-                     machine_name    as 'bundle'
+                     machine_name    as 'bundle',
+                     tid             as 'id'
               FROM   taxonomy_term_data  d
                 JOIN taxonomy_vocabulary v
                         ON d.vid=v.vid )
             UNION
-            ( SELECT uuid, 'node', type FROM node )
+            ( SELECT uuid, 'node', type, nid FROM node )
+            UNION
+            ( SELECT uuid, 'relation', relation_type, rid FROM relation )
         ")->fetchAllAssoc('uuid',PDO::FETCH_ASSOC);
-        # UNION
-        # ( SELECT uuid, 'user', 'user' FROM users )
     }
-    return $uuid_bundles;
+    return $uuid_info;
 }
 
 /// logging
@@ -1163,23 +1178,37 @@ function _cdss_finish_request()
 }
 
 
-/** /
-function cmp_data_sync_server_test()
+function relation_add_field_uuid_load($entity_type, $entity, $field, $instance, $langcode, &$items)
 {
-    $p = drupal_get_query_parameters();
-    if ( !empty($p['function']) && function_exists('_cdss_'.$p['function']) )
+    $uuid_info = &_cdss_uuid_info();
+    foreach ($items as  $delta => $item)
     {
-        $_p = $p;
-        unset($_p['function']);
-        dsm([
-            $p['function'],
-            array_keys($_p),
-            call_user_func_array(
-                '_cdss_'.$p['function'],
-                array_keys($_p)
-            )
-        ]);
+        foreach ($item['endpoints']['und'] as $e=>$ep)
+        {
+            $uuids = entity_get_uuid_by_id($ep['entity_type'], array($ep['entity_id']) );
+            $uuid  = reset($uuids);
+            $info  = isset($uuid_info[$uuid]) ? $uuid_info[$uuid] : array('bundle'=>'');
+            $items[$delta]['endpoints']['und'][$e]['entity_uuid']   = $uuid;
+            $items[$delta]['endpoints']['und'][$e]['entity_bundle'] = $info['bundle'];
+        }
     }
-    return 'test';
 }
-/**/
+
+// function relation_add_field_uuid_presave($entity_type, $entity, $field, $instance, $langcode, &$items)
+// {
+//     foreach ($items as  $delta => $item)
+//     {
+//         foreach ($item['endpoints']['und'] as $e=>$ep)
+//         {
+//             if ( isset($ep['entity_uuid']) )
+//             {
+//                 $ids = entity_get_id_by_uuid($ep['entity_type'], array($ep['entity_uuid']) );
+//                 $id  = reset($ids);
+//                 if ( !empty($id) || $id==='0' || $id===0 )
+//                 {
+//                     $items[$delta]['endpoints']['und'][$e]['entity_id'] = $id;
+//                 }
+//             }
+//         }
+//     }
+// }
