@@ -310,14 +310,25 @@ function _cdss_setup_content_index()
                     "properties": {
                         "changed": {
                             "type": "integer"
-                        },
-                        "field_for_use_by": {
-                            "type": "nested"
                         }
                     }
                 }
             }
         }';
+        /*
+        "mappings": {
+            "entity": {
+                "properties": {
+                    "changed": {
+                        "type": "integer"
+                    },
+                    "field_for_use_by": {
+                        "type": "nested"
+                    }
+                }
+            }
+        }
+        */
         $options = array(
             'method' => 'PUT',
             'data'   => $data,
@@ -418,6 +429,10 @@ function _cdss_setup_drupal_vars()
     {
         variable_set('cdss_term_bundles',array());
     }
+    if ( variable_get('cdss_relation_bundles')===null )
+    {
+        variable_set('cdss_relation_bundles',array());
+    }
     if ( variable_get('cdss_elasticsearch_server')===null )
     {
         variable_set('cdss_elasticsearch_server','');
@@ -430,6 +445,7 @@ function _cdss_teardown_drupal_vars()
     variable_del('cdss_immediate_sync');
     variable_del('cdss_node_bundles');
     variable_del('cdss_term_bundles');
+    variable_del('cdss_relation_bundles');
     variable_del('cdss_elasticsearch_server');
     return true;
 }
@@ -585,13 +601,17 @@ function _cdss_send_schema_to_elasticsearch()
     try{
         $schema_node      = _cdss_export_node_structure();
         $schema_term      = _cdss_export_taxonomy_structure();
-        $schema_node_sha1 = sha1($schema_node);
-        $schema_term_sha1 = sha1($schema_term);
+        $schema_relation  = _cdss_export_relation_structure();
+        $schema_node_sha1     = sha1($schema_node);
+        $schema_term_sha1     = sha1($schema_term);
+        $schema_relation_sha1 = sha1($schema_relation);
         $data = array(
             'term'      => $schema_term,
             'node'      => $schema_node,
-            'term_sha1' => $schema_term_sha1,
-            'node_sha1' => $schema_node_sha1,
+            'relation'  => $schema_relation,
+            'term_sha1'     => $schema_term_sha1,
+            'node_sha1'     => $schema_node_sha1,
+            'relation_sha1' => $schema_relation_sha1,
         );
         $response = drupal_http_request(
             $elasticsearch_server.'/cmp-data-schema/schema/node_term',
@@ -632,7 +652,7 @@ function _cdss_send_entity_to_elasticsearch( $e_uuid, $e_type, $timeout=10 )
             return CDSS_FATAL; /// remove from queue
         }
     } catch (Exception $e) {
-        _cdss_log('Fail: CDSS '.__FUNCTION__.' Load Exception, removing from queue : entity_uuid='.$e_uuid.' entity_type='.$e_type);
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Load Exception, removing from queue : entity_uuid='.$e_uuid.' entity_type='.$e_type.' msg:'.$e->getMessage());
         return CDSS_FATAL; /// remove from queue
     }
     if(empty($entity))
@@ -724,7 +744,7 @@ function _cdss_add_all_terms_to_queue()
     /// loop through all active terms - add them to the queue
     $selected_bundles = variable_get('cdss_term_bundles', array());
     $result = db_query(
-        'SELECT DISTINCT uuid
+        'SELECT DISTINCT uuid, changed
          FROM taxonomy_term_data d
          JOIN taxonomy_vocabulary v on ( d.vid = v.vid )
          WHERE v.machine_name in (:vocabs)
@@ -793,53 +813,12 @@ function _cdss_load_sanitized_node( $e_uuid )
     unset($node->last_comment_uid);
     unset($node->comment_count);
 
-    if ( isset($node->field_for_use_by_text) && !isset($node->field_for_use_by) )
+    if ( !isset($node->field_for_use_by) && isset($node->field_for_use_by_text) )
     {
         $node->field_for_use_by = $node->field_for_use_by_text;
     }
-
-    $s3path  = '//'. variable_get('s3fs_bucket') .'.s3.amazonaws.com/';
-    $s3regex = '/s3\:\/{2,3}/i';
-    if ( isset($node->field_file_media)
-      && isset($node->field_file_media['und'])
-      && isset($node->field_file_media['und'][0])
-      && isset($node->field_file_media['und'][0]['uri']) )
-    {
-        $realURL = preg_replace($s3regex, $s3path, $node->field_file_media['und'][0]['uri'] );
-        $node->field_file_media['und'][0]['uri']=$realURL;
-        // then plug the URL to the file into the "" field
-        /*$node->field_file_media_url = array(
-            'und' => array(
-                0 => array(
-                    'value' => $realURL,
-                    'format' => null,
-                    'safe_value' => $realURL
-                )
-            )
-        );*/
-    }
-    if ( isset($node->field_file_text)
-      && isset($node->field_file_text['und'])
-      && isset($node->field_file_text['und'][0])
-      && isset($node->field_file_text['und'][0]['uri']) )
-    {
-        $realURL = preg_replace($s3regex, $s3path, $node->field_file_text['und'][0]['uri'] );
-        $node->field_file_text['und'][0]['uri']=$realURL;
-    }
-
-    if ( isset($node->field_html) )
-    {
-        $node->field_html['und'][0]['value']      = preg_replace($s3regex, $s3path, $node->field_html['und'][0]['value'] );
-        $node->field_html['und'][0]['safe_value'] = preg_replace($s3regex, $s3path, $node->field_html['und'][0]['safe_value'] );
-    }
-    if ( isset($node->body) && $node->type=='text_content_type')
-    {
-        $node->body['und'][0]['value']      = preg_replace($s3regex, $s3path, $node->body['und'][0]['value'] );
-        $node->body['und'][0]['safe_value'] = preg_replace($s3regex, $s3path, $node->body['und'][0]['safe_value'] );
-    }
-
-    _cdss_add_reference_bundles($node);
-
+    _cdss_add_s3_urls($node);
+    _cdss_add_reference_info($node);
     /// we may not want to force this here
     /// after a form submit and node_save we were wrongly seeing all status as 0
     /// but during a full-sync there were correct seeing all status as 1
@@ -891,10 +870,9 @@ function _cdss_load_sanitized_term( $e_uuid )
     }
     $term->type = 'taxonomy_term';
     $term->deleted = 0;
-
     _cdss_add_term_parent($term);
-    _cdss_add_top_level_term($term);
-    _cdss_add_reference_bundles($term);
+    _cdss_add_for_use_by($term);
+    _cdss_add_reference_info($term);
     return $term;
 }
 function _cdss_load_deleted_term( $e_uuid )
@@ -912,64 +890,23 @@ function _cdss_load_deleted_term( $e_uuid )
     return $result;
 }
 
-function _cdss_add_term_parent( &$term )
-{
-    if ( !isset($term->parent) )
-    {
-        $term->parent = null;
-        $parent_uuid  = db_query(
-            'SELECT p.uuid
-             FROM {taxonomy_term_hierarchy} h
-                JOIN {taxonomy_term_data}   p ON ( p.tid=h.parent )
-             WHERE h.tid=:tid',
-            array(':tid'=>$term->tid)
-        )->fetchField();
-        if ( !empty($parent_uuid) )
-        {
-            $term->parent = $parent_uuid;
-        }
-    }
-}
-function _cdss_add_top_level_term( &$term )
-{
-    /// all terms should have a field_for_use_by
-    if ( $term->vocabulary_machine_name == 'site_strucutre_taxonomy' )
-    {
-        $all_parents = taxonomy_get_parents_all($term->tid);
-        if ( !empty($all_parents) )
-        {
-            $top_parent = array_pop($all_parents);
-            if ( !empty($top_parent) && !empty($top_parent->name) )
-            {
-                $term->field_for_use_by = array("und"=>array(array(
-                    "value" => $top_parent->name
-                )));
-            }
-        }
-    } else if ( !isset($term->field_for_use_by) ) {
-        if ( isset($term->field_for_use_by_text) )
-        {
-            $term->field_for_use_by = $term->field_for_use_by_text;
-        } else {
-            $term->field_for_use_by = null;
-        }
-    }
-
-}
-function _cdss_add_reference_bundles( &$entity )
+function _cdss_add_reference_info( &$entity )
 {
     if ( empty($entity) ) { return false; }
     try
     {
-        $uuid_bundles =& _cdss_uuid_bundles();
-        if ( $entity->type=='taxonomy_term' )
+        $uuid_info =& _cdss_uuid_info();
+        $entity_type   = null;
+        $entity_bundle = null;
+        if ( isset($entity->tid) && isset($entity->vocabulary_machine_name) )
         {
-            $entity_type   = $entity->type;
+            $entity_type   = 'taxonomy_term';
             $entity_bundle = $entity->vocabulary_machine_name;
-        } else {
+        } else if ( isset($entity->nid) && isset($entity->type) ) {
             $entity_type   = 'node';
             $entity_bundle = $entity->type;
         }
+        if ( empty($entity_type) || empty($entity_bundle) ) { return false; }
         $fields = field_info_instances($entity_type,$entity_bundle);
         foreach ( array_keys($fields) as $field )
         {
@@ -986,31 +923,70 @@ function _cdss_add_reference_bundles( &$entity )
             }
             foreach ( $entity->$field['und'] as $i=>$ref )
             {
-                if ( isset($ref['tid']) && is_string($ref['tid']) && strlen($ref['tid'])==36 )
+                $ref_uuid = null;
+                if ( isset($ref['tid']) )
                 {
-                    if ( isset($uuid_bundles[$ref['tid']]) )
+                    if ( isset($ref['uuid']) )
                     {
-                        $entity->$field['und'][$i]['type']   = $uuid_bundles[$ref['tid']]['type'];
-                        $entity->$field['und'][$i]['bundle'] = $uuid_bundles[$ref['tid']]['bundle'];
+                        $ref_uuid = $ref['uuid'];
+                    } else if ( is_string($ref['tid']) && strlen($ref['tid'])==36 ) {
+                        $ref_uuid = $ref['tid'];
+                    } else {
+                        $ref_uuid = entity_get_uuid_by_id('taxonomy_term', array($ref['tid']));
+                        $ref_uuid = reset($ref_uuid);
                     }
-                } else if ( isset($ref['target_id']) && is_string($ref['target_id']) && strlen($ref['target_id'])==36 ) {
-                    if ( isset($uuid_bundles[$ref['target_id']]) )
+                    if ( isset($uuid_info[$ref_uuid]) )
                     {
-                        $entity->$field['und'][$i]['type']   = $uuid_bundles[$ref['target_id']]['type'];
-                        $entity->$field['und'][$i]['bundle'] = $uuid_bundles[$ref['target_id']]['bundle'];
+                        $entity->$field['und'][$i]['uuid']   = $ref_uuid;
+                        $entity->$field['und'][$i]['type']   = $uuid_info[$ref_uuid]['type'];
+                        $entity->$field['und'][$i]['bundle'] = $uuid_info[$ref_uuid]['bundle'];
+                        $entity->$field['und'][$i]['tid']    = $uuid_info[$ref_uuid]['id'];
+                    }
+                } else if ( isset($ref['target_id']) ) {
+                    if ( isset($ref['uuid']) )
+                    {
+                        $ref_uuid = $ref['uuid'];
+                    } else if ( is_string($ref['target_id']) && strlen($ref['target_id'])==36 ) {
+                        $ref_uuid = $ref['target_id'];
+                    } else {
+                        $ref_uuid = entity_get_uuid_by_id('taxonomy_term', array($ref['target_id']));
+                        if ( empty($ref_uuid) )
+                        {
+                            $ref_uuid = entity_get_uuid_by_id('node', array($ref['target_id']));
+                        }
+                        if ( empty($ref_uuid) )
+                        {
+                            $ref_uuid = entity_get_uuid_by_id('relation', array($ref['target_id']));
+                        }
+                        $ref_uuid = reset($ref_uuid);
+                    }
+                    if ( isset($uuid_info[$ref_uuid]) )
+                    {
+                        $entity->$field['und'][$i]['uuid']      = $ref_uuid;
+                        $entity->$field['und'][$i]['type']      = $uuid_info[$ref_uuid]['type'];
+                        $entity->$field['und'][$i]['bundle']    = $uuid_info[$ref_uuid]['bundle'];
+                        $entity->$field['und'][$i]['target_id'] = $uuid_info[$ref_uuid]['id'];
                     }
                 } else if ( isset($ref['endpoints']) && !empty($ref['endpoints']['und']) ) {
-                    foreach ( $ref['endpoints']['und'] as $ep )
+                    foreach ( $ref['endpoints']['und'] as $j=>$ep )
                     {
-                        if ( isset($ep['entity_id'])
-                          && strlen($ep['entity_id'])==36
-                          && $ep['entity_id']!=$entity->uuid )
+                        if ( isset($ep['uuid']) )
                         {
-                            if ( isset($uuid_bundles[$ep['entity_id']]) )
-                            {
-                                $entity->$field['endpoints']['und'][$i]['type']   = $uuid_bundles[$ep['entity_id']]['type'];
-                                $entity->$field['endpoints']['und'][$i]['bundle'] = $uuid_bundles[$ep['entity_id']]['bundle'];
-                            }
+                            $ref_uuid = $ep['uuid'];
+                        } else if ( isset($ep['entity_uuid']) ) {
+                            $ref_uuid = $ep['entity_uuid'];
+                        } else if ( is_string($ep['entity_id']) && strlen($ep['entity_id'])==36 ) {
+                            $ref_uuid = $ep['entity_id'];
+                        } else if ( isset($ep['entity_type']) ) {
+                            $ref_uuid = entity_get_uuid_by_id($ep['entity_type'], array($ep['entity_id']));
+                            $ref_uuid = reset($ref_uuid);
+                        }
+                        if ( isset($uuid_info[$ref_uuid]) )
+                        {
+                            $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_uuid']      = $ref_uuid;
+                            $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_type']      = $uuid_info[$ref_uuid]['type'];
+                            $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_bundle']    = $uuid_info[$ref_uuid]['bundle'];
+                            $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_id'] = $uuid_info[$ref_uuid]['id'];
                         }
                     }
                 }
@@ -1019,6 +995,118 @@ function _cdss_add_reference_bundles( &$entity )
         return true;
     } catch( Exception $e ) {
         return false;
+    }
+}
+function _cdss_add_term_parent( &$term )
+{
+    if ( empty($term) ) { return; }
+    $uuid_info =& _cdss_uuid_info();
+    $ref_uuid = null;
+    if ( !isset($term->parent) )
+    {
+        $ref_uuid = db_query(
+            "SELECT d.uuid
+             FROM {taxonomy_term_hierarchy} h
+                  JOIN {taxonomy_term_data} d ON (h.parent=d.tid)
+             WHERE h.tid=:tid"
+            ,array(":tid"=>$term->tid)
+        )->fetchField();
+    } else if ( is_string($term->parent) && strlen($term->parent)==36 ) {
+        $ref_uuid = $term->parent;
+    } else {
+        $ref_uuid = entity_get_uuid_by_id('taxonomy_term', array($term->tid));
+        $ref_uuid = reset($ref_uuid);
+    }
+    if ( !empty($ref_uuid) && isset($uuid_info[$ref_uuid]) )
+    {
+        $term->parent_uuid = $ref_uuid;
+        $term->parent      = $uuid_info[$ref_uuid]['id'];
+    }
+    if ( !isset($term->parent)      ) { $term->parent      = null; }
+    if ( !isset($term->parent_uuid) ) { $term->parent_uuid = null; }
+}
+function _cdss_add_for_use_by( &$term )
+{
+    if ( empty($term) ) { return; }
+    /// all terms should have a field_for_use_by
+    if ( !isset($term->field_for_use_by) )
+    {
+        if ( isset($term->field_for_use_by_text) )
+        {
+            $term->field_for_use_by = $term->field_for_use_by_text;
+        } else if ( $term->vocabulary_machine_name == 'site_strucutre_taxonomy' ) {
+            $all_parents = taxonomy_get_parents_all($term->tid);
+            if ( !empty($all_parents) )
+            {
+                $top_parent = array_pop($all_parents);
+                if ( !empty($top_parent) && !empty($top_parent->name) )
+                {
+                    $term->field_for_use_by = array("und"=>array(array(
+                        "value" => $top_parent->name
+                    )));
+                }
+            }
+        } else {
+            $term->field_for_use_by = null;
+        }
+    }
+
+}
+function _cdss_add_s3_urls( &$node )
+{
+    if ( empty($node) ) { return; }
+    $s3path  = '//'. variable_get('s3fs_bucket') .'.s3.amazonaws.com/';
+    $s3regex = '/s3\:\/{2,3}/i';
+    if ( isset($node->field_file_media)
+      && isset($node->field_file_media['und'])
+      && isset($node->field_file_media['und'][0])
+      && isset($node->field_file_media['und'][0]['uri']) )
+    {
+        $realURL = preg_replace($s3regex, $s3path, $node->field_file_media['und'][0]['uri'] );
+        $node->field_file_media['und'][0]['uri']=$realURL;
+    }
+    if ( isset($node->field_file_text)
+      && isset($node->field_file_text['und'])
+      && isset($node->field_file_text['und'][0])
+      && isset($node->field_file_text['und'][0]['uri']) )
+    {
+        $realURL = preg_replace($s3regex, $s3path, $node->field_file_text['und'][0]['uri']);
+        $node->field_file_text['und'][0]['uri']=$realURL;
+    }
+    if ( isset($node->field_html)
+      && isset($node->field_html['und'])
+      && isset($node->field_html['und'][0]) )
+    {
+        if ( isset($node->field_html['und'][0]['value']) )
+        {
+            $node->field_html['und'][0]['value'] = preg_replace($s3regex, $s3path, $node->field_html['und'][0]['value']);
+        }
+        if ( isset($node->field_html['und'][0]['safe_value']) )
+        {
+            $node->field_html['und'][0]['safe_value'] = preg_replace($s3regex, $s3path, $node->field_html['und'][0]['safe_value']);
+        }
+    }
+    if ( isset($node->body)
+      && isset($node->body['und'])
+      && isset($node->body['und'][0]) )
+      # && in_array($node->type,['text_content_type','html_content_type']) )
+    {
+        if ( isset($node->body['und'][0]['value']) )
+        {
+            $node->body['und'][0]['value'] = preg_replace($s3regex, $s3path, $node->body['und'][0]['value']);
+        }
+        if ( isset($node->body['und'][0]['summary']) )
+        {
+            $node->body['und'][0]['summary'] = preg_replace($s3regex, $s3path, $node->body['und'][0]['summary']);
+        }
+        if ( isset($node->body['und'][0]['safe_value']) )
+        {
+            $node->body['und'][0]['safe_value'] = preg_replace($s3regex, $s3path, $node->body['und'][0]['safe_value']);
+        }
+        if ( isset($node->body['und'][0]['safe_summary']) )
+        {
+            $node->body['und'][0]['safe_summary'] = preg_replace($s3regex, $s3path, $node->body['und'][0]['safe_summary']);
+        }
     }
 }
 
@@ -1094,29 +1182,43 @@ function _cdss_export_node_structure()
         ),
     );
 
-
     return _bundle_copy_export_data('node', $selected_data);
 }
-
-function &_cdss_uuid_bundles( $refresh=false )
+function _cdss_export_relation_structure()
 {
-    $uuid_bundles = &drupal_static(__FUNCTION__);
-    if ( $uuid_bundles===null || $refresh )
+    $selected_bundles = variable_get('cdss_relation_bundles', array());
+    $code = '$data = array();'."\n\n";
+    foreach ($selected_bundles as $key => $bundle) {
+        if ($key === $bundle) {
+            ctools_include('export');
+            $result = ctools_export_load_object('relation_type', 'names', array($bundle));
+            $code .= relation_relation_type_export($result[$bundle]);
+            $code .= '$data[] = $relation_type;'."\n\n";
+        }
+    }
+    return $code;
+}
+
+function &_cdss_uuid_info( $refresh=false )
+{
+    $uuid_info = &drupal_static(__FUNCTION__);
+    if ( $uuid_info===null || $refresh )
     {
-        $uuid_bundles = db_query("
+        $uuid_info = db_query("
             ( SELECT uuid,
                      'taxonomy_term' as 'type',
-                     machine_name    as 'bundle'
+                     machine_name    as 'bundle',
+                     tid             as 'id'
               FROM   taxonomy_term_data  d
                 JOIN taxonomy_vocabulary v
                         ON d.vid=v.vid )
             UNION
-            ( SELECT uuid, 'node', type FROM node )
+            ( SELECT uuid, 'node', type, nid FROM node )
+            UNION
+            ( SELECT uuid, 'relation', relation_type, rid FROM relation )
         ")->fetchAllAssoc('uuid',PDO::FETCH_ASSOC);
-        # UNION
-        # ( SELECT uuid, 'user', 'user' FROM users )
     }
-    return $uuid_bundles;
+    return $uuid_info;
 }
 
 /// logging
@@ -1162,24 +1264,57 @@ function _cdss_finish_request()
   ini_set('max_execution_time',$minutes_to_process*60);
 }
 
+//
+// function relation_add_field_uuid_load($entity_type, $entity, $field, $instance, $langcode, &$items)
+// {
+//     $uuid_info = &_cdss_uuid_info();
+//     foreach ($items as  $delta => $item)
+//     {
+//         foreach ($item['endpoints']['und'] as $e=>$ep)
+//         {
+//             $uuids = entity_get_uuid_by_id($ep['entity_type'], array($ep['entity_id']) );
+//             $uuid  = reset($uuids);
+//             $info  = isset($uuid_info[$uuid]) ? $uuid_info[$uuid] : array('bundle'=>'');
+//             $items[$delta]['endpoints']['und'][$e]['entity_uuid']   = $uuid;
+//             $items[$delta]['endpoints']['und'][$e]['entity_bundle'] = $info['bundle'];
+//
+//             if ( isset($ep['uuid']) )
+//             {
+//                 $ref_uuid = $ep['uuid'];
+//             } else if ( isset($ep['entity_uuid']) ) {
+//                 $ref_uuid = $ep['entity_uuid'];
+//             } else if ( is_string($ep['entity_id']) && strlen($ep['entity_id'])==36 ) {
+//                 $ref_uuid = $ep['entity_id'];
+//             } else if ( isset($ep['entity_type']) ) {
+//                 $ref_uuid = entity_get_uuid_by_id($ep['entity_type'], array($ep['entity_id']));
+//                 $ref_uuid = reset($ref_uuid);
+//             }
+//             if ( isset($uuid_info[$ref_uuid]) )
+//             {
+//                 $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_uuid']   = $ref_uuid;
+//                 $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_type']   = $uuid_info[$ref_uuid]['type'];
+//                 $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_bundle'] = $uuid_info[$ref_uuid]['bundle'];
+//                 $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_id']     = $uuid_info[$ref_uuid]['id'];
+//             }
+//         }
+//     }
+// }
 
-/** /
-function cmp_data_sync_server_test()
-{
-    $p = drupal_get_query_parameters();
-    if ( !empty($p['function']) && function_exists('_cdss_'.$p['function']) )
-    {
-        $_p = $p;
-        unset($_p['function']);
-        dsm([
-            $p['function'],
-            array_keys($_p),
-            call_user_func_array(
-                '_cdss_'.$p['function'],
-                array_keys($_p)
-            )
-        ]);
-    }
-    return 'test';
-}
-/**/
+// function relation_add_field_uuid_presave($entity_type, $entity, $field, $instance, $langcode, &$items)
+// {
+//     foreach ($items as  $delta => $item)
+//     {
+//         foreach ($item['endpoints']['und'] as $e=>$ep)
+//         {
+//             if ( isset($ep['entity_uuid']) )
+//             {
+//                 $ids = entity_get_id_by_uuid($ep['entity_type'], array($ep['entity_uuid']) );
+//                 $id  = reset($ids);
+//                 if ( !empty($id) || $id==='0' || $id===0 )
+//                 {
+//                     $items[$delta]['endpoints']['und'][$e]['entity_id'] = $id;
+//                 }
+//             }
+//         }
+//     }
+// }

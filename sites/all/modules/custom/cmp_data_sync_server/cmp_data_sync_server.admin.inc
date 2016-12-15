@@ -76,6 +76,20 @@ function cmp_data_sync_server_config_form()
       '#default_value' => variable_get('cdss_term_bundles', array()),
   );
 
+  $relation_bundles = array();
+  foreach ( _bundle_copy_bundle_info('relation', TRUE) as $bundle_name => $data )
+  {
+      $relation_bundles[$bundle_name] = $bundle_name;
+  }
+  $form['bundles']['cdss_relation_bundles'] = array(
+      '#type' => 'select',
+      '#title' => 'Syncable Relation Types',
+      '#options' => $relation_bundles,
+      '#size' => max(5,count($relation_bundles)),
+      '#multiple' => true,
+      '#default_value' => variable_get('cdss_relation_bundles', array()),
+  );
+
   $form['queue'] = array(
     '#type' => 'fieldset',
     '#title' => t('Queue'),
@@ -325,6 +339,18 @@ function _cdss_ajax_validate_elasticsearch()
 
 function _cdss_ajax_sync_schema()
 {
+// //$e = entity_uuid_load('node',['e4182cb5-7e19-4beb-8589-ba75deae4763']);
+// //$e = entity_uuid_load('node',['4d098bb3-b2c9-4c08-8bdb-06b3d95410da']);
+// $uuids = [
+//     't'=>'b6ca6dce-3bab-40c8-b70b-08ff9d78a6e2',
+//     't'=>'53028449-f988-4498-a490-ae9f3290192a',
+// ];
+// foreach ( $uuids as $uuid )
+// {
+//     $e = _cdss_load_sanitized_term($uuid);
+//     kprint_r($e);
+// }
+// exit;
   $disabled = empty(variable_get('cdss_syncing_enabled'));
   if ( !$disabled )
   {
