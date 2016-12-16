@@ -1229,7 +1229,7 @@ function link_validate_url($text, $langcode = NULL) {
   $type = link_url_type($text);
 
   if ($type && ($type == LINK_INTERNAL || $type == LINK_EXTERNAL)) {
-    $flag = valid_url($text, TRUE);
+    $flag = valid_url($text, ($type===LINK_EXTERNAL));
     if (!$flag) {
       $normal_path = drupal_get_normal_path($text, $langcode);
       $parsed_link = parse_url($normal_path, PHP_URL_PATH);

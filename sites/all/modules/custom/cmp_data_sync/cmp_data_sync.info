@@ -1,0 +1,6 @@
+name = CMP Data Sync
+description = Syncs data from CMP to Elasticsearch
+package = CTAC
+core = 7.x
+files[] = cmp_data_sync.module
+dependencies[] = bundle_copy
