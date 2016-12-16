@@ -310,6 +310,30 @@ function _cdss_setup_content_index()
                     "properties": {
                         "changed": {
                             "type": "integer"
+                        },
+                        "uuid": {
+                            "type": "string",
+                            "index": "not_analyzed"
+                        },
+                        "name": {
+                            "type": "string",
+                            "index": "not_analyzed"
+                        },
+                        "vocabulary_machine_name": {
+                            "type": "string",
+                            "index": "not_analyzed"
+                        },
+                        "field_for_use_by": {
+                            "properties": {
+                                "und": {
+                                    "properties": {
+                                        "value": {
+                                            "type": "string",
+                                            "index": "not_analyzed"
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -544,6 +568,7 @@ function _cdss_process_queue()
         {
             if ( isset($retry_attempts[$q_item->data_uuid]) )
             {
+                _cdss_log('Info: CDSS '.__FUNCTION__.' Retry attempt '.$retry_attempts[$q_item->data_uuid].' for uuid:'.$q_item->data_uuid);
                 $retry_attempts[$q_item->data_uuid]++;
             } else {
                 $retry_attempts[$q_item->data_uuid] = 0;
@@ -716,14 +741,14 @@ function _cdss_remove_entity_from_elasticsearch( $e_uuid, $timeout=10 )
 }
 function _cdss_add_all_to_queue()
 {
-    _cdss_add_all_nodes_to_queue();
+    //_cdss_add_all_nodes_to_queue();
     _cdss_add_all_terms_to_queue();
 }
 function _cdss_add_all_nodes_to_queue()
 {
     $selected_bundles = variable_get('cdss_node_bundles', array());
     $result = db_query(
-        "SELECT DISTINCT n.uuid, IF(d.deletion_state='soft',1,0) as deleted
+        "SELECT DISTINCT n.uuid, IF(d.deletion_state='soft',1,0) as deleted, changed
          FROM {node} n
               LEFT JOIN {node_deleted} d
                 ON ( n.nid = d.nid )
@@ -871,6 +896,7 @@ function _cdss_load_sanitized_term( $e_uuid )
     $term->type = 'taxonomy_term';
     $term->deleted = 0;
     _cdss_add_term_parent($term);
+    _cdss_add_term_children($term);
     _cdss_add_for_use_by($term);
     _cdss_add_reference_info($term);
     return $term;
@@ -935,13 +961,16 @@ function _cdss_add_reference_info( &$entity )
                         $ref_uuid = entity_get_uuid_by_id('taxonomy_term', array($ref['tid']));
                         $ref_uuid = reset($ref_uuid);
                     }
-                    if ( isset($uuid_info[$ref_uuid]) )
+                    if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
                     {
-                        $entity->$field['und'][$i]['uuid']   = $ref_uuid;
-                        $entity->$field['und'][$i]['type']   = $uuid_info[$ref_uuid]['type'];
-                        $entity->$field['und'][$i]['bundle'] = $uuid_info[$ref_uuid]['bundle'];
-                        $entity->$field['und'][$i]['tid']    = $uuid_info[$ref_uuid]['id'];
+                        $entity->$field = array();
+                        _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
+                        continue;
                     }
+                    $entity->$field['und'][$i]['uuid']   = $ref_uuid;
+                    $entity->$field['und'][$i]['type']   = $uuid_info[$ref_uuid]['type'];
+                    $entity->$field['und'][$i]['bundle'] = $uuid_info[$ref_uuid]['bundle'];
+                    $entity->$field['und'][$i]['tid']    = $uuid_info[$ref_uuid]['id'];
                 } else if ( isset($ref['target_id']) ) {
                     if ( isset($ref['uuid']) )
                     {
@@ -960,13 +989,16 @@ function _cdss_add_reference_info( &$entity )
                         }
                         $ref_uuid = reset($ref_uuid);
                     }
-                    if ( isset($uuid_info[$ref_uuid]) )
+                    if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
                     {
-                        $entity->$field['und'][$i]['uuid']      = $ref_uuid;
-                        $entity->$field['und'][$i]['type']      = $uuid_info[$ref_uuid]['type'];
-                        $entity->$field['und'][$i]['bundle']    = $uuid_info[$ref_uuid]['bundle'];
-                        $entity->$field['und'][$i]['target_id'] = $uuid_info[$ref_uuid]['id'];
+                        $entity->$field = array();
+                        _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
+                        continue;
                     }
+                    $entity->$field['und'][$i]['uuid']      = $ref_uuid;
+                    $entity->$field['und'][$i]['type']      = $uuid_info[$ref_uuid]['type'];
+                    $entity->$field['und'][$i]['bundle']    = $uuid_info[$ref_uuid]['bundle'];
+                    $entity->$field['und'][$i]['target_id'] = $uuid_info[$ref_uuid]['id'];
                 } else if ( isset($ref['endpoints']) && !empty($ref['endpoints']['und']) ) {
                     foreach ( $ref['endpoints']['und'] as $j=>$ep )
                     {
@@ -981,13 +1013,16 @@ function _cdss_add_reference_info( &$entity )
                             $ref_uuid = entity_get_uuid_by_id($ep['entity_type'], array($ep['entity_id']));
                             $ref_uuid = reset($ref_uuid);
                         }
-                        if ( isset($uuid_info[$ref_uuid]) )
+                        if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
                         {
-                            $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_uuid']      = $ref_uuid;
-                            $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_type']      = $uuid_info[$ref_uuid]['type'];
-                            $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_bundle']    = $uuid_info[$ref_uuid]['bundle'];
-                            $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_id'] = $uuid_info[$ref_uuid]['id'];
+                            $entity->$field = array();
+                            _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
+                            break;
                         }
+                        $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_uuid']   = $ref_uuid;
+                        $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_type']   = $uuid_info[$ref_uuid]['type'];
+                        $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_bundle'] = $uuid_info[$ref_uuid]['bundle'];
+                        $entity->$field['und'][$i]['endpoints']['und'][$j]['entity_id']     = $uuid_info[$ref_uuid]['id'];
                     }
                 }
             }
@@ -1002,19 +1037,19 @@ function _cdss_add_term_parent( &$term )
     if ( empty($term) ) { return; }
     $uuid_info =& _cdss_uuid_info();
     $ref_uuid = null;
-    if ( !isset($term->parent) )
+    if ( empty($term->parent) )
     {
         $ref_uuid = db_query(
-            "SELECT d.uuid
+            "SELECT t.uuid
              FROM {taxonomy_term_hierarchy} h
-                  JOIN {taxonomy_term_data} d ON (h.parent=d.tid)
+                  JOIN {taxonomy_term_data} t ON (h.parent=t.tid)
              WHERE h.tid=:tid"
             ,array(":tid"=>$term->tid)
         )->fetchField();
     } else if ( is_string($term->parent) && strlen($term->parent)==36 ) {
         $ref_uuid = $term->parent;
     } else {
-        $ref_uuid = entity_get_uuid_by_id('taxonomy_term', array($term->tid));
+        $ref_uuid = entity_get_uuid_by_id('taxonomy_term', array($term->parent));
         $ref_uuid = reset($ref_uuid);
     }
     if ( !empty($ref_uuid) && isset($uuid_info[$ref_uuid]) )
@@ -1022,8 +1057,21 @@ function _cdss_add_term_parent( &$term )
         $term->parent_uuid = $ref_uuid;
         $term->parent      = $uuid_info[$ref_uuid]['id'];
     }
-    if ( !isset($term->parent)      ) { $term->parent      = null; }
-    if ( !isset($term->parent_uuid) ) { $term->parent_uuid = null; }
+    if ( empty($term->parent)      ) { $term->parent      = "0"; }
+    if ( empty($term->parent_uuid) ) { $term->parent_uuid = null; }
+}
+function _cdss_add_term_children( &$term )
+{
+    if ( empty($term) ) { return; }
+    if ( empty($term->children) )
+    {
+        $hier =& _cdss_term_hier_info();
+        if ( !empty($hier[$term->uuid]) && !empty($hier[$term->uuid]['children']) )
+        {
+            $term->children = $hier[$term->uuid]['children'];
+        }
+    }
+    if ( empty($term->children) ) { $term->children = array(); }
 }
 function _cdss_add_for_use_by( &$term )
 {
@@ -1197,6 +1245,50 @@ function _cdss_export_relation_structure()
         }
     }
     return $code;
+}
+function &_cdss_term_hier_info( $refresh=false )
+{
+    $term_hier_info = &drupal_static(__FUNCTION__);
+    if ( $term_hier_info===null || $refresh )
+    {
+        $hier = db_query("
+            SELECT
+                p.tid  as parent_tid,
+                p.uuid as parent_uuid,
+                c.tid  as child_tid,
+                c.uuid as child_uuid
+            FROM {taxonomy_term_hierarchy} h
+                  JOIN {taxonomy_term_data} c ON (h.tid    = c.tid)
+                  JOIN {taxonomy_term_data} p ON (h.parent = p.tid)
+        ");
+        $term_hier_info = array();
+        foreach ( $hier as $info )
+        {
+            if ( !isset($term_hier_info[$info->parent_uuid]) )
+            {
+                $term_hier_info[$info->parent_uuid] = array(
+                    "parent"   => "0",
+                    "children" => array()
+                );
+            }
+            if ( !isset($term_hier_info[$info->child_uuid]) )
+            {
+                $term_hier_info[$info->child_uuid] = array(
+                    "parent"   => "0",
+                    "children" => array()
+                );
+            }
+            $term_hier_info[$info->parent_uuid]['children'][] = array(
+                "uuid" => $info->child_uuid,
+                "tid"  => $info->child_tid
+            );
+            $term_hier_info[$info->child_uuid]['parent'] = array(
+                "uuid" => $info->parent_uuid,
+                "tid"  => $info->parent_tid
+            );
+        }
+    }
+    return $term_hier_info;
 }
 
 function &_cdss_uuid_info( $refresh=false )

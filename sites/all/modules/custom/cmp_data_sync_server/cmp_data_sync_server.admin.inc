@@ -130,8 +130,7 @@ function cmp_data_sync_server_config_form()
       var last_queued_item_count = 0;
       function ajax_monitor_queue_status()
       {
-          ajax_check_queue_status();
-          queue_status_timer = setInterval(function()
+          let monitor = function()
           {
               jQuery("#cdss_ajax_check_queue_status_response").html("loading");
               jQuery.ajax({
@@ -139,30 +138,40 @@ function cmp_data_sync_server_config_form()
                 success:function(data) {
                   jQuery("#cdss_ajax_queue_status").html(data.queued_item_count);
                   jQuery("#cdss_ajax_check_queue_status_response").html(data.message);
-                  if ( last_queued_item_count == data.queued_item_count )
+                  if ( last_queued_item_count === data.queued_item_count )
                   {
-                      if ( queue_status_same++ >= 4 )
-                      {
-                          clearInterval(queue_status_timer);
-                          queue_status_timer = null;
-                      }
+                      queue_status_same++;
+                  } else {
+                      queue_status_same=0;
                   }
                   last_queued_item_count = data.queued_item_count
                 },
                 error:function(data) {
                   jQuery("#cdss_ajax_check_queue_status_response").html("failure");
-                  if ( last_queued_item_count == false )
+                  if ( last_queued_item_count === false )
                   {
-                      if ( queue_status_same++ >= 4 )
-                      {
-                          clearInterval(queue_status_timer);
-                          queue_status_timer = null;
-                      }
+                      queue_status_same++;
                   }
                   last_queued_item_count = false;
+                },
+                complete:function(data,status) {
+                    if ( queue_status_same < 3 )
+                    {
+                        queue_status_timer = setTimeout(monitor,5000);
+                    } else {
+                        jQuery("#cdss_ajax_check_queue_status_response").html("");
+                        clearTimeout(queue_status_timer);
+                        queue_status_timer = null;
+                    }
                 }
               });
-          },10000);
+          }
+
+          ajax_check_queue_status();
+          if ( queue_status_timer===null )
+          {
+              queue_status_timer = setTimeout(monitor,5000);
+          }
       }
     </script>
     <div class="form-item form-type-button form-item-cdss-ajax-check-queue-status">
@@ -368,9 +377,9 @@ function _cdss_ajax_sync_schema()
 function _cdss_ajax_full_sync()
 {
   global $conf;
-  $disabled = empty(variable_get('cdss_syncing_enabled'));
-  drupal_json_output(['called'=>__FUNCTION__,'message'=>$disabled?"disabled":"running"]);
-  if ( !$disabled )
+  $enabled = variable_get('cdss_syncing_enabled');
+  drupal_json_output(['called'=>__FUNCTION__,'message'=>$enabled?"running":"disabled"]);
+  if ( $enabled )
   {
     _cdss_finish_request();
     $conf['cdss_immediate_sync'] = true;
