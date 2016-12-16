@@ -741,7 +741,7 @@ function _cdss_remove_entity_from_elasticsearch( $e_uuid, $timeout=10 )
 }
 function _cdss_add_all_to_queue()
 {
-    //_cdss_add_all_nodes_to_queue();
+    _cdss_add_all_nodes_to_queue();
     _cdss_add_all_terms_to_queue();
 }
 function _cdss_add_all_nodes_to_queue()
