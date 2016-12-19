@@ -203,7 +203,7 @@ function _cdss_entity_queue( $entity, $type, $remove=null )
         if ( !empty($remove) )
         {
             $queue_type = 'remove';
-        } else if ( $entity->deleted ) {
+        } else if ( !empty($entity->deleted) ) {
             if ( $type === 'node' )
             {
                 $queue_type = 'deleted_node';
