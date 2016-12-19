@@ -7,7 +7,7 @@ function cmp_data_sync_server_drush_command()
   $items['cmp-data-sync-process'] = array(
     'description' => 'Process any queued sync items.',
     'aliases' => array('cdsp'),
-    'callback' => '_cdss_process_queue',
+    'callback' => '_cdss_drush_process_queue',
   );
   $items['cmp-data-sync-queue'] = array(
     'description' => 'Queue specified entity for syncing.',
@@ -30,4 +30,11 @@ function cmp_data_sync_server_drush_command()
   );
 
   return $items;
+}
+
+function _cdss_drush_process_queue()
+{
+    set_time_limit($minutes_to_process*60);
+    ini_set('max_execution_time',$minutes_to_process*60);
+    _cdss_process_queue();
 }
