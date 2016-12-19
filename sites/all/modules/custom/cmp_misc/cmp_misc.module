@@ -481,12 +481,9 @@ function cmp_misc_entity_load($entities, $type)
     {
         foreach ( $entities as $theEntity )
         {
-            if ( $row = db_query("select deleted, deletion_uid, deletion_timestamp, uuid from {node} where {node}.nid = {$theEntity->nid}")->fetchAssoc() )
+            if ( $row = db_query("select uuid from {node} where {node}.nid = {$theEntity->nid}")->fetchAssoc() )
             {
-                $theEntity->deleted            = empty($row['deleted']) ? 0 : 1;
-                $theEntity->deletion_uid       = $row['deletion_uid'];
-                $theEntity->deletion_timestamp = $row['deletion_timestamp'];
-                $theEntity->uuid               = $row['uuid'];
+                $theEntity->uuid = $row['uuid'];
             }
         }
     }

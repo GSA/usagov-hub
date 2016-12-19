@@ -425,6 +425,8 @@ function _cmp_soft_delete_request_soft_delete($node)
             'deletion_state' => 'requested'
         ))
         ->execute();
+    /// should this auto-unpublish this node while we are waiting for soft delete approval?
+    /// $node->status=0
     node_save($node);
 
     return TRUE;
@@ -453,10 +455,10 @@ function _cmp_soft_delete_do_soft_delete($node)
         ->execute();
 
     /// unpublish this node ?
-    $node->status=0;
+    $node->status  = 0;
+    $node->deleted = 1;
     node_save($node);
-
-    _cmp_soft_delete_ridin_dirty($node->nid);
+    _cmp_soft_delete_ridin_dirty($node);
 
     return TRUE;
 }
@@ -474,7 +476,7 @@ function _cmp_soft_delete_rescind_request($node)
         $num_deleted = db_delete("node_deleted")
                        ->condition("nid" , $node->nid)->execute();
         node_save($node);
-        _cmp_soft_delete_ridin_dirty($node->nid);
+        _cmp_soft_delete_ridin_dirty($node);
         return TRUE;
     }
 
@@ -493,8 +495,9 @@ function _cmp_soft_delete_undo_soft_delete($node)
     {
         $num_deleted = db_delete("node_deleted")
                        ->condition("nid" , $node->nid)->execute();
+        $node->deleted = 0;
         node_save($node);
-        _cmp_soft_delete_ridin_dirty($node->nid);
+        _cmp_soft_delete_ridin_dirty($node);
         return TRUE;
     }
 
@@ -535,18 +538,38 @@ function _cmp_soft_delete_get_node_stat($nid)
    return db_query("SELECT deletion_uid, deletion_timestamp, deletion_state FROM node_deleted WHERE nid = :nid", array(":nid"=>$nid))->fetchAssoc();
 }
 
-function _cmp_soft_delete_ridin_dirty($nid)
+function _cmp_soft_delete_ridin_dirty($node,$hard_delete=false)
 {
-  if ( module_exists('usa_data_migration') )
+  // if ( module_exists('usa_data_migration') )
+  // {
+  //     $nidsDeleted = variable_get('udm_nidsDeleted', array());
+  //     // Limit tracking to the last 50 nodes to save db space
+  //     // bad idea to put this udm logic into this module -
+  //     $nidsDeleted = array_unique($nidsDeleted);
+  //     $nidsDeleted = array_slice($nidsDeleted, -50);
+  //     $nidsDeleted[] = $node->nid;
+  //     variable_set('udm_nidsDeleted', $nidsDeleted);
+  // }
+  if ( module_exists('cmp_data_sync_server') )
   {
-      $nidsDeleted = variable_get('udm_nidsDeleted', array());
-      // Limit tracking to the last 50 nodes to save db space
-      // bad idea to put this udm logic into this module -
-      $nidsDeleted = array_unique($nidsDeleted);
-      $nidsDeleted = array_slice($nidsDeleted, -50);
-      $nidsDeleted[] = $nid;
-      variable_set('udm_nidsDeleted', $nidsDeleted);
+      _cdss_entity_queue($node,'node', $hard_delete?"remove":null );
   }
+}
+function cmp_soft_delete_entity_load($entities, $type)
+{
+    if ( $type === 'node' )
+    {
+        foreach ( $entities as $theEntity )
+        {
+            $del = _cmp_soft_delete_get_node_stat($theEntity->nid);
+            if ( !empty($del) )
+            {
+                $theEntity->deleted            = ($del['deletion_state']=='soft')?1:0;
+                $theEntity->deletion_uid       = $del['deletion_uid'];
+                $theEntity->deletion_timestamp = $del['deletion_timestamp'];
+            }
+        }
+    }
 }
 
 // Some Views need to exclude soft-deleted content

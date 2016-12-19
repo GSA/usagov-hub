@@ -104,7 +104,7 @@ class PostObject extends Collection
      * @return PostObject
      */
     public function prepareData()
-    {
+    {        dsm(__LINE__.__FILE__);
         // Validate required options
         $options = Collection::fromConfig($this->data, array(
             'ttd' => '+1 hour',
@@ -126,7 +126,7 @@ class PostObject extends Collection
             'expiration' => gmdate(DateFormat::ISO8601_S3, $ttd),
             'conditions' => array(array('bucket' => $this->bucket))
         );
-
+        dsm(__LINE__.__FILE__);
         // Configure the endpoint/action
         $url = Url::factory($this->client->getBaseUrl());
         if ($url->getScheme() === 'https' && strpos($this->bucket, '.') !== false) {
