@@ -34,6 +34,7 @@ function cmp_data_sync_server_drush_command()
 
 function _cdss_drush_process_queue()
 {
+    $minutes_to_process = 60;
     set_time_limit($minutes_to_process*60);
     ini_set('max_execution_time',$minutes_to_process*60);
     _cdss_process_queue();
