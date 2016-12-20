@@ -97,14 +97,20 @@ function cmp_data_sync_server_permission()
 
 /// drupal hooks
 
+function cmp_data_sync_server_init()
+{
+    global $conf;
+    $conf['cdss_elasticsearch_server'] = 'http://'.$conf['elasticsearch_server'].':'.$conf['elasticsearch_port'];
+}
+
 function cmp_data_sync_server_cron_queue_info()
 {
     /// will pull items off the queue while cron is running
     $queues = array();
-    // $queues['cmp_data_sync'] = array(
-    //     'worker callback' => '_cdss_process_queue_item',
-    //     'time'            => 30
-    // );
+    $queues['cmp_data_sync'] = array(
+        'worker callback' => '_cdss_process_queue_data',
+        'time'            => 30
+    );
     return $queues;
 }
 function cmp_data_sync_server_taxonomy_term_delete( $term )
@@ -578,7 +584,7 @@ function _cdss_process_queue()
                 $queue->deleteItem($q_item);
                 continue;
             }
-            $result = _cdss_process_queue_item($q_item->data);
+            $result = _cdss_process_queue_data($q_item->data);
             if ( $result===CDSS_FATAL )
             {
                 /// we can't possibly process this
@@ -600,7 +606,7 @@ function _cdss_process_queue()
     }
     _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$attempted.' of '.$queued_item_count.' total');
 }
-function _cdss_process_queue_item( $q_item_data )
+function _cdss_process_queue_data( $q_item_data )
 {
     /// don't handle exceptions here
     /// let exceptions rise up to whatever is calling this function
