@@ -1,5 +1,5 @@
 <?php
- 
+
 /**
  * @file
  * Drupal site-specific configuration file.
@@ -116,6 +116,11 @@ $envToDrupalMap = array(
 
         'mimemail_name' => 'CMP_DRUPAL_EMAIL_SENDER_NAME',
         'mimemail_mail' => 'CMP_DRUPAL_EMAIL_SENDER_ADDRESS',
+
+        'elasticsearch_server'    => 'CMP_DRUPAL_ELASTICSEARCH_SERVER',
+        'elasticsearch_port'      => 'CMP_DRUPAL_ELASTICSEARCH_PORT',
+        'elasticsearch_shortcode' => 'CMP_DRUPAL_ELASTICSEARCH_SHORTCODE',
+
     ),
 
     /* Add Env->Drupal vars here, to be typecast into INTEGERS */
