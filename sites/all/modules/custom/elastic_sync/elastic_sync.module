@@ -1,22 +1,22 @@
 <?php
-
- require 'vendor/autoload.php';
-
+ $path = drupal_get_path('module', 'elastic_sync') . '/vendor/autoload.php';
+ require $path;
+// //dsm($path);
 $hosts = [
     'elasticsearch:9200'         // IP + Port
 
-];
- // $client = Elasticsearch\ClientBuilder::create()         // Instantiate a new ClientBuilder
- //                     ->setHosts($hosts)      // Set the hosts
- //                     ->build();              // Build the client object
+ ];
+ $client = Elasticsearch\ClientBuilder::create()         // Instantiate a new ClientBuilder
+                     ->setHosts($hosts)      // Set the hosts
+                     ->build();              // Build the client object
 
- //Sync drupal data with Elasticsearch
+//  //Sync drupal data with Elasticsearch
 function elastic_sync_node_update($node){
 	create_migration_table($node);
 }
 
 function elastic_sync_node_insert($node){
-	create_migration_table($node);
+	//create_migration_table($node);
 }
 
 function create_migration_table($node){
@@ -32,10 +32,8 @@ function create_migration_table($node){
 	        
 	      ),
 	    );
-    	db_create_table('elastic_sync', $table);
-
-
-    	update_migration_table($nid);
+    db_create_table('elastic_sync', $table);
+    update_migration_table($nid);
 	} else {
 		update_migration_table($nid);
 	}
@@ -48,7 +46,6 @@ function update_migration_table($nid){
         ':nid' => "$nid"
         );
 
-        // Get Number of Statements and print link if exist
         $sql = "INSERT INTO 
                     elastic_sync(id)
                 VALUES(:nid)";
@@ -95,16 +92,21 @@ function text_asset_index($node){
     'elasticsearch:9200'         // IP + Port
 
 ];
-
+	//append the page title and url to the node
 	$node = get_vdn_locations($node);
-
+	//establish my connection to elasticsearch
 	$client = Elasticsearch\ClientBuilder::create()->setHosts($hosts)->build();
-	
+
 	$wrapper = entity_metadata_wrapper('node', $node);
-	$asset_topic_taxonomy = $wrapper->field_asset_topic_taxonomy->value();
-	$owner = $wrapper->field_owner->value();
-	// $location_url = get_taxonomy_term();
-	// url('taxonomy/term/' . $tid);
+	//loop through asset topics and populate the name into the array
+	foreach ($wrapper->field_asset_topic_taxonomy->value() as $value) {
+		$asset_topic_taxonomy[] = $value->name;
+	}
+	//loop through the agencies assigned and populate the array
+	foreach ($wrapper->field_content_tags->value() as $value) {
+		$agency_tags[] = $value->name;
+	}
+	//setup my parameter list to be sent to elasticsearch
 	$params = [
 	    'index' => 'my_index',
 	    'type' => 'text_asset',
@@ -116,27 +118,18 @@ function text_asset_index($node){
 	    	'language' =>$node->field_language['und'][0]['value'],
 	    	'html' => $node->body['und'][0]['value'],
 	    	'contact_center_only' => $node->field_contact_center_info['und'][0]['value'],
-	    	'status' =>$node->field_workflow_state_search['und'][0]['value'],
-	    	//'location' => $asset_topic_taxonomy,
-	    	'for_use_by' =>$node->field_for_use_by['und'][0]['value'], 
-	    	//'priority' =>$node->field_priority['und'][0]['value'],
-	    	
-	    	
-	    	'owner' => $owner,
+	    	'status' =>$node->workbench_moderation['current']->state,//['und'][0]['value'],
 	    	'location' => $node->locations,
-	    	
-	    	'changed' => $node->changed,
-	    	'created' => $node->created,
-	        'edit_url' => $base_url . 'node/' . $node->nid . '/edit',
-	     	'archive_date' => $archive_date
+	    	'for_use_by' => get_forUseBy($node), 
+	    	'topics' => $asset_topic_taxonomy,
+	    	'tags' => $agency_tags,
+	    	'created_at' => $node->created,
+	    	'updated_at' => $node->updated,
+	    	'changed_at' => $node->changed
 	     ]
 	];
-	// dsm($node);
-	dsm($params);
-	$response = $client->index($params);
-	//dsm($response);
-//curl -XGET http://localhost:9200/gsa_gov_content/_search?q=all&pretty=true
 
+	$response = $client->index($params);
 }
 
 function html_asset_index($node){
@@ -148,8 +141,9 @@ function html_asset_index($node){
 	$client = Elasticsearch\ClientBuilder::create()->setHosts($hosts)->build();
 	
 	$wrapper = entity_metadata_wrapper('node', $node);
-	$asset_topic_taxonomy = $wrapper->field_asset_topic_taxonomy->value();
-	$owner = $wrapper->field_owner->value();
+	foreach ($wrapper->field_asset_topic_taxonomy->value() as $value) {
+		$asset_topic_taxonomy[] = $value->name;
+	}
 
 	$params = [
 	    'index' => 'my_html_index',
@@ -165,7 +159,6 @@ function html_asset_index($node){
 	    	'features' => $node->field_blog_owner['und'][0]['value'],
 	    	'html' => $node->field_html['und'][0]['value'],
 	    	'schedule_publish' => $node->field_schedule_publish['und'][0]['value'],
-	    	'owner' => $owner, //$node->field_owner['und'][0]['value'],
 	    	'asset_topic_taxonomy' => $asset_topic_taxonomy, 
 	    	'workflow_state' =>$node->field_workflow_state_search['und'][0]['value'],
 	    	'changed' => $node->changed,
@@ -457,6 +450,28 @@ function get_vdn_locations( &$node )
   return $node;
 }
 
+function get_forUseBy( $node )
+{
+  $by = [];
+  foreach ( ['field_for_use_by','field_for_use_by_text'] as $field )
+  {
+    if ( !empty($node->$field) )
+    {
+      foreach ( $node->$field as $l )
+      {
+        foreach ( $l as $fub )
+        {
+          if ( !empty($fub['value']) )
+          {
+            $by[strtolower($fub['value'])] = strtolower($fub['value']);
+          }
+        }
+      }
+    }
+  }
+  return $by;
+}
+
 
 function get_cache_stuff()
 {
@@ -527,21 +542,4 @@ function get_cache_stuff()
       $GLOBALS['__cached_page_sites'][$row->tid] = ['title'=>$row->title,'site'=>$row->site,'url'=>$row->url];
     }
     // die(print_r($GLOBALS['__cached_page_sites'],1));
-}
-
-function getElasticSearchID($nid, $indextype){
-	$eid = 0;
-
-	$client = Elasticsearch\ClientBuilder::create()->setHosts($hosts)->build();
-
-	$params['body'] = array(
-					 'fields' => '_id',
-					    'query' => array(
-					        'match' => array(
-					            'id' => $nid
-					        )
-					    )
-					);
-	$results = $client->search($params);
-
 }
