@@ -101,10 +101,10 @@ function cmp_data_sync_server_cron_queue_info()
 {
     /// will pull items off the queue while cron is running
     $queues = array();
-    $queues['cmp_data_sync'] = array(
-        'worker callback' => '_cdss_process_queue_item',
-        'time'            => 30
-    );
+    // $queues['cmp_data_sync'] = array(
+    //     'worker callback' => '_cdss_process_queue_item',
+    //     'time'            => 30
+    // );
     return $queues;
 }
 function cmp_data_sync_server_taxonomy_term_delete( $term )
@@ -802,7 +802,7 @@ function _cdss_add_entity_to_queue( $e_uuid, $e_type )
             'type' => $e_type
         ));
         $GLOBALS['cdss_queued_entities'][$e_uuid] = true;
-        //_cdss_log('Info: CDSS '.__FUNCTION__.' : entity_uuid='.$e_uuid.' entity_type='.$e_type);
+        _cdss_log('Info: CDSS '.__FUNCTION__.' : entity_uuid='.$e_uuid.' entity_type='.$e_type);
         return true;
     } catch (Exception $e) {
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : entity_uuid='.$e_uuid.' entity_type='.$e_type .' : '. $e->getMessage() .' : '. $e->getTraceAsString());
@@ -1318,6 +1318,7 @@ function &_cdss_uuid_info( $refresh=false )
 function _cdss_log( $message, $destination='php' )
 {
     if ( $destination == 'php' ) {
+        watchdog('CDSS',$message);
         error_log($message);
     } else if ( $destination == 'slack'
              && function_exists('slack_send_message')
@@ -1345,7 +1346,7 @@ function _cdss_finish_request()
       return;
   }
   $GLOBALS['_cdss_finished_request'] = true;
-  $minutes_to_process = 10;
+  $minutes_to_process = 30;
   ignore_user_abort(1);
   while(@ob_get_level() > 0) { @ob_end_flush(); }
   @ob_flush();
