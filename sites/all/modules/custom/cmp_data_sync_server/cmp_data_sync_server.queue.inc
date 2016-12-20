@@ -48,7 +48,7 @@ class CDSQueue extends SystemQueue {
         // should really expire.
         $update = db_update('cds_queue')
           ->fields(array(
-            'expire' => min(3600,max(1,intval($lease_time)))
+            'expire' => time() + min(3600,max(1,intval($lease_time)))
           ))
           ->condition('data_uuid', $item->data_uuid);
         // If there are affected rows, this update succeeded.
