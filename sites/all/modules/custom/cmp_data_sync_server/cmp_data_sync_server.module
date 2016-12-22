@@ -1099,6 +1099,10 @@ function _cdss_add_for_use_by( &$term )
                         "value" => $top_parent->name
                     )));
                 }
+            } else {
+                $term->field_for_use_by = array("und"=>array(array(
+                    "value" => $term->name
+                )));
             }
         } else {
             $term->field_for_use_by = null;
