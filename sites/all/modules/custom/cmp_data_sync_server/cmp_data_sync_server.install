@@ -115,6 +115,12 @@ function cmp_data_sync_server_schema()
         'default' => 0,
         'description' => 'Timestamp when the item was created.',
       ),
+      'claim' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Unique Id for claimant to tag item with.',
+      ),
     ),
     'primary key' => array('item_id'),
     'unique keys' => array(
@@ -124,6 +130,7 @@ function cmp_data_sync_server_schema()
       'name_created' => array('name', 'created'),
       'expire' => array('expire'),
       'uuid'   => array('data_uuid'),
+      'claim' => array('claim')
     ),
   );
 

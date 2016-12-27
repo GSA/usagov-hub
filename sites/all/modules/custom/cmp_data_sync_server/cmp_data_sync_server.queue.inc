@@ -30,7 +30,7 @@ class CDSQueue extends SystemQueue
         // another thread may have claimed the item in the meantime. Therefore loop
         // until an item is successfully claimed or we are reasonably sure there
         // are no unclaimed items left.
-        $claim    = random_int(1, 999999);
+        $claim    = mt_rand(1, 999999);
         /// we can't loop longer than the script is allowed to run
         $max_time = intval(ini_get('max_execution_time'));
         if ( $max_time === 0 ) { $max_time = 10; }
@@ -194,4 +194,5 @@ class CDSQueue extends SystemQueue
             ->condition('name', $this->name)
             ->execute();
     }
+
 }
