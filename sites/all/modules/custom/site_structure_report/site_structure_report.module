@@ -87,7 +87,6 @@ function get_child_info($tid, $pos){
     
     
     $site_name=$levels[count($levels)-1];
-    //$get_term=taxonomy_term_load($tid);
     
     $site_structure_array[0]=$site_name ;
             
