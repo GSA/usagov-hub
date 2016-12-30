@@ -161,7 +161,7 @@ function get_child_info($tid, $pos){
     $site_structure_array[16]='';
     $ga_style_url='';
     $voc_tool_export_url='';
-    if($friendly_url){
+    if($friendly_url!='NOT SET IN CMP'){
         if($site_name=='USA.gov'){
         $ga_style_url='usa.gov'.$friendly_url;
         $voc_tool_export_url = 'https://usa.gov'.$friendly_url;
