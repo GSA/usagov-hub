@@ -161,22 +161,25 @@ function get_child_info($tid, $pos){
     $site_structure_array[16]='';
     $ga_style_url='';
     $voc_tool_export_url='';
-    if($site_name=='USA.gov'){
+    if($friendly_url){
+        if($site_name=='USA.gov'){
         $ga_style_url='usa.gov'.$friendly_url;
         $voc_tool_export_url = 'https://usa.gov'.$friendly_url;
+        }
+        if($site_name=='GobiernoUSA.gov'){
+            $ga_style_url='gobierno.usa.gov'.$friendly_url;
+            $voc_tool_export_url = 'https://gobierno.usa.gov'.$friendly_url;
+        }
+        if($site_name=='Kids.gov'){
+            $ga_style_url='kids.gov'.$friendly_url;
+            $voc_tool_export_url = 'https://kids.gov'.$friendly_url;
+        }
+        if($site_name=='Blog.USA.Gov'){
+            $ga_style_url='blog.usa.gov'.$friendly_url;
+            $voc_tool_export_url = 'https://blog.usa.gov'.$friendly_url;
+        }
     }
-    if($site_name=='GobiernoUSA.gov'){
-        $ga_style_url='gobierno.usa.gov'.$friendly_url;
-        $voc_tool_export_url = 'https://gobierno.usa.gov'.$friendly_url;
-    }
-    if($site_name=='Kids.USA.gov'){
-        $ga_style_url='kids.usa.gov'.$friendly_url;
-        $voc_tool_export_url = 'https://kids.usa.gov'.$friendly_url;
-    }
-    if($site_name=='Blog.USA.Gov'){
-        $ga_style_url='blog.usa.gov'.$friendly_url;
-        $voc_tool_export_url = 'https://blog.usa.gov'.$friendly_url;
-    }
+    
     $site_structure_array[17]=$ga_style_url;
     $site_structure_array[18]=$voc_tool_export_url;
     
