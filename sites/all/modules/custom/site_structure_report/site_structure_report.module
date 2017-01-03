@@ -7,17 +7,21 @@
 
 function site_structure_report_menu() {
     $items = array();
-    $items['generate_report'] = array(
+    $items['/site-structure-taxonomy-csv'] = array(
         'title' => 'Generate Site Structure Taxonomy Report',
         'page callback' => '_prepare_report',
         'type' => MENU_NORMAL_ITEM,
-        'access callback' => TRUE
+        'access callback' => 'check_access_to_site_structure'
     );
     return $items;
 }
 
 $site_structure_array=array();
 
+function check_access_to_site_structure()
+{
+    var_dump(user_access('edit terms in 42'));
+}
 function _prepare_report()
 {
    
