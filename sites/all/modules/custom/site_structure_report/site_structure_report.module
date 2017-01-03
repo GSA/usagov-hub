@@ -20,7 +20,7 @@ $site_structure_array=array();
 
 function check_access_to_site_structure()
 {
-    var_dump(user_access('edit terms in 42'));
+    return user_access('edit terms in 42');
 }
 function _prepare_report()
 {
