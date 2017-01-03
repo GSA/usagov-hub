@@ -7,7 +7,7 @@
 
 function site_structure_report_menu() {
     $items = array();
-    $items['/site-structure-taxonomy-csv'] = array(
+    $items['site-structure-taxonomy-csv'] = array(
         'title' => 'Generate Site Structure Taxonomy Report',
         'page callback' => '_prepare_report',
         'type' => MENU_NORMAL_ITEM,
