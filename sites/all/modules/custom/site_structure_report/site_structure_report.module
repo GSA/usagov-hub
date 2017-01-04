@@ -28,7 +28,7 @@ function _prepare_report()
     // Crete data array
     
     $site_structure_array[0]=array('Site','Owner','Hierarchy Level','Page Type','Topic Desk Replacement','Friendly URL','CMP Edit Link','Page ID','Page Title',
-                           'Parent Title','Level 6','Level 5', 'Level 4', 'Level 3',' Level 2', 'Level 1', 'USAGov Topic Crosswalk', 'GA style URL', 'VOC tool export URL style');
+                           'Parent Title','Level 6','Level 5', 'Level 4', 'Level 3',' Level 2', 'Level 1', 'USAGov Topic Crosswalk', 'GA style URL', 'VOC tool export URL style','Last Changed Date');
     
     $get_root_level_site_name = taxonomy_get_tree(42,0,1);
     foreach($get_root_level_site_name as $root_level){
@@ -40,7 +40,6 @@ function _prepare_report()
         $get_all_terms=taxonomy_get_tree(42,$root_tid);
     
         foreach($get_all_terms as $get_term) {
-            //$top_tids[$get_top_term->tid]=$get_top_term->name;
            $site_structure_array[]=get_child_info($get_term->tid,$get_term->depth);
            
         }
@@ -75,6 +74,7 @@ function get_child_info($tid, $pos){
     global $base_url;
     
     $get_all_parents=taxonomy_get_parents_all($tid);
+    $last_changed_date='-';
     
     $i=0;
     foreach($get_all_parents as $lvl=>$par_info){
@@ -93,7 +93,12 @@ function get_child_info($tid, $pos){
     $site_name=$levels[count($levels)-1];
     
     $site_structure_array[0]=$site_name ;
-            
+    
+    if($get_term->changed){
+        $last_changed_date = gmdate("m-d-Y", $get_term->changed);
+    }
+    
+        
     if($get_term->field_term_owner){
         $owner_target_id=$get_term->field_term_owner['und'][0]['target_id'];
         $user_name = db_query("SELECT name FROM {users} WHERE uid = :user_id",array(":user_id"=>$owner_target_id))->fetchAssoc();
@@ -117,7 +122,13 @@ function get_child_info($tid, $pos){
     
     $site_structure_array[3]=$page_type;
     
-    $site_structure_array[4]='';
+    $help_desk = 'NOT SET IN CMP';
+    if (isset($get_term->field_help_desk['und'][0]['tid'])) {
+        $help_term = taxonomy_term_load($get_term->field_help_desk['und'][0]['tid']);
+        $help_desk = (!empty($help_term))? $help_term->name : '';
+    }
+    
+    $site_structure_array[4]=$help_desk;
     
     if($get_term->field_friendly_url){
         $friendly_url = $get_term->field_friendly_url['und'][0]['value'];
@@ -186,6 +197,8 @@ function get_child_info($tid, $pos){
     
     $site_structure_array[17]=$ga_style_url;
     $site_structure_array[18]=$voc_tool_export_url;
+    
+    $site_structure_array[19]=$last_changed_date;
     
     return $site_structure_array;
 }
