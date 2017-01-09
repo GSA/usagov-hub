@@ -289,21 +289,25 @@ function alterTermsInAssetPlacementFields(callback)
                                         var targId = jQuery('.field-name-field-home-cat2cont-assets').attr('id');
                                         alterTermsInAssetPlacementField('#'+targId, function () {
 
-                                            var targId = jQuery('.field-name-field-home-quickfindcont-asset').attr('id');
+                                            var targId = jQuery('.field-name-field-home-howdoi-assets').attr('id');
                                             alterTermsInAssetPlacementField('#'+targId, function () {
 
-                                                atp_buildNodeInfoCache( function () {
+                                                var targId = jQuery('.field-name-field-home-quickfindcont-asset').attr('id');
+                                                alterTermsInAssetPlacementField('#'+targId, function () {
 
-                                                    reinitializeDragTables();
-                                                    jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
-                                                    jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
+                                                    atp_buildNodeInfoCache( function () {
 
-                                                    // Trigger callback
-                                                    if ( typeof callback === 'function' ) {
-                                                        callback();
-                                                    }
-                                                });
+                                                        reinitializeDragTables();
+                                                        jQuery('.group-asset-topic-placement').removeClass('term-processing'); // This removes the spinner
+                                                        jQuery('.group-homepage-container').removeClass('term-processing'); // This removes the spinner
 
+                                                        // Trigger callback
+                                                        if ( typeof callback === 'function' ) {
+                                                            callback();
+                                                        }
+                                                    });
+
+                                                })
                                             })
                                         })
                                     })
