@@ -1,0 +1,204 @@
+<?php
+
+/*
+* Purpose of this module is to create site structure report into csv file
+*
+*/
+
+function site_structure_report_menu() {
+    $items = array();
+    $items['site-structure-taxonomy-csv'] = array(
+        'title' => 'Generate Site Structure Taxonomy Report',
+        'page callback' => '_prepare_report',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => 'check_access_to_site_structure'
+    );
+    return $items;
+}
+
+$site_structure_array=array();
+
+function check_access_to_site_structure()
+{
+    return user_access('edit terms in 42');
+}
+function _prepare_report()
+{
+   
+    // Crete data array
+    
+    $site_structure_array[0]=array('Site','Owner','Hierarchy Level','Page Type','Topic Desk Replacement','Friendly URL','CMP Edit Link','Page ID','Page Title',
+                           'Parent Title','Level 6','Level 5', 'Level 4', 'Level 3',' Level 2', 'Level 1', 'USAGov Topic Crosswalk', 'GA style URL', 'VOC tool export URL style','Last Changed Date');
+    
+    $get_root_level_site_name = taxonomy_get_tree(42,0,1);
+    foreach($get_root_level_site_name as $root_level){
+        $site_names[$root_level->tid]=$root_level->name;
+    }
+    
+    foreach($site_names as $root_tid=>$site_name)
+    {
+        $get_all_terms=taxonomy_get_tree(42,$root_tid);
+    
+        foreach($get_all_terms as $get_term) {
+           $site_structure_array[]=get_child_info($get_term->tid,$get_term->depth);
+           
+        }
+    }
+    
+    export_to_csv($site_structure_array);
+    
+}
+
+function export_to_csv(array &$array)
+{
+    if (count($array) == 0) {
+        return null;
+    }
+    ob_start();
+    $csv_file = fopen("php://output", 'w');
+    
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename=data.csv');
+    ob_end_clean();
+    flush();
+    //fputcsv($df, array_keys(reset($array)));
+    foreach ($array as $row) {
+       fputcsv($csv_file, $row);
+    }
+    fclose($csv_file);
+    die;
+}
+
+function get_child_info($tid, $pos){
+    
+    global $base_url;
+    
+    $get_all_parents=taxonomy_get_parents_all($tid);
+    $last_changed_date='-';
+    
+    $i=0;
+    foreach($get_all_parents as $lvl=>$par_info){
+        if($par_info->tid!=$tid)
+        {
+            $levels[$i]=$par_info->field_page_title['und'][0]['value'];
+            $i++;
+        }
+        else{
+            $get_term=$par_info;
+        }
+        
+    }
+    
+    
+    $site_name=$levels[count($levels)-1];
+    
+    $site_structure_array[0]=$site_name ;
+    
+    if($get_term->changed){
+        $last_changed_date = gmdate("m-d-Y", $get_term->changed);
+    }
+    
+        
+    if($get_term->field_term_owner){
+        $owner_target_id=$get_term->field_term_owner['und'][0]['target_id'];
+        $user_name = db_query("SELECT name FROM {users} WHERE uid = :user_id",array(":user_id"=>$owner_target_id))->fetchAssoc();
+        $username = $user_name['name'];
+        $site_structure_array[1]=$username;
+    }
+    else{
+        $site_structure_array[1]='NOT SET IN CMP';
+    }
+    
+    
+    //$position = count((array)$get_all_parents);
+    $site_structure_array[2]=$pos+1;
+    
+    if($get_term->field_type_of_page_to_generate){
+        $page_type = $get_term->field_type_of_page_to_generate['und'][0]['value']; 
+    }
+    else{
+        $page_type ='NOT SET IN CMP';
+    }
+    
+    $site_structure_array[3]=$page_type;
+    
+    $help_desk = 'NOT SET IN CMP';
+    if (isset($get_term->field_help_desk['und'][0]['tid'])) {
+        $help_term = taxonomy_term_load($get_term->field_help_desk['und'][0]['tid']);
+        $help_desk = (!empty($help_term))? $help_term->name : '';
+    }
+    
+    $site_structure_array[4]=$help_desk;
+    
+    if($get_term->field_friendly_url){
+        $friendly_url = $get_term->field_friendly_url['und'][0]['value'];
+    }
+    else{
+        $friendly_url='NOT SET IN CMP';
+    }
+    
+    $site_structure_array[5]=$friendly_url;
+    
+    $cmp_edit_link=$base_url.'/taxonomy/term/'.$get_term->tid.'/edit';
+    $site_structure_array[6]=$cmp_edit_link;
+    
+    $site_structure_array[7]=$get_term->tid;
+    
+    if($get_term->field_page_title){
+        $page_title=$get_term->field_page_title['und'][0]['value'];
+    }
+    else{
+        $page_title=$get_term->name;
+    }
+    $site_structure_array[8]=$page_title;
+    
+    
+    
+    $site_structure_array[9]=$levels[0];
+    $rev_levels= array_reverse($levels);
+    
+    $filled_up_levels=count($rev_levels);
+    if($filled_up_levels<6){
+        for($i=6; $i>$filled_up_levels; $i--)
+        {
+            $rev_levels[$i] = $page_title;
+        }
+    }
+    
+    $col=10;
+    
+    krsort($rev_levels);
+    foreach($rev_levels as $level){
+        $site_structure_array[$col]=$level;
+        $col++;
+    }
+    
+    $site_structure_array[16]='';
+    $ga_style_url='';
+    $voc_tool_export_url='';
+    if($friendly_url!='NOT SET IN CMP'){
+        if($site_name=='USA.gov'){
+        $ga_style_url='usa.gov'.$friendly_url;
+        $voc_tool_export_url = 'https://usa.gov'.$friendly_url;
+        }
+        if($site_name=='GobiernoUSA.gov'){
+            $ga_style_url='gobierno.usa.gov'.$friendly_url;
+            $voc_tool_export_url = 'https://gobierno.usa.gov'.$friendly_url;
+        }
+        if($site_name=='Kids.gov'){
+            $ga_style_url='kids.gov'.$friendly_url;
+            $voc_tool_export_url = 'https://kids.gov'.$friendly_url;
+        }
+        if($site_name=='Blog.USA.Gov'){
+            $ga_style_url='blog.usa.gov'.$friendly_url;
+            $voc_tool_export_url = 'https://blog.usa.gov'.$friendly_url;
+        }
+    }
+    
+    $site_structure_array[17]=$ga_style_url;
+    $site_structure_array[18]=$voc_tool_export_url;
+    
+    $site_structure_array[19]=$last_changed_date;
+    
+    return $site_structure_array;
+}
