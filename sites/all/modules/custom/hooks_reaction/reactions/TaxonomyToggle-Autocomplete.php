@@ -7,7 +7,7 @@
  */
 hooks_reaction_add("HOOK_taxonomy_term_presave",
     function ($term) {
-        if (isset($term) && $term->vid == 42) {
+        if (isset($term) && $term->vid == 42 ) {
             // field_gobiernousa_gov_toggle_url
             // field_kids_gov_toggle_url
             // field_usa_gov_toggle_url

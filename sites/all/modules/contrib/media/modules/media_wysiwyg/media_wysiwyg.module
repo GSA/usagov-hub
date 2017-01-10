@@ -142,6 +142,7 @@ function media_wysiwyg_pre_render_text_format($element) {
   $element['#attached']['js'][] = array(
     'data' => array(
       'media' => $settings,
+      'mediaDoLinkText' => (boolean) variable_get('media_wysiwyg_use_link_text_for_filename', 1),
     ),
     'type' => 'setting',
   );

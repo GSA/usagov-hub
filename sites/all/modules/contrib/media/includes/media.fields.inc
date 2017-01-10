@@ -309,7 +309,13 @@ function media_field_widget_process_multiple($element, &$form_state, $form) {
       // For each file selected, increment the field key to be processed.
       // field_mediafield_und_0 becomes field_mediafield_und_1, etc.
       $_POST['media'][$upload_name_prefix . ($element['#file_upload_delta'] + $i)] = $files[$i];
-      $element[] = $element[$element['#file_upload_delta']];
+
+      // Copy the default file element to each newly selected file position.
+      $default_element = $element[$element['#file_upload_delta']];
+      $element[] = array_merge(
+        $default_element,
+        array('#weight' => ($element['#file_upload_delta'] + $i + 1))
+      );
     }
   }
 
