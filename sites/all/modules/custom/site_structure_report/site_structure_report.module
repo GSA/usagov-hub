@@ -38,9 +38,9 @@ function _prepare_report()
     foreach($site_names as $root_tid=>$site_name)
     {
         $get_all_terms=taxonomy_get_tree(42,$root_tid);
-    
+       
         foreach($get_all_terms as $get_term) {
-           $site_structure_array[]=get_child_info($get_term->tid,$get_term->depth);
+           $site_structure_array[]=get_child_info($get_term->tid,$get_term->depth,$site_name);
            
         }
     }
@@ -69,26 +69,40 @@ function export_to_csv(array &$array)
     die;
 }
 
-function get_child_info($tid, $pos){
+function get_child_info($tid, $pos,$site_name){
     
     global $base_url;
+    
     
     $get_all_parents=taxonomy_get_parents_all($tid);
     $last_changed_date='-';
     
-    $i=0;
+    $i=0; $j=0;
     foreach($get_all_parents as $lvl=>$par_info){
+        
         if($par_info->tid!=$tid)
         {
-            $levels[$i]=$par_info->field_page_title['und'][0]['value'];
-            $i++;
+            $page_type_info=$par_info->field_type_of_page_to_generate['und'][0]['value'];
+            if($page_type_info=='more' && $site_name!='Kids.USA.gov'){
+                
+            }
+            
+            else{
+                $par_title=$par_info->field_page_title['und'][0]['value'];
+                $levels[$i]=$par_title;
+                $i++;
+           }
+           
+           $get_all_par[$j]=$par_info->field_page_title['und'][0]['value'];
+           $j++;
+            
         }
         else{
             $get_term=$par_info;
         }
         
     }
-    
+   
     
     $site_name=$levels[count($levels)-1];
     
@@ -154,8 +168,8 @@ function get_child_info($tid, $pos){
     
     
     
-    $site_structure_array[9]=$levels[0];
-    $rev_levels= array_reverse($levels);
+    $site_structure_array[9]=$get_all_par[0];
+    $rev_levels = array_reverse($levels);
     
     $filled_up_levels=count($rev_levels);
     if($filled_up_levels<6){
@@ -179,15 +193,15 @@ function get_child_info($tid, $pos){
     if($friendly_url!='NOT SET IN CMP'){
         if($site_name=='USA.gov'){
         $ga_style_url='usa.gov'.$friendly_url;
-        $voc_tool_export_url = 'https://usa.gov'.$friendly_url;
+        $voc_tool_export_url = 'https://www.usa.gov'.$friendly_url;
         }
         if($site_name=='GobiernoUSA.gov'){
             $ga_style_url='gobierno.usa.gov'.$friendly_url;
             $voc_tool_export_url = 'https://gobierno.usa.gov'.$friendly_url;
         }
         if($site_name=='Kids.gov'){
-            $ga_style_url='kids.gov'.$friendly_url;
-            $voc_tool_export_url = 'https://kids.gov'.$friendly_url;
+            $ga_style_url='kids.usa.gov'.$friendly_url;
+            $voc_tool_export_url = 'https://kids.usa.gov'.$friendly_url;
         }
         if($site_name=='Blog.USA.Gov'){
             $ga_style_url='blog.usa.gov'.$friendly_url;
