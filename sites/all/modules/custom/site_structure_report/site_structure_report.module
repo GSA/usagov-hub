@@ -193,15 +193,15 @@ function get_child_info($tid, $pos,$site_name){
     if($friendly_url!='NOT SET IN CMP'){
         if($site_name=='USA.gov'){
         $ga_style_url='usa.gov'.$friendly_url;
-        $voc_tool_export_url = 'https://usa.gov'.$friendly_url;
+        $voc_tool_export_url = 'https://www.usa.gov'.$friendly_url;
         }
         if($site_name=='GobiernoUSA.gov'){
             $ga_style_url='gobierno.usa.gov'.$friendly_url;
             $voc_tool_export_url = 'https://gobierno.usa.gov'.$friendly_url;
         }
         if($site_name=='Kids.gov'){
-            $ga_style_url='kids.gov'.$friendly_url;
-            $voc_tool_export_url = 'https://kids.gov'.$friendly_url;
+            $ga_style_url='kids.usa.gov'.$friendly_url;
+            $voc_tool_export_url = 'https://kids.usa.gov'.$friendly_url;
         }
         if($site_name=='Blog.USA.Gov'){
             $ga_style_url='blog.usa.gov'.$friendly_url;
