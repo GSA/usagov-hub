@@ -100,7 +100,14 @@ function cmp_data_sync_server_permission()
 function cmp_data_sync_server_init()
 {
     global $conf;
-    $conf['cdss_elasticsearch_server'] = 'http://'.$conf['elasticsearch_server'].':'.$conf['elasticsearch_port'];
+    if ( !empty($conf['elasticsearch_server']) )
+    {
+        $conf['cdss_elasticsearch_server'] = 'http://'.$conf['elasticsearch_server'];
+        if ( !empty($conf['elasticsearch_port']) )
+        {
+            $conf['cdss_elasticsearch_server'] .= ':'.$conf['elasticsearch_port'];
+        }
+    }
 }
 
 function cmp_data_sync_server_cron_queue_info()
