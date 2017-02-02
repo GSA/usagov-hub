@@ -257,8 +257,16 @@ function _s3fs_image_style_deliver() {
   }
 
   if ($success) {
-    // Perform a 302 Redirect to the new image derivative in S3.
-    drupal_goto(file_create_url($derivative_uri));
+    if (_s3fs_get_setting('no_redirect_derivatives', False)) {
+      // If the site admin doesn't want us to redirect to the new derivative, we upload it to the client, instead.
+      $image = image_load($derivative_uri);
+      $settings = array('Content-Type' => $image->info['mime_type'], 'Content-Length' => $image->info['file_size']);
+      file_transfer($image->source, $settings);
+    }
+    else {
+      // Perform a 302 Redirect to the new image derivative in S3.
+      drupal_goto(file_create_url($derivative_uri));
+    }
   }
   else {
     watchdog('S3 File System', 'Unable to generate an image derivative at %path.', array('%path' => $derivative_uri));
@@ -369,7 +377,7 @@ function _s3fs_refresh_cache($config) {
     ->fields('s', array('uri'))
     ->condition('dir', 1, '=');
   foreach ($existing_folders->execute()->fetchCol(0) as $folder_uri) {
-    $folders[$folder_uri] = TRUE;
+    $folders[rtrim($folder_uri, '/')] = TRUE;
   }
 
   // Create the temp table, into which all the refreshed data will be written.
@@ -501,7 +509,7 @@ function _s3fs_write_metadata(&$file_metadata_list, &$folders) {
       $root = file_uri_scheme($uri) . '://';
       // Loop through each ancestor folder until we get to the root uri.
       while ($uri != $root) {
-        $folders[$uri] = TRUE;
+        $folders[rtrim($uri, '/')] = TRUE;
         $uri = drupal_dirname($uri);
       }
     }
@@ -784,7 +792,6 @@ function _s3fs_copy_file_system_to_s3($scheme) {
 
   if ($scheme == 'public') {
     $source_folder = realpath(variable_get('file_public_path', conf_path() . '/files'));
-    $target_folder = !empty($config['public_folder']) ? $config['public_folder'] . '/' : 's3fs-public/';
   }
   else if ($scheme == 'private') {
     $source_folder = variable_get('file_private_path', '');
@@ -793,11 +800,6 @@ function _s3fs_copy_file_system_to_s3($scheme) {
       drupal_set_message('Private file system base path is unknown. Unable to perform S3 copy.', 'error');
       return;
     }
-    $target_folder = !empty($config['private_folder']) ? $config['private_folder'] . '/' : 's3fs-private/';
-  }
-
-  if (!empty($config['root_folder'])) {
-    $target_folder = "{$config['root_folder']}/$target_folder";
   }
 
   $file_paths = _s3fs_recursive_dir_scan($source_folder);

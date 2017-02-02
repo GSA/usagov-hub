@@ -481,12 +481,9 @@ function cmp_misc_entity_load($entities, $type)
     {
         foreach ( $entities as $theEntity )
         {
-            if ( $row = db_query("select deleted, deletion_uid, deletion_timestamp, uuid from {node} where {node}.nid = {$theEntity->nid}")->fetchAssoc() )
+            if ( $row = db_query("select uuid from {node} where {node}.nid = {$theEntity->nid}")->fetchAssoc() )
             {
-                $theEntity->deleted            = empty($row['deleted']) ? 0 : 1;
-                $theEntity->deletion_uid       = $row['deletion_uid'];
-                $theEntity->deletion_timestamp = $row['deletion_timestamp'];
-                $theEntity->uuid               = $row['uuid'];
+                $theEntity->uuid = $row['uuid'];
             }
         }
     }
@@ -1173,6 +1170,34 @@ function cmp_misc_wysiwyg_editor_settings_alter(&$settings, $context)
     $settings['scayt_autoStartup'] = TRUE;
   }
 }
+
+function cmp_misc_elasticsearch_connector_clusters_alter( &$clusters )
+{
+    $shortcode = variable_get('elasticsearch_shortcode');
+    $host      = variable_get('elasticsearch_server');
+    $port      = variable_get('elasticsearch_port');
+
+    if ( empty($shortcode) || empty($host) )
+    {
+        return;
+    }
+    foreach ( $clusters as $cluster )
+    {
+        $regex  = '/'.preg_replace('/(\W)/','\\\\\1',$shortcode).'(:\d+)?/';
+        $server = empty($port) ? "$host" : "$host:$port";
+        $altered_url = preg_replace($regex,$server,$cluster->url);
+        if ( !empty($altered_url) && $altered_url !== $cluster->url )
+        {
+            $cluster->url = $altered_url;
+            // db_query("UPDATE elasticsearch_connector_cluster
+            //           SET url=:altered_url WHERE cluster_id=:cluster_id",
+            //           array(':altered_url'=>$url,
+            //                 ':cluster_id'=>$cluster->cluster_id)
+            // );
+        }
+    }
+}
+
 
 if ( !function_exists('_bloggov_urlFriendlyString') )
 {

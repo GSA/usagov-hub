@@ -1,0 +1,1423 @@
+<?php
+
+define( 'CDSS_SUCCESS',   TRUE  );
+define( 'CDSS_TRY_AGAIN', FALSE );
+define( 'CDSS_FATAL',     NULL  );
+
+$GLOBALS['cdss_queued_entities'] = array();
+
+function cmp_data_sync_server_menu()
+{
+    $items = array();
+    // Configuration page
+    $items['admin/content/cmp-data-sync-server'] = array(
+        'title'           => 'CMP Data Sync',
+        'description'     => 'Settings',
+        'page callback'   => 'drupal_get_form',
+        'page arguments'  => array('cmp_data_sync_server_config_form'),
+        'access arguments' => array('administer cmp data sync'),
+        'type'            => MENU_NORMAL_ITEM,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/content/cmp-data-sync-server/api/validate_elasticsearch'] = array(
+        'title'           => 'Validate Elasticsearch',
+        'description'     => 'Validate Elasticsearch',
+        'page callback'   => '_cdss_ajax_validate_elasticsearch',
+        'access arguments' => array('administer cmp data sync'),
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/content/cmp-data-sync-server/api/setup_elasticsearch'] = array(
+        'title'           => 'Setup Elasticsearch',
+        'description'     => 'Setup Elasticsearch',
+        'page callback'   => '_cdss_ajax_setup_elasticsearch',
+        'access arguments' => array('administer cmp data sync'),
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/content/cmp-data-sync-server/api/sync_schema'] = array(
+        'title'           => 'Send Schema to Elasticsearch',
+        'description'     => 'Send Schema to Elasticsearch',
+        'page callback'   => '_cdss_ajax_sync_schema',
+        'access arguments' => array('administer cmp data sync'),
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/content/cmp-data-sync-server/api/full_sync'] = array(
+        'title'           => 'Full Site Sync',
+        'description'     => 'Send all content to Elasticsearch',
+        'page callback'   => '_cdss_ajax_full_sync',
+        'access arguments' => array('administer cmp data sync'),
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/content/cmp-data-sync-server/api/process_queue'] = array(
+        'title'           => 'Process Queue',
+        'description'     => 'Process Queue',
+        'page callback'   => '_cdss_ajax_process_queue',
+        'access arguments' => array('administer cmp data sync'),
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/content/cmp-data-sync-server/api/add_all_to_queue'] = array(
+        'title'           => 'Add all to Queue',
+        'description'     => 'Add all to Queue',
+        'page callback'   => '_cdss_ajax_add_all_to_queue',
+        'access arguments' => array('administer cmp data sync'),
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    $items['admin/content/cmp-data-sync-server/api/check_queue_status'] = array(
+        'title'           => 'Check Queue Status',
+        'description'     => 'Display Queue Status',
+        'page callback'   => '_cdss_ajax_check_queue_status',
+        'access arguments' => array('administer cmp data sync'),
+        'type'            => MENU_CALLBACK,
+        'file'            => 'cmp_data_sync_server.admin.inc'
+    );
+    /** /
+    $items['admin/content/cmp-data-sync-server'] = array(
+        'title'           => 'CMP Data Sync To ElasticSearch',
+        'description'     => 'Testing',
+        'page callback'   => 'cmp_data_sync_server_test',
+        'access arguments' => array('administer cmp data sync'),
+        'type'            => MENU_CALLBACK,
+    );
+    /**/
+    return $items;
+}
+function cmp_data_sync_server_permission()
+{
+  return array(
+    'administer cmp data sync' => array(
+      'title' => t('Administer CMP Syncing behavior'),
+    )
+  );
+}
+
+/// drupal hooks
+
+function cmp_data_sync_server_init()
+{
+    global $conf;
+    $conf['cdss_elasticsearch_server'] = 'http://'.$conf['elasticsearch_server'].':'.$conf['elasticsearch_port'];
+}
+
+function cmp_data_sync_server_cron_queue_info()
+{
+    /// will pull items off the queue while cron is running
+    $queues = array();
+    $queues['cmp_data_sync'] = array(
+        'worker callback' => '_cdss_process_queue_data',
+        'time'            => 30
+    );
+    return $queues;
+}
+function cmp_data_sync_server_taxonomy_term_delete( $term )
+{
+    db_query(
+        "REPLACE INTO {cds_deleted_terms} (uuid,tid,vid,name,changed)
+         VALUES (:uuid,:tid,:vid,:name,UNIX_TIMESTAMP(NOW()))",
+        array(
+            ':uuid'  => $term->uuid,
+            ':tid'   => $term->tid,
+            ':vid'   => $term->vid,
+            ':name'  => substr($term->name,0,255)
+        )
+    );
+    _cdss_add_entity_to_queue($term->uuid, 'deleted_term');
+}
+
+function cmp_data_sync_server_exit()
+{
+    if ( !empty($GLOBALS['cdss_queued_entities'])
+      && variable_get('cdss_immediate_sync') )
+    {
+        /// run in the background
+        _cdss_finish_request();
+        _cdss_process_queue();
+    }
+}
+function _cdss_cancel_immediate_sync()
+{
+  global $config;
+  $config['cdss_immediate_sync'] = false;
+  //$GLOBALS['cdss_queued_entities'] = array();
+}
+
+
+function cmp_data_sync_server_workbench_moderation_transition($entity, $fromState, $toState)
+{
+    /// make sure we are acting on the proper revision - might need to load another version of the node or something
+
+    /* When a work-flow state [alone] is changed, in certain edge cases, the node's "changed" field is not updated,
+    which can cause a node to be missed by childsite update-pulls. We will fix this here.
+    We only care if the published version changes however */
+    if ( empty($entity->uuid) && $fromState!=='published' && $toState!=='published' )
+    {
+        return;
+    }
+    if ( !empty($entity->nid) )
+    {
+        $entity->changed = time();
+        db_query("UPDATE node SET changed=:changed WHERE uuid=:uuid",
+                  array( ':changed'=>$entity->changed, ':uuid'=>$entity->uuid ));
+        _cdss_entity_queue( $entity, 'node' );
+
+    } else if ( !empty($entity->tid) ) {
+        $entity->changed = time();
+        db_query("UPDATE taxonomy_term_data SET changed=:changed WHERE uuid=:uuid",
+                  array( ':changed'=>$entity->changed, ':uuid'=>$entity->uuid ));
+        _cdss_entity_queue( $entity, 'taxnomy_term' );
+    }
+}
+function cmp_data_sync_server_entity_insert( $entity, $type )
+{
+    _cdss_entity_queue($entity, $type);
+}
+function cmp_data_sync_server_entity_update( $entity, $type )
+{
+    _cdss_entity_queue($entity, $type);
+}
+function cmp_data_sync_server_node_delete( $entity )
+{
+    $entity->deleted = true;
+    _cdss_entity_queue($entity, 'node', 'remove');
+}
+function _cdss_entity_queue( $entity, $type, $remove=null )
+{
+    /// might have already synced this entity during current page load
+    if ( empty(variable_get('cdss_syncing_enabled'))
+    ||    empty($entity->uuid)
+    || ( !empty($entity->uuid)
+      && !empty($GLOBALS['cdss_queued_entities'][$entity->uuid]) ) )
+    {
+        //_cdss_log('DBG: CDSS '.__FUNCTION__.' already queued  : uuid='.$entity->uuid);
+        return;
+    }
+    /// node && published && of-syncable-type
+    /// term && of-syncable-vocabulary
+    if ( ( $type === 'node'
+        && ( $entity->status === 1 || !empty($entity->deleted) )
+        && in_array($entity->type,
+                    variable_get('cdss_node_bundles',array())) )
+    || ( $type === 'taxonomy_term'
+        && in_array($entity->vocabulary_machine_name,
+                    variable_get('cdss_term_bundles',array())) ) )
+    {
+        $queue_type = $type;
+        if ( !empty($remove) )
+        {
+            $queue_type = 'remove';
+        } else if ( !empty($entity->deleted) ) {
+            if ( $type === 'node' )
+            {
+                $queue_type = 'deleted_node';
+            } else if ( $type=='taxonomy_term' ) {
+                $queue_type = 'deleted_term';
+            }
+        }
+        // _cdss_log('DBG: CDSS '.__FUNCTION__.' queueing : uuid='.$entity->uuid.' s='.$entity->status.' d='.$entity->deleted.' t='.$entity->type);
+        _cdss_add_entity_to_queue($entity->uuid, $queue_type);
+        // } else {
+        // _cdss_log('DBG: CDSS '.__FUNCTION__.' not syncable : uuid='.$entity->uuid.' s='.$entity->status.' t='.$entity->type);
+    }
+}
+
+/// setup functions
+
+function _cdss_setup_elasticsearch()
+{
+    $schema_success  = _cdss_setup_schema_index();
+    $content_success = _cdss_setup_content_index();
+    return $schema_success && $content_success;
+}
+function _cdss_teardown_elasticsearch()
+{
+    $schema_success  = _cdss_teardown_schema_index();
+    $content_success = _cdss_teardown_content_index();
+    return $schema_success && $content_success;
+}
+function _cdss_setup_schema_index()
+{
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    try{
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
+        if ( $response->code !== '200' )
+        {
+            $data = '{
+                "settings" : {
+                    "index" : {
+                        "number_of_shards" : 1,
+                        "number_of_replicas" : 0
+                    }
+                }
+            }';
+            $options = array(
+                'method' => 'PUT',
+                'data' => $data,
+            );
+            $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', $options);
+            if (  $response->code === '200' )
+            {
+                _cdss_log('Info: CDSS '.__FUNCTION__.' Created ElasticSearch Index for CMP Schema : response='.$response->data);
+                return true;
+            } else if ( $response->code === '400' || $response->code === '201' ) {
+                _cdss_log('Info: CDSS '.__FUNCTION__.' ElasticSearch Index for CMP Schema already exists : response='.$response->data);
+                return true;
+            }
+            _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Schema : response='.$response->data);
+            return false;
+        }
+    } catch(Exception $e){
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
+        return false;
+    }
+}
+function _cdss_teardown_schema_index()
+{
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    try{
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
+        if ( $response->code === '404' ) { return true; }
+
+        $options = array(
+            'method' => 'DELETE'
+        );
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', $options);
+        if ( $response->code === '200' )
+        {
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Deleted ElasticSearch Index for CMP Schema : response='.$response->data);
+            return true;
+        } else {
+            return false;
+        }
+    } catch(Exception $e){
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString() );
+        return false;
+    }
+}
+function _cdss_setup_content_index()
+{
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    try{
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', array('method'=>'HEAD') );
+        if ( $response->code === '200' ) { return true; }
+
+        $data = '{
+            "settings" : {
+                "index" : {
+                    "number_of_shards" : 1,
+                    "number_of_replicas" : 0
+                }
+            },
+            "mappings": {
+                "entity": {
+                    "properties": {
+                        "changed": {
+                            "type": "integer"
+                        },
+                        "uuid": {
+                            "type": "string",
+                            "index": "not_analyzed"
+                        },
+                        "name": {
+                            "type": "string",
+                            "index": "not_analyzed"
+                        },
+                        "vocabulary_machine_name": {
+                            "type": "string",
+                            "index": "not_analyzed"
+                        },
+                        "field_for_use_by": {
+                            "properties": {
+                                "und": {
+                                    "properties": {
+                                        "value": {
+                                            "type": "string",
+                                            "index": "not_analyzed"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }';
+        /*
+        "mappings": {
+            "entity": {
+                "properties": {
+                    "changed": {
+                        "type": "integer"
+                    },
+                    "field_for_use_by": {
+                        "type": "nested"
+                    }
+                }
+            }
+        }
+        */
+        $options = array(
+            'method' => 'PUT',
+            'data'   => $data,
+        );
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', $options);
+        if (  $response->code === '200' )
+        {
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Created ElasticSearch Index for CMP Content : response='.$response->data);
+            return true;
+        } else if ( $response->code === '400' || $response->code === '200' ) {
+            _cdss_log('Info: CDSS '.__FUNCTION__.' ElasticSearch Index for CMP Content already exists : response='.$response->data);
+            return true;
+        }
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Failed to Created ElasticSearch Index for CMP Content : response='.$response->data);
+        return false;
+    } catch(Exception $e){
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
+        return false;
+    }
+}
+function _cdss_teardown_content_index()
+{
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    try{
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', array('method'=>'HEAD') );
+        if ( $response->code === '404' ) { return true; }
+
+        $options = array(
+            'method' => 'DELETE'
+        );
+        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', $options);
+        if ( $response->code === '200' )
+        {
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Deleted ElasticSearch Index for CMP Content : response='.$response->data);
+            return true;
+        } else {
+            return false;
+        }
+    } catch(Exception $e){
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
+        return false;
+    }
+}
+
+function _cdss_setup_drupal()
+{
+    $queue_success = _cdss_setup_drupal_queue();
+    $vars_success  = _cdss_setup_drupal_vars();
+    return $queue_success && $vars_success;
+}
+function _cdss_teardown_drupal()
+{
+    $queue_success = _cdss_teardown_drupal_queue();
+    $vars_success  = _cdss_teardown_drupal_vars();
+    return $queue_success && $vars_success;
+}
+function _cdss_setup_drupal_queue()
+{
+    try {
+        $queue = DrupalQueue::get('cmp_data_sync');
+        $queue->createQueue();
+        return true;
+    } catch (Exception $e) {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
+        return false;
+    }
+}
+function _cdss_teardown_drupal_queue()
+{
+    try {
+        $queue = DrupalQueue::get('cmp_data_sync');
+        $queue->deleteQueue();
+        return true;
+    } catch (Exception $e) {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '.$e->getMessage() .' : '. $e->getTraceAsString());
+        return false;
+    }
+}
+function _cdss_setup_drupal_vars()
+{
+    if ( variable_get('queue_class_cmp_data_sync')===null )
+    {
+        variable_set('queue_class_cmp_data_sync', 'CDSQueue');
+    }
+    if ( variable_get('cdss_syncing_enabled')===null )
+    {
+        variable_set('cdss_syncing_enabled',false);
+    }
+    if ( variable_get('cdss_immediate_sync')===null )
+    {
+        variable_set('cdss_immediate_sync',true);
+    }
+    if ( variable_get('cdss_node_bundles')===null )
+    {
+        variable_set('cdss_node_bundles',array());
+    }
+    if ( variable_get('cdss_term_bundles')===null )
+    {
+        variable_set('cdss_term_bundles',array());
+    }
+    if ( variable_get('cdss_relation_bundles')===null )
+    {
+        variable_set('cdss_relation_bundles',array());
+    }
+    if ( variable_get('cdss_elasticsearch_server')===null )
+    {
+        variable_set('cdss_elasticsearch_server','');
+    }
+}
+function _cdss_teardown_drupal_vars()
+{
+    variable_del('queue_class_cmp_data_sync');
+    variable_del('cdss_syncing_enabled');
+    variable_del('cdss_immediate_sync');
+    variable_del('cdss_node_bundles');
+    variable_del('cdss_term_bundles');
+    variable_del('cdss_relation_bundles');
+    variable_del('cdss_elasticsearch_server');
+    return true;
+}
+
+function _cdss_validate_elasticsearch_server()
+{
+  $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+  if ( empty($elasticsearch_server) )
+  {
+    return false;
+  }
+  try{
+      $response = drupal_http_request($elasticsearch_server, array('method'=>'HEAD') );
+      if ( $response->code !== '200' )
+      {
+          return false;
+      }
+      return true;
+  } catch(Exception $e){
+      return false;
+  }
+}
+function _cdss_validate_elasticsearch_content_index()
+{
+  $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+  try{
+      $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', array('method'=>'HEAD') );
+      if ( $response->code !== '200' )
+      {
+        return false;
+      }
+      return true;
+  } catch(Exception $e){
+      return false;
+  }
+}
+function _cdss_validate_elasticsearch_schema_index()
+{
+  $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+  try{
+      $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
+      if ( $response->code !== '200' )
+      {
+        return false;
+      }
+      return true;
+  } catch(Exception $e){
+      return false;
+  }
+}
+
+function _cdss_syncing_disabled()
+{
+    $var = db_query(
+        'SELECT value FROM {variable} where name=:name',
+        array(':name'=>'cdss_syncing_enabled')
+    )->fetchObject();
+    if ( empty($var) )
+    {
+        return true;
+    }
+    return ! boolval(unserialize($var->value));
+}
+
+/// action functions
+
+function _cdss_process_queue()
+{
+    $queue = DrupalQueue::get('cmp_data_sync');
+
+    $lease_time = 10;
+    $queued_item_count = $queue->numberOfItems($lease_time);
+    $attempted = 0;
+    $success   = 0;
+
+    $allowed_retry_attempts = 5;
+    $retry_attempts = [];
+
+    $loop = 0;
+    while( $queue->numberOfItems()>0 )
+    {
+        if ( ($loop%10)==0 && _cdss_syncing_disabled() )
+        {
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Syncing Disabled, stopped processing');
+            break;
+        }
+        $loop++;
+        $q_item = $queue->claimItem($lease_time);
+        if ( empty($q_item) )
+        {
+            /// we done
+            break;
+        }
+        $attempted++;
+        try
+        {
+            if ( isset($retry_attempts[$q_item->data_uuid]) )
+            {
+                _cdss_log('Info: CDSS '.__FUNCTION__.' Retry attempt '.$retry_attempts[$q_item->data_uuid].' for uuid:'.$q_item->data_uuid);
+                $retry_attempts[$q_item->data_uuid]++;
+            } else {
+                $retry_attempts[$q_item->data_uuid] = 0;
+            }
+            if ( $retry_attempts[$q_item->data_uuid] > $allowed_retry_attempts )
+            {
+                $queue->deleteItem($q_item);
+                continue;
+            }
+            $result = _cdss_process_queue_data($q_item->data);
+            if ( $result===CDSS_FATAL )
+            {
+                /// we can't possibly process this
+                /// just remove it
+                $queue->deleteItem($q_item);
+            } else if ( $result===CDSS_SUCCESS ) {
+                $queue->deleteItem($q_item);
+            } else {
+                /// success===CDSS_TRY_AGAIN means there was a non-fatal problem
+                /// while talking to elasticsearch
+                /// we can put this back and try again later
+                $queue->releaseItem($q_item);
+            }
+            $success++;
+        } catch(Exception $e) {
+            _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception releasing item: '.$e->getMessage() .' : '. $e->getTraceAsString() );
+            $queue->releaseItem($q_item);
+        }
+    }
+    _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$attempted.' of '.$queued_item_count.' total');
+}
+function _cdss_process_queue_data( $q_item_data )
+{
+    /// don't handle exceptions here
+    /// let exceptions rise up to whatever is calling this function
+    if ( empty($q_item_data['uuid']) || empty($q_item_data['type']) )
+    {
+        //_cdss_log('Info: CDSS '.__FUNCTION__.' malformed queue data : '.print_r($q_item_data,1));
+        return CDSS_FATAL;
+    }
+    $success = _cdss_send_entity_to_elasticsearch(
+        $q_item_data['uuid'],
+        $q_item_data['type']
+    );
+    if ( $success===CDSS_TRY_AGAIN )
+    {
+        throw new Exception('Failed to process queue item. Will try again later.');
+    }
+    return $success;
+}
+
+function _cdss_send_schema_to_elasticsearch()
+{
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    try{
+        $schema_node      = _cdss_export_node_structure();
+        $schema_term      = _cdss_export_taxonomy_structure();
+        $schema_relation  = _cdss_export_relation_structure();
+        $schema_node_sha1     = sha1($schema_node);
+        $schema_term_sha1     = sha1($schema_term);
+        $schema_relation_sha1 = sha1($schema_relation);
+        $data = array(
+            'term'      => $schema_term,
+            'node'      => $schema_node,
+            'relation'  => $schema_relation,
+            'term_sha1'     => $schema_term_sha1,
+            'node_sha1'     => $schema_node_sha1,
+            'relation_sha1' => $schema_relation_sha1,
+        );
+        $response = drupal_http_request(
+            $elasticsearch_server.'/cmp-data-schema/schema/node_term',
+            array(
+                'method' => 'PUT',
+                'data'   => json_encode($data),
+            )
+        );
+        if ( $response->code === '201' || $response->code === '200' )
+        {
+            _cdss_log('Info: CDSS '.__FUNCTION__.' Schema Sent : response='.$response->data);
+            return true;
+        } else {
+            _cdss_log('Fail: CDSS '.__FUNCTION__.' Schema Not Sent : response_code='.$response->code);
+            return false;
+        }
+    } catch(Exception $e) {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : '. $e->getMessage() .' : '. $e->getTraceAsString());
+        return false;
+    }
+}
+function _cdss_send_entity_to_elasticsearch( $e_uuid, $e_type, $timeout=10 )
+{
+    try
+    {
+        if ( $e_type === 'remove' ) {
+            return _cdss_remove_entity_from_elasticsearch($e_uuid);
+        } elseif ( $e_type === 'node' ) {
+            $entity = _cdss_load_sanitized_node($e_uuid);
+        } elseif ( $e_type === 'deleted_node' ) {
+            $entity = _cdss_load_deleted_node($e_uuid);
+        } elseif ( $e_type === 'taxonomy_term' ) {
+            $entity = _cdss_load_sanitized_term($e_uuid);
+        } elseif ( $e_type === 'deleted_term' ) {
+            $entity = _cdss_load_deleted_term($e_uuid);
+        } else {
+            _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity type unknown, removing from queue : entity_uuid='.$e_uuid.' entity_type='.$e_type);
+            return CDSS_FATAL; /// remove from queue
+        }
+    } catch (Exception $e) {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Load Exception, removing from queue : entity_uuid='.$e_uuid.' entity_type='.$e_type.' msg:'.$e->getMessage());
+        return CDSS_FATAL; /// remove from queue
+    }
+    if(empty($entity))
+    {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Entity empty, removing from queue : entity_uuid='.$e_uuid.' entity_type='.$e_type);
+        return CDSS_FATAL; /// remove from queue
+    }
+
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    // try{ // leave these exceptions for _cron_queue_info
+    /// put with an explicit ID will act as an upsert
+    $response = drupal_http_request(
+        $elasticsearch_server.'/cmp-data-entities/entity/'.$e_uuid,
+        array(
+            'method'  => 'PUT',
+            'data'    => json_encode($entity),
+            'timeout' => $timeout
+        )
+    );
+    /// there are probably some response codes
+    /// that should really be fatal and return NULL
+    /// for now we are assuming anything but 200/201
+    /// means a temporary problem and we will return FALSE
+    if ( $response->code === '201' || $response->code === '200' )
+    {
+        _cdss_log('Info: CDSS '.__FUNCTION__.' Indexed : entity_uuid='.$e_uuid.' entity_type='.$e_type);
+        return CDSS_SUCCESS; /// remove from queue
+    } else {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Not Indexed : entity_uuid='.$e_uuid.' entity_type='.$e_type.' response='.$response->data);
+        return CDSS_TRY_AGAIN; /// keep in queue, try again
+    }
+    // // leave these exceptions for _cron_queue_info
+    // } catch(Exception $exception){
+    //     dsm($exception);
+    //     return false; /// keep in queue, try again
+    // }
+    /// uncaught exception should be handled by _cron_queue_info
+    /// which will keep this item in the queue and try again
+}
+function _cdss_remove_entity_from_elasticsearch( $e_uuid, $timeout=10 )
+{
+    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    $response = drupal_http_request(
+        $elasticsearch_server.'/cmp-data-entities/entity/'.$e_uuid,
+        array(
+            'method'  => 'DELETE',
+            'timeout' => $timeout
+        )
+    );
+    if ( $response->code === '200' || $response->code === '404' )
+    {
+        _cdss_log('Info: CDSS '.__FUNCTION__.' Removed from Index : entity_uuid='.$e_uuid);
+        return CDSS_SUCCESS; /// remove from queue
+    } else {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Not Removed from Indexed : entity_uuid='.$e_uuid.' response='.$response->data);
+        return CDSS_TRY_AGAIN; /// keep in queue, try again
+    }
+    /// leave exceptions for _cron_queue_info
+    /// uncaught exception should be handled by _cron_queue_info
+    /// which will keep this item in the queue and try again
+}
+function _cdss_add_all_to_queue()
+{
+    _cdss_add_all_nodes_to_queue();
+    _cdss_add_all_terms_to_queue();
+}
+function _cdss_add_all_nodes_to_queue()
+{
+    $selected_bundles = variable_get('cdss_node_bundles', array());
+    $result = db_query(
+        "SELECT DISTINCT n.uuid, IF(d.deletion_state='soft',1,0) as deleted, changed
+         FROM {node} n
+              LEFT JOIN {node_deleted} d
+                ON ( n.nid = d.nid )
+         WHERE type IN (:types)
+               AND ( status=1 OR d.deletion_state='soft' )
+         ORDER BY changed DESC",
+        array(':types'=>$selected_bundles)
+    );
+    $success = 0;
+    foreach ( $result as $row )
+    {
+        $success += _cdss_add_entity_to_queue( $row->uuid, $row->deleted?'deleted_node':'node');
+    }
+    _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$result->rowCount());
+}
+function _cdss_add_all_terms_to_queue()
+{
+    /// loop through all active terms - add them to the queue
+    $selected_bundles = variable_get('cdss_term_bundles', array());
+    $result = db_query(
+        'SELECT DISTINCT uuid, changed
+         FROM taxonomy_term_data d
+         JOIN taxonomy_vocabulary v on ( d.vid = v.vid )
+         WHERE v.machine_name in (:vocabs)
+         ORDER BY changed desc',
+        array(':vocabs'=>$selected_bundles)
+    );
+    $total   = $result->rowCount();
+    $success = 0;
+    while ( $e_uuid = $result->fetchField() )
+    {
+        $success += _cdss_add_entity_to_queue($e_uuid, 'taxonomy_term');
+    }
+    /// loop through all deleted terms - add them to the queue
+    $result = db_query(
+        'SELECT DISTINCT uuid FROM cds_deleted_terms'
+    );
+    $total += $result->rowCount();
+    while ( $e_uuid = $result->fetchField() )
+    {
+        $success += _cdss_add_entity_to_queue($e_uuid, 'deleted_term');
+    }
+    _cdss_log('Info: CDSS '.__FUNCTION__.' results : '.$success.'/'.$total);
+}
+function _cdss_add_entity_to_queue( $e_uuid, $e_type )
+{
+    try {
+        $queue = DrupalQueue::get('cmp_data_sync');
+        $queue->createItem(array(
+            'uuid' => $e_uuid,
+            'type' => $e_type
+        ));
+        $GLOBALS['cdss_queued_entities'][$e_uuid] = true;
+        _cdss_log('Info: CDSS '.__FUNCTION__.' : entity_uuid='.$e_uuid.' entity_type='.$e_type);
+        return true;
+    } catch (Exception $e) {
+        _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : entity_uuid='.$e_uuid.' entity_type='.$e_type .' : '. $e->getMessage() .' : '. $e->getTraceAsString());
+        return false;
+    }
+}
+
+/// data acquisition
+function _cdss_load_sanitized_node( $e_uuid )
+{
+    $nodes = entity_uuid_load('node',array($e_uuid),array(),TRUE);
+    if(empty($nodes))
+    {
+        return null;
+    }
+    $node = array_shift($nodes);
+    if(empty($node))
+    {
+        return null;
+    }
+
+    unset($node->uid);
+    unset($node->workbench_moderation);
+    unset($node->revision_timestamp);
+    unset($node->revision_uid);
+    unset($node->vid);
+    unset($node->path);
+    unset($node->picture);
+    unset($node->field_owner);
+    unset($node->cid);
+    unset($node->last_comment_timestamp);
+    unset($node->last_comment_name);
+    unset($node->last_comment_uid);
+    unset($node->comment_count);
+
+    if ( !isset($node->field_for_use_by) && isset($node->field_for_use_by_text) )
+    {
+        $node->field_for_use_by = $node->field_for_use_by_text;
+    }
+    _cdss_add_s3_urls($node);
+    _cdss_add_reference_info($node);
+    /// we may not want to force this here
+    /// after a form submit and node_save we were wrongly seeing all status as 0
+    /// but during a full-sync there were correct seeing all status as 1
+    /// we are not taking into account the case where an item used to be published
+    /// but now is not published
+    $node->status = "1";
+    if ( !isset($node->deleted) )
+    {
+        $node->deleted = 0;
+    }
+    return $node;
+}
+function _cdss_load_deleted_node( $e_uuid )
+{
+    $result = db_query(
+        "SELECT
+            n.uuid, n.status, n.nid, n.vid, n.title, n.changed,
+            IF(d.deletion_state='soft',1,0) as deleted
+         FROM
+            {node} n
+            LEFT JOIN {node_deleted} d
+                ON ( n.nid = d.nid )
+         WHERE
+            uuid=:uuid
+         LIMIT 1",
+        array(':uuid'=>$e_uuid)
+    )->fetchObject();
+    if ( $result===false )
+    {
+        return null;
+    }
+    if ( $result->deleted )
+    {
+        $result->status = "0";
+    }
+    return $result;
+}
+function _cdss_load_sanitized_term( $e_uuid )
+{
+    $terms = entity_uuid_load('taxonomy_term',array($e_uuid),array(),TRUE);
+    if(empty($terms))
+    {
+        return null;
+    }
+    $term = array_shift($terms);
+    if(empty($term))
+    {
+        return null;
+    }
+    $term->type = 'taxonomy_term';
+    $term->deleted = 0;
+    _cdss_add_term_parent($term);
+    _cdss_add_term_children($term);
+    _cdss_add_for_use_by($term);
+    _cdss_add_reference_info($term);
+    return $term;
+}
+function _cdss_load_deleted_term( $e_uuid )
+{
+    $result = db_query(
+        'SELECT uuid,tid,vid,name,changed
+         FROM {cds_deleted_terms} WHERE uuid=:uuid LIMIT 1',
+        array(':uuid'=>$e_uuid)
+    )->fetchObject();
+    if ( $result===false )
+    {
+        return null;
+    }
+    $result->deleted = 1;
+    return $result;
+}
+
+function _cdss_add_reference_info( &$entity )
+{
+    if ( empty($entity) ) { return false; }
+    try
+    {
+        $uuid_info =& _cdss_uuid_info();
+        $entity_type   = null;
+        $entity_bundle = null;
+        if ( isset($entity->tid) && isset($entity->vocabulary_machine_name) )
+        {
+            $entity_type   = 'taxonomy_term';
+            $entity_bundle = $entity->vocabulary_machine_name;
+        } else if ( isset($entity->nid) && isset($entity->type) ) {
+            $entity_type   = 'node';
+            $entity_bundle = $entity->type;
+        }
+        if ( empty($entity_type) || empty($entity_bundle) ) { return false; }
+        $fields = field_info_instances($entity_type,$entity_bundle);
+        foreach ( array_keys($fields) as $field )
+        {
+            if ( !isset($entity->{$field}) || !isset($entity->{$field}['und']) )
+            {
+                continue;
+            }
+            $field_info = field_info_field($field);
+            if ( !isset($field_info['type'])
+              || !in_array($field_info['type'],
+                           ['taxonomy_term_reference','relation_add','entityreference']) )
+            {
+                continue;
+            }
+            foreach ( $entity->{$field}['und'] as $i=>$ref )
+            {
+                $ref_uuid = null;
+                if ( isset($ref['tid']) )
+                {
+                    if ( isset($ref['uuid']) )
+                    {
+                        $ref_uuid = $ref['uuid'];
+                    } else if ( is_string($ref['tid']) && strlen($ref['tid'])==36 ) {
+                        $ref_uuid = $ref['tid'];
+                    } else {
+                        $ref_uuid = entity_get_uuid_by_id('taxonomy_term', array($ref['tid']));
+                        $ref_uuid = reset($ref_uuid);
+                    }
+                    if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
+                    {
+                        $entity->{$field} = array();
+                        _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
+                        continue;
+                    }
+                    $entity->{$field}['und'][$i]['uuid']   = $ref_uuid;
+                    $entity->{$field}['und'][$i]['type']   = $uuid_info[$ref_uuid]['type'];
+                    $entity->{$field}['und'][$i]['bundle'] = $uuid_info[$ref_uuid]['bundle'];
+                    $entity->{$field}['und'][$i]['tid']    = $uuid_info[$ref_uuid]['id'];
+                } else if ( isset($ref['target_id']) ) {
+                    if ( isset($ref['uuid']) )
+                    {
+                        $ref_uuid = $ref['uuid'];
+                    } else if ( is_string($ref['target_id']) && strlen($ref['target_id'])==36 ) {
+                        $ref_uuid = $ref['target_id'];
+                    } else {
+                        $ref_uuid = entity_get_uuid_by_id('taxonomy_term', array($ref['target_id']));
+                        if ( empty($ref_uuid) )
+                        {
+                            $ref_uuid = entity_get_uuid_by_id('node', array($ref['target_id']));
+                        }
+                        if ( empty($ref_uuid) )
+                        {
+                            $ref_uuid = entity_get_uuid_by_id('relation', array($ref['target_id']));
+                        }
+                        $ref_uuid = reset($ref_uuid);
+                    }
+                    if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
+                    {
+                        $entity->{$field} = array();
+                        _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
+                        continue;
+                    }
+                    $entity->{$field}['und'][$i]['uuid']      = $ref_uuid;
+                    $entity->{$field}['und'][$i]['type']      = $uuid_info[$ref_uuid]['type'];
+                    $entity->{$field}['und'][$i]['bundle']    = $uuid_info[$ref_uuid]['bundle'];
+                    $entity->{$field}['und'][$i]['target_id'] = $uuid_info[$ref_uuid]['id'];
+                } else if ( isset($ref['endpoints']) && !empty($ref['endpoints']['und']) ) {
+                    foreach ( $ref['endpoints']['und'] as $j=>$ep )
+                    {
+                        if ( isset($ep['uuid']) )
+                        {
+                            $ref_uuid = $ep['uuid'];
+                        } else if ( isset($ep['entity_uuid']) ) {
+                            $ref_uuid = $ep['entity_uuid'];
+                        } else if ( is_string($ep['entity_id']) && strlen($ep['entity_id'])==36 ) {
+                            $ref_uuid = $ep['entity_id'];
+                        } else if ( isset($ep['entity_type']) ) {
+                            $ref_uuid = entity_get_uuid_by_id($ep['entity_type'], array($ep['entity_id']));
+                            $ref_uuid = reset($ref_uuid);
+                        }
+                        if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
+                        {
+                            $entity->{$field} = array();
+                            _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
+                            break;
+                        }
+                        $entity->{$field}['und'][$i]['endpoints']['und'][$j]['entity_uuid']   = $ref_uuid;
+                        $entity->{$field}['und'][$i]['endpoints']['und'][$j]['entity_type']   = $uuid_info[$ref_uuid]['type'];
+                        $entity->{$field}['und'][$i]['endpoints']['und'][$j]['entity_bundle'] = $uuid_info[$ref_uuid]['bundle'];
+                        $entity->{$field}['und'][$i]['endpoints']['und'][$j]['entity_id']     = $uuid_info[$ref_uuid]['id'];
+                    }
+                }
+            }
+        }
+        return true;
+    } catch( Exception $e ) {
+        return false;
+    }
+}
+function _cdss_add_term_parent( &$term )
+{
+    if ( empty($term) ) { return; }
+    $uuid_info =& _cdss_uuid_info();
+    $ref_uuid = null;
+    if ( empty($term->parent) )
+    {
+        $ref_uuid = db_query(
+            "SELECT t.uuid
+             FROM {taxonomy_term_hierarchy} h
+                  JOIN {taxonomy_term_data} t ON (h.parent=t.tid)
+             WHERE h.tid=:tid"
+            ,array(":tid"=>$term->tid)
+        )->fetchField();
+    } else if ( is_string($term->parent) && strlen($term->parent)==36 ) {
+        $ref_uuid = $term->parent;
+    } else {
+        $ref_uuid = entity_get_uuid_by_id('taxonomy_term', array($term->parent));
+        $ref_uuid = reset($ref_uuid);
+    }
+    if ( !empty($ref_uuid) && isset($uuid_info[$ref_uuid]) )
+    {
+        $term->parent_uuid = $ref_uuid;
+        $term->parent      = $uuid_info[$ref_uuid]['id'];
+    }
+    if ( empty($term->parent)      ) { $term->parent      = "0"; }
+    if ( empty($term->parent_uuid) ) { $term->parent_uuid = null; }
+}
+function _cdss_add_term_children( &$term )
+{
+    if ( empty($term) ) { return; }
+    if ( empty($term->children) )
+    {
+        $hier =& _cdss_term_hier_info();
+        if ( !empty($hier[$term->uuid]) && !empty($hier[$term->uuid]['children']) )
+        {
+            $term->children = $hier[$term->uuid]['children'];
+        }
+    }
+    if ( empty($term->children) ) { $term->children = array(); }
+}
+function _cdss_add_for_use_by( &$term )
+{
+    if ( empty($term) ) { return; }
+    /// all terms should have a field_for_use_by
+    if ( !isset($term->field_for_use_by) )
+    {
+        if ( isset($term->field_for_use_by_text) )
+        {
+            $term->field_for_use_by = $term->field_for_use_by_text;
+        } else if ( $term->vocabulary_machine_name == 'site_strucutre_taxonomy' ) {
+            $all_parents = taxonomy_get_parents_all($term->tid);
+            if ( !empty($all_parents) )
+            {
+                $top_parent = array_pop($all_parents);
+                if ( !empty($top_parent) && !empty($top_parent->name) )
+                {
+                    $term->field_for_use_by = array("und"=>array(array(
+                        "value" => $top_parent->name
+                    )));
+                }
+            } else {
+                $term->field_for_use_by = array("und"=>array(array(
+                    "value" => $term->name
+                )));
+            }
+        } else {
+            $term->field_for_use_by = null;
+        }
+    }
+
+}
+function _cdss_add_s3_urls( &$node )
+{
+    if ( empty($node) ) { return; }
+    $s3path  = '//'. variable_get('s3fs_bucket') .'.s3.amazonaws.com/';
+    $s3regex = '/s3\:\/{2,3}/i';
+    if ( isset($node->field_file_media)
+      && isset($node->field_file_media['und'])
+      && isset($node->field_file_media['und'][0])
+      && isset($node->field_file_media['und'][0]['uri']) )
+    {
+        $realURL = preg_replace($s3regex, $s3path, $node->field_file_media['und'][0]['uri'] );
+        $node->field_file_media['und'][0]['uri']=$realURL;
+    }
+    if ( isset($node->field_file_text)
+      && isset($node->field_file_text['und'])
+      && isset($node->field_file_text['und'][0])
+      && isset($node->field_file_text['und'][0]['uri']) )
+    {
+        $realURL = preg_replace($s3regex, $s3path, $node->field_file_text['und'][0]['uri']);
+        $node->field_file_text['und'][0]['uri']=$realURL;
+    }
+    if ( isset($node->field_html)
+      && isset($node->field_html['und'])
+      && isset($node->field_html['und'][0]) )
+    {
+        if ( isset($node->field_html['und'][0]['value']) )
+        {
+            $node->field_html['und'][0]['value'] = preg_replace($s3regex, $s3path, $node->field_html['und'][0]['value']);
+        }
+        if ( isset($node->field_html['und'][0]['safe_value']) )
+        {
+            $node->field_html['und'][0]['safe_value'] = preg_replace($s3regex, $s3path, $node->field_html['und'][0]['safe_value']);
+        }
+    }
+    if ( isset($node->body)
+      && isset($node->body['und'])
+      && isset($node->body['und'][0]) )
+      # && in_array($node->type,['text_content_type','html_content_type']) )
+    {
+        if ( isset($node->body['und'][0]['value']) )
+        {
+            $node->body['und'][0]['value'] = preg_replace($s3regex, $s3path, $node->body['und'][0]['value']);
+        }
+        if ( isset($node->body['und'][0]['summary']) )
+        {
+            $node->body['und'][0]['summary'] = preg_replace($s3regex, $s3path, $node->body['und'][0]['summary']);
+        }
+        if ( isset($node->body['und'][0]['safe_value']) )
+        {
+            $node->body['und'][0]['safe_value'] = preg_replace($s3regex, $s3path, $node->body['und'][0]['safe_value']);
+        }
+        if ( isset($node->body['und'][0]['safe_summary']) )
+        {
+            $node->body['und'][0]['safe_summary'] = preg_replace($s3regex, $s3path, $node->body['und'][0]['safe_summary']);
+        }
+    }
+}
+
+function _cdss_export_taxonomy_structure()
+{
+    $selected_bundles = variable_get('cdss_term_bundles', array());
+    // $selected_bundles = array();
+    // foreach ( _bundle_copy_bundle_info('taxonomy_term', TRUE) as $machineName => $label ) {
+    //     $selected_bundles[$machineName] = $machineName;
+    // }
+
+    $instances = array();
+    foreach ($selected_bundles as $key => $bundle) {
+        if ($key === $bundle) {
+            $instances += field_info_instances('taxonomy_term', $bundle);
+        }
+    }
+    ksort($instances);
+
+    $selectedFields = array();
+    foreach ( $instances as $machineName => $fieldInfo ) {
+        $selectedFields[$machineName] = $machineName;
+    }
+
+    $fieldGroupIds = array();
+    $fieldGroupData = array();
+    $all_groups = function_exists('field_group_info_groups') ? field_group_info_groups() : array();
+    if ( !empty($all_groups) && !empty($all_groups['taxonomy_term']) ) {
+        foreach ($all_groups['taxonomy_term'] as $vocabName => $formData) {
+            foreach ($formData['form'] as $groupName => $data) {
+                $fieldGroupIds[$data->id] = $data->id;
+                $fieldGroupData[$data->id] = $data;
+            }
+        }
+    }
+
+    $selected_data = array(
+        1 => array(
+            'bundles' => $selected_bundles
+        ),
+        2 => array(
+            'fields' => $selectedFields,
+            'fieldgroups' => $fieldGroupIds,
+            'fieldgroups-full' => $fieldGroupData,
+        ),
+    );
+
+    return _bundle_copy_export_data('taxonomy_term', $selected_data);
+}
+function _cdss_export_node_structure()
+{
+    $selected_bundles = variable_get('cdss_node_bundles', array());
+
+    $instances = array();
+    foreach ($selected_bundles as $key => $bundle) {
+        if ($key === $bundle) {
+          $instances += field_info_instances('node', $bundle);
+        }
+    }
+    ksort($instances);
+
+    $selectedFields = array();
+    foreach ( $instances as $machineName => $fieldInfo ) {
+        $selectedFields[$machineName] = $machineName;
+    }
+
+    $selected_data = array(
+        1 => array(
+            'bundles' => $selected_bundles
+        ),
+        2 => array(
+            'fields' => $selectedFields
+        ),
+    );
+
+    return _bundle_copy_export_data('node', $selected_data);
+}
+function _cdss_export_relation_structure()
+{
+    $selected_bundles = variable_get('cdss_relation_bundles', array());
+    $code = '$data = array();'."\n\n";
+    foreach ($selected_bundles as $key => $bundle) {
+        if ($key === $bundle) {
+            ctools_include('export');
+            $result = ctools_export_load_object('relation_type', 'names', array($bundle));
+            $code .= relation_relation_type_export($result[$bundle]);
+            $code .= '$data[] = $relation_type;'."\n\n";
+        }
+    }
+    return $code;
+}
+function &_cdss_term_hier_info( $refresh=false )
+{
+    $term_hier_info = &drupal_static(__FUNCTION__);
+    if ( $term_hier_info===null || $refresh )
+    {
+        $hier = db_query("
+            SELECT
+                p.tid  as parent_tid,
+                p.uuid as parent_uuid,
+                c.tid  as child_tid,
+                c.uuid as child_uuid
+            FROM {taxonomy_term_hierarchy} h
+                  JOIN {taxonomy_term_data} c ON (h.tid    = c.tid)
+                  JOIN {taxonomy_term_data} p ON (h.parent = p.tid)
+        ");
+        $term_hier_info = array();
+        foreach ( $hier as $info )
+        {
+            if ( !isset($term_hier_info[$info->parent_uuid]) )
+            {
+                $term_hier_info[$info->parent_uuid] = array(
+                    "parent"   => "0",
+                    "children" => array()
+                );
+            }
+            if ( !isset($term_hier_info[$info->child_uuid]) )
+            {
+                $term_hier_info[$info->child_uuid] = array(
+                    "parent"   => "0",
+                    "children" => array()
+                );
+            }
+            $term_hier_info[$info->parent_uuid]['children'][] = array(
+                "uuid" => $info->child_uuid,
+                "tid"  => $info->child_tid
+            );
+            $term_hier_info[$info->child_uuid]['parent'] = array(
+                "uuid" => $info->parent_uuid,
+                "tid"  => $info->parent_tid
+            );
+        }
+    }
+    return $term_hier_info;
+}
+
+function &_cdss_uuid_info( $refresh=false )
+{
+    $uuid_info = &drupal_static(__FUNCTION__);
+    if ( $uuid_info===null || $refresh )
+    {
+        $uuid_info = db_query("
+            ( SELECT uuid,
+                     'taxonomy_term' as 'type',
+                     machine_name    as 'bundle',
+                     tid             as 'id'
+              FROM   taxonomy_term_data  d
+                JOIN taxonomy_vocabulary v
+                        ON d.vid=v.vid )
+            UNION
+            ( SELECT uuid, 'node', type, nid FROM node )
+            UNION
+            ( SELECT uuid, 'relation', relation_type, rid FROM relation )
+        ")->fetchAllAssoc('uuid',PDO::FETCH_ASSOC);
+    }
+    return $uuid_info;
+}
+
+/// logging
+
+function _cdss_log( $message, $destination='php' )
+{
+    if ( $destination == 'php' ) {
+        watchdog('CDSS',$message);
+        error_log($message);
+    } else if ( $destination == 'slack'
+             && function_exists('slack_send_message')
+             && in_array(
+                 strtolower(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')),
+                 ['production','prod','prd',
+                  'staging','stage','stg',
+                  'testing','test','tst']))
+    {
+        slack_send_message(
+            slack_get_default_webhook_url(),
+            $message,
+            "#cmp-notify",
+            $_SERVER['HTTP_HOST'],
+            ['type'=>'','icon'=>0,'emoji'=>0]
+        );
+    }
+}
+
+$GLOBALS['_cdss_finished_request'] = false;
+function _cdss_finish_request()
+{
+  if ( !empty($GLOBALS['_cdss_finished_request']) )
+  {
+      return;
+  }
+  $GLOBALS['_cdss_finished_request'] = true;
+  $minutes_to_process = 30;
+  ignore_user_abort(1);
+  while(@ob_get_level() > 0) { @ob_end_flush(); }
+  @ob_flush();
+  @flush();
+  if (session_id()) session_write_close();
+  fastcgi_finish_request();
+  set_time_limit($minutes_to_process*60);
+  ini_set('max_execution_time',$minutes_to_process*60);
+}
+
+//
+// function relation_add_field_uuid_load($entity_type, $entity, $field, $instance, $langcode, &$items)
+// {
+//     $uuid_info = &_cdss_uuid_info();
+//     foreach ($items as  $delta => $item)
+//     {
+//         foreach ($item['endpoints']['und'] as $e=>$ep)
+//         {
+//             $uuids = entity_get_uuid_by_id($ep['entity_type'], array($ep['entity_id']) );
+//             $uuid  = reset($uuids);
+//             $info  = isset($uuid_info[$uuid]) ? $uuid_info[$uuid] : array('bundle'=>'');
+//             $items[$delta]['endpoints']['und'][$e]['entity_uuid']   = $uuid;
+//             $items[$delta]['endpoints']['und'][$e]['entity_bundle'] = $info['bundle'];
+//
+//             if ( isset($ep['uuid']) )
+//             {
+//                 $ref_uuid = $ep['uuid'];
+//             } else if ( isset($ep['entity_uuid']) ) {
+//                 $ref_uuid = $ep['entity_uuid'];
+//             } else if ( is_string($ep['entity_id']) && strlen($ep['entity_id'])==36 ) {
+//                 $ref_uuid = $ep['entity_id'];
+//             } else if ( isset($ep['entity_type']) ) {
+//                 $ref_uuid = entity_get_uuid_by_id($ep['entity_type'], array($ep['entity_id']));
+//                 $ref_uuid = reset($ref_uuid);
+//             }
+//             if ( isset($uuid_info[$ref_uuid]) )
+//             {
+//                 $entity->{$field}['und'][$i]['endpoints']['und'][$j]['entity_uuid']   = $ref_uuid;
+//                 $entity->{$field}['und'][$i]['endpoints']['und'][$j]['entity_type']   = $uuid_info[$ref_uuid]['type'];
+//                 $entity->{$field}['und'][$i]['endpoints']['und'][$j]['entity_bundle'] = $uuid_info[$ref_uuid]['bundle'];
+//                 $entity->{$field}['und'][$i]['endpoints']['und'][$j]['entity_id']     = $uuid_info[$ref_uuid]['id'];
+//             }
+//         }
+//     }
+// }
+
+// function relation_add_field_uuid_presave($entity_type, $entity, $field, $instance, $langcode, &$items)
+// {
+//     foreach ($items as  $delta => $item)
+//     {
+//         foreach ($item['endpoints']['und'] as $e=>$ep)
+//         {
+//             if ( isset($ep['entity_uuid']) )
+//             {
+//                 $ids = entity_get_id_by_uuid($ep['entity_type'], array($ep['entity_uuid']) );
+//                 $id  = reset($ids);
+//                 if ( !empty($id) || $id==='0' || $id===0 )
+//                 {
+//                     $items[$delta]['endpoints']['und'][$e]['entity_id'] = $id;
+//                 }
+//             }
+//         }
+//     }
+// }

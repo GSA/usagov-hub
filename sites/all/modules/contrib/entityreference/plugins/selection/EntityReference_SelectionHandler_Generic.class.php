@@ -305,9 +305,8 @@ class EntityReference_SelectionHandler_Generic implements EntityReference_Select
    */
   public function getLabel($entity) {
     $target_type = $this->field['settings']['target_type'];
-   // return entity_access('view', $target_type, $entity) ? entity_label($target_type, $entity) : t('- Restricted access -');
-    return entity_access('view', $target_type, $entity) === FALSE ? t('- Restricted access -') : entity_label($target_type, $entity); 
-}
+    return entity_access('view', $target_type, $entity) ? entity_label($target_type, $entity) : t('- Restricted access -');
+  }
 
   /**
    * Ensure a base table exists for the query.
@@ -340,9 +339,11 @@ class EntityReference_SelectionHandler_Generic implements EntityReference_Select
     // Join the known base-table.
     $target_type = $this->field['settings']['target_type'];
     $entity_info = entity_get_info($target_type);
+    $target_type_base_table = $entity_info['base table'];
     $id = $entity_info['entity keys']['id'];
+
     // Return the alias of the table.
-    return $query->innerJoin($target_type, NULL, "%alias.$id = $alias.entity_id");
+    return $query->innerJoin($target_type_base_table, NULL, "%alias.$id = $alias.entity_id");
   }
 }
 
@@ -544,7 +545,7 @@ class EntityReference_SelectionHandler_Generic_taxonomy_term extends EntityRefer
       if ($vocabulary = taxonomy_vocabulary_machine_name_load($bundle)) {
         if ($terms = taxonomy_get_tree($vocabulary->vid, 0, NULL, TRUE)) {
           foreach ($terms as $term) {
-            $options[$vocabulary->machine_name][$term->tid] = str_repeat('-', $term->depth) . check_plain($term->name);
+            $options[$vocabulary->machine_name][$term->tid] = str_repeat('-', $term->depth) . check_plain(entity_label('taxonomy_term', $term));
           }
         }
       }

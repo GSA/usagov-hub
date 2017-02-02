@@ -1,6 +1,0 @@
-;$Id$
-name = Elastic Sync
-description = Syncs data to elasticsearch
-package = CTAC
-core = 7.x
-files[] = elastic_sync.module

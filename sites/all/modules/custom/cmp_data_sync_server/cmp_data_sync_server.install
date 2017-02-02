@@ -1,0 +1,138 @@
+<?php
+
+function cmp_data_sync_server_install()
+{
+}
+function cmp_data_sync_server_uninstall()
+{
+    module_load_include('module', 'cmp_data_sync_server', 'cmp_data_sync_server');
+    _cdss_teardown_drupal();
+    if ( _cdss_validate_elasticsearch_server() )
+    {
+      _cdss_teardown_elasticsearch();
+    }
+}
+
+function cmp_data_sync_server_enable()
+{
+    module_load_include('module', 'cmp_data_sync_server', 'cmp_data_sync_server');
+    _cdss_setup_drupal();
+    if ( !_cdss_validate_elasticsearch_server() )
+    {
+      _cdss_setup_elasticsearch();
+      _cdss_send_schema_to_elasticsearch();
+    }
+}
+function cmp_data_sync_server_disable()
+{
+}
+
+function cmp_data_sync_server_schema()
+{
+  $schema['cds_deleted_terms'] = array(
+    'description' => 'Stores deleted terms.',
+    'fields' => array(
+      'uuid' => array(
+        'description' => 'Term UUID.',
+        'type' => 'char',
+        'length' => 36,
+        'not null' => TRUE
+      ),
+      'tid' => array(
+        'description' => 'Term ID.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'vid' => array(
+        'description' => 'Vocab ID.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'name' => array(
+        'description' => 'Term Name.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'changed' => array(
+        'description' => 'Time of deletion.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+    ),
+    'indexes' => array(
+      'cds_term_changed' => array('changed')
+    ),
+    'unique keys' => array(
+      'cds_tid_vid' => array('tid', 'vid')
+    ),
+    'primary key' => array('uuid')
+  );
+
+  $schema['cds_queue'] = array(
+    'description' => 'Stores items in queues.',
+    'fields' => array(
+      'item_id' => array(
+          'type' => 'serial',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+          'description' => 'Primary Key: Unique item ID.',
+      ),
+      'data_uuid' => array(
+        'type' => 'char',
+        'length' => 36,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Unique data ID.',
+      ),
+      'name' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'The queue name.',
+      ),
+      'data' => array(
+        'type' => 'blob',
+        'not null' => FALSE,
+        'size' => 'big',
+        'serialize' => TRUE,
+        'description' => 'The arbitrary data for the item.',
+      ),
+      'expire' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Timestamp when the claim lease expires on the item.',
+      ),
+      'created' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Timestamp when the item was created.',
+      ),
+      'claim' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Unique Id for claimant to tag item with.',
+      ),
+    ),
+    'primary key' => array('item_id'),
+    'unique keys' => array(
+        'data_uuid' => array('data_uuid'),
+    ),
+    'indexes' => array(
+      'name_created' => array('name', 'created'),
+      'expire' => array('expire'),
+      'uuid'   => array('data_uuid'),
+      'claim' => array('claim')
+    ),
+  );
+
+  return $schema;
+}

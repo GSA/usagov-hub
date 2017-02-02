@@ -23,6 +23,7 @@ function s3fs_settings() {
     'ap-southeast-1' => t('Asia Pacific - Singapore (ap-southeast-1)'),
     'ap-southeast-2' => t('Asia Pacific - Sydney (ap-southeast-2)'),
     'ap-northeast-1' => t('Asia Pacific - Tokyo (ap-northeast-1)'),
+    'ap-northeast-2' => t('Asia Pacific - Seoul (ap-northeast-2)'),
     'sa-east-1' => t('South America - Sao Paulo (sa-east-1)'),
     'cn-north-1' => t('China - Beijing (cn-north-1)'),
   );
@@ -166,6 +167,18 @@ function s3fs_settings() {
           ':input[id=edit-s3fs-use-customhost]' => array('checked' => TRUE),
         ),
       ),
+    ),
+  );
+
+  $form['advanced']['s3fs_no_redirect_derivatives'] = array(
+    '#type'          => 'checkbox',
+    '#title'         => t("Don't redirect to derivatives"),
+    '#default_value' => _s3fs_get_setting('no_redirect_derivatives'),
+    '#description'   => t(
+      'Normally, when a new image derivative is created, S3FS will redirect the client to its URL in S3.
+      This may be undersirable for sites which use a CDN, so this checkbox was added to make S3FS upload
+      the derivative to the client, instead. Doing so is less performant, but it allows the CDN to cache
+      the file itself, instead of caching the redirect.'
     ),
   );
 

@@ -926,6 +926,10 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $this->_assert_constructor_called();
     $this->_debug("mkdir($uri, $mode, $options) called.");
 
+    // Some Drupal plugins call mkdir with a trailing slash. We mustn't store
+    // that slash in the cache.
+    $uri = rtrim($uri, '/');
+
     clearstatcache(TRUE, $uri);
     // If this URI already exists in the cache, return TRUE if it's a folder
     // (so that recursive calls won't improperly report failure when they
