@@ -106,7 +106,7 @@ function get_child_info($tid, $pos,$site_name){
     
     $site_name=$levels[count($levels)-1];
     
-    $site_structure_array[0]=$site_name ;
+    $site_structure_array[0]=tssr_sanitzie($site_name) ;
     
     if($get_term->changed){
         $last_changed_date = gmdate("m-d-Y", $get_term->changed);
@@ -134,7 +134,7 @@ function get_child_info($tid, $pos,$site_name){
         $page_type ='NOT SET IN CMP';
     }
     
-    $site_structure_array[3]=$page_type;
+    $site_structure_array[3]=tssr_sanitzie($page_type);
     
     $help_desk = 'NOT SET IN CMP';
     if (isset($get_term->field_help_desk['und'][0]['tid'])) {
@@ -142,7 +142,7 @@ function get_child_info($tid, $pos,$site_name){
         $help_desk = (!empty($help_term))? $help_term->name : '';
     }
     
-    $site_structure_array[4]=$help_desk;
+    $site_structure_array[4]=tssr_sanitzie($help_desk);
     
     if($get_term->field_friendly_url){
         $friendly_url = $get_term->field_friendly_url['und'][0]['value'];
@@ -151,10 +151,10 @@ function get_child_info($tid, $pos,$site_name){
         $friendly_url='NOT SET IN CMP';
     }
     
-    $site_structure_array[5]=$friendly_url;
+    $site_structure_array[5]=tssr_sanitzie($friendly_url);
     
     $cmp_edit_link=$base_url.'/taxonomy/term/'.$get_term->tid.'/edit';
-    $site_structure_array[6]=$cmp_edit_link;
+    $site_structure_array[6]=tssr_sanitzie($cmp_edit_link);
     
     $site_structure_array[7]=$get_term->tid;
     
@@ -164,11 +164,11 @@ function get_child_info($tid, $pos,$site_name){
     else{
         $page_title=$get_term->name;
     }
-    $site_structure_array[8]=$page_title;
+    $site_structure_array[8]=tssr_sanitzie($page_title);
     
     
     
-    $site_structure_array[9]=$get_all_par[0];
+    $site_structure_array[9]=tssr_sanitzie($get_all_par[0]);
     $rev_levels = array_reverse($levels);
     
     $filled_up_levels=count($rev_levels);
@@ -183,7 +183,7 @@ function get_child_info($tid, $pos,$site_name){
     
     krsort($rev_levels);
     foreach($rev_levels as $level){
-        $site_structure_array[$col]=$level;
+        $site_structure_array[$col]=tssr_sanitzie($level);
         $col++;
     }
     
@@ -209,10 +209,10 @@ function get_child_info($tid, $pos,$site_name){
         }
     }
     
-    $site_structure_array[17]=$ga_style_url;
-    $site_structure_array[18]=$voc_tool_export_url;
+    $site_structure_array[17]=tssr_sanitzie($ga_style_url);
+    $site_structure_array[18]=tssr_sanitzie($voc_tool_export_url);
     
-    $site_structure_array[19]=$last_changed_date;
+    $site_structure_array[19]=tssr_sanitzie($last_changed_date);
     
     return $site_structure_array;
 }
