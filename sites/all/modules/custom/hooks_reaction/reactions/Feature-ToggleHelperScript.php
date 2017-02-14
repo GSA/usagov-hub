@@ -36,7 +36,7 @@ hooks_reaction_add('HOOK_node_presave',
         if ($nodeNew->title != $nodeOld->title) {
             $oldPath = _aliasPathHelper_urlFriendlyString($nodeOld->title);
             $newPath = _aliasPathHelper_urlFriendlyString($nodeNew->title);
-            
+
             $refNid = db_query("SELECT entity_id FROM {field_data_field_gob_feature_toggle_url} WHERE field_gob_feature_toggle_url_value LIKE '/novedades/" . $oldPath . "'")->fetchField(0);
 
             if (!empty($refNid)) {

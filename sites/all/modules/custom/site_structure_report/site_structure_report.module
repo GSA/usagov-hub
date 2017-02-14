@@ -108,8 +108,20 @@ function get_child_info($tid, $pos,$site_name){
     
     $site_structure_array[0]=tssr_sanitzie($site_name) ;
     
-    if($get_term->changed){
-        $last_changed_date = gmdate("m-d-Y", $get_term->changed);
+    /*if($get_term->changed){
+        $last_changed_date =  gmdate("m-d-Y", $get_term->changed);
+    }*/
+    if ($page_type_info = "generic-content-page"){
+        $dt = get_term_lastReviewedDate($tid);
+        if (!empty($dt)) {
+            $last_changed_date = gmdate("m-d-Y", $dt);
+        }
+        else{
+            $last_changed_date = "N/A. Page is NOT content page";
+        }
+    }
+    else {
+        $last_changed_date = "N/A. Page is NOT content page";
     }
     
         
