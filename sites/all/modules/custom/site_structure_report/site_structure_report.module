@@ -13,6 +13,14 @@ function site_structure_report_menu() {
         'type' => MENU_NORMAL_ITEM,
         'access callback' => 'check_access_to_site_structure'
     );
+
+    $items['sst-onetime-csv'] = array(
+        'title' => 'Generate Site Structure Taxonomy Onetime Report',
+        'page callback' => '_gen_report',
+        'type' => MENU_NORMAL_ITEM,
+        'access callback' => 'check_access_to_site_structure'
+    );
+
     return $items;
 }
 
@@ -22,6 +30,110 @@ function check_access_to_site_structure()
 {
     return user_access('edit terms in 42');
 }
+
+function _gen_report(){
+    // Crete data array
+
+    $site_structure_array[0]=array('Site', 'Page Title', 'Friendly URL', ' USA.gov Toggle URL', 'GobiernoUSA.gov Toggle URL', 'Kids.gov Toggle URL');
+
+    $get_root_level_site_name = taxonomy_get_tree(42,0,1);
+    foreach($get_root_level_site_name as $root_level){
+        $site_names[$root_level->tid]=$root_level->name;
+    }
+
+    foreach($site_names as $root_tid=>$site_name)
+    {
+        $get_all_terms=taxonomy_get_tree(42,$root_tid);
+
+        foreach($get_all_terms as $get_term) {
+            $site_structure_array[]=get_onetime_child_info_report($get_term->tid,$get_term->depth,$site_name);
+
+        }
+    }
+
+    export_to_csv($site_structure_array);
+}
+
+function get_onetime_child_info_report($tid, $pos,$site_name){
+    global $base_url;
+
+
+    $get_all_parents=taxonomy_get_parents_all($tid);
+    $last_changed_date='-';
+
+    $i=0; $j=0;
+    foreach($get_all_parents as $lvl=>$par_info){
+
+        if($par_info->tid!=$tid)
+        {
+            $page_type_info=$par_info->field_type_of_page_to_generate['und'][0]['value'];
+            if($page_type_info=='more' && $site_name!='Kids.USA.gov'){
+
+            }
+
+            else{
+                $par_title=$par_info->field_page_title['und'][0]['value'];
+                $levels[$i]=$par_title;
+                $i++;
+            }
+
+            $get_all_par[$j]=$par_info->field_page_title['und'][0]['value'];
+            $j++;
+
+        }
+        else{
+            $get_term=$par_info;
+        }
+
+    }
+    $site_name=$levels[count($levels)-1];
+
+    $site_structure_array[0]=tssr_sanitzie($site_name) ;
+
+    // page title
+    if($get_term->field_page_title){
+        $page_title=$get_term->field_page_title['und'][0]['value'];
+    }
+    else{
+        $page_title=$get_term->name;
+    }
+    $site_structure_array[1]=tssr_sanitzie($page_title);
+
+    // Friendly URL
+    if($get_term->field_friendly_url){
+        $site_structure_array[2]=$get_term->field_friendly_url['und'][0]['value'];
+    }
+    else{
+        $site_structure_array[2]='NOT SET IN CMP';
+    }
+
+    // usa toggle url
+    if($get_term->field_usa_gov_toggle_url){
+        $site_structure_array[3]=$get_term->field_usa_gov_toggle_url['und'][0]['value'];
+    }
+    else{
+        $site_structure_array[3]='NOT SET IN CMP';
+    }
+
+    // gobierno toggle url
+    if($get_term->field_gobiernousa_gov_toggle_url){
+        $site_structure_array[4]=$get_term->field_gobiernousa_gov_toggle_url['und'][0]['value'];
+    }
+    else{
+        $site_structure_array[4]='NOT SET IN CMP';
+    }
+
+    // kids toggle url
+    if($get_term->field_kids_gov_toggle_url){
+        $site_structure_array[5]=$get_term->field_kids_gov_toggle_url['und'][0]['value'];
+    }
+    else{
+        $site_structure_array[5]='NOT SET IN CMP';
+    }
+
+    return $site_structure_array;
+}
+
 function _prepare_report()
 {
    
