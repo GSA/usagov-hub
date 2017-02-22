@@ -5,6 +5,8 @@
  * Implements hook_taxonomy_term_presave
  *
  */
+
+/*
 hooks_reaction_add("HOOK_taxonomy_term_presave",
     function ($term) {
         if (isset($term) && $term->vid == 42 ) {
@@ -154,7 +156,7 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
                     }
                     else {
                         $t = taxonomy_term_load($row->entity_id);
-                        $t->field_gobiernousa_gov_toggle_url['und'][0]['value'] = $settoggle_str;
+                       // $t->field_gobiernousa_gov_toggle_url['und'][0]['value'] = $settoggle_str;
                         field_attach_presave('taxonomy_term', $t);
                         field_attach_update('taxonomy_term', $t);
                     }
@@ -170,7 +172,7 @@ function _update_togglee($settoggle_str, $other_term_friendly_url, $toggle_field
 
             $sql = "DELETE FROM cache_field WHERE cid='field:taxonomy_term:{$row->entity_id}'";
             db_query($sql);
-            drupal_set_message($settoggle_str ." has been set to ".strtoupper($site)." SITE's ".$term_name."'s (".$row->entity_id.")".$changed_toggle. " field.");
+           // drupal_set_message($settoggle_str ." has been set to ".strtoupper($site)." SITE's ".$term_name."'s (".$row->entity_id.")".$changed_toggle. " field.");
         }
     }
 }
@@ -180,9 +182,9 @@ function _get_top_term($tid){
     if ($tid == 3062 || $tid == 3072 || $tid == 3067 || $tid == 11272 || $tid == 0 || $tid == null) return $tid;
 
     $parent_tid = db_query("SELECT parent FROM taxonomy_term_hierarchy WHERE  tid = :tid", array(":tid" => $tid))->fetchField();
-    /*if (empty($parent_tid) || $parent_tid==0) {
-        return null;
-    }*/
+    //if (empty($parent_tid) || $parent_tid==0) {
+      //  return null;
+    //}
     if (isset($parent_tid) && ($parent_tid == 3062 || $parent_tid == 3072 || $parent_tid == 3067 || $parent_tid == 11272)) {
         return $parent_tid;
     }
@@ -190,3 +192,4 @@ function _get_top_term($tid){
         return _get_top_term($parent_tid);
     }
 }
+*/
