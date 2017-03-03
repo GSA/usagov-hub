@@ -36,7 +36,6 @@ function saml_sp__endpoint() {
         // $saml_response->isValid() will throw various exceptions to communicate
         // any errors. Sadly, these are all of type Exception - no subclassing.
         $is_valid = $saml_response->isValid();
-        error_log("is_valid is: " . intval($is_valid) );
       }
       catch (Exception $e) {
         // @TODO: inspect the Exceptions, and log a meaningful error condition.
@@ -68,7 +67,6 @@ function saml_sp__endpoint() {
 
       // Invoke the callback function.
       $callback = $request['callback'];
-      error_log("IT IS: ".$callback);
       $result = $callback($is_valid, $saml_response);
 
       // The callback *should* redirect the user to a valid page.

@@ -665,6 +665,20 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   }
 
   /**
+   * This wrapper does not support touch(), chmod(), chown(), or chgrp().
+   *
+   * @return bool
+   *   Always Returns FALSE.
+   *
+   * @see http://php.net/manual/en/streamwrapper.stream-metadata.php
+   */
+  public function stream_metadata($path, $option, $value) {
+    $this->_debug("stream_metadata($path, $option, $value) called. S3fsStreamWrapper doesn't support this function.");
+
+    return FALSE;
+  }
+
+  /**
    * Support for fread(), file_get_contents() etc.
    *
    * @param int $count

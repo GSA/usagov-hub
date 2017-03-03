@@ -82,6 +82,28 @@ function s3fs_requirements($phase) {
     );
   }
 
+  if (_s3fs_get_setting('awssdk2_use_instance_profile')) {
+    $default_cache_config = _s3fs_get_setting('awssdk2_default_cache_config');
+    if (isset($config['awssdk2_default_cache_config'])) {
+      $default_cache_config = $config['awssdk2_default_cache_config'];
+    }
+
+    $message  = array(
+      'title' => $t('AWS Instance Profile Cache'),
+    );
+
+    if (empty($default_cache_config) || !(is_writable($default_cache_config) && is_readable($default_cache_config))) {
+      $message['value'] = $t('The instance profile cache is NOT configured correctly in S3FS. It must be set to an
+        existing folder on the server, and the webserver must have read and write permissions on that folder.');
+      $message['severity'] = REQUIREMENT_ERROR;
+    }
+    else {
+      $message['value'] = $t('The instance profile cache setting in S3FS is configured correctly.');
+      $message['severity'] = REQUIREMENT_INFO;
+    }
+    $requirements['s3fs_default_cache_location_status'] = $message;
+  }
+
   return $requirements;
 }
 

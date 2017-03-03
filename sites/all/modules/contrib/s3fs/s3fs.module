@@ -5,6 +5,9 @@
  * Hook implementations and other primary functionality for S3 File System.
  */
 
+use Doctrine\Common\Cache\FilesystemCache;
+use Guzzle\Cache\DoctrineCacheAdapter;
+
 /**
  * The prefix for our Drupal-cached metadata.
  */
@@ -351,6 +354,9 @@ function _s3fs_refresh_cache($config) {
     form_set_error('s3fs_refresh_cache][refresh', t('Unable to validate S3 configuration settings.'));
     return;
   }
+  if (function_exists('drush_log')) {
+    drush_log('Getting Amazon S3 client...');
+  }
   $s3 = _s3fs_get_amazons3_client($config);
 
   // Set up the iterator that will loop over all the objects in the bucket.
@@ -366,18 +372,8 @@ function _s3fs_refresh_cache($config) {
   // as stated by the API docs.
   $iterator->setPageSize(1000);
 
-  // The $folders array is an associative array keyed by folder paths, which
-  // is constructed as each filename is written to the DB. After all the files
-  // are written, the folder paths are converted to metadata and written.
-  $folders = array();
-  // Start by gathering all the existing folders. If we didn't do this, empty
-  // folders would be lost, because they'd have no files from which to rebuild
-  // themselves.
-  $existing_folders = db_select('s3fs_file', 's')
-    ->fields('s', array('uri'))
-    ->condition('dir', 1, '=');
-  foreach ($existing_folders->execute()->fetchCol(0) as $folder_uri) {
-    $folders[rtrim($folder_uri, '/')] = TRUE;
+  if (function_exists('drush_log')) {
+    drush_log('Creating temporary tables...');
   }
 
   // Create the temp table, into which all the refreshed data will be written.
@@ -392,6 +388,45 @@ function _s3fs_refresh_cache($config) {
     // The table already exists, so we can simply truncate it to start fresh.
     db_truncate('s3fs_file_temp')->execute();
   }
+  // Create temporary table for folders which will allow for duplicates.
+  // Folders will be written at the same time as the file data is written,
+  // then will be merged with the files at the end.
+  try {
+    $folder_schema = $schema['s3fs_file'];
+    unset($folder_schema['primary key'], $folder_schema['indexes']);
+
+    db_create_table('s3fs_folder_temp', $folder_schema);
+    $options = Database::getConnectionInfo('default');
+    switch ($options['default']['driver']) {
+      case 'pgsql':
+        break;
+      case 'sqlite':
+        break;
+      case 'mysql':
+        db_query('ALTER TABLE {s3fs_folder_temp} CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin');
+        break;
+    }
+  }
+  catch (DatabaseSchemaObjectExistsException $e) {
+    db_truncate('s3fs_folder_temp')->execute();
+  }
+
+  $file_metadata_list = $folders = array();
+  // Start by gathering all the existing folders. If we didn't do this, empty
+  // folders would be lost, because they'd have no files from which to rebuild
+  // themselves.
+  $existing_folders = db_select('s3fs_file', 's')
+    ->fields('s', array('uri'))
+    ->condition('dir', 1, '=');
+
+  $folder_counter = 0;
+
+  foreach ($existing_folders->execute()->fetchCol(0) as $folder_uri) {
+    $folders[$folder_uri] = TRUE;
+    if ($folder_counter++ % 1000 == 0) {
+      _s3fs_write_metadata($file_metadata_list, $folders);
+    }
+  }
 
   // Set up an event listener to consume each page of results before the next
   // request is made.
@@ -399,6 +434,16 @@ function _s3fs_refresh_cache($config) {
   $dispatcher->addListener('resource_iterator.before_send', function($event) use (&$file_metadata_list, &$folders) {
     _s3fs_write_metadata($file_metadata_list, $folders);
   });
+
+  // Set up an event listener for post request debugging.
+  if (function_exists('drush_log')) {
+    $dispatcher->addListener('resource_iterator.after_send', function ($event) use ($iterator) {
+      drush_log(dt('Request #@request_count, @records record(s) recieved in total.', array(
+        '@request_count' => $iterator->getRequestCount(),
+        '@records' => $iterator->count(),
+      )));
+    });
+  }
 
   foreach ($iterator as $s3_metadata) {
     $key = $s3_metadata['Key'];
@@ -455,24 +500,34 @@ function _s3fs_refresh_cache($config) {
   // to write the last page of metadata manually.
   _s3fs_write_metadata($file_metadata_list, $folders);
 
-  // Now that the $folders array contains all the ancestors of every file in
-  // the cache, as well as the existing folders from before the refresh,
-  // write those folders to the DB.
-  if ($folders) {
-    $insert_query = db_insert('s3fs_file_temp')
-      ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'version'));
-    foreach ($folders as $folder_uri => $ph) {
-      $metadata = _s3fs_convert_metadata($folder_uri, array());
-      $insert_query->values($metadata);
+  // Write folders.
+  $query = db_select('s3fs_folder_temp');
+  $query->fields('s3fs_folder_temp')
+    ->groupBy('uri');
+  $folder_counter = 0;
+
+  $result = $query->execute();
+
+  $insert_query = db_insert('s3fs_file_temp')
+    ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'version'));
+
+  foreach ($result as $record) {
+    $insert_query->values((array) $record);
+    // Flush every 1000 records.
+    if ($folder_counter++ % 1000 == 0) {
+      $insert_query->execute();
     }
-    // TODO: If this throws an integrity constraint violation, then the user's
-    // S3 bucket has objects that represent folders using a different scheme
-    // than the one we account for above. The best solution I can think of is
-    // to convert any "files" in s3fs_file_temp which match an entry in the
-    // $folders array (which would have been added in _s3fs_write_metadata())
-    // to directories.
-    $insert_query->execute();
   }
+
+  // Write any remainders.
+  $insert_query->execute();
+  if (function_exists('drush_log')) {
+    drush_log(dt('Flushed @folders folders to the file table.', array(
+      '@folders' => $folder_counter,
+    )));
+  }
+  // Cleanup.
+  db_drop_table('s3fs_folder_temp');
 
   // Swap the temp table with the real table.
   db_rename_table('s3fs_file', 's3fs_file_old');
@@ -482,7 +537,12 @@ function _s3fs_refresh_cache($config) {
   // Clear every s3fs entry in the Drupal cache.
   cache_clear_all(S3FS_CACHE_PREFIX, S3FS_CACHE_BIN, TRUE);
 
-  drupal_set_message(t('S3 File System cache refreshed.'));
+  if (function_exists('drush_log')) {
+    drush_log(dt('S3 File System cache refreshed.'));
+  }
+  else {
+    drupal_set_message(t('S3 File System cache refreshed.'));
+  }
 }
 
 /**
@@ -493,19 +553,27 @@ function _s3fs_refresh_cache($config) {
  *   metadata. This function empties out $file_metadata_list at the end.
  * @param array $folders
  *   An associative array keyed by folder name, which is populated with the
- *   ancestor folders of each file in $file_metadata_list.
+ *   ancestor folders of each file in $file_metadata_list. Also emptied.
  */
 function _s3fs_write_metadata(&$file_metadata_list, &$folders) {
-  if ($file_metadata_list) {
+  if (!empty($file_metadata_list)) {
     $insert_query = db_insert('s3fs_file_temp')
       ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'version'));
 
-    foreach ($file_metadata_list as $metadata) {
+    foreach ($file_metadata_list as $key => $metadata) {
+      $uri = drupal_dirname($metadata['uri']);
+
       // Write the file metadata to the DB.
-      $insert_query->values($metadata);
+      if (!$metadata['dir']) {
+        $insert_query->values($metadata);
+      }
+      else {
+        $folders[$uri] = $metadata;
+        // Remove for counting purposes.
+        unset($file_metadata_list[$key]);
+      }
 
       // Add the ancestor folders of this file to the $folders array.
-      $uri = drupal_dirname($metadata['uri']);
       $root = file_uri_scheme($uri) . '://';
       // Loop through each ancestor folder until we get to the root uri.
       while ($uri != $root) {
@@ -514,10 +582,39 @@ function _s3fs_write_metadata(&$file_metadata_list, &$folders) {
       }
     }
     $insert_query->execute();
+    if (function_exists('drush_log')) {
+      drush_log('  ' . dt('Wrote @files file(s).', array(
+        '@files' => count($file_metadata_list),
+      )));
+    }
+
+    // Empty out the file array, so it can be re-filled by the next request.
+    $file_metadata_list = array();
   }
 
-  // Empty out the file array, so it can be re-filled by the next request.
-  $file_metadata_list = array();
+  if (!empty($folders)) {
+    $insert_query = db_insert('s3fs_folder_temp')
+      ->fields(array('uri', 'filesize', 'timestamp', 'dir', 'version'));
+
+    foreach ($folders as $folder_name => $folder_data) {
+      if (is_bool($folder_data)) {
+        $insert_query->values(_s3fs_convert_metadata($folder_name, array()));
+      }
+      else {
+        $insert_query->values($folder_data);
+      }
+    }
+    $insert_query->execute();
+
+    if (function_exists('drush_log')) {
+      drush_log('  ' . dt('Wrote @folders folder(s).', array(
+        '@folders' => count($folders),
+      )));
+    }
+
+    // Empty out folders as well; consolidation will take care of duplicates.
+    $folders = array();
+  }
 }
 
 /**
@@ -634,17 +731,22 @@ function _s3fs_get_amazons3_client($config) {
         array('!settings_page' => l(t('settings page'), 'admin/config/media/s3fs/settings')))
       );
     }
-    else if ($use_instance_profile && empty($default_cache_config)) {
+    else if ($use_instance_profile && (
+        empty($default_cache_config) || !(is_writable($default_cache_config) && is_readable($default_cache_config)))) {
       throw new s3fsException(t("Your AWS credentials have not been properly configured.
-        You are attempting to use instance profile credentials but you have not set a default cache location.
-        Please set it on the !settings_page or set \$conf['awssdk2_default_cache_config'] in settings.php.",
+        You are attempting to use instance profile credentials but you have not set a valid default cache location.
+        Please set it on the !settings_page or set \$conf['awssdk2_default_cache_config'] in settings.php.
+        Note that this cache location must be an existing folder that can be read and written by your webserver.
+        It should also be writable by whichever user you run drush commands under.",
         array('!settings_page' => l(t('settings page'), 'admin/config/media/s3fs/settings')))
       );
     }
 
-    // Create the Aws\S3\S3Client object.
     if ($use_instance_profile) {
-      $client_config = array('default_cache_config' => $default_cache_config);
+      // Create a cache adapter that stores cached credentials on the filesystem
+      // in the default cache config folder.
+      $cache_adapter = new DoctrineCacheAdapter(new FilesystemCache($default_cache_config));
+      $client_config = array('credentials.cache' => $cache_adapter);
     }
     else {
       $client_config = array(
@@ -661,6 +763,7 @@ function _s3fs_get_amazons3_client($config) {
     if (!empty($config['use_customhost']) && !empty($config['hostname'])) {
       $client_config['base_url'] = $config['hostname'];
     }
+    // Create the Aws\S3\S3Client object with the specified configuration.
     $s3 = Aws\S3\S3Client::factory($client_config);
   }
   $static_config = $config;

@@ -121,20 +121,25 @@ For s3fs to be able to function, the AWS user identified by the configured
 credentials should have the following User Policy set:
 
 {
-    "Effect": "Allow",
-    "Action": [
-        "s3:ListAllMyBuckets"
-    ],
-    "Resource": "arn:aws:s3:::*"
-},
-{
-    "Effect": "Allow",
-    "Action": [
-        "s3:*"
-    ],
-    "Resource": [
-        "arn:aws:s3:::<bucket_name>",
-        "arn:aws:s3:::<bucket_name>/*",
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListAllMyBuckets"
+            ],
+            "Resource": "arn:aws:s3:::*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:*"
+            ],
+            "Resource": [
+                "arn:aws:s3:::<bucket_name>",
+                "arn:aws:s3:::<bucket_name>/*"
+            ]
+        }
     ]
 }
 
@@ -195,7 +200,7 @@ location ~* ^/(s3fs-css|s3fs-js)/(.*) {
   set $s3_base_path 'YOUR-BUCKET.s3.amazonaws.com/s3fs-public';
   set $file_path $2;
 
-  resolver         172.16.0.23 valid=300s;
+  resolver 8.8.4.4 8.8.8.8 valid=300s;
   resolver_timeout 10s;
 
   proxy_pass http://$s3_base_path/$file_path;
@@ -223,7 +228,7 @@ examples of how to configure each setting:
 
 // All the s3fs config settings start with "s3fs_"
 $conf['s3fs_bucket'] = 'YOUR BUCKET NAME';
-$conf['s3fs_region'] = 'YOUR REGION'';
+$conf['s3fs_region'] = 'YOUR REGION';
 $conf['s3fs_use_cname'] = TRUE or FALSE;
 $conf['s3fs_domain'] = 'cdn.example.com';
 $conf['s3fs_use_customhost'] = TRUE or FALSE;

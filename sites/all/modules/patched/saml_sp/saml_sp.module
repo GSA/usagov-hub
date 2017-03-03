@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @file
  * SAML Service Provider
@@ -320,7 +319,7 @@ function saml_sp_requirements($phase) {
         'title' => $t('PHP SAML library'),
         'value' => $t('@e: At least @a', array('@e' => $error_type, '@a' => PHP_SAML_LIBRARY_MIN_VERSION)),
         'severity' => REQUIREMENT_ERROR,
-        'description' => $t('!error You need to download the !library, extract the archive and place the !machine_name directory in the %path directory on your server.', array('!error' => $error_message, '!library' => l($t('PHP SAML library'), $library['download url']), '%path' => 'sites/all/libraries', '!machine_name' => $library['machine_name'])),
+        'description' => $t('!error You need to download the !library, extract the archive and place the !machine_name directory in the %path directory on your server.', array('!error' => $error_message, '!library' => l($t('PHP SAML library'), $library['download url']), '%path' => 'sites/all/libraries', '!machine_name' => $library['machine name'])),
       );
     }
     elseif (version_compare($library['version'], PHP_SAML_LIBRARY_MIN_VERSION, '>=')) {
@@ -345,31 +344,29 @@ function saml_sp_requirements($phase) {
     $error_type = isset($library['error']) ? drupal_ucfirst($library['error']) : '';
     $error_message = isset($library['error message']) ? $library['error message'] : '';
     $library_name = $t($library['name']);
-    if ( !empty($library['machine_name']) )
-    {
+
     if (empty($library['installed'])) {
-      $requirements[$library['machine_name']] = array(
+      $requirements[$library['machine name']] = array(
         'title' => $library_name,
         'value' => $t('@e: At least @a', array('@e' => $error_type, '@a' => XMLSECLIBS_MIN_VERSION)),
         'severity' => REQUIREMENT_ERROR,
-        'description' => $t('!error You need to download the !library, extract the archive and place the !machine_name directory in the %path directory on your server.', array('!error' => $error_message, '!library' => l($library_name, $library['download url']), '%path' => 'sites/all/libraries', '!machine_name' => $library['machine_name'])),
+        'description' => $t('!error You need to download the !library, extract the archive and place the !machine_name directory in the %path directory on your server.', array('!error' => $error_message, '!library' => l($library_name, $library['download url']), '%path' => 'sites/all/libraries', '!machine_name' => $library['machine name'])),
       );
     }
     elseif (version_compare($library['version'], XMLSECLIBS_MIN_VERSION, '>=')) {
-      $requirements[$library['machine_name']] = array(
+      $requirements[$library['machine name']] = array(
         'title' => $library_name,
         'severity' => REQUIREMENT_OK,
         'value' => $library['version'],
       );
     }
     else {
-      $requirements[$library['machine_name']] = array(
+      $requirements[$library['machine name']] = array(
         'title' => $library_name,
         'value' => $t('At least @a', array('@a' => XMLSECLIBS_MIN_VERSION)),
         'severity' => REQUIREMENT_ERROR,
         'description' => $t('You need to download a later version of the !library and replace the old version located in the %path directory on your server.', array('!library' => l($library_name, $library['download url']), '%path' => $library['library path'])),
       );
-    }
     }
   }
 
@@ -505,6 +502,7 @@ function saml_sp__get_metadata($idp, $output_page = FALSE) {
         return;
       }
       else {
+        throw new Exception('No Default IdP defined.');
         // return FALSE
         return FALSE;
       }
@@ -526,6 +524,9 @@ function saml_sp__get_metadata($idp, $output_page = FALSE) {
       return $metadata;
     }
   }
+  else {
+    return array($metadata, $errors);
+  }
 }
 
 /******************************************************************************
@@ -541,6 +542,7 @@ function saml_sp__get_metadata($idp, $output_page = FALSE) {
  * A function to call with the results of the SAML authentication process.
  */
 function saml_sp_start($idp, $callback) {
+  global $base_url, $language;
   if (isset($_GET['returnTo'])) {
     // If a returnTo parameter is present, then use that
     $return_to = $_GET['returnTo'];
@@ -553,7 +555,7 @@ function saml_sp_start($idp, $callback) {
   $settings = saml_sp__get_settings($idp);
   $auth = new saml_sp_Auth($settings);
   $auth->setAuthCallback($callback);
-  $auth->login($return_to);
+  return $auth->login($return_to);
 }
 
 /**
@@ -609,6 +611,7 @@ function _saml_sp__default_idp() {
   return (object) array(
     'name' => '',
     'machine_name' => '',
+    'nameid_field' => 'mail',
     // If the app-name is NULL, the global app-name will be used instead.
     'app_name' => NULL,
     'login_url' => '',
@@ -696,12 +699,17 @@ function _saml_sp__extract_inbound_id($assertion) {
  */
 function saml_sp_user_login(&$edit, $account) {
   // Redirecting user to desired path
-  drupal_goto($edit['redirect']);
+  if (isset($edit['redirect']) && !empty($edit['redirect'])) {
+    drupal_goto($edit['redirect']);
+  }
 }
 
 /**
  * Implements hook_form_alter().
  */
+ /**
+  * comment out the changes to the user form which is causing problems... this
+  * will be uncommented when a better solution conceived of.
 function saml_sp_form_alter(&$form, &$form_state, $form_id) {
    switch ($form_id) {
     case 'user_profile_form' :
@@ -720,3 +728,4 @@ function saml_sp_form_alter(&$form, &$form_state, $form_id) {
     break;
    }
 }
+*/

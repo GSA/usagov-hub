@@ -9,6 +9,7 @@
  * Configure which IDP to use when authenticating with Drupal.
  */
 function saml_sp_drupal_login__admin_config_form($form, &$form_state) {
+  $idps = array();
   // List all the IDPs in the system.
   foreach (saml_sp__load_all_idps() as $machine_name => $idp) {
     $idps[$machine_name] = $idp->name;
@@ -63,6 +64,13 @@ function saml_sp_drupal_login__admin_config_form($form, &$form_state) {
     ),
   );
 
+  $form['saml_sp_drupal_login__force_saml_only'] = array(
+    '#type'           => 'checkbox',
+    '#title'          => t('Force SAML Login'),
+    '#description'    => t('The User Login form will not be used, when an anonymous user goes to /user they will be automatically redirected to the SAML authentication page.'),
+    '#default_value'  => variable_get('saml_sp_drupal_login__force_saml_only', FALSE),
+  );
+
   $form['account_request'] = array(
     '#type'           => 'fieldset',
     '#title'          => t('Accounts'),
@@ -114,7 +122,6 @@ function saml_sp_drupal_login__admin_config_form($form, &$form_state) {
       ),
     ),
   );
-
 
   return system_settings_form($form);
 }

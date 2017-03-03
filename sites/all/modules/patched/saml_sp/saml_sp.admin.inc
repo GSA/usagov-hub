@@ -273,11 +273,9 @@ function saml_sp__export_idp($saml_idp) {
 /**
  * configure this SAML Service Provider
  */
-function saml_sp__admin_config() {
+function saml_sp__admin_config($form, &$form_state) {
 
-  $form = array();
-
-  $contact = variable_get('saml_sp__contact', array());
+  $contact = variable_get('saml_sp__contact', FALSE);
 
   $form['saml_sp__contact'] = array(
     '#type'         => 'fieldset',
@@ -292,12 +290,12 @@ function saml_sp__admin_config() {
   $form['saml_sp__contact']['technical']['name'] = array(
     '#type'           => 'textfield',
     '#title'          => t('Name'),
-    '#default_value'  => $contact['technical']['name'],
+    '#default_value'  => $contact ? $contact['technical']['name'] : ''
   );
   $form['saml_sp__contact']['technical']['email'] = array(
     '#type'           => 'textfield',
     '#title'          => t('Email'),
-    '#default_value'  => $contact['technical']['email'],
+    '#default_value'  => $contact ? $contact['technical']['email'] : '',
   );
   $form['saml_sp__contact']['support'] = array(
     '#type'         => 'fieldset',
@@ -306,15 +304,15 @@ function saml_sp__admin_config() {
   $form['saml_sp__contact']['support']['name'] = array(
     '#type'           => 'textfield',
     '#title'          => t('Name'),
-    '#default_value'  => $contact['support']['name'],
+    '#default_value'  => $contact ? $contact['support']['name'] : '',
   );
   $form['saml_sp__contact']['support']['email'] = array(
     '#type'           => 'textfield',
     '#title'          => t('Email'),
-    '#default_value'  => $contact['support']['email'],
+    '#default_value'  => $contact ? $contact['support']['email'] : '',
   );
 
-  $organization = variable_get('saml_sp__organization', array());
+  $organization = variable_get('saml_sp__organization', FALSE);
   $form['saml_sp__organization'] = array(
     '#type'           => 'fieldset',
     '#title'          => t('Organization'),
@@ -325,19 +323,19 @@ function saml_sp__admin_config() {
     '#type'           => 'textfield',
     '#title'          => t('Name'),
     '#description'    => t('This is a short name for the organization'),
-    '#default_value'  => $organization['name'],
+    '#default_value'  => $organization ? $organization['name'] : '',
   );
   $form['saml_sp__organization']['display_name'] = array(
     '#type'           => 'textfield',
     '#title'          => t('Display Name'),
     '#description'    => t('This is a long name for the organization'),
-    '#default_value'  => $organization['display_name'],
+    '#default_value'  => $organization ? $organization['display_name'] : '',
   );
   $form['saml_sp__organization']['url'] = array(
     '#type'           => 'textfield',
     '#title'          => t('URL'),
     '#description'    => t('This is a URL for the organization'),
-    '#default_value'  => $organization['url'],
+    '#default_value'  => $organization ? $organization['url'] : '',
   );
 
   $form['saml_sp__strict'] = array(
@@ -347,7 +345,7 @@ function saml_sp__admin_config() {
     '#default_value'  => variable_get('saml_sp__strict', FALSE),
   );
 
-  $security = variable_get('saml_sp__security', array());
+  $security = variable_get('saml_sp__security', FALSE);
   $form['saml_sp__security'] = array(
     '#type'           => 'fieldset',
     '#title'          => t('Security'),
@@ -360,22 +358,22 @@ function saml_sp__admin_config() {
   $form['saml_sp__security']['nameIdEncrypted'] = array(
     '#type'           => 'checkbox',
     '#title'          => t('NameID Encrypted'),
-    '#default_value'  => $security['nameIdEncrypted'],
+    '#default_value'  => $security ? $security['nameIdEncrypted'] : '',
   );
   $form['saml_sp__security']['authnRequestsSigned'] = array(
     '#type'           => 'checkbox',
     '#title'          => t('Authn Requests Signed'),
-    '#default_value'  => $security['authnRequestsSigned'],
+    '#default_value'  => $security ? $security['authnRequestsSigned'] : '',
   );
   $form['saml_sp__security']['logoutRequestSigned'] = array(
     '#type'           => 'checkbox',
     '#title'          => t('Logout Requests Signed'),
-    '#default_value'  => $security['logoutRequestSigned'],
+    '#default_value'  => $security ? $security['logoutRequestSigned'] : '',
   );
   $form['saml_sp__security']['logoutResponseSigned'] = array(
     '#type'           => 'checkbox',
     '#title'          => t('Logout Response Signed'),
-    '#default_value'  => $security['logoutResponseSigned'],
+    '#default_value'  => $security ? $security['logoutResponseSigned'] : '',
   );
 
   $form['saml_sp__security']['required'] = array(
@@ -385,17 +383,17 @@ function saml_sp__admin_config() {
   $form['saml_sp__security']['wantMessagesSigned'] = array(
     '#type'           => 'checkbox',
     '#title'          => t('Want Messages Signed'),
-    '#default_value'  => $security['wantMessagesSigned'],
+    '#default_value'  => $security ? $security['wantMessagesSigned'] : '',
   );
   $form['saml_sp__security']['wantAssertionsSigned'] = array(
     '#type'           => 'checkbox',
     '#title'          => t('Want Assertions Signed'),
-    '#default_value'  => $security['wantAssertionsSigned'],
+    '#default_value'  => $security ? $security['wantAssertionsSigned'] : '',
   );
   $form['saml_sp__security']['wantNameIdEncrypted'] = array(
     '#type'           => 'checkbox',
     '#title'          => t('Want NameID Encrypted'),
-    '#default_value'  => $security['wantNameIdEncrypted'],
+    '#default_value'  => $security ? $security['wantNameIdEncrypted'] : '',
   );
   $form['saml_sp__security']['metadata'] = array(
     //'#type'           => 'markup',
@@ -406,7 +404,7 @@ function saml_sp__admin_config() {
   $form['saml_sp__security']['signMetaData'] = array(
     '#type'           => 'checkbox',
     '#title'          => t('Sign Meta Data'),
-    '#default_value'  => $security['signMetaData'],
+    '#default_value'  => $security ? $security['signMetaData'] : '',
   );
   $form['saml_sp__cert_location'] = array(
     '#type'   => 'textfield',
@@ -421,15 +419,24 @@ function saml_sp__admin_config() {
     '#description'  => t('The location of the x.509 key file on the server. This must be a location that PHP can read.'),
     '#default_value' => variable_get('saml_sp__key_location', ''),
   );
-
+  $error = FALSE;
   try {
     $metadata = saml_sp__get_metadata(NULL, FALSE);
+    if (is_array($metadata)) {
+      if (isset($metadata[1])) {
+        $errors = $metadata[1];
+      }
+      $metadata = $metadata[0];
+    }
   }
   catch (Exception $e) {
     drupal_set_message(t('Attempt to create metadata failed: %message.', array('%message' => $e->getMessage())), 'error');
     $metadata = '';
+    $error = $e;
   }
-  $no_metadata = t('There is currently no metadata because there is not a default IdP selected on the <a href="!url" target="_blank">Drupal Login</a> page. Please configure a default IdP and return here for your metadata.', array('!url' => url('admin/config/people/saml_sp/drupal_login')));
+  if (empty($metadata) && $error) {
+    $no_metadata = t('There is currently no metadata because of the following error: %error. Please resolve the error and  return here for your metadata.', array('!url' => url('admin/config/people/saml_sp/drupal_login'), '%error' => $error->getMessage()));
+  }
   $form['metadata'] = array(
     '#type'         => 'fieldset',
     '#collapsed'    => TRUE,
@@ -442,7 +449,12 @@ function saml_sp__admin_config() {
     $form['metadata']['data'] = array(
       '#type'           => 'textarea',
       '#title'          => t('XML'),
-      '#description'    => t('This metadata can also be accessed at !link', array('!link' => l(saml_sp__metadata_url($saml_idp), saml_sp__metadata_url()))),
+      '#description'    => t(
+        'This metadata for @idp can also be accessed !link',
+        array(
+          '@idp' => variable_get('saml_sp_drupal_login__idp', ''),
+          '!link' => l(t('here'), saml_sp__metadata_url()),
+        )),
       '#disabled'       => TRUE,
       '#rows'           => 20,
       '#default_value'  => $metadata,
@@ -453,6 +465,15 @@ function saml_sp__admin_config() {
       '#markup'         => $no_metadata,
     );
   }
+  if ( module_exists('devel')) {
+    $form['saml_sp__debug'] = array(
+      '#type'             => 'checkbox',
+      '#title'            => t('Debug'),
+      '#description'      => t('Works with Devel module to display SAML requests and Responses for review.'),
+      '#default_value'    => variable_get('saml_sp__debug', FALSE),
+    );
+  }
+
 
 
   return system_settings_form($form);

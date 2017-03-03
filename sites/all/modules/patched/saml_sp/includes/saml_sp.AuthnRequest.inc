@@ -62,6 +62,9 @@ AUTHNREQUEST;
 
     $this->_id = $id;
     $this->_authnRequest = $request;
+    if (variable_get('saml_sp__debug', FALSE) && module_exists('devel')) {
+      dpm($this->_authnRequest, 'samlp:AuthnRequest');
+    }
   }
 
 

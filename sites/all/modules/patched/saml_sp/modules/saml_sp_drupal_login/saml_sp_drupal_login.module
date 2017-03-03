@@ -64,6 +64,10 @@ function saml_sp_drupal_login_form_user_login_block_alter(&$form, &$form_state) 
     '#attributes' => array('class' => array('saml_sp_drupal_login-links')),
     '#weight' => 1,
   );
+
+  if ( variable_get('saml_sp_drupal_login__force_saml_only', FALSE)) {
+    drupal_goto('saml/drupal_login', array('query' => array('returnTo' => 'user')));
+  }
 }
 
 /**
@@ -95,6 +99,11 @@ function saml_sp_drupal_login_form_user_login_alter(&$form, &$form_state) {
     '#attributes' => array('class' => array('saml_sp_drupal_login-links')),
     '#weight' => 1,
   );
+
+  if ( variable_get('saml_sp_drupal_login__force_saml_only', FALSE)) {
+    drupal_goto('saml/drupal_login', array('query' => array('returnTo' => 'user')));
+  }
+
 }
 
 /**
@@ -106,7 +115,7 @@ function saml_sp_drupal_login__start() {
 
   // Start the authentication process; invoke
   // saml_sp_drupal_login__saml_authenticate() when done.
-  saml_sp_start($idp, 'saml_sp_drupal_login__saml_authenticate');
+  return saml_sp_start($idp, 'saml_sp_drupal_login__saml_authenticate');
 }
 
 /**
@@ -125,9 +134,6 @@ function saml_sp_drupal_login__get_idp() {
 function saml_sp_drupal_login__saml_authenticate($is_valid, saml_sp_Response $saml_response) {
   if ($is_valid) {
     $attributes = $saml_response->getAttributes();
-
-    error_log('The following is the attributes:');
-    error_log( print_r($attributes, true) );
 
     // Default language English
     $language = 'en';
@@ -236,9 +242,24 @@ function saml_sp_drupal_login__saml_authenticate($is_valid, saml_sp_Response $sa
     // Adding redirect path to where user started the login from
     $edit['redirect'] = $_POST['RelayState'];
     watchdog('SAML', 'User %name logging in through SAML via %idp_name. with NameID %mail', array('%name' => $user->name, '%idp_name' => $idp->name, '%mail' => $email));
+
+    // Store the fact that the user logged in via the SAML SP module.
+    $_SESSION['authenticated_via_saml_sp'] = TRUE;
+
     user_login_finalize($edit);
   }
   drupal_goto();
+}
+
+/**
+ * Return whether or not the user is currently authenticated by the SAML SP
+ * module.
+ *
+ * @return bool
+ */
+function saml_sp_drupal_login_is_authenticated() {
+  return isset($_SESSION['authenticated_via_saml_sp']) &&
+    $_SESSION['authenticated_via_saml_sp'] === TRUE;
 }
 
 /**
@@ -339,7 +360,7 @@ function saml_sp_user_logout($account) {
 
   // Creating a logout request to be passed to IdP
   if (isset($_SESSION['IdPSessionIndex']) && !empty($_SESSION['IdPSessionIndex'])) {
-    $logout_request = new OneLogin_Saml2_LogoutRequest($saml_settings, NULL, $_SESSION['IdPSessionIndex']);
+    $logout_request = new OneLogin_Saml2_LogoutRequest($saml_settings, NULL, NULL ,$_SESSION['IdPSessionIndex']);
   }
   else {
     $logout_request = new OneLogin_Saml2_LogoutRequest($saml_settings);

@@ -129,7 +129,7 @@ function saml_sp_uninstall() {
   variable_del('saml_sp__security');
   variable_del('saml_sp__strict');
   variable_del('saml_sp__organization');
-  variable_dev('saml_sp__contact');
+  variable_del('saml_sp__contact');
 }
 
 // /**
