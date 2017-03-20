@@ -140,7 +140,7 @@ function _prepare_report()
     // Crete data array
     
     $site_structure_array[0]=array('Site','Owner','Hierarchy Level','Page Type','Topic Desk Replacement','Friendly URL','CMP Edit Link','Page ID','Page Title',
-                           'Parent Title','Level 6','Level 5', 'Level 4', 'Level 3',' Level 2', 'Level 1', 'USAGov Topic Crosswalk', 'GA style URL', 'VOC tool export URL style','Last Changed Date');
+                           'Parent Title','Level 6','Level 5', 'Level 4', 'Level 3',' Level 2', 'Level 1', 'USAGov Topic Crosswalk', 'GA style URL', 'VOC tool export URL style','Last Changed Date', 'Assets on Page');
     
     $get_root_level_site_name = taxonomy_get_tree(42,0,1);
     foreach($get_root_level_site_name as $root_level){
@@ -337,6 +337,7 @@ function get_child_info($tid, $pos,$site_name){
     $site_structure_array[18]=tssr_sanitzie($voc_tool_export_url);
     
     $site_structure_array[19]=tssr_sanitzie($last_changed_date);
-    
+    $site_structure_array[20]=count(tssr_getAssetsInSiteStructTerm($get_term));
+
     return $site_structure_array;
 }
