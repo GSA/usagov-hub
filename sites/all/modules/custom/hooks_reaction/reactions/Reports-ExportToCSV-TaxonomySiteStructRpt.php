@@ -14,7 +14,7 @@
 /**
  * Implements HOOK_menu().
  *
- * Registers the URL-path: /content-tag-report/export-site-strucutre-taxonomy to return a 
+ * Registers the URL-path: /content-tag-report/export-site-strucutre-taxonomy to return a
  * page generated from exportSiteStructureTaxonomyReportToCSV()
  */
 hooks_reaction_add("menu",
@@ -40,7 +40,7 @@ hooks_reaction_add("HOOK_views_post_render",
 
         if ( $view->name === 'content_taxonomy_report' && strpos(request_uri(), 'machine_name=site_strucutre_taxonomy') !== false ) {
             $thisFile = basename(__FILE__);
-            $prependMarkup = '<a style="float: right" rendersource="'.$thisFile.'" href="javascript: getReport(\''.uniqid().'\'); void(0);">Export to Excel</a>';
+            $prependMarkup = '<a style="float: right" rendersource="'.$thisFile.'" href="javascript: getReport(\''.uniqid().'\'); void(0);">Site Structure Taxonomy with Assets on Page Report</a>';
             $output = $prependMarkup.$output;
             drupal_add_js('sites/all/modules/custom/hooks_reaction/reactions/Reports-ExportToCSV-TaxonomySiteStructRpt.js');
         }
@@ -84,7 +84,7 @@ function exportSiteStructureTaxonomyReportToCSV() {
             exit('working');
 
         } else {
-        
+
             /* it is, so read this out to the client - JavaScript will take it from there (it 
             will simulate the download) */
             readfile("sites/default/files/report_tssr_{$reqid}.csv");
@@ -125,7 +125,7 @@ function exportSiteStructureTaxonomyReportToCSV() {
 
     // Print the CSV headers
     fwrite($h, '"counter","Site","Page Title","Parent Title","Owner","Hierarchy Level","Page Type","Topic Desk Replacement","Friendly URL","CMP Edit Link","Assets on Page",');
-  //  fwrite($h, '"counter","Site","Page Title","Parent Title","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",');
+    //  fwrite($h, '"counter","Site","Page Title","Parent Title","Hierarchy Level","Page Type","Friendly URL","CMP Edit Link","Assets on Page",');
 
     for ( $T = 1 ; $T < intval(variable_get('tssr_lastmaxcolcount', 3)); $T++ ) {
         if ( $T > 1 ) {
@@ -145,7 +145,7 @@ function exportSiteStructureTaxonomyReportToCSV() {
         }
         fwrite($h, "\n");
     }
-    
+
     /* Place a flag in the database, visible to all servers and PHP-threads that 
     this reqid is created and complete */
     fwrite($h, "\n");
@@ -158,7 +158,7 @@ function exportSiteStructureTaxonomyReportToCSV() {
 /**
  * void compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$rows, $vid, $tid)
  *
- * This function reads through the taxonomy data in this environment, creating a report, which is 
+ * This function reads through the taxonomy data in this environment, creating a report, which is
  * returned into the $rows by-reference variable supplied to this function.
  * This function works in a recursive manor.
  */
@@ -237,7 +237,7 @@ function compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$ro
  * term, and returns an array. The array returned is an array of nod-IDs.
  */
 function tssr_getAssetsInSiteStructTerm($term) {
-    
+
     $ret = array();
 
     // Get the top-level-term name for this $term

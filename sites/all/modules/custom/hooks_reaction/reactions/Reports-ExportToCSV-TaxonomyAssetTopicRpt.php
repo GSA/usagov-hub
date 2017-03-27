@@ -14,7 +14,7 @@
 /**
  * Implements HOOK_menu().
  *
- * Registers the URL-path: /content-tag-report/export-asset-topic-taxonomy to return a 
+ * Registers the URL-path: /content-tag-report/export-asset-topic-taxonomy to return a
  * page generated from exportAssetTopicTaxonomyReportToCSV()
  */
 hooks_reaction_add("menu",
@@ -40,7 +40,7 @@ hooks_reaction_add("HOOK_views_post_render",
 
         if ( $view->name === 'content_taxonomy_report' && strpos(request_uri(), 'machine_name=asset_topic_taxonomy') !== false ) {
             $thisFile = basename(__FILE__);
-            $prependMarkup = '<a style="float: right" rendersource="'.$thisFile.'" href="javascript: getReport(\''.uniqid().'\'); void(0);">Export to Excel</a>';
+            $prependMarkup = '<a style="float: right" rendersource="'.$thisFile.'" href="javascript: getReport(\''.uniqid().'\'); void(0);">Asset Topic Taxonomy with All Parents and Pages Report</a>';
             $output = $prependMarkup.$output;
 
             drupal_add_js('sites/all/modules/custom/hooks_reaction/reactions/Reports-ExportToCSV-TaxonomyAssetTopicRpt.js');
@@ -85,7 +85,7 @@ function exportAssetTopicTaxonomyReportToCSV() {
             exit('working');
 
         } else {
-        
+
             /* it is, so read this out to the client - JavaScript will take it from there (it 
             will simulate the download) */
             readfile("sites/default/files/report_tatr_{$reqid}.csv");
@@ -157,7 +157,7 @@ function exportAssetTopicTaxonomyReportToCSV() {
 /**
  * void compileSiteStructureTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$rows, $vid, $tid)
  *
- * This function reads through the taxonomy data in this environment, creating a report, which is 
+ * This function reads through the taxonomy data in this environment, creating a report, which is
  * returned into the $rows by-reference variable supplied to this function.
  * This function works in a recursive manor.
  */
