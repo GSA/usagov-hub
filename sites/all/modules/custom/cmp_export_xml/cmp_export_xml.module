@@ -12,7 +12,7 @@ function cmp_export_xml_menu() {
         'access callback' => true,
         'type' => MENU_NORMAL_ITEM
     );
-        $items['admin/export/%/%'] = array(
+    $items['admin/export/%/%'] = array(
         'title' => "Export XML",
         'page callback' => '_cmp_export_xml_download_xml',
         'access callback' => true,
@@ -62,22 +62,22 @@ function _cmp_export_xml_download_xml() {
             case "bbb":
                 $file_content = _cmp_export_xml_bbb($use_by);
                 $filename = 'better_business_bureau';
-            break;
+                break;
 
             case 'carman':
                 $file_content = _cmp_export_xml_carman_ta($use_by, 'Car Manufacturers');
                 $filename = 'car_manufacturer';
-            break;
+                break;
 
             case 'co':
                 $file_content = _cmp_export_xml_co($use_by);
                 $filename = 'consumer_organizations';
-            break;
+                break;
 
             case 'corp':
                 $file_content = _cmp_export_xml_corp($use_by);
                 $filename = 'corporate';
-            break;
+                break;
 
             case 'corporate':
                 $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Corporations', $lang);
@@ -85,12 +85,12 @@ function _cmp_export_xml_download_xml() {
                 if ($use_by == "Print Guia") {
                     $filename_no_change = 'corporate_ES';
                 }
-            break;
+                break;
 
             case 'cpo':
                 $file_content = _cmp_export_xml_cpo($use_by);
                 $filename = 'consumer_protection_office';
-            break;
+                break;
 
             case 'directory_api':
                 $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Federal Agencies', $lang);
@@ -98,37 +98,37 @@ function _cmp_export_xml_download_xml() {
                 if ($use_by == "Print Guia") {
                     $filename_no_change = 'directory_api_ES';
                 }
-            break;
+                break;
 
             case 'fed':
                 $file_content = _cmp_export_xml_fed($use_by);
                 $filename = 'federal_agencies';
-            break;
+                break;
 
             case 'sba':
                 $file_content = _cmp_export_xml_sba_sir_ssa_uc($use_by, 'State Banking Authorities');
                 $filename = 'state_banking_authorities';
-            break;
+                break;
 
             case 'sir':
                 $file_content = _cmp_export_xml_sba_sir_ssa_uc($use_by, 'State Insurance Regulators');
                 $filename = 'state_insurance_regulators';
-            break;
+                break;
 
             case 'ssa':
                 $file_content = _cmp_export_xml_sba_sir_ssa_uc($use_by, 'State Securities Administrators');
                 $filename = 'state_securities_administrators';
-            break;
+                break;
 
             case 'ta':
                 $file_content = _cmp_export_xml_carman_ta($use_by, 'Trade Associations');
                 $filename = 'trade_associations';
-            break;
+                break;
 
             case 'uc':
                 $file_content = _cmp_export_xml_sba_sir_ssa_uc($use_by, 'State Utility Commissions');
                 $filename = 'utility_commissions';
-            break;
+                break;
         }
     }
     else {
@@ -244,8 +244,14 @@ function _cmp_export_xml_sba_sir_ssa_uc($use_by='Print CAH', $dir_type) {
             $webs = explode("</li>", $add["website"]);
             foreach ($webs as $web) {
 
-                preg_match('/href=(["\'])([^\1]*)\1/i', $web, $m);
-                $text .= (isset($m[2])) ? ("<CharStyle:Web>" . $m[2] . "<CharStyle:>" . $new_line) : "";
+                $doc = new DOMDocument();
+                $doc->loadHTML($web);
+                $xpath = new DOMXPath($doc);
+                $nodeList = $xpath->query('//a/@href');
+
+                for ($i = 0; $i < $nodeList->length; $i++) {
+                    $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+                }
             }
             $text .= $new_line.$new_line;
         }
@@ -328,8 +334,14 @@ function _cmp_export_xml_fed($use_by='Print CAH')  {
         $webs = explode("</li>", $row->website);
         foreach ($webs as $web) {
 
-            preg_match('/href=(["\'])([^\1]*)\1/i', $web, $m);
-            $text .= (isset($m[2])) ? ("<CharStyle:Web>" . $m[2] . "<CharStyle:>" . $new_line) : "";
+            $doc = new DOMDocument();
+            $doc->loadHTML($web);
+            $xpath = new DOMXPath($doc);
+            $nodeList = $xpath->query('//a/@href');
+
+            for ($i = 0; $i < $nodeList->length; $i++) {
+                $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+            }
         }
 
         if (isset($row->cah_val) && strlen($row->cah_val) > 0) {
@@ -445,8 +457,14 @@ function _cmp_export_xml_cpo($use_by='Print CAH')  {
                 $webs = explode("</li>", $add["website"]);
                 foreach ($webs as $web) {
 
-                    preg_match('/href=(["\'])([^\1]*)\1/i', $web, $m);
-                    $text .= (isset($m[2])) ? ("<CharStyle:Web>" . $m[2] . "<CharStyle:>" . $new_line) : "";
+                    $doc = new DOMDocument();
+                    $doc->loadHTML($web);
+                    $xpath = new DOMXPath($doc);
+                    $nodeList = $xpath->query('//a/@href');
+
+                    for ($i = 0; $i < $nodeList->length; $i++) {
+                        $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+                    }
                 }
                 $text .= $new_line;
             }
@@ -713,20 +731,20 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
     $data = array();
     foreach($res as $row) {
 
-            $data[$row->le][] = array("nid"=>$row->nid,
-                "city"=>$row->city,
-                "street1"=>$row->street1,
-                "street2"=>$row->street2,
-                "state"=>$row->state,
-                "zip"=>$row->zip,
-                "phone"=>$row->phone,
-                "email"=>$row->email,
-                "website"=>$row->website,
-                //"tty"=>$row->tty,
-                "summary"=>$row->summary,
-                "title"=>$row->title,
-                "subdivision"=>$row->subdivision
-            );
+        $data[$row->le][] = array("nid"=>$row->nid,
+            "city"=>$row->city,
+            "street1"=>$row->street1,
+            "street2"=>$row->street2,
+            "state"=>$row->state,
+            "zip"=>$row->zip,
+            "phone"=>$row->phone,
+            "email"=>$row->email,
+            "website"=>$row->website,
+            //"tty"=>$row->tty,
+            "summary"=>$row->summary,
+            "title"=>$row->title,
+            "subdivision"=>$row->subdivision
+        );
     }
 
     $new_line ="\n";
@@ -778,8 +796,14 @@ function _cmp_export_xml_corp($use_by='Print CAH')  {
             $webs = explode("</li>", $add["website"]);
             foreach ($webs as $web) {
 
-                preg_match('/href=(["\'])([^\1]*)\1/i', $web, $m);
-                $text .= (isset($m[2])) ? ("<CharStyle:Web>" . $m[2] . "<CharStyle:>" . $new_line) : "";
+                $doc = new DOMDocument();
+                $doc->loadHTML($web);
+                $xpath = new DOMXPath($doc);
+                $nodeList = $xpath->query('//a/@href');
+
+                for ($i = 0; $i < $nodeList->length; $i++) {
+                    $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+                }
             }
 
             $text .= $new_line.$new_line;
@@ -861,8 +885,14 @@ function _cmp_export_xml_co($use_by='Print CAH')  {
         $webs = explode("</li>", $row->website);
         foreach ($webs as $web) {
 
-            preg_match('/href=(["\'])([^\1]*)\1/i', $web, $m);
-            $text .= (isset($m[2])) ? ("<CharStyle:Web>" . $m[2] . "<CharStyle:>" . $new_line) : "";
+            $doc = new DOMDocument();
+            $doc->loadHTML($web);
+            $xpath = new DOMXPath($doc);
+            $nodeList = $xpath->query('//a/@href');
+
+            for ($i = 0; $i < $nodeList->length; $i++) {
+                $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+            }
         }
 
         $text .= $row->summary;
@@ -943,9 +973,16 @@ function _cmp_export_xml_carman_ta($use_by='Print CAH', $dir_type)  {
         $webs = explode("</li>", $row->website);
         foreach ($webs as $web) {
 
-            preg_match('/href=(["\'])([^\1]*)\1/i', $web, $m);
-            $text .= (isset($m[2])) ? ("<CharStyle:Web>" . $m[2] . "<CharStyle:>" . $new_line) : "";
+            $doc = new DOMDocument();
+            $doc->loadHTML($web);
+            $xpath = new DOMXPath($doc);
+            $nodeList = $xpath->query('//a/@href');
+
+            for ($i = 0; $i < $nodeList->length; $i++) {
+                $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+            }
         }
+
         $text .= $row->summary;
         $text .= $new_line.$new_line;
     }
@@ -980,15 +1017,15 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
         $state_name = _get_states_abbr($row->state);
 
         if (strlen($row->city) > 0) {
-        $data[$state_name][] = array("nid"=>$row->nid,
-            "city"=>$row->city,
-            "street1"=>$row->street1,
-            "street2"=>$row->street2,
-            "state"=>$row->state,
-            "zip"=>$row->zip,
-            "phone"=>$row->phone,
-            "subdivision"=>$row->subdivision,
-            "email"=>$row->email);
+            $data[$state_name][] = array("nid"=>$row->nid,
+                "city"=>$row->city,
+                "street1"=>$row->street1,
+                "street2"=>$row->street2,
+                "state"=>$row->state,
+                "zip"=>$row->zip,
+                "phone"=>$row->phone,
+                "subdivision"=>$row->subdivision,
+                "email"=>$row->email);
         }
     }
 
@@ -1027,24 +1064,26 @@ function _cmp_export_xml_bbb($use_by='Print CAH') {
     return $text;
 }
 function _correct_phone_number($str){
-    $str = strtolower($str);
-    $pattern = '/[A-Za-z]+/';
+    $str = str_replace('Toll free:','',$str);
+    $str = strip_tags($str);
+    /* $str = strtolower($str);
+     $pattern = '/[A-Za-z]+/';
 
-    preg_match($pattern, $str, $matches);
+     preg_match($pattern, $str, $matches);
 
-    if (isset($matches[0])) { // string exist
+     if (isset($matches[0])) { // string exist
 
-        preg_match("/\d{3}-\d{3}-\d{4}/", $str, $phone_match);
-        if (isset($phone_match[0])) {
-            $phone_match = str_replace(array('(',')'),'', $phone_match[0]);
-            return ($phone_match);
-        }
-        preg_match("/\(\d{3}-\d{3}-\d{4}\)/", $str, $phone_match);
-        if (isset($phone_match[0])) {
-            $phone_match = str_replace(array('(',')'),'', $phone_match[0]);
-            return ($phone_match);
-        }
-    }
+         preg_match("/\d{3}-\d{3}-\d{4}/", $str, $phone_match);
+         if (isset($phone_match[0])) {
+             $phone_match = str_replace(array('(',')'),'', $phone_match[0]);
+             return ($phone_match);
+         }
+         preg_match("/\(\d{3}-\d{3}-\d{4}\)/", $str, $phone_match);
+         if (isset($phone_match[0])) {
+             $phone_match = str_replace(array('(',')'),'', $phone_match[0]);
+             return ($phone_match);
+         }
+     }*/
     return $str;
 }
 function _get_states_abbr($abbr) {
