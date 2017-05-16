@@ -65,113 +65,113 @@ if ( !class_exists('SimpleXMLExtended') ) {
 }
 function _vdn_forUseBy( $node )
 {
-  $by = [];
-  foreach ( ['field_for_use_by','field_for_use_by_text'] as $field )
-  {
-    if ( !empty($node->$field) )
+    $by = [];
+    foreach ( ['field_for_use_by','field_for_use_by_text'] as $field )
     {
-      foreach ( $node->$field as $l )
-      {
-        foreach ( $l as $fub )
+        if ( !empty($node->$field) )
         {
-          if ( !empty($fub['value']) )
-          {
-            $by[strtolower($fub['value'])] = strtolower($fub['value']);
-          }
+            foreach ( $node->$field as $l )
+            {
+                foreach ( $l as $fub )
+                {
+                    if ( !empty($fub['value']) )
+                    {
+                        $by[strtolower($fub['value'])] = strtolower($fub['value']);
+                    }
+                }
+            }
         }
-      }
     }
-  }
-  return $by;
+    return $by;
 }
 function _vdn_absoluteLinks( &$node )
 {
-  $host = null;
-  $hosts = [
-       'usa.gov'          => 'https://www.usa.gov'
-      ,'gobiernousa.gov'  => 'https://gobierno.usa.gov'
-      ,'gobierno.usa.gov' => 'https://gobierno.usa.gov'
-      ,'kids.usa.gov'     => 'https://kids.usa.gov'
-      ,'blog.usa.gov'     => 'https://blog.usa.gov'
-  ];
-  $fubs = _vdn_forUseBy( $node );
-  foreach ( $fubs as $fub )
-  {
-    if ( isset($hosts[$fub]) )
+    $host = null;
+    $hosts = [
+        'usa.gov'          => 'https://www.usa.gov'
+        ,'gobiernousa.gov'  => 'https://gobierno.usa.gov'
+        ,'gobierno.usa.gov' => 'https://gobierno.usa.gov'
+        ,'kids.usa.gov'     => 'https://kids.usa.gov'
+        ,'blog.usa.gov'     => 'https://blog.usa.gov'
+    ];
+    $fubs = _vdn_forUseBy( $node );
+    foreach ( $fubs as $fub )
     {
-      $host = $hosts[$fub];
-      break;
+        if ( isset($hosts[$fub]) )
+        {
+            $host = $hosts[$fub];
+            break;
+        }
     }
-  }
-  if ( isset($node) && isset($node->body) && isset($node->body['und'])
-    && isset($node->body['und'][0]) && !empty($node->body['und'][0]['value']) )
-  {
-    $node->body['und'][0]['value'] = preg_replace(
-       "/(href|src)\s*\=\s*([\"'])\s*([^(https?|mailto|ftp)])/",
-       "$1=$2{$host}/$3", $node->body['und'][0]['value']);
-    $node->body['und'][0]['value'] = preg_replace("/usa\.gov\/{2,}/", "usa.gov/",
-       $node->body['und'][0]['value']);
-  }
+    if ( isset($node) && isset($node->body) && isset($node->body['und'])
+        && isset($node->body['und'][0]) && !empty($node->body['und'][0]['value']) )
+    {
+        $node->body['und'][0]['value'] = preg_replace(
+            "/(href|src)\s*\=\s*([\"'])\s*([^(https?|mailto|ftp)])/",
+            "$1=$2{$host}/$3", $node->body['und'][0]['value']);
+        $node->body['und'][0]['value'] = preg_replace("/usa\.gov\/{2,}/", "usa.gov/",
+            $node->body['und'][0]['value']);
+    }
 }
 function _vdn_deletionDetails( &$node )
 {
-  // override deleted, deletion_uid, deletion_timestamp
-  if (isset($node) && is_object($node)) {
-      $del = (db_query("SELECT deletion_uid, deletion_timestamp FROM node_deleted WHERE nid = :nid AND deletion_state='soft'", array(":nid"=>$node->nid))->fetchAssoc());
-      if (isset($del) && !empty($del) && is_array($del)) {
-          $node->deleted=1;
-          $node->deletion_uid = $del['deletion_uid'];
-          $node->deletion_timestamp = $del['deletion_timestamp'];
-      }
-  }
+    // override deleted, deletion_uid, deletion_timestamp
+    if (isset($node) && is_object($node)) {
+        $del = (db_query("SELECT deletion_uid, deletion_timestamp FROM node_deleted WHERE nid = :nid AND deletion_state='soft'", array(":nid"=>$node->nid))->fetchAssoc());
+        if (isset($del) && !empty($del) && is_array($del)) {
+            $node->deleted=1;
+            $node->deletion_uid = $del['deletion_uid'];
+            $node->deletion_timestamp = $del['deletion_timestamp'];
+        }
+    }
 }
 function _vdn_locations( &$node )
 {
-  $node->locations = [];
-  if ( !empty($GLOBALS['__cached_content_pages'][$node->nid]) )
-  {
-    foreach ( $GLOBALS['__cached_content_pages'][$node->nid] as $page_id )
+    $node->locations = [];
+    if ( !empty($GLOBALS['__cached_content_pages'][$node->nid]) )
     {
-      if ( !empty($GLOBALS['__cached_page_sites'][$page_id]) )
-      {
-        $page = $GLOBALS['__cached_page_sites'][$page_id];
-        if ( !empty($page['site']) )
+        foreach ( $GLOBALS['__cached_content_pages'][$node->nid] as $page_id )
         {
-          if ( in_array($page['site'],['usa.gov','kids.gov','kids.usa.gov','gobiernousa.gov','gobierno.usa.gov']) )
-          {
-            $full_url = '';
-            if ( $page['site'] == 'usa.gov' )
+            if ( !empty($GLOBALS['__cached_page_sites'][$page_id]) )
             {
-              $full_url = 'https://www.usa.gov';
-            } else if ( $page['site'] == 'gobiernousa.gov' || $page['site'] == 'gobierno.usa.gov' ) {
-              $full_url = 'https://gobierno.usa.gov';
-            } else if ( $page['site'] == 'kids.usa.gov'    || $page['site'] == 'kids.gov' ) {
-              $full_url = 'https://kids.usa.gov';
+                $page = $GLOBALS['__cached_page_sites'][$page_id];
+                if ( !empty($page['site']) )
+                {
+                    if ( in_array($page['site'],['usa.gov','kids.gov','kids.usa.gov','gobiernousa.gov','gobierno.usa.gov']) )
+                    {
+                        $full_url = '';
+                        if ( $page['site'] == 'usa.gov' )
+                        {
+                            $full_url = 'https://www.usa.gov';
+                        } else if ( $page['site'] == 'gobiernousa.gov' || $page['site'] == 'gobierno.usa.gov' ) {
+                            $full_url = 'https://gobierno.usa.gov';
+                        } else if ( $page['site'] == 'kids.usa.gov'    || $page['site'] == 'kids.gov' ) {
+                            $full_url = 'https://kids.usa.gov';
+                        }
+                        if ( !empty($page['url']) )
+                        {
+                            $full_url .= $page['url'];
+                        }
+                        if ( strlen($full_url) == 0 )
+                        {
+                            continue;
+                        }
+                        $node->locations[] = [ 'value'=> [
+                            'page_title' => $page['title'],
+                            'url' => $full_url.'#item-'.$node->nid
+                        ]
+                        ];
+                    } else if ( $page['site'] == 'blog.usa.gov' ) {
+                        $node->locations[] = [ 'value'=> [
+                            'page_title' => $node->title,
+                            'url' => 'https://blog.usa.gov/'._bloggov_urlFriendlyString($node->title),
+                        ]
+                        ];
+                    }
+                }
             }
-            if ( !empty($page['url']) )
-            {
-              $full_url .= $page['url'];
-            }
-            if ( strlen($full_url) == 0 )
-            {
-              continue;
-            }
-            $node->locations[] = [ 'value'=> [
-                'page_title' => $page['title'],
-                'url' => $full_url.'#item-'.$node->nid
-              ]
-            ];
-          } else if ( $page['site'] == 'blog.usa.gov' ) {
-            $node->locations[] = [ 'value'=> [
-                'page_title' => $node->title,
-                'url' => 'https://blog.usa.gov/'._bloggov_urlFriendlyString($node->title),
-              ]
-            ];
-          }
         }
-      }
     }
-  }
 }
 
 
@@ -192,7 +192,7 @@ function __vdn_cache_stuff()
     $result = db_query($query);
     foreach ( $result as $row )
     {
-      $GLOBALS['__cached_content_pages'][$row->aoc] = explode(',',$row->tid);
+        $GLOBALS['__cached_content_pages'][$row->aoc] = explode(',',$row->tid);
     }
 
     /// which pages belong to which site
@@ -241,34 +241,48 @@ function __vdn_cache_stuff()
     $result = db_query($query);
     foreach ( $result as $row )
     {
-      $GLOBALS['__cached_page_sites'][$row->tid] = ['title'=>$row->title,'site'=>$row->site,'url'=>$row->url];
+        $GLOBALS['__cached_page_sites'][$row->tid] = ['title'=>$row->title,'site'=>$row->site,'url'=>$row->url];
     }
     // die(print_r($GLOBALS['__cached_page_sites'],1));
 }
-if ( !function_exists('nidToXML') ) {
-function nidToXML($nid)
-{
+if ( !function_exists('_vdn_govbranch_field') ) {
+    function _vdn_govbranch_field(&$node){
 
-    // initializing or creating array
-    $n = node_load($nid);
-
-    _vdn_deletionDetails( $n );
-    _vdn_absoluteLinks(   $n );
-    _vdn_locations(       $n );
-
-    $arrNodeData = json_decode( json_encode($n), true );
-
-    // creating object of SimpleXMLElement
-    $nodeXML = new SimpleXMLExtended("<?xml version=\"1.0\"?><NodeDataXML></NodeDataXML>");
-
-    // function call to convert array to xml
-    array_to_xml($arrNodeData, $nodeXML);
-
-    //saving generated xml file
-    $str = substr($nodeXML->asXML(), 35);
-    $str = substr($str, 0, -15);
-    return $str;
+        if ($node->field_government_branch['und'][0]['value'] == "Executive"){
+            $node->field_government_branch['und'][0]['value'] = "Executive Department Sub-Office/Agency/Bureau";
+        }
+    }
 }
+
+if ( !function_exists('nidToXML') ) {
+    function nidToXML($nid)
+    {
+
+        // initializing or creating array
+        $n = node_load($nid);
+
+        _vdn_deletionDetails( $n );
+        _vdn_absoluteLinks(   $n );
+        _vdn_locations(       $n );
+
+        if ($n->type == 'directory_record_content_type'){
+            _vdn_govbranch_field( $n );
+        }
+
+
+        $arrNodeData = json_decode( json_encode($n), true );
+
+        // creating object of SimpleXMLElement
+        $nodeXML = new SimpleXMLExtended("<?xml version=\"1.0\"?><NodeDataXML></NodeDataXML>");
+
+        // function call to convert array to xml
+        array_to_xml($arrNodeData, $nodeXML);
+
+        //saving generated xml file
+        $str = substr($nodeXML->asXML(), 35);
+        $str = substr($str, 0, -15);
+        return $str;
+    }
 }
 
 if ( !function_exists('array_to_xml') ) {
@@ -285,12 +299,12 @@ if ( !function_exists('array_to_xml') ) {
                 }
             }
             else {
-            if ( is_numeric($value) || trim($value) === '' ) {
-            $xml->addChild("$key",htmlspecialchars("$value"));
-            } else {
-              @$xml->{$key} = null;
-              @$xml->{$key}->addCData(htmlspecialchars("$value"));
-            }
+                if ( is_numeric($value) || trim($value) === '' ) {
+                    $xml->addChild("$key",htmlspecialchars("$value"));
+                } else {
+                    @$xml->{$key} = null;
+                    @$xml->{$key}->addCData(htmlspecialchars("$value"));
+                }
             }
         }
     }
