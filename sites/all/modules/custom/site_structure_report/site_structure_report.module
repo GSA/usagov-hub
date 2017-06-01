@@ -113,7 +113,7 @@ function _prepare_att_report() {
         exit('error');
     }
     // Write the CSV headers
-    fwrite($h, '"counter","Asset Node ID number","Title","CMP Edit Link","For Use By","Owner","Status","Date Last Reviewed", "Language", "Type of Asset", "# of pages found", "Assigned to taxonomy"');
+    fwrite($h, '"counter","Asset Node ID number","Title","CMP Edit Link","For Use By","Owner","Status","Date Last Reviewed", "Language", "Type of Asset", "# of pages found", "Assigned to taxonomy", "Created Date", "Published Date from Ready from publication", "Most Recent Published Date"');
     fwrite($h, "\n");
 
     // Write the CSV content
@@ -166,6 +166,8 @@ function _compileAssetTopicTaxonomyReportToCSV() {
         $forUseBy = implode(', ', $forUseBy);
 
         $last_reviewed = get_node_lastReviewedDate(array($node->nid));
+        $first_published = db_query("SELECT MIN(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND from_state='scheduled_for_publication' AND state = 'published'")->fetchField(0);
+        $last_published = db_query("SELECT MAX(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND from_state='scheduled_for_publication' AND state = 'published'")->fetchField(0);
 
         // Prepare to add new row to the report - for this node under this Asset Topic
         $counter++;
@@ -181,7 +183,10 @@ function _compileAssetTopicTaxonomyReportToCSV() {
             'Language'=> isset($node->field_language['und'][0]['value'])? tssr_sanitzie($node->field_language['und'][0]['value']) : 'NOT SET IN CMP',
             'Type of Asset'=> tssr_sanitzie(node_type_get_name($node)),
             '# of pages found'=> count_findSiteStructTermsThatReferenceAsset($node->nid),
-            'Assigned to taxonomy'=>(isset($node->field_asset_topic_taxonomy['und'][0]['tid']) && is_numeric($node->field_asset_topic_taxonomy['und'][0]['tid']))? "Yes":"No"
+            'Assigned to taxonomy'=>(isset($node->field_asset_topic_taxonomy['und'][0]['tid']) && is_numeric($node->field_asset_topic_taxonomy['und'][0]['tid']))? "Yes":"No",
+            'Created Date'=>date("F d, Y",$node->created),
+            'Published Date from Ready from publication'=> (isset($first_published))? date("F d, Y", $first_published):'NOT SET IN CMP',
+            'Most Recent Published Date'=>(isset($last_published))? date("F d, Y", $last_published):'NOT SET IN CMP'
         );
 
         // Add new row to the report - for this node under this Asset Topic
@@ -190,6 +195,7 @@ function _compileAssetTopicTaxonomyReportToCSV() {
     }
     return $rows;
 }
+
 function count_findSiteStructTermsThatReferenceAsset($assetNid) {
 
     $ret = array();
@@ -355,6 +361,7 @@ function _prepare_report()
     // Crete data array
 
     $site_structure_array[0]=array('Site','Owner','Hierarchy Level','Page Type','Topic Desk Replacement','Friendly URL','CMP Edit Link','Page ID','Page Title',
+
         'Parent Title','Level 6','Level 5', 'Level 4', 'Level 3',' Level 2', 'Level 1', 'USAGov Topic Crosswalk', 'GA style URL', 'VOC tool export URL style','Last Changed Date', 'Assets on Page');
 
     $get_root_level_site_name = taxonomy_get_tree(42,0,1);
@@ -553,6 +560,5 @@ function get_child_info($tid, $pos,$site_name){
 
     $site_structure_array[19]=tssr_sanitzie($last_changed_date);
     $site_structure_array[20]=count(tssr_getAssetsInSiteStructTerm($get_term));
-
     return $site_structure_array;
 }
