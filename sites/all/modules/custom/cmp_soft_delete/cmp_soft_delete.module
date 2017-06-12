@@ -301,10 +301,37 @@ function cmp_soft_delete_node_delete_confirm_submit($form, &$form_state)
         _cmp_soft_delete_request_soft_delete($node);
     }
 
+    // this asset needs to be gone from regions whatever region it belongs to
+    _cmp_delete_assets_from_regions($node->nid);
+
     $d = _cmp_soft_delete_destination($node->nid);
     $form_state['redirect'] = $d['destination'];
 }
 
+
+function _cmp_delete_assets_from_regions($nid){
+    // check all regions
+    $regions = array('field_asset_order_carousel', 'field_asset_order_content', 'field_asset_order_sidebar', 'field_asset_order_bottom', 'field_asset_order_menu', 'field_home_alert_asset', 'field_home_howdoi_assets');
+    $tids = array();
+    $needtoclearcache = false;
+
+    foreach($regions as $r) {
+        $sql = 'SELECT entity_id  AS tid FROM field_data_'.$r.' WHERE '.$r.'_target_id =:nid';
+        $res = db_query($sql, array(':nid' => $nid));
+        foreach($res as $row){
+            $tids[$row->tid][$r] = $row->tid;
+        }
+        db_query('DELETE FROM field_data_'.$r.' WHERE '.$r.'_target_id =:nid', array(':nid' => $nid));
+        db_query('DELETE FROM field_revision_'.$r.' WHERE '.$r.'_target_id =:nid', array(':nid' => $nid));
+    }
+
+    foreach($tids as $t=>$region){
+        $term = taxonomy_term_load($t);
+        drupal_set_message($t." Term is changed=>". $term->uuid, 'warning');
+        _cdss_add_entity_to_queue($term->uuid, 'taxonomy_term');
+        cache_clear_all('field:term:' . $t, 'cache_field');
+    }
+}
 
 // http request handlers
 function _cmp_soft_delete_handle_request_soft_delete($node)
