@@ -328,7 +328,13 @@ function _cmp_delete_assets_from_regions($nid){
         $term = taxonomy_term_load($t);
         drupal_set_message($t." Term is changed=>". $term->uuid, 'warning');
         cache_clear_all('field:taxonomy_term:' . $t, 'cache_field');
-        taxonomy_term_save($term);
+        _cdss_add_entity_to_queue($term->uuid, 'taxonomy_term');
+    }
+    $disabled = empty(variable_get('cdss_syncing_enabled'));
+    if ( !$disabled ) {
+        _cdss_finish_request();
+        _cdss_cancel_immediate_sync();
+        _cdss_process_queue();
     }
 }
 
