@@ -328,9 +328,7 @@ function _cmp_delete_assets_from_regions($nid){
         $term = taxonomy_term_load($t);
         drupal_set_message($t." Term is changed=>". $term->uuid, 'warning');
         cache_clear_all('field:taxonomy_term:' . $t, 'cache_field');
-        _cdss_add_entity_to_queue($term->uuid, 'taxonomy_term');
-        _cdss_process_queue();
-
+        taxonomy_term_save($term);
     }
 }
 
