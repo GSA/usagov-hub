@@ -301,9 +301,6 @@ function cmp_soft_delete_node_delete_confirm_submit($form, &$form_state)
         _cmp_soft_delete_request_soft_delete($node);
     }
 
-    // this asset needs to be gone from regions whatever region it belongs to
-    _cmp_delete_assets_from_regions($node->nid);
-
     $d = _cmp_soft_delete_destination($node->nid);
     $form_state['redirect'] = $d['destination'];
 }
@@ -325,16 +322,24 @@ function _cmp_delete_assets_from_regions($nid){
     }
 
     foreach($tids as $t=>$region){
-        $term = taxonomy_term_load($t);
-        drupal_set_message($t." Term is changed=>". $term->uuid, 'warning');
         cache_clear_all('field:taxonomy_term:' . $t, 'cache_field');
-        _cdss_add_entity_to_queue($term->uuid, 'taxonomy_term');
-    }
-    $disabled = empty(variable_get('cdss_syncing_enabled'));
-    if ( !$disabled ) {
-        _cdss_finish_request();
-        _cdss_cancel_immediate_sync();
-        _cdss_process_queue();
+        $term = taxonomy_term_load($t);
+      /*  $entity = $term;// _cdss_load_sanitized_term($term->uuid);
+        $e_uuid = $term->uuid;
+        $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+        // try{ // leave these exceptions for _cron_queue_info
+        /// put with an explicit ID will act as an upsert
+        $response = drupal_http_request(
+            $elasticsearch_server.'/cmp-data-entities/entity/'.$e_uuid,
+            array(
+                'method'  => 'PUT',
+                'data'    => json_encode($entity),
+                'timeout' => 0
+            )
+        );*/
+        _cdss_entity_queue( $term, 'taxonomy_term');
+
+        drupal_set_message($t." Term is changed=>". $term, 'warning');
     }
 }
 
@@ -490,6 +495,8 @@ function _cmp_soft_delete_do_soft_delete($node)
     $node->status  = 0;
     $node->deleted = 1;
     node_save($node);
+    // this asset needs to be gone from regions whatever region it belongs to
+    _cmp_delete_assets_from_regions($node->nid);
     _cmp_soft_delete_ridin_dirty($node);
 
     return TRUE;

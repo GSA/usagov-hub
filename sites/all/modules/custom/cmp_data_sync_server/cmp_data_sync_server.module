@@ -175,7 +175,7 @@ function cmp_data_sync_server_workbench_moderation_transition($entity, $fromStat
         $entity->changed = time();
         db_query("UPDATE taxonomy_term_data SET changed=:changed WHERE uuid=:uuid",
                   array( ':changed'=>$entity->changed, ':uuid'=>$entity->uuid ));
-        _cdss_entity_queue( $entity, 'taxnomy_term' );
+        _cdss_entity_queue( $entity, 'taxonomy_term' );
     }
 }
 function cmp_data_sync_server_entity_insert( $entity, $type )
