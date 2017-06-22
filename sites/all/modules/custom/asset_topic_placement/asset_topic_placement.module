@@ -478,7 +478,7 @@ function asset_topic_placement_node_update($node)
 {
 
     /// must be the published revision
-    if ( $node->status==NODE_NOT_PUBLISHED )
+    if ( $node->status==NODE_NOT_PUBLISHED && !empty($node->deleted) )
     {
         return;
     }
@@ -496,7 +496,7 @@ function asset_topic_placement_node_update($node)
     $old_topics = field_get_items('node', $node->original, 'field_asset_topic_taxonomy');
     foreach ($old_topics as $topic) {
         if (isset($topic['tid']) && !isset($new[$topic['tid']])) {
-                $removed_asset_topics[$topic['tid']] = $topic['tid'];
+            $removed_asset_topics[$topic['tid']] = $topic['tid'];
         }
     }
 
@@ -504,45 +504,32 @@ function asset_topic_placement_node_update($node)
     if (empty($removed_asset_topics)) {
         return;
     }
+
     /// find all pages that reference the removed topic_ids
     /// delete each page's content_region references to node (unless the node shared another tpoic)
-    foreach ( ['bottom','carousel','content','menu','sidebar'] as $region )
-    {
-        $pages_to_remove_assets_from_sql = "
-            SELECT
-                pageRegion.entity_id,
-                pageRegion.field_asset_order_{$region}_target_id,
-                SUM(nodeTopic.entity_id IS NOT NULL) as remainingTopics
-            FROM
-                field_data_field_asset_order_{$region} pageRegion
-                JOIN field_data_field_asset_topic_taxonomy pageTopic
-                    ON ( pageTopic.entity_id = pageRegion.entity_id )
-                LEFT JOIN field_data_field_asset_topic_taxonomy nodeTopic
-                    ON ( nodeTopic.field_asset_topic_taxonomy_tid = pageTopic.field_asset_topic_taxonomy_tid
-                         AND nodeTopic.entity_id = pageRegion.field_asset_order_{$region}_target_id
-                         AND nodeTopic.field_asset_topic_taxonomy_tid NOT IN (:removed_asset_topics) )
-            WHERE
-                pageRegion.field_asset_order_{$region}_target_id = :nid
-            GROUP BY pageRegion.entity_id, pageRegion.field_asset_order_{$region}_target_id
-            HAVING remainingTopics = 0
-        ";
-        $query_params = [':removed_asset_topics'=>$removed_asset_topics,':nid'=>$node->nid];
+    $regions = ['field_asset_order_carousel', 'field_asset_order_content', 'field_asset_order_sidebar', 'field_asset_order_bottom', 'field_asset_order_menu', 'field_home_alert_asset', 'field_home_howdoi_assets'];
+    $nid = $node->nid;
 
-        $ridin_dirty_sql = "
-            INSERT IGNORE INTO taxonomy_dates (tid)
-            SELECT entity_id FROM ( $pages_to_remove_assets_from_sql ) AS r
-                ON DUPLICATE KEY UPDATE changed=CURRENT_TIMESTAMP
-        ";
-        db_query($ridin_dirty_sql,$query_params);
+    $changed_sstids = array();
 
-        $remove_from_region_sql = "
-            DELETE IGNORE field_data_field_asset_order_{$region}
-            FROM field_data_field_asset_order_{$region}
-                JOIN ( $pages_to_remove_assets_from_sql	) AS removeFrom
-                    USING ( entity_id, field_asset_order_{$region}_target_id )
-        ";
-        db_query($remove_from_region_sql,$query_params);
+    // find site structure tid which associate with asset topic  taxonomy
+    $sstids = db_query('SELECT entity_id FROM field_data_field_asset_topic_taxonomy WHERE field_asset_topic_taxonomy_tid IN (:removed_asset_topics)', array(':removed_asset_topics' =>$removed_asset_topics));
 
+    foreach($sstids as $sstid) {
+        foreach($regions as $region) {
+
+            if (db_query("SELECT COUNT(*) FROM field_data_{$region} WHERE entity_id=:sstid AND {$region}_target_id=:nid", array(':sstid'=>$sstid->entity_id, ':nid'=>$nid))->fetchField() > 0) {
+
+                $changed_sstids[] = $sstid->entity_id;
+                db_query("DELETE FROM field_data_{$region} WHERE entity_id=:sstid AND {$region}_target_id=:nid", array(':sstid' => $sstid->entity_id, ':nid' => $nid));
+                db_query("DELETE FROM field_revision_{$region} WHERE entity_id=:sstid AND {$region}_target_id=:nid", array(':sstid' => $sstid->entity_id, ':nid' => $nid));
+                cache_clear_all('field:taxonomy_term:' . $sstid->entity_id, 'cache_field');
+                $t = taxonomy_term_load($sstid->entity_id);
+                taxonomy_term_save($t);
+                drupal_set_message("\"".$node->title."\" is removed from \"". $t->name."\" site structure taxonomy.");
+
+            }
+        }
     }
-
 }
+
