@@ -767,6 +767,15 @@ function _cmp_misc_get_expiring_nodes()
     return $arr;
 }
 
+function _hook_after_save_moderation_transition($node, $previous_state, $new_state)
+{
+  if ( $new_state=='scheduled_for_publication'
+      && ( _cmp_misc_node_past_publication_date($node) >= 1 ) )
+  {
+      workbench_moderation_moderate( $node, workbench_moderation_state_published() );
+  }
+}
+
 /**
  * Allows modules to respond to state transitions.
  *
@@ -793,12 +802,16 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
 
     // any state >>> scheduled_for_publication
     // throw this straight to published if we can
-    if ( $new_state=='scheduled_for_publication'
-        && ( _cmp_misc_node_past_publication_date($node) >= 1 ) )
-    {
-        workbench_moderation_moderate( $node, workbench_moderation_state_published() );
-    }
+    // if ( $new_state=='scheduled_for_publication'
+    //     && ( _cmp_misc_node_past_publication_date($node) >= 1 ) )
+    // {
+    //     workbench_moderation_moderate( $node, workbench_moderation_state_published() );
+    // }
 
+    if ( $new_state=='scheduled_for_publication' )
+    {
+      drupal_register_shutdown_function('_hook_after_save_moderation_transition', $node, $previous_state, $new_state);
+    }
 
     // needs approval or needs_acc_approval >>> needs discussion
     if ($previous_state == 'needs_review' && $new_state == 'needs_discussion') {
