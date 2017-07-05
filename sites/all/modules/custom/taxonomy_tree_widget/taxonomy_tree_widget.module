@@ -1,0 +1,312 @@
+<?php
+
+function taxonomy_tree_widget_menu()
+{
+    
+    $items = array();
+    // Configuration page
+    $items['admin/taxonomy-tree-widget'] = array(
+      'title'           => 'Site Structure Taxonomy Manager',
+      'description'     => 'Site Structure Taxonomy Manager',
+      'page callback'   => '_draw_taxo_tree',
+  		'access callback' => 'user_is_logged_in',
+      'file'            => 'tree_class.inc'
+    );
+
+    $items['admin/taxonomy-tree-widget/ajax/fulltree/%'] = array(
+      'title'           => 'Site Structure Taxonomy Manager',
+      'description'     => 'Site Structure Taxonomy Manager',
+      'page callback'   => '_json_tree_view',
+		  'access callback' => 'user_is_logged_in',
+      'file'            => 'tree_class.inc'
+    );
+
+    $items['admin/taxonomy_tree/autocomplete'] = array(
+        'title' => 'Custom Autocomplete taxonomy',
+        'page callback' => 'taxonomy_tree_autocomplete',
+        'access callback' => 'user_is_logged_in',
+        'type' => MENU_CALLBACK
+    );
+	
+	$items['admin/taxonomy-tree-widget/get_selected_asset'] = array(
+		'title'           => 'Get Selected Asset IDs',
+    'description'     => 'Get Selected Asset IDs',
+    'page callback'   => '_get_selected_asset_ids',
+		'access callback' => 'user_is_logged_in',
+	);
+	
+	
+    return $items;
+}
+
+function taxonomy_tree_autocomplete($field_name = '', $tags_typed = '') {
+  // If the request has a '/' in the search text, then the menu system will have
+  // split it into multiple arguments, recover the intended $tags_typed.
+  $args = func_get_args();
+  // Shift off the $field_name argument.
+  array_shift($args);
+  $tags_typed = implode('/', $args);
+
+  // Make sure the field exists and is a taxonomy field.
+  if (!($field = field_info_field($field_name)) || $field['type'] !== 'taxonomy_term_reference') {
+    // Error string. The JavaScript handler will realize this is not JSON and
+    // will display it as debugging information.
+    print t('Taxonomy field @field_name not found.', array('@field_name' => $field_name));
+    exit;
+  }
+
+  // The user enters a comma-separated list of tags. We only autocomplete the last tag.
+  $tags_typed = drupal_explode_tags($tags_typed);
+  $tag_last = array_pop($tags_typed);
+
+  $term_matches = array();
+  if ($tag_last != '') {
+
+    // Part of the criteria for the query come from the field's own settings.
+    $vids = array();
+    $vocabularies = taxonomy_vocabulary_get_names();
+    foreach ($field['settings']['allowed_values'] as $tree) {
+      $vids[] = $vocabularies[$tree['vocabulary']]->vid;
+    }
+
+    $query = db_select('taxonomy_term_data', 't');
+    $query->addTag('translatable');
+    $query->addTag('taxonomy_term_access');
+
+    // Do not select already entered terms.
+    if (!empty($tags_typed)) {
+      $query->condition('t.tid', $tags_typed, 'NOT IN');
+    }
+    // Select rows that match by term name.
+    $tags_return = $query
+      ->fields('t', array('tid'))
+      ->condition('t.vid', $vids)
+      ->condition('t.tid', $tag_last, '=')
+      ->range(0, 1)
+      ->execute()
+      ->fetchCol();
+
+    $prefix = count($tags_typed) ? drupal_implode_tags($tags_typed) . ', ' : '';
+
+    foreach ($tags_return as $pos=>$tid) {
+     
+      // Term names containing commas or quotes must be wrapped in quotes.
+      if (strpos($tid, ',') !== FALSE || strpos($tid, '"') !== FALSE) {
+        $n = '"' . str_replace('"', '""', $tid) . '"';
+      }
+      $term_matches[$prefix . $n] = $tid;
+    }
+  }
+
+  drupal_json_output($term_matches);
+}
+
+
+function taxonomy_tree_widget_field_widget_info()
+{
+    return array(
+        'taxonomy_tree_widget' => array(
+            'label' => t('Taxonomy Tree Widget'),
+            'field types' => array('taxonomy_term_reference'),
+            'settings' => array(
+                'size' => 60,
+            ),
+            'behaviors' => array(
+                'multiple values' => FIELD_BEHAVIOR_CUSTOM,
+            ),
+        ),
+    );
+}
+
+function taxonomy_tree_autocomplete_validate($element, &$form_state) {
+  // Autocomplete widgets do not send their tids in the form, so we must detect
+  // them here and process them independently.
+  $value = array();
+  if ($tags = $element['#value']) {
+    
+    $term_ids = drupal_explode_tags($tags);
+    foreach ($term_ids as $term_id) {
+        if($possibilities = taxonomy_term_load_multiple(array($term_id))){
+            $term = array_pop($possibilities);
+            $value[] = (array)$term;
+        }
+        
+    }
+  } 
+  form_set_value($element, $value, $form_state);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function taxonomy_tree_widget_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id){
+
+    $form['#attached']['js'] = array(
+        drupal_get_path('module', 'taxonomy_tree_widget') . '/js/jquery.min.js' => array(
+            'type' => "file",
+            'scope' => 'footer',
+            'weight' => 101
+        ),
+        drupal_get_path('module', 'taxonomy_tree_widget') . '/dist/jstree.min.js' => array(
+            'type' => "file",
+            'scope' => 'footer',
+            'weight' => 102
+        ),
+        drupal_get_path('module', 'taxonomy_tree_widget') . '/js/taxonomy_tree_widget_field_widget_form.js' => array(
+            'type' => "file",
+            'scope' => 'footer',
+            'weight' => 105
+        ),
+    );
+
+
+
+
+}
+
+
+/**
+ * Implements hook_field_widget_form().
+ */
+function taxonomy_tree_widget_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element)
+{
+	// A switch statement, in case we ever add more widgets to this module.
+	
+	switch ($instance['widget']['type']) {
+		
+		case 'taxonomy_tree_widget':
+			
+			$label=$instance['label'];
+			
+			$vocab_name=$field['settings']['allowed_values'][0]['vocabulary'] ;
+
+			if($vocab_name){
+				$vocab_id = db_query("SELECT vid FROM taxonomy_vocabulary WHERE machine_name =:vocab_name",array(':vocab_name'=>$vocab_name))->fetchCol();
+				$vid=$vocab_id[0];	
+			}
+			if($vid=='')
+			{
+				$vid=42;
+			}
+	
+			drupal_add_css(drupal_get_path('module', 'taxonomy_tree_widget') . '/dist/themes/default/style.min.css','file');
+            drupal_add_css(drupal_get_path('module', 'taxonomy_tree_widget') . '/css/taxonomy_tree_widget_field_widget_form.css','file');
+		
+			drupal_add_css(
+					'#tree_'.$vid.' {
+						border-right: none !important;
+						clear: left !important;
+					}',
+					'inline'
+			);
+   
+	
+			foreach ($items as $item) {
+				$taxo_ids_str.=$item['tid'].",";
+			}
+			$taxo_ids_str=substr($taxo_ids_str,0,-1);
+			
+			$element += array(
+                '#type' => 'textfield',
+                '#id'=> 'taxo_id_'.$vid,
+                '#default_value'=> isset($taxo_ids_str) ? $taxo_ids_str : '',
+                '#field_name'=>$field['field_name'],
+                '#size' => $instance['widget']['settings']['size'],
+                '#maxlength' => 1024,
+                '#element_validate' => array('taxonomy_tree_autocomplete_validate'),
+                '#suffix'=> '
+                                <div><label for="edit-field-taxo-term-tree-url-und-0-value">'.$label.'</label></div>
+                                    <div id="asset_tree"  style="overflow:auto;">
+                                	<div id="tree_'.$vid.'"></div>
+                                </div>
+                                <script type="text/javascript">
+                                    jQuery(document).ready(function (){
+                                        treewidgetforms('.$vid.');
+                                    });
+                                </script>
+                            '
+			);
+            break;
+	}
+	
+	
+	return $element;
+}
+
+function _json_tree_view()
+{
+	$vocab_id=arg(4);
+	$site_structure_tree = new JSTaxTree( $vocab_id );
+	echo drupal_json_output( $site_structure_tree->json_obj );
+	
+}
+
+function _get_selected_asset_ids()
+{
+	if(isset($_POST['topic_terms'])){
+		$asset_string = $_POST['topic_terms'];
+		if(isset($_POST['vid'])){
+			$vid=$_POST['vid'];
+		}
+		$asset_array=explode(",",$asset_string);
+		foreach($asset_array as $ind_name){
+			$gettid_from_name=db_query("select tid from taxonomy_term_data where name=:name and vid=:vid", array(":name"=>ltrim(rtrim($ind_name)), "vid"=>$vid))->fetchCol();
+			$tid_array[]=$gettid_from_name[0];
+		}
+		
+		$tids=implode($tid_array,",");
+		
+		@ob_end_clean();
+        while ( @ob_end_clean() );
+
+        // Tell the browser the type of data we are responding with
+        header('Content-Type: text', true);
+
+        // Print out what we want for the AJAX responce
+        echo $tids;
+
+        // Terminte this PHP-thread (in order to stop Drupal from printing out the footer section, etc.)
+        exit();
+		
+	}
+
+				
+}
+function _draw_taxo_tree()
+{
+	
+	$vocab_id=42;
+	
+	drupal_add_css(drupal_get_path('module', 'taxonomy_tree_widget') . '/dist/themes/default/style.min.css','file');
+    drupal_add_css(drupal_get_path('module', 'taxonomy_tree_widget') . '/css/tree_navigation.css','file');
+
+
+	drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/js/jquery.min.js','file');
+	drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/dist/jstree.min.js','file');
+    drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/js/iframeparentreload.js','file');
+    drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/js/customtreescript.js','file');
+		
+	
+	$form = array();
+
+	$form['taxonomy_term_add'] = array(
+        '#type' => 'item',
+        '#title' => 'Taxonomy Term Operations',
+        '#markup' => '
+            <div class="col-md-4 col-sm-8 col-xs-8">
+                <input id="edit-submit" name="create" value="Create" class="form-submit create-new-term" type="button" >
+            </div>
+                <div id="treeWrap">
+                    <div id="tree"></div>
+                    <div id="data">
+                        <div class="content message" style="text-align:center;"></div>
+                        <div class="content default" style="text-align:center;"><iframe class="data_iframe" id="frame" src="" onload="jQuery(\'#data\').show()" width="100%"></iframe></div>
+                    </div>
+                    <div id="loadImage"></div>
+                </div>'
+	);
+	return $form;
+}
+
+?>
+

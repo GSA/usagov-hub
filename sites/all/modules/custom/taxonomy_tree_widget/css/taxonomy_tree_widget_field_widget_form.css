@@ -1,0 +1,7 @@
+#edit-parent{
+    height: 500px;
+}
+#edit-parent option{
+    font-size: 13px;
+    padding: 3px;
+}

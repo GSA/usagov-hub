@@ -1,0 +1,4 @@
+name = Taxonomy Tree Widget
+description = Custom Taxonomy Tree Widget
+package = CTAC
+core = 7.x
