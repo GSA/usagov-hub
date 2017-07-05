@@ -11,7 +11,7 @@ function asset_topic_placement_init() {
 
         // Include asset_topic_placement.js
         drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/jquery.waituntilexists.js', 'file');
-        drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement.js', 'file');
+        drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement2.js', 'file');
         drupal_add_css(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement.css', 'file');
 
     }
@@ -472,7 +472,6 @@ function asset_topic_placement_taxonomy_term_presave($term)
         db_query($sql,array( ':tid'=>$term->tid, ':nids'=>$nids ));
     }
 }
-
 /// When a Node changes it's topics, go out and find any affected Terms and fix them
 function asset_topic_placement_node_update($node)
 {

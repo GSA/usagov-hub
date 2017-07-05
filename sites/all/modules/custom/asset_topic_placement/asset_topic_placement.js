@@ -109,8 +109,70 @@ function untickAssetTopic(term)
     assetByTopicFullCheck();
 }
 
+
+// finds which checkboxes are selected in the asset topic placement tables
+var currentTopicsSelected;
+function getCheckboxOriginalState(){
+    var counter = 0;
+    var currentTopicsSelected = [];
+    jQuery('.vertical-tabs-panes fieldset').each(function(){
+        var itemsChecked = [];
+        jQuery(this).find('tr input:checked').each(function(){
+            itemsChecked.push(jQuery(this).attr('value'));
+        });
+        currentTopicsSelected.push([jQuery(this).attr('id'), itemsChecked]);
+        counter++;
+    });
+    return currentTopicsSelected;
+}
+
+// sets which checkboxes were selected in the asset topic placement tables after they were blown away
+function setCheckboxOriginalState(){
+    jQuery(currentTopicsSelected).each(function(){
+
+        if(this[1].length !== 0){
+            var id = '#' + this[0] + ' ';
+            jQuery(this[1]).each(function(){
+                var selector = id + 'input[value='+  this +']';
+                jQuery(selector).prop('checked', true);
+            });
+        }
+    });
+}
+
+
 function initAssetTopicPlacementHelperScript()
 {
+
+
+    jQuery('input[name="field_asset_topic_taxonomy[und]"]').change(function() {
+        
+
+        currentTopicsSelected = getCheckboxOriginalState();
+        jQuery('.group-asset-topic-placement tr').remove();
+        alterTermsInAssetPlacementFields();
+
+
+
+
+
+    });
+
+    jQuery('input[name="field_also_include_on_nav_page[und]"]').change(function() {
+        var terms = [];
+        terms = jQuery('input[name="field_also_include_on_nav_page[und]"]').val().split(',');
+        terms = terms.filter(function(v){return v!==''});
+
+        jQuery(terms).each(function(key, value){
+            var selector = '.field-name-field-also-include-on-nav-page a#' + value + '_anchor'
+            var termTitle = jQuery(selector).text();
+            var targId = jQuery('.field-name-field-asset-order-menu').attr('id');
+            injectRowIntoAssetPlacementField('#'+targId, value, termTitle);
+            updateWeightOptionsInAssetPlacementField('#'+targId);
+        });
+
+    });
+
 
     updateAssetTopicPlacementCountClasses();
 
@@ -226,16 +288,26 @@ function enforceAssetTopicOrderVisibilityBasedOnInheritance()
 {
 
     jQuery('.group-asset-topic-placement .form-item.form-type-checkbox label:contains("Inherit")').each( function () {
+
+
+
+
+
+
+
+
         var jqThis = jQuery(this);
         var inheritCheckbox = jqThis.siblings('input');
         var fieldsetContainer = jqThis.parents('.fieldset-wrapper').eq(0); // Search up the DOM from $(this) to the first div.fieldset-wrapper
         var assetTopicOrderField = fieldsetContainer.children('.field-widget-entityreference-view-widget');
 
-        if ( inheritCheckbox.attr('checked') ) {
+
+        if (inheritCheckbox.is(':checked')){
             assetTopicOrderField.fadeOut();
         } else {
             assetTopicOrderField.fadeIn();
         }
+
     });
 
 }
@@ -305,6 +377,7 @@ function alterTermsInAssetPlacementFields(callback)
                                                         if ( typeof callback === 'function' ) {
                                                             callback();
                                                         }
+                                                        setCheckboxOriginalState();
                                                     });
 
                                                 })
@@ -341,7 +414,14 @@ function alterTermsInAssetPlacementField(fieldSelector, callback)
     jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
         terms.push(this.value);
     });
-    var nutCacheKey = 't' + terms.join('t', terms);
+
+
+    terms = jQuery('input[name="field_asset_topic_taxonomy[und]"]').val().split(',');
+    terms = terms.filter(function(v){return v!==''});
+
+    if(terms != ''){
+        var nutCacheKey = 't' + terms.join('t', terms);
+    }
 
     // Get nodes associated to these Asset-Topic taxonomy terms...
     if ( typeof NodeUnderTopicCache[nutCacheKey] !== 'undefined' ) {
@@ -757,6 +837,8 @@ function assetByTopicFullCheck()
     jQuery('.field-name-field-asset-topic-taxonomy input:checked').each( function () {
         tidAssetTopics.push( jQuery(this).val() );
     });
+    tidAssetTopics = jQuery('input[name="field_asset_topic_taxonomy[und]"]').val().split(',');
+    tidAssetTopics = tidAssetTopics.filter(function(v){return v!==''});
 
     // SPECIAL CASE - If there are no Asset-Topics selected, then there should be no Assets available
     if ( tidAssetTopics.length == 0 ) {
