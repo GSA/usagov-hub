@@ -359,10 +359,9 @@ function _prepare_report()
 {
 
     // Crete data array
-
+    unset($site_structure_array);
     $site_structure_array[0]=array('Site','Owner','Hierarchy Level','Page Type','Topic Desk Replacement','Friendly URL','CMP Edit Link','Page ID','Page Title',
-
-        'Parent Title','Level 6','Level 5', 'Level 4', 'Level 3',' Level 2', 'Level 1', 'USAGov Topic Crosswalk', 'GA style URL', 'VOC tool export URL style','Last Changed Date', 'Assets on Page');
+        'Parent Title','Level 6','Level 5', 'Level 4', 'Level 3',' Level 2', 'Level 1', 'USAGov Topic Crosswalk', 'GA style URL', 'VOC tool export URL style','Last Changed Date', 'Assets on Page', 'Toggle URL');
 
     $get_root_level_site_name = taxonomy_get_tree(42,0,1);
     foreach($get_root_level_site_name as $root_level){
@@ -388,16 +387,18 @@ function export_to_csv(array &$array)
     if (count($array) == 0) {
         return null;
     }
-    ob_start();
-    $csv_file = fopen("php://output", 'w');
+    @ob_end_clean();
+    while( @ob_end_clean() );
 
     header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename=data.csv');
-    ob_end_clean();
-    flush();
-    //fputcsv($df, array_keys(reset($array)));
+    header('Content-Disposition: attachment; filename=SSdata.csv');
+    @ob_start();
+    $csv_file = fopen("php://output", 'w');
+
     foreach ($array as $row) {
-        fputcsv($csv_file, $row);
+        if (!empty($row)) {
+            fputcsv($csv_file,$row);
+        }
     }
     fclose($csv_file);
     die;
@@ -560,5 +561,8 @@ function get_child_info($tid, $pos,$site_name){
 
     $site_structure_array[19]=tssr_sanitzie($last_changed_date);
     $site_structure_array[20]=count(tssr_getAssetsInSiteStructTerm($get_term));
+    // put the toggle url
+    $site_structure_array[21]= (isset($get_term->field_usa_gov_toggle_url['und'][0]['value']) && strlen($get_term->field_usa_gov_toggle_url['und'][0]['value'])>0)? 'https://usa.gov'.$get_term->field_usa_gov_toggle_url['und'][0]['value']:
+        ((isset($get_term->field_gobiernousa_gov_toggle_url['und'][0]['value']) && strlen($get_term->field_gobiernousa_gov_toggle_url['und'][0]['value'])>0)? 'https://gobierno.usa.gov'.$get_term->field_gobiernousa_gov_toggle_url['und'][0]['value']:'');
     return $site_structure_array;
 }

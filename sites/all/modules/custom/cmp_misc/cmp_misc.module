@@ -769,11 +769,11 @@ function _cmp_misc_get_expiring_nodes()
 
 function _hook_after_save_moderation_transition($node, $previous_state, $new_state)
 {
-  if ( $new_state=='scheduled_for_publication'
-      && ( _cmp_misc_node_past_publication_date($node) >= 1 ) )
-  {
-      workbench_moderation_moderate( $node, workbench_moderation_state_published() );
-  }
+    if ( $new_state=='scheduled_for_publication'
+        && ( _cmp_misc_node_past_publication_date($node) >= 1 ) )
+    {
+        workbench_moderation_moderate( $node, workbench_moderation_state_published() );
+    }
 }
 
 /**
@@ -810,7 +810,7 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
 
     if ( $new_state=='scheduled_for_publication' )
     {
-      drupal_register_shutdown_function('_hook_after_save_moderation_transition', $node, $previous_state, $new_state);
+        drupal_register_shutdown_function('_hook_after_save_moderation_transition', $node, $previous_state, $new_state);
     }
 
     // needs approval or needs_acc_approval >>> needs discussion
@@ -999,7 +999,7 @@ function _cmp_misc_send_report() {
     $res = "";
 
     foreach($ret as $t =>$k) {
-        $to = $k['mail'] .', ariun2006@gmail.com';
+        $to = $k['mail'];
         $body="Dear " . $k['name'] . ", <br />You have the following content that has not been reviewed for more than 6 months: <br/>";
         $body .= "<ul>";
 

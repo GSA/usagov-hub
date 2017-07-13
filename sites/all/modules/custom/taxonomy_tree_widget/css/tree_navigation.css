@@ -1,0 +1,33 @@
+#treeWrap{
+    position: relative;
+}
+
+#tree{
+    position: absolute;
+    left: 0;
+    width: 450px;
+    overflow: scroll;
+    z-index: 1;
+    background-color: #fff;
+}
+
+#data{
+    display: block;
+    margin-left: 450px;
+    display: none;
+    z-index:1;
+    position:relative;
+}
+#data .content{
+    padding:0px 40px;
+}
+
+#loadImage {
+    z-index:0;
+    height: 100px;
+    width: 100px;
+    position:absolute;
+    top:20%;
+    left:50%;
+    background: #fff url("/sites/all/themes/adminimal_theme/images/loading.gif") no-repeat 50%;
+}
