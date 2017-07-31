@@ -208,21 +208,18 @@ function count_findSiteStructTermsThatReferenceAsset($assetNid) {
         "field_data_field_asset_order_bottom",
         "field_data_field_home_howdoi_assets",
         "field_data_field_home_alert_asset",
-        "field_data_field_home_quote1_asset",
-        "field_data_field_home_popular_asset",
-        "field_data_field_home_quote2_asset",
-        "field_data_field_home_quote3_asset",
-        "field_data_field_home_cat2cont_assets",
-        "field_data_field_home_quickfindcont_asset"
+        "field_data_field_home_whats_new_asset"
     );
 
     // Search the assets tables (on the S.S.-tax-terms)
     foreach ( $tables as $table ) {
-        $valueColumn = str_replace('field_data_', '', $table);
-        $results = db_query("SELECT entity_id FROM {$table} WHERE {$valueColumn}_target_id={$assetNid}");
-        foreach ( $results as $result ) {
-            $tid = $result->entity_id;
-            $ret[$tid] = $tid;
+        if (db_table_exists($table)) {
+            $valueColumn = str_replace('field_data_', '', $table);
+            $results = db_query("SELECT entity_id FROM {$table} WHERE {$valueColumn}_target_id={$assetNid}");
+            foreach ($results as $result) {
+                $tid = $result->entity_id;
+                $ret[$tid] = $tid;
+            }
         }
     }
 
