@@ -1,0 +1,1208 @@
+<?php
+
+/*
+ * Implements hook_menu()
+ */
+function cmp_export_xml_menu() {
+    //approvharddelete
+
+    $items['admin/export/indesign-xml'] = array(
+        'title' => "Export Indesign XMLs",
+        'page callback' => '_cmp_export_xml_landing',
+        'access callback' => true,
+        'type' => MENU_NORMAL_ITEM
+    );
+    $items['admin/export/%/%'] = array(
+        'title' => "Export XML",
+        'page callback' => '_cmp_export_xml_download_xml',
+        'access callback' => true,
+        'type' => MENU_NORMAL_ITEM
+    );
+    $items['migrate_dir_fields'] = array(
+        'title' => "Migrate Dir Record fields",
+        'page callback' => '_cmp_migrate_dir_rec_fields',
+        'access callback' => true,
+        'type' => MENU_NORMAL_ITEM
+    );
+
+    return $items;
+}
+
+function _cmp_migrate_dir_rec_fields(){
+    $ret = '';
+    $res = db_query("SELECT nid FROM node WHERE type='directory_record_content_type' and nid IN (210303, 211341) ");
+    foreach($res as $row){
+        $node = node_load($row->nid);
+
+        if (isset($node->field_parent_record['und'][0]['endpoints']['und'][1]['entity_id'])
+                && is_numeric($node->field_parent_record['und'][0]['endpoints']['und'][1]['entity_id'])) {
+
+            $nid = ($node->field_parent_record['und'][0]['endpoints']['und'][1]['entity_id'] == $node->nid)? $node->field_parent_record['und'][0]['endpoints']['und'][0]['entity_id']:$node->field_parent_record['und'][1]['endpoints']['und'][1]['entity_id'];
+            $node->field_prnt_rcrd_ent['und'][0]['target_id'] = $nid;
+        }
+
+        if (isset($node->field_child_records['und'])
+            && count($node->field_child_records['und'])) {
+            $j = 0;
+            foreach($node->field_child_records['und'] as $child) {
+                $nid = ($child['endpoints']['und'][1]['entity_id'] == $node->nid)? $child['endpoints']['und'][0]['entity_id']:$child['endpoints']['und'][1]['entity_id'];
+                $node->field_chld_rcrds_ent['und'][$j]['target_id'] = $nid;
+                $j++;
+            }
+        }
+
+        if (isset($node->field_english_toggle['und'][0]['endpoints']['und'][1]['entity_id'])
+            && is_numeric($node->field_english_toggle['und'][0]['endpoints']['und'][1]['entity_id'])) {
+            $nid = ($node->field_english_toggle['und'][0]['endpoints']['und'][1]['entity_id'] == $node->nid)? $node->field_english_toggle['und'][0]['endpoints']['und'][0]['entity_id']: $node->field_english_toggle['und'][0]['endpoints']['und'][1]['entity_id'];
+            $node->field_eng_toggle_ent['und'][0]['target_id'] = $nid;
+        }
+
+        if (isset($node->field_spanish_toggle['und'][0]['endpoints']['und'][1]['entity_id'])
+                && is_numeric($node->field_spanish_toggle['und'][0]['endpoints']['und'][1]['entity_id'])) {
+
+            $nid = ($node->field_spanish_toggle['und'][0]['endpoints']['und'][1]['entity_id'] == $node->nid)? $node->field_spanish_toggle['und'][0]['endpoints']['und'][0]['entity_id']: $node->field_spanish_toggle['und'][0]['endpoints']['und'][1]['entity_id'];
+            $node->field_spa_toggle_ent['und'][0]['target_id'] = $nid;
+        }
+        dsm($node);
+        unset($node->field_parent_record['und']);
+        unset($node->field_child_records['und']);
+        unset($node->field_english_toggle['und']);
+        unset($node->field_spanish_toggle['und']);
+        //node_save($node);
+
+    }
+    return $ret;
+}
+
+function _cmp_export_xml_landing() {
+
+    $ret = "<div><ul>";
+    $ret .= "<li>Download Better Business Bureaus xml <a href='/admin/export/bbb/en'>English</a> </li>"; //| <a href='/admin/export/bbb/es'>Spanish</a>
+    $ret .= "<li>Download Car Manufacturer xml <a href='/admin/export/carman/en'>English</a> | <a href='/admin/export/carman/es'>Spanish</a> </li>";
+    $ret .= "<li>Download Consumner Organizations xml <a href='/admin/export/co/en'>English</a> | <a href='/admin/export/co/es'>Spanish</a> </li>";
+    $ret .= "<li>Download Corporations xml <a href='/admin/export/corp/en'>English</a> | <a href='/admin/export/corp/es'>Spanish</a></li>";
+    $ret .= "<li>Download Consumer Protection Office xml <a href='/admin/export/cpo/en'>English</a> | <a href='/admin/export/cpo/es'>Spanish</a></li>";
+    $ret .= "<li>Download Federal Agencies xml <a href='/admin/export/fed/en'>English</a> | <a href='/admin/export/fed/es'>Spanish</a></li>";
+    $ret .= "<li>Download State Banking Authorities xml <a href='/admin/export/sba/en'>English</a> | <a href='/admin/export/sba/es'>Spanish</a></li>";
+    $ret .= "<li>Download State Insurance Regulators xml <a href='/admin/export/sir/en'>English</a> | <a href='/admin/export/sir/es'>Spanish</a></li>";
+    $ret .= "<li>Download State Securities Administrators xml <a href='/admin/export/ssa/en'>English</a> | <a href='/admin/export/ssa/es'>Spanish</a></li>";
+    $ret .= "<li>Download Trade Associations xml <a href='/admin/export/ta/en'>English</a> | <a href='/admin/export/ta/es'>Spanish</a></li>";
+    $ret .= "<li>Download Utility Commissions xml <a href='/admin/export/uc/en'>English</a> | <a href='/admin/export/uc/es'>Spanish</a></li>";
+    $ret .= "<li>Download DIRECTORY API xml <a href='/admin/export/directory_api/en'>English</a> | <a href='/admin/export/directory_api/es'>Spanish</a></li>";
+    $ret .= "<li>Download CORPORATE API xml <a href='/admin/export/corporate/en'>English</a> | <a href='/admin/export/corporate/es'>Spanish</a></li>";
+    $ret .= "</ul></div>";
+
+
+    return $ret;
+}
+
+function _cmp_export_xml_download_xml() {
+    $args = arg();
+    $file_content = '';
+    if (isset($args[2]) && isset($args[3])) {
+        if (strtolower($args[3]) == 'es') {
+            $use_by = "Print Guia";
+            $lang = "Spanish";
+        }
+        else {
+            $use_by = "Print CAH";
+            $lang = "English";
+        }
+
+        $args[2] = strtolower($args[2]);
+        switch ($args[2]) {
+            case "bbb":
+                $file_content = _cmp_export_xml_bbb($use_by);
+                $filename = 'better_business_bureau';
+                break;
+
+            case 'carman':
+                $file_content = _cmp_export_xml_carman_ta($use_by, 'Car Manufacturers');
+                $filename = 'car_manufacturer';
+                break;
+
+            case 'co':
+                $file_content = _cmp_export_xml_co($use_by);
+                $filename = 'consumer_organizations';
+                break;
+
+            case 'corp':
+                $file_content = _cmp_export_xml_corp($use_by);
+                $filename = 'corporate';
+                break;
+
+            case 'corporate':
+                $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Corporations', $lang);
+                $filename_no_change = 'corporate';
+                if ($use_by == "Print Guia") {
+                    $filename_no_change = 'corporate_ES';
+                }
+                break;
+
+            case 'cpo':
+                $file_content = _cmp_export_xml_cpo($use_by);
+                $filename = 'consumer_protection_office';
+                break;
+
+            case 'directory_api':
+                $file_content = _cmp_export_xml_directory_api_corporate($use_by, 'Federal Agencies', $lang);
+                $filename_no_change = 'directory_api';
+                if ($use_by == "Print Guia") {
+                    $filename_no_change = 'directory_api_ES';
+                }
+                break;
+
+            case 'fed':
+                $file_content = _cmp_export_xml_fed($use_by);
+                $filename = 'federal_agencies';
+                break;
+
+            case 'sba':
+                $file_content = _cmp_export_xml_sba_sir_ssa_uc($use_by, 'State Banking Authorities');
+                $filename = 'state_banking_authorities';
+                break;
+
+            case 'sir':
+                $file_content = _cmp_export_xml_sba_sir_ssa_uc($use_by, 'State Insurance Regulators');
+                $filename = 'state_insurance_regulators';
+                break;
+
+            case 'ssa':
+                $file_content = _cmp_export_xml_sba_sir_ssa_uc($use_by, 'State Securities Administrators');
+                $filename = 'state_securities_administrators';
+                break;
+
+            case 'ta':
+                $file_content = _cmp_export_xml_carman_ta($use_by, 'Trade Associations');
+                $filename = 'trade_associations';
+                break;
+
+            case 'uc':
+                $file_content = _cmp_export_xml_sba_sir_ssa_uc($use_by, 'State Utility Commissions');
+                $filename = 'utility_commissions';
+                break;
+        }
+    }
+    else {
+        drupal_not_found();
+    }
+
+    if ($file_content != '') {
+        if (isset($filename_no_change) && strlen($filename_no_change) > 0) {
+            $name = $filename_no_change.".xml";
+        }
+        else {
+            $name = strftime($filename . "_" . $args[3] . '_%m_%d_%Y.xml');
+        }
+        header('Content-Disposition: attachment;filename=' . $name);
+        header('Content-Type: text/xml');
+
+        echo $file_content;
+        exit();
+    }
+    return $file_content;
+}
+
+function _cmp_export_xml_sba_sir_ssa_uc($use_by='Print CAH', $dir_type) {
+
+    $sql = "SELECT DISTINCT n.nid, n.title, st1.field_street_1_value AS street1,
+    st2.field_street_2_value AS street2,
+    c.field_city_value AS city,
+    UPPER(s.field_state_value) AS state,
+    z.field_zip_value AS zip,
+    e.field_email_value AS email,
+    l.field_website_links_value AS website,
+    de.field_description_value AS summary,
+    field_subdivision_value AS subdivision
+    FROM node n
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = :dir_type
+    INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
+    LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
+    LEFT JOIN field_data_field_street_2 st2 ON st2.entity_id = n.nid
+    LEFT JOIN field_data_field_city c ON c.entity_id = n.nid
+    LEFT JOIN field_data_field_state s ON s.entity_id = n.nid
+    LEFT JOIN field_data_field_zip z ON z.entity_id = n.nid
+    LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
+    LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
+    LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
+    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY s.field_state_value, n.title";
+
+
+    $res = db_query($sql, array(":use_by"=>$use_by, ":dir_type"=>$dir_type));
+    $data = array();
+    foreach($res as $row) {
+        $state_name = _get_states_abbr($row->state);
+
+        if (strlen($row->city) > 0) {
+            $data[$state_name][] = array("nid"=>$row->nid,
+                "city"=>$row->city,
+                "street1"=>$row->street1,
+                "street2"=>$row->street2,
+                "state"=>$row->state,
+                "zip"=>$row->zip,
+                "email"=>$row->email,
+                "website"=>$row->website,
+                "summary"=>$row->summary,
+                "title"=>$row->title,
+                "subdivision"=>$row->subdivision
+            );
+        }
+    }
+
+    $new_line ="\n";
+    $text = "<ASCII-WIN>".$new_line;
+    ksort($data);
+    foreach($data as $state=>$addresses) {
+        $text .= "<ParaStyle:CorpName>". $state . $new_line.$new_line;
+
+        foreach($addresses as $add) {
+            $text .= "<ParaStyle:OrgName>" . $add['title'] . $new_line;
+
+            if (isset($add["subdivision"]) && strlen($add["subdivision"]) > 0) {
+                $text .= "<ParaStyle:BodyText>" . $add["subdivision"] . $new_line;
+            }
+
+            $text .= "<ParaStyle:BodyText>" . $add['street1'] . ' ' . $add['street2'] . $new_line;
+            $text .= "<CharStyle:Bold>".$add["city"] . "<CharStyle:>, " .$add["state"] . " " . $add["zip"] . $new_line;
+
+            $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+            $phone_res = db_query($phone_sql, array(":nid"=>$add['nid']));
+            foreach($phone_res as $phone_row) {
+                if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                    $text .= _correct_phone_number($phone_row->phone) . $new_line;
+                }
+            }
+
+            $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+            $toll_res = db_query($toll_sql, array(':nid'=>$add["nid"]));
+            foreach($toll_res as $toll_row) {
+                if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                    $text .= "<CharStyle:Fields>Toll-free: <CharStyle:>" . _correct_phone_number($toll_row->toll_free).$new_line;
+                }
+            }
+
+            $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+            $tty_res = db_query($tty_sql, array(':nid'=>$add["nid"]));
+            foreach($tty_res as $tty_row) {
+                if (isset($tty_row->tty) && strlen($tty_row->tty) > 0) {
+                    $text .= "<CharStyle:Fields>TTY: <CharStyle:>" . _correct_phone_number($tty_row->tty).$new_line;
+                }
+            }
+
+            if (isset($add["email"]) && strlen($add["email"]) > 0) {
+                $text .= "<CharStyle:Fields>Email: <CharStyle:>" . $add["email"].$new_line;
+            }
+            $webs = explode("</li>", $add["website"]);
+            foreach ($webs as $web) {
+
+                $doc = new DOMDocument();
+                $doc->loadHTML($web);
+                $xpath = new DOMXPath($doc);
+                $nodeList = $xpath->query('//a/@href');
+
+                for ($i = 0; $i < $nodeList->length; $i++) {
+                    $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+                }
+            }
+            $text .= $new_line.$new_line;
+        }
+    }
+
+    return $text;
+}
+
+function _cmp_export_xml_fed($use_by='Print CAH')  {
+    $sql = "SELECT DISTINCT n.nid, n.title, st1.field_street_1_value AS street1,
+    st2.field_street_2_value AS street2,
+    c.field_city_value AS city,
+    UPPER(s.field_state_value) AS state,
+    z.field_zip_value AS zip,
+    e.field_email_value AS email,
+    l.field_website_links_value AS website,
+    de.field_description_value AS summary,
+    field_subdivision_value AS subdivision,
+    cah.field_cah_value AS cah_val
+    FROM node n
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Federal Agencies'
+    INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
+    LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
+    LEFT JOIN field_data_field_street_2 st2 ON st2.entity_id = n.nid
+    LEFT JOIN field_data_field_city c ON c.entity_id = n.nid
+    LEFT JOIN field_data_field_state s ON s.entity_id = n.nid
+    LEFT JOIN field_data_field_zip z ON z.entity_id = n.nid
+    LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
+    LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
+    LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
+    LEFT JOIN field_data_field_cah cah ON cah.entity_id = n.nid
+    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
+
+    $res = db_query($sql,array(":use_by"=>$use_by));
+
+    $new_line ="\n";
+    $text = "<ASCII-WIN>".$new_line.$new_line;
+
+    foreach($res as $row) {
+        $text .= "<ParaStyle:CorpName>" . $row->title . $new_line;
+
+        if (isset($row->subdivision) && strlen($row->subdivision) > 0) {
+            $text .= "<ParaStyle:BodyText>" . $row->subdivision . $new_line;
+        } else {
+            $text .= "<ParaStyle:BodyText>" . $new_line;
+        }
+
+        $text .= $row->street1 . ' ' . $row->street2 . $new_line;
+        $text .= $row->city . ", " . $row->state . " " . $row->zip . $new_line;
+
+        $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+        $phone_res = db_query($phone_sql, array(":nid"=>$row-nid));
+        foreach($phone_res as $phone_row) {
+            if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                $text .= _correct_phone_number($phone_row->phone) . $new_line;
+            }
+        }
+
+        $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+        $toll_res = db_query($toll_sql, array(':nid'=>$row->nid));
+        foreach($toll_res as $toll_row) {
+            if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                $text .= "Toll-free: " . _correct_phone_number($toll_row->toll_free) . $new_line;
+            }
+        }
+
+        $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+        $tty_res = db_query($tty_sql, array(':nid'=>$row->nid));
+        foreach($tty_res as $tty_row) {
+            if (isset($tty_row->tty) && strlen($tty_row->tt) > 0) {
+                $text .= "TTY: " . _correct_phone_number($tty_row->tty) . $new_line;
+            }
+        }
+
+        if (isset($row->email) && strlen($row->email) > 0 ) {
+            $text .= "Email: " . $row->email . $new_line;
+        }
+
+        $webs = explode("</li>", $row->website);
+        foreach ($webs as $web) {
+
+            $doc = new DOMDocument();
+            $doc->loadHTML($web);
+            $xpath = new DOMXPath($doc);
+            $nodeList = $xpath->query('//a/@href');
+
+            for ($i = 0; $i < $nodeList->length; $i++) {
+                $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+            }
+        }
+
+        if (isset($row->cah_val) && strlen($row->cah_val) > 0) {
+            $text .= $row->cah_val;
+        }
+        else {
+            $text .= $row->summary;
+        }
+
+        $text .= $new_line.$new_line;
+    }
+
+    return $text;
+}
+
+function _cmp_export_xml_cpo($use_by='Print CAH')  {
+
+    $sql = "SELECT DISTINCT n.nid, n.title, st1.field_street_1_value AS street1,
+    st2.field_street_2_value AS street2,
+    c.field_city_value AS city,
+    UPPER(s.field_state_value) AS state,
+    z.field_zip_value AS zip,
+    e.field_email_value AS email,
+    l.field_website_links_value AS website,
+    de.field_description_value AS summary,
+    field_group_by_value AS serve_style,
+    field_subdivision_value AS subdivision
+    FROM node n
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Government Consumer Protection Offices'
+    INNER JOIN field_data_field_group_by gby ON gby.entity_id = n.nid
+    INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
+    LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
+    LEFT JOIN field_data_field_street_2 st2 ON st2.entity_id = n.nid
+    LEFT JOIN field_data_field_city c ON c.entity_id = n.nid
+    LEFT JOIN field_data_field_state s ON s.entity_id = n.nid
+    LEFT JOIN field_data_field_zip z ON z.entity_id = n.nid
+    LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
+    LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
+    LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
+    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY field_state_value ASC, n.title ASC, field_group_by_value DESC";
+
+
+    $res = db_query($sql, array(":use_by"=>$use_by));
+    $data = array();
+    foreach($res as $row) {
+        $state_name = _get_states_abbr($row->state);
+
+        if (strlen($row->city) > 0) {
+            $data[$state_name][$row->serve_style][] = array("nid"=>$row->nid,
+                "city"=>$row->city,
+                "street1"=>$row->street1,
+                "street2"=>$row->street2,
+                "state"=>$row->state,
+                "zip"=>$row->zip,
+                "email"=>$row->email,
+                "website"=>$row->website,
+                "summary"=>$row->summary,
+                "title"=>$row->title,
+                "subdivision"=>$row->subdivision
+            );
+        }
+    }
+
+    $new_line ="\n";
+    $text = "<ASCII-WIN>".$new_line;
+
+    ksort($data);
+    foreach($data as $state=>$office_types) {
+        $text .= "<ParaStyle:CorpName>". $state . $new_line;
+
+        foreach($office_types as $serve_styles=>$addresses) {
+            $text .= "<ParaStyle:ServeStyle>" .$serve_styles ." Offices". $new_line.$new_line;
+
+            foreach ($addresses as $add) {
+
+                $text .= "<ParaStyle:OrgName>" . $add["title"] . $new_line;
+
+                if (isset($add["subdivision"]) && strlen($add["subdivision"]) > 0) {
+                    $text .= "<ParaStyle:BodyText>" . $add["subdivision"] . $new_line;
+                }
+
+                $text .= "<ParaStyle:BodyText>" . $add['street1'] . ' ' . $add['street2'] . $new_line;
+                $text .= "<CharStyle:Bold>". $add["city"] . "<CharStyle:>, " . $add["state"] . " " . $add["zip"] . $new_line;
+
+                $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+                $phone_res = db_query($phone_sql, array(":nid"=>$add['nid']));
+                foreach($phone_res as $phone_row) {
+                    if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                        $text .= _correct_phone_number($phone_row->phone) . $new_line;
+                    }
+                }
+                $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+                $toll_res = db_query($toll_sql, array(':nid'=>$add['nid']));
+                foreach($toll_res as $toll_row) {
+                    if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                        $text .= "Toll-free: " . _correct_phone_number($toll_row->toll_free) . $new_line;
+                    }
+                }
+
+                $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+                $tty_res = db_query($tty_sql, array(':nid'=>$add['nid']));
+                foreach($tty_res as $tty_row) {
+                    if (isset($tty_row->tty) && strlen($tty_row->tty) > 0) {
+                        $text .= "TTY: " . _correct_phone_number($tty_row->tty ). $new_line;
+                    }
+                }
+
+                if (isset($add["email"]) && strlen($add["email"]) > 0) {
+                    $text .= "Email: " . $add["email"].$new_line;
+                }
+
+                $webs = explode("</li>", $add["website"]);
+                foreach ($webs as $web) {
+
+                    $doc = new DOMDocument();
+                    $doc->loadHTML($web);
+                    $xpath = new DOMXPath($doc);
+                    $nodeList = $xpath->query('//a/@href');
+
+                    for ($i = 0; $i < $nodeList->length; $i++) {
+                        $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+                    }
+                }
+                $text .= $new_line;
+            }
+        }
+    }
+
+    return $text;
+}
+
+
+function __make_xml_friendly($str) {
+    $str = strip_tags($str);
+    $str = str_replace('&','&amp;',$str);
+    $str = str_replace("</br>", " ", $str);
+    return $str;
+}
+
+function _cmp_export_xml_directory_api_corporate($use_by='Print CAH', $dir_type, $language)  {
+
+    //  INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
+    $sql = "SELECT DISTINCT n.nid FROM node n
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = :dir_type
+    INNER JOIN field_data_field_language l ON l.entity_id = n.nid AND l.field_language_value = :lang
+    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title ";
+    $res = db_query($sql, array(":dir_type"=>$dir_type, ":lang"=>$language));
+
+    $new_line ="\n";
+    $tab_line ="\t";
+
+    $text = "";
+
+    foreach($res as $row) {
+        $node = node_load($row->nid);
+
+        // clean some fields
+
+        $text .= "<Contact>" . $new_line;
+        $text .= "<Id>" . $row->nid . "</Id>" . $new_line;
+        $text .= "<Name>" . __make_xml_friendly($node->title) . ((isset($node->field_acronym['und'][0]['value']) && strlen($node->field_acronym['und'][0]['value']) > 0) ? " (" . __make_xml_friendly($node->field_acronym['und'][0]['value']) . ")" : "") . "</Name>" . $new_line;
+
+        if (isset($node->field_description['und'][0]['value']) && strlen($node->field_description['und'][0]['value']) > 0) {
+            $text .= "<Description>" . __make_xml_friendly($node->field_description['und'][0]['value']) . "</Description>" . $new_line;
+        }
+
+        if (isset($node->field_alpha_order_name['und'][0]['value']) && $dir_type == "Federal Agencies") {
+            $urlAlphaOrderName = strtolower($node->field_alpha_order_name['und'][0]['value']);
+            $urlAlphaOrderName = str_replace(' ', '-', $urlAlphaOrderName);
+            $urlAlphaOrderName = str_replace('.', '-', $urlAlphaOrderName);
+            $urlAlphaOrderName = str_replace(',', '-', $urlAlphaOrderName);
+
+            while ( strpos($urlAlphaOrderName, '--') !== false ) {
+                $urlAlphaOrderName = str_replace('--', '-', $urlAlphaOrderName);
+            }
+
+            if ($use_by == 'Print CAH') {
+                $beta_url = "http://beta.usa.gov/federal-agencies/";
+            }
+            else {
+                $beta_url = "http://beta.gobierno.usa.gov/agencias-federales/";
+            }
+
+            $text .= "<Source_Url>" . __make_xml_friendly($beta_url . $urlAlphaOrderName) . "</Source_Url>".$new_line;
+        }
+        else {
+            $text .= "<Source_Url>not publishable path</Source_Url>" .$new_line;
+        }
+
+        if (isset($node->field_subdivision['und'][0]['value']) && strlen($node->field_subdivision['und'][0]['value']) > 0) {
+            $text .= "<Subdivision>" . __make_xml_friendly($node->field_subdivision['und'][0]['value']) . "</Subdivision>" . $new_line;
+        }
+
+        if (isset($node->field_street_1['und'][0]['value']) && strlen($node->field_street_1['und'][0]['value']) > 0) {
+            $text .= "<Street1>" . __make_xml_friendly($node->field_street_1['und'][0]['value']) . "</Street1>" . $new_line;
+        }
+
+        if (isset($node->field_street_2['und'][0]['value']) && strlen($node->field_street_2['und'][0]['value']) > 0) {
+            $text .= "<Street2>" . __make_xml_friendly($node->field_street_2['und'][0]['value']) . "</Street2>" . $new_line;
+        }
+
+        if (isset($node->field_city['und'][0]['value'] ) && strlen($node->field_city['und'][0]['value']) > 0) {
+            $text .= "<City>" . __make_xml_friendly($node->field_city['und'][0]['value']) . "</City>" . $new_line;
+        }
+        if (isset($node->field_state['und'][0]['value']) && strlen($node->field_state['und'][0]['value']) > 0) {
+            $text .= "<StateTer>" . __make_xml_friendly($node->field_state['und'][0]['value']) . "</StateTer>" . $new_line;
+        }
+
+        if (isset($node->field_zip['und'][0]['value']) && strlen($node->field_zip['und'][0]['value']) > 0) {
+            $text .= "<Zip>" . __make_xml_friendly($node->field_zip['und'][0]['value']) . "</Zip>" . $new_line;
+        }
+
+        if (isset($node->field_language['und'][0]['value']) && strlen($node->field_language['und'][0]['value']) > 0) {
+            $text .= "<Language>" . ($node->field_language['und'][0]['value'] == "English" ? "en" : "es") . "</Language>" . $new_line;
+        }
+
+        if (isset($node->field_phone_number['und'])) {
+            for($i=0; $i < count($node->field_phone_number['und']); $i++) {
+                $text .= "<Phone>" . __make_xml_friendly(_correct_phone_number($node->field_phone_number['und'][$i]['value'])) . "</Phone>" . $new_line;
+            }
+        }
+
+        if (isset($node->field_toll_free_number['und'])) {
+            for($i=0; $i < count($node->field_toll_free_number['und']); $i++) {
+                $text .= "<Tollfree>" . __make_xml_friendly(_correct_phone_number($node->field_toll_free_number['und'][$i]['value'])) . "</Tollfree>" . $new_line;
+            }
+        }
+
+        if (isset($node->field_tty_number['und'])) {
+            for($i=0; $i < count($node->field_tty_number['und']); $i++) {
+                $text .= "<TTY>" . __make_xml_friendly(_correct_phone_number($node->field_tty_number['und'][$i]['value'])) . "</TTY>" . $new_line;
+            }
+        }
+
+        if (isset($node->field_email['und'][0]['value']) && strlen($node->field_email['und'][0]['value'])) {
+            $text .= "<Email>" . __make_xml_friendly($node->field_email['und'][0]['value']) . "</Email>" . $new_line;
+        }
+        // Web URL
+        $webs = explode("</li>", $node->field_website_links['und'][0]['value']);
+        foreach ($webs as $web) {
+            preg_match('/href=(["\'])([^\1]*)\1/i', $web, $m);
+            preg_match_all('/<a .*?>(.*?)<\/a>/',$web,$m2);
+
+            if (isset($m[2]) && strlen(trim($m[2])) > 0) {
+                $text .= "<Web_Url>" . $new_line;
+                $text .= $tab_line . "<Url>" . __make_xml_friendly($m[2]) . "</Url>" . $new_line;
+                if (isset($m2[1][0]) && strlen(trim($m2[1][0])) > 0) {
+                    $text .= $tab_line . "<Description>" . __make_xml_friendly($m2[1][0]) . "</Description>" . $new_line;
+                }
+                $text .= $tab_line . "<Language>en</Language>" . $new_line;
+                $text .= "</Web_Url>" . $new_line;
+            }
+        }
+
+        // Contact URL
+        $cons = explode("</li>", $node->field_contact_links['und'][0]['value']);
+        foreach ($cons as $con) {
+            preg_match('/href=(["\'])([^\1]*)\1/i', $con, $m);
+            preg_match_all('/<a .*?>(.*?)<\/a>/',$con,$m2);
+
+            if (isset($m[2]) && strlen(trim($m[2])) > 0) {
+                $text .= "<Contact_Url>" . $new_line;
+                $text .= $tab_line . "<Url>" . __make_xml_friendly($m[2]) . "</Url>" . $new_line;
+                if (isset($m2[1][0]) && strlen(trim($m2[1][0])) > 0) {
+                    $text .= $tab_line . "<Description>" . __make_xml_friendly($m2[1][0]) . "</Description>" . $new_line;
+                }
+                $text .= $tab_line . "<Language>en</Language>" . $new_line;
+                $text .= "</Contact_Url>" . $new_line;
+            }
+        }
+
+        // In Person Links
+        $cons = explode("</li>", $node->field_in_person_links['und'][0]['value']);
+        foreach ($cons as $con) {
+            preg_match('/href=(["\'])([^\1]*)\1/i', $con, $m);
+            preg_match_all('/<a .*?>(.*?)<\/a>/',$con,$m2);
+
+            if (isset($m[2]) && strlen(trim($m[2])) > 0) {
+                $text .= "<In_Person_Url>".$new_line;
+                $text .= $tab_line . "<Url>" . __make_xml_friendly($m[2]) . "</Url>" . $new_line;
+                if (isset($m2[1][0]) && strlen(trim($m2[1][0])) > 0) {
+                    $text .= $tab_line . "<Description>" . __make_xml_friendly($m2[1][0]) . "</Description>" . $new_line;
+                }
+                $text .= $tab_line . "<Language>en</Language>" . $new_line;
+                $text .= "</In_Person_Url>".$new_line;
+            }
+        }
+
+        // Child
+        if (isset($node->field_child_records['und'])) {
+            for($j=0; $j < count($node->field_child_records['und']); $j++) {
+                $child_node = node_load($node->field_child_records['und'][$j]['endpoints']['und'][0]['entity_id']);
+                $text .= "<Child>".$new_line;
+                $text .= $tab_line."<Id>".$node->field_child_records['und'][$j]['endpoints']['und'][0]['entity_id']."</Id>".$new_line;
+                $text .= $tab_line."<Name>".__make_xml_friendly($child_node->title)."</Name>".$new_line;
+                $text .= "</Child>".$new_line;
+            }
+        }
+
+        // parent
+        if (isset($node->field_parent_record['und'][0]['endpoints']['und'][1]['entity_id'])
+            && is_numeric($node->field_parent_record['und'][0]['endpoints']['und'][1]['entity_id'])) {
+            $parent_node = node_load($node->field_parent_record['und'][0]['endpoints']['und'][1]['entity_id']);
+            $text .= "<Parent>".$new_line;
+            $text .= $tab_line."<Id>" .$node->field_parent_record['und'][0]['endpoints']['und'][1]['entity_id'] . "</Id>".$new_line;
+            $text .= $tab_line."<Name>" .__make_xml_friendly($parent_node->title). "</Name>".$new_line;
+            $text .= "</Parent>".$new_line;
+        }
+
+        // Alt language
+        if ($node->field_language['und'][0]['value'] == "English") {
+            // spanish
+            if (isset($node->field_spanish_toggle['und'][0]['endpoints']['und'][1]['entity_id'])
+                && is_numeric($node->field_spanish_toggle['und'][0]['endpoints']['und'][1]['entity_id'])) {
+                $alt_node = node_load($node->field_spanish_toggle['und'][0]['endpoints']['und'][1]['entity_id']);
+                $text .= '<Alt_Language>'.$new_line;
+                $text .= $tab_line."<Id>".$node->field_spanish_toggle['und'][0]['endpoints']['und'][1]['entity_id']."</Id>".$new_line;
+                $text .= $tab_line."<Name>".__make_xml_friendly($alt_node->title)."</Name>".$new_line;
+                $text .= $tab_line."<Language>es</Language>".$new_line;
+                $text .= '</Alt_Language>'.$new_line;
+            }
+        }
+        else {
+            // english
+            if (isset($node->field_english_toggle['und'][0]['endpoints']['und'][1]['entity_id'])
+                && is_numeric($node->field_english_toggle['und'][0]['endpoints']['und'][1]['entity_id'])) {
+                $alt_node = node_load($node->field_english_toggle['und'][0]['endpoints']['und'][1]['entity_id']);
+                $text .= '<Alt_Language>'.$new_line;
+                $text .= $tab_line."<Id>".$node->field_english_toggle['und'][0]['endpoints']['und'][1]['entity_id']."</Id>".$new_line;
+                $text .= $tab_line."<Name>".__make_xml_friendly($alt_node->title)."</Name>".$new_line;
+                $text .= $tab_line."<Language>en</Language>".$new_line;
+                $text .= '</Alt_Language>'.$new_line;
+            }
+        }
+        if (isset($node->field_cfo_agency['und'][0]['value'])
+            && strlen($node->field_cfo_agency['und'][0]['value']) > 0) {
+            $text .= "<CFO_Agency>" . __make_xml_friendly($node->field_cfo_agency['und'][0]['value']) . "</CFO_Agency>" . $new_line;
+        }
+
+        if (isset($node->field_government_branch['und'][0]['value'])
+            && strlen($node->field_government_branch['und'][0]['value']) > 0) {
+            $text .= "<Fed_Branch>" . __make_xml_friendly($node->field_government_branch['und'][0]['value']) . "</Fed_Branch>" . $new_line;
+        }
+
+        $text .= "</Contact>".$new_line;
+    }
+
+    $ret = '<?xml version="1.0" encoding="UTF-8" ?>'.$new_line;
+
+    if (strlen($text) > 0) {
+        return $ret.'<Contacts>'.$new_line.$text."</Contacts>";
+    }
+    else {
+        return $ret;
+    }
+}
+
+function _cmp_export_xml_corp($use_by='Print CAH')  {
+
+    $sql = "SELECT DISTINCT n.nid, n.title, st1.field_street_1_value AS street1,
+    st2.field_street_2_value AS street2,
+    c.field_city_value AS city,
+    UPPER(s.field_state_value) AS state,
+    z.field_zip_value AS zip,
+    e.field_email_value AS email,
+    l.field_website_links_value AS website,
+    de.field_description_value AS summary,
+    LEFT(UPPER(n.title),1) AS le,
+    field_subdivision_value AS subdivision
+    FROM node n
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Corporations'
+    INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
+    LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
+    LEFT JOIN field_data_field_street_2 st2 ON st2.entity_id = n.nid
+    LEFT JOIN field_data_field_city c ON c.entity_id = n.nid
+    LEFT JOIN field_data_field_state s ON s.entity_id = n.nid
+    LEFT JOIN field_data_field_zip z ON z.entity_id = n.nid
+    LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
+    LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
+    LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
+    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY UPPER(n.title)";
+
+
+    $res = db_query($sql, array(':use_by'=>$use_by));
+    $data = array();
+    foreach($res as $row) {
+
+        $data[$row->le][] = array("nid"=>$row->nid,
+            "city"=>$row->city,
+            "street1"=>$row->street1,
+            "street2"=>$row->street2,
+            "state"=>$row->state,
+            "zip"=>$row->zip,
+            "phone"=>$row->phone,
+            "email"=>$row->email,
+            "website"=>$row->website,
+            //"tty"=>$row->tty,
+            "summary"=>$row->summary,
+            "title"=>$row->title,
+            "subdivision"=>$row->subdivision
+        );
+    }
+
+    $new_line ="\n";
+    $text = "<ASCII-WIN>".$new_line;
+
+    foreach($data as $state=>$addresses) {
+        $text .= "<ParaStyle:AlphaLetter>". $state . $new_line.$new_line;
+
+        foreach($addresses as $add) {
+            $text .= "<ParaStyle:CorpName>" . $add["title"] . $new_line;
+
+            if (isset($add["subdivision"]) && strlen($add["subdivision"]) > 0) {
+                $text .= "<ParaStyle:BodyText>" . $add["subdivision"] . $new_line;
+            }
+            else {
+                $text .= "<ParaStyle:BodyText>" . $new_line;
+            }
+            $text .= $add['street1'] . ' ' . $add['street2'] . $new_line;
+            $text .= $add["city"] . ", " .$add["state"] . " " . $add["zip"] . $new_line;
+
+            $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+            $phone_res = db_query($phone_sql, array(":nid"=>$add['nid']));
+            foreach($phone_res as $phone_row) {
+                if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                    $text .= $phone_row->phone . $new_line;
+                }
+            }
+
+            $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+            $toll_res = db_query($toll_sql, array(':nid'=>$add['nid']));
+            foreach($toll_res as $toll_row) {
+                if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                    $text .= "Toll-free: " . _correct_phone_number($toll_row->toll_free) . $new_line;
+                }
+            }
+
+            $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+            $tty_res = db_query($tty_sql, array(':nid'=>$add['nid']));
+            foreach($tty_res as $tty_row) {
+                if (isset($tty_row->tty) && strlen($tty_row->tty) > 0) {
+                    $text .= "TTY: " . _correct_phone_number($tty_row->tty) . $new_line;
+                }
+            }
+
+            if (isset($add["email"]) && strlen($add["email"]) > 0) {
+                $text .= "Email: " . $add["email"] . $new_line;
+            }
+
+            $webs = explode("</li>", $add["website"]);
+            foreach ($webs as $web) {
+
+                $doc = new DOMDocument();
+                $doc->loadHTML($web);
+                $xpath = new DOMXPath($doc);
+                $nodeList = $xpath->query('//a/@href');
+
+                for ($i = 0; $i < $nodeList->length; $i++) {
+                    $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+                }
+            }
+
+            $text .= $new_line.$new_line;
+        }
+    }
+
+    return $text;
+}
+
+function _cmp_export_xml_co($use_by='Print CAH')  {
+
+    $sql = "SELECT DISTINCT n.nid, n.title, st1.field_street_1_value AS street1,
+    st2.field_street_2_value AS street2,
+    c.field_city_value AS city,
+    UPPER(s.field_state_value) AS state,
+    z.field_zip_value AS zip,
+    e.field_email_value AS email,
+    l.field_website_links_value AS website,
+    de.field_description_value AS summary,
+    field_subdivision_value AS subdivision
+    FROM node n
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Consumer Organizations'
+    INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
+    LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
+    LEFT JOIN field_data_field_street_2 st2 ON st2.entity_id = n.nid
+    LEFT JOIN field_data_field_city c ON c.entity_id = n.nid
+    LEFT JOIN field_data_field_state s ON s.entity_id = n.nid
+    LEFT JOIN field_data_field_zip z ON z.entity_id = n.nid
+    LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
+    LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
+    LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
+    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
+
+    $res = db_query($sql,array(':use_by'=>$use_by));
+
+    $new_line ="\n";
+    $text = "<ASCII-WIN>".$new_line.$new_line;
+    foreach($res as $row) {
+        $text .= "<ParaStyle:CorpName>" . $row->title . $new_line;
+
+        if (isset($row->subdivision) && strlen($row->subdivision) > 0) {
+            $text .= "<ParaStyle:BodyText>" . $row->subdivision . $new_line;
+        }
+        else {
+            $text .= "<ParaStyle:BodyText>" . $new_line;
+        }
+        $text .= $row->street1 . ' ' . $row->street2 . $new_line;
+        $text .= $row->city . ", " . $row->state . " " . $row->zip . $new_line;
+
+        $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+        $phone_res = db_query($phone_sql, array(":nid"=>$row->nid));
+        foreach($phone_res as $phone_row) {
+            if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                $text .= $phone_row->phone . $new_line;
+            }
+        }
+
+        $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+        $toll_res = db_query($toll_sql, array(':nid'=>$row->nid));
+        foreach($toll_res as $toll_row) {
+            if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                $text .= "Toll-free: " . _correct_phone_number($toll_row->toll_free) . $new_line;
+            }
+        }
+
+        $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+        $tty_res = db_query($tty_sql, array(':nid'=>$row->nid));
+        foreach($tty_res as $tty_row) {
+            if (isset($tty_row->tty) && strlen($tty_row->tt) > 0) {
+                $text .= "TTY: " . _correct_phone_number($tty_row->tty) . $new_line;
+            }
+        }
+
+        if (isset($row->email) && strlen($row->email) > 0 ) {
+            $text .= "Email: " . $row->email . $new_line;
+        }
+
+        $webs = explode("</li>", $row->website);
+        foreach ($webs as $web) {
+
+            $doc = new DOMDocument();
+            $doc->loadHTML($web);
+            $xpath = new DOMXPath($doc);
+            $nodeList = $xpath->query('//a/@href');
+
+            for ($i = 0; $i < $nodeList->length; $i++) {
+                $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+            }
+        }
+
+        $text .= $row->summary;
+        $text .= $new_line.$new_line;
+    }
+
+    return $text;
+}
+
+function _cmp_export_xml_carman_ta($use_by='Print CAH', $dir_type)  {
+
+    $sql = "SELECT DISTINCT n.nid, n.title, st1.field_street_1_value AS street1,
+    st2.field_street_2_value AS street2,
+    c.field_city_value AS city,
+    UPPER(s.field_state_value) AS state,
+    z.field_zip_value AS zip,
+    e.field_email_value AS email,
+    l.field_website_links_value AS website,
+    de.field_description_value AS summary,
+    field_subdivision_value AS subdivision
+    FROM node n
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = :dir_type
+    INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
+    LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
+    LEFT JOIN field_data_field_street_2 st2 ON st2.entity_id = n.nid
+    LEFT JOIN field_data_field_city c ON c.entity_id = n.nid
+    LEFT JOIN field_data_field_state s ON s.entity_id = n.nid
+    LEFT JOIN field_data_field_zip z ON z.entity_id = n.nid
+    LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
+    LEFT JOIN field_data_field_website_links l ON l.entity_id = n.nid
+    LEFT JOIN field_data_field_description de ON de.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
+    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY n.title";
+
+    $res = db_query($sql,array(':use_by'=>$use_by, ":dir_type"=>$dir_type));
+
+    $new_line ="\n";
+    $text = "<ASCII-WIN>".$new_line.$new_line;
+
+    foreach($res as $row) {
+        $text .= "<ParaStyle:CorpName>" . $row->title . $new_line;
+        if (isset($row->subdivision) && strlen($row->subdivision) > 0) {
+            $text .= "<ParaStyle:BodyText>" . $row->subdivision . $new_line;
+        }
+        else {
+            $text .= "<ParaStyle:BodyText>" . $new_line;
+        }
+        $text .= $row->street1 . ' ' . $row->street2 . $new_line;
+        $text .= $row->city . ", " . $row->state . " " . $row->zip . $new_line;
+
+        $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+        $phone_res = db_query($phone_sql, array(":nid"=>$row->nid));
+        foreach($phone_res as $phone_row) {
+            if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                $text .= _correct_phone_number($phone_row->phone) . $new_line;
+            }
+        }
+
+        $toll_sql = "SELECT field_toll_free_number_value AS toll_free FROM field_data_field_toll_free_number toll WHERE toll.entity_id = :nid ";
+        $toll_res = db_query($toll_sql, array(':nid'=>$row->nid));
+        foreach($toll_res as $toll_row) {
+            if (isset($toll_row->toll_free) && strlen($toll_row->toll_free) > 0) {
+                $text .= "Toll-free: " . _correct_phone_number($toll_row->toll_free) . $new_line;
+            }
+        }
+
+        $tty_sql = "SELECT field_tty_number_value AS tty FROM field_data_field_tty_number WHERE entity_id = :nid";
+        $tty_res = db_query($tty_sql, array(':nid'=>$row->nid));
+        foreach($tty_res as $tty_row) {
+            if (isset($tty_row->tty) && strlen($tty_row->tt) > 0) {
+                $text .= "TTY: " . _correct_phone_number($tty_row->tty) . $new_line;
+            }
+        }
+
+        if (isset($row->email) && strlen($row->email) > 0 ) {
+            $text .= "Email: " . $row->email . $new_line;
+        }
+        $webs = explode("</li>", $row->website);
+        foreach ($webs as $web) {
+
+            $doc = new DOMDocument();
+            $doc->loadHTML($web);
+            $xpath = new DOMXPath($doc);
+            $nodeList = $xpath->query('//a/@href');
+
+            for ($i = 0; $i < $nodeList->length; $i++) {
+                $text .= (isset($nodeList->item($i)->value)) ? ("<CharStyle:Web>" . $nodeList->item($i)->value . "<CharStyle:>" . $new_line) : "";
+            }
+        }
+
+        $text .= $row->summary;
+        $text .= $new_line.$new_line;
+    }
+
+    return $text;
+}
+
+function _cmp_export_xml_bbb($use_by='Print CAH') {
+    //INNER JOIN field_data_field_for_use_by_text u ON u.entity_id = n.nid AND field_for_use_by_text_value = :use_by
+
+    $sql = "SELECT DISTINCT n.nid, n.title, st1.field_street_1_value AS street1,
+    st2.field_street_2_value AS street2,
+    c.field_city_value AS city,
+    UPPER(s.field_state_value) AS state,
+    z.field_zip_value AS zip,
+    e.field_email_value AS email,
+    sub.field_subdivision_value AS subdivision
+    FROM node n
+    INNER JOIN field_data_field_directory_type dtype ON dtype.entity_id = n.nid AND field_directory_type_value = 'Better Business Bureaus'
+    LEFT JOIN field_data_field_street_1 st1 ON st1.entity_id = n.nid
+    LEFT JOIN field_data_field_street_2 st2 ON st2.entity_id = n.nid
+    LEFT JOIN field_data_field_city c ON c.entity_id = n.nid
+    LEFT JOIN field_data_field_state s ON s.entity_id = n.nid
+    LEFT JOIN field_data_field_zip z ON z.entity_id = n.nid
+    LEFT JOIN field_data_field_email e ON e.entity_id = n.nid
+    LEFT JOIN field_data_field_subdivision sub ON sub.entity_id = n.nid
+    WHERE n.status = 1 AND n.type='directory_record_content_type' ORDER BY state, field_city_value";
+    $res = db_query($sql); //,array(':use_by'=>$use_by)
+
+    $data = array();
+    foreach($res as $row) {
+        $state_name = _get_states_abbr($row->state);
+
+        if (strlen($row->city) > 0) {
+            $data[$state_name][] = array("nid"=>$row->nid,
+                "city"=>$row->city,
+                "street1"=>$row->street1,
+                "street2"=>$row->street2,
+                "state"=>$row->state,
+                "zip"=>$row->zip,
+                "phone"=>$row->phone,
+                "subdivision"=>$row->subdivision,
+                "email"=>$row->email);
+        }
+    }
+
+    $new_line ="\n";
+    $text = "<ASCII-WIN>".$new_line;
+
+    ksort($data);
+    foreach($data as $state=>$addresses) {
+        $text .= "<ParaStyle:CorpName>". $state . $new_line.$new_line;
+
+        foreach($addresses as $add) {
+            $text .= "<ParaStyle:CityState><CharStyle:Bold>" . $add["city"] . "<CharStyle:>" . $new_line;
+            if (isset($add['subdivision']) && strlen($add['subdivision']) > 0) {
+                $text .= "<ParaStyle:BodyText>" . $add['subdivision'] . $new_line;
+            }
+            else {
+                $text .= "<ParaStyle:BodyText>" . $new_line;
+            }
+            $text .= $add['street1'] . ' ' . $add['street2'] . $new_line;
+            $text .= $add["city"] . ", " .$add["state"] . " " . $add["zip"] . $new_line;
+
+            $phone_sql = "SELECT field_phone_number_value AS phone FROM field_data_field_phone_number WHERE entity_id=:nid";
+            $phone_res = db_query($phone_sql, array(":nid"=>$add['nid']));
+            foreach($phone_res as $phone_row) {
+                if (isset($phone_row->phone) && strlen($phone_row->phone) > 0) {
+                    $text .= _correct_phone_number($phone_row->phone) . $new_line;
+                }
+            }
+
+            if (isset($add["email"]) && strlen($add["email"]) > 0) {
+                $text .= "Email: " . $add["email"] . $new_line;
+            }
+            $text .= $new_line.$new_line;
+        }
+    }
+    return $text;
+}
+function _correct_phone_number($str){
+    $str = str_replace('Toll free:','',$str);
+    $str = strip_tags($str);
+    /* $str = strtolower($str);
+     $pattern = '/[A-Za-z]+/';
+
+     preg_match($pattern, $str, $matches);
+
+     if (isset($matches[0])) { // string exist
+
+         preg_match("/\d{3}-\d{3}-\d{4}/", $str, $phone_match);
+         if (isset($phone_match[0])) {
+             $phone_match = str_replace(array('(',')'),'', $phone_match[0]);
+             return ($phone_match);
+         }
+         preg_match("/\(\d{3}-\d{3}-\d{4}\)/", $str, $phone_match);
+         if (isset($phone_match[0])) {
+             $phone_match = str_replace(array('(',')'),'', $phone_match[0]);
+             return ($phone_match);
+         }
+     }*/
+    return $str;
+}
+function _get_states_abbr($abbr) {
+
+    $us_state_abbrevs_names = array(
+        'AL'=>'ALABAMA',
+        'AK'=>'ALASKA',
+        'AS'=>'AMERICAN SAMOA',
+        'AZ'=>'ARIZONA',
+        'AR'=>'ARKANSAS',
+        'CA'=>'CALIFORNIA',
+        'CO'=>'COLORADO',
+        'CT'=>'CONNECTICUT',
+        'DE'=>'DELAWARE',
+        'DC'=>'DISTRICT OF COLUMBIA',
+        'FM'=>'FEDERATED STATES OF MICRONESIA',
+        'FL'=>'FLORIDA',
+        'GA'=>'GEORGIA',
+        'GU'=>'GUAM GU',
+        'HI'=>'HAWAII',
+        'ID'=>'IDAHO',
+        'IL'=>'ILLINOIS',
+        'IN'=>'INDIANA',
+        'IA'=>'IOWA',
+        'KS'=>'KANSAS',
+        'KY'=>'KENTUCKY',
+        'LA'=>'LOUISIANA',
+        'ME'=>'MAINE',
+        'MH'=>'MARSHALL ISLANDS',
+        'MD'=>'MARYLAND',
+        'MA'=>'MASSACHUSETTS',
+        'MI'=>'MICHIGAN',
+        'MN'=>'MINNESOTA',
+        'MS'=>'MISSISSIPPI',
+        'MO'=>'MISSOURI',
+        'MT'=>'MONTANA',
+        'NE'=>'NEBRASKA',
+        'NV'=>'NEVADA',
+        'NH'=>'NEW HAMPSHIRE',
+        'NJ'=>'NEW JERSEY',
+        'NM'=>'NEW MEXICO',
+        'NY'=>'NEW YORK',
+        'NC'=>'NORTH CAROLINA',
+        'ND'=>'NORTH DAKOTA',
+        'MP'=>'NORTHERN MARIANA ISLANDS',
+        'OH'=>'OHIO',
+        'OK'=>'OKLAHOMA',
+        'OR'=>'OREGON',
+        'PW'=>'PALAU',
+        'PA'=>'PENNSYLVANIA',
+        'PR'=>'PUERTO RICO',
+        'RI'=>'RHODE ISLAND',
+        'SC'=>'SOUTH CAROLINA',
+        'SD'=>'SOUTH DAKOTA',
+        'TN'=>'TENNESSEE',
+        'TX'=>'TEXAS',
+        'UT'=>'UTAH',
+        'VT'=>'VERMONT',
+        'VI'=>'VIRGIN ISLANDS',
+        'VA'=>'VIRGINIA',
+        'WA'=>'WASHINGTON',
+        'WV'=>'WEST VIRGINIA',
+        'WI'=>'WISCONSIN',
+        'WY'=>'WYOMING',
+        'AE'=>'ARMED FORCES AFRICA \ CANADA \ EUROPE \ MIDDLE EAST',
+        'AA'=>'ARMED FORCES AMERICA (EXCEPT CANADA)',
+        'AP'=>'ARMED FORCES PACIFIC'
+    );
+    return $us_state_abbrevs_names[$abbr];
+}

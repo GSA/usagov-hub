@@ -1,0 +1,185 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function bake_terms_menu() {
+
+    $items['bake-ss-terms/ui'] = array(
+        'title' => 'S.S.-term Baker - UI',
+        'page callback' => 'bake_terms_bakeSsTerms',
+        'access arguments' => array(true),
+        'type' => MENU_CALLBACK,
+    );
+    $items['bake-ss-terms/trigger'] = array(
+        'title' => 'S.S.-term Baker - Trigger',
+        'page callback' => 'bake_terms_bakeSsTermsTrigger',
+        'access arguments' => array(true),
+        'type' => MENU_CALLBACK,
+    );
+    $items['bake-ss-terms/status'] = array(
+        'title' => 'S.S.-term Baker - Status',
+        'page callback' => 'bake_terms_bakeSsTermsStatus',
+        'access arguments' => array(true),
+        'type' => MENU_CALLBACK,
+    );
+
+    return $items;
+}
+
+function bake_terms_bakeSsTerms() {
+
+    return '
+        <div class="daMainArea">
+            <script>
+                function triggerTermBaker() {
+
+                    jQuery.get("/bake-ss-terms/trigger");
+
+                    jQuery(".daMainArea a").hide();
+                    jQuery(".daMainArea textarea").show();
+
+                    updateStatus();
+                }
+
+                function updateStatus() {
+                    jQuery.get("/bake-ss-terms/status", function ($data) {
+                        jQuery(".daMainArea textarea").val($data);
+                        setTimeout("updateStatus();", 1000);
+                    });
+                }
+            </script>
+
+            <textarea style="width: 100%; min-height: 150px; border: 1px solid lightgrey; display: none;">
+            </textarea>
+            <a href="javascript: triggerTermBaker(); void(0);">Click here to start the process</a>
+        <div>
+    ';
+}
+
+function bake_terms_bakeSsTermsStatus() {
+
+    @ob_end_clean();
+    while ( @ob_end_clean() );
+    print 'COMPLETED: '.variable_get('bake_terms_status', 'UNKNOWN');
+    exit();
+}
+
+function bake_terms_bakeSsTermsTrigger() {
+
+    // Break the send-notification fnctionality for this PHP-thread
+    global $conf;
+    $conf['udm_prod_domains'] = array();
+
+    variable_get('bake_terms_status', 'Initializing...');
+
+    $tids = getAllUsaAndGobiTids();
+    $tidCount = count($tids);
+    foreach ( $tids as $index => $tid ) {
+
+        setAllAssetsAndSort($tid);
+        variable_set('bake_terms_status', $index.'/'.$tidCount);
+    }
+
+    variable_set('bake_terms_status', 'Done');
+}
+
+/**
+ * array getAllUsaAndGobiTids()
+ *
+ * Returns an array of term-Ids to every Site-Structure-taxonomy-term under the USA.gov and 
+ * GobiernoUSA.gov branches.
+ */
+function getAllUsaAndGobiTids() {
+
+    // Get the vid for "Site Structure Taxonomy"
+    $vid = db_query("SELECT vid FROM taxonomy_vocabulary WHERE name = 'Site Structure Taxonomy' ")->fetchColumn();
+
+    $query = db_query("
+        SELECT tlt.tid
+        FROM taxonomy_tlt_name tlt
+        LEFT JOIN taxonomy_term_data ttd ON ( ttd.tid = tlt.tid )
+        WHERE
+            tlt.tlt_name IN ('GobiernoUSA.gov', 'USA.gov')
+            AND ttd.vid = {$vid}
+    ");
+
+    $results = $query->fetchAllAssoc('tid');
+    $tids = array_keys($results);
+
+    return $tids;
+}
+
+/**
+ * void setAllAssetsAndSort(int $termId)
+ * void setAllAssetsAndSort(object $term)
+ *
+ * Given a term-id or loaded-term, this function will find all the assets that could be associated
+ * with it, and "bake" the associate (like ticking the checkboxes in the "Asset Placement" on that 
+ * term's edit page).
+ *
+ * Thus function will then sort the assets as per Russell's original sorting-requirements
+ */
+function setAllAssetsAndSort($term) {
+
+    // Load the term if it hasent been already
+    if ( !is_object($term) ) {
+        $term = taxonomy_term_load($term);
+    }
+
+    // Get the Asset-Topics associated with this S.S.-tax-term
+    $topics = array();
+    foreach ( $term->field_asset_topic_taxonomy['und'] as $index => $tidContainter) {
+        $topics[] = $tidContainter['tid'];
+    }
+
+    // Get the node-ids [of assets] that are destined to be "baked" into the term
+    $nids = queryAssetsByTopicsAndSort($topics);
+
+    $term->field_asset_order_content['und'] = array();
+    foreach ( $nids as $nid ) {
+        $term->field_asset_order_content['und'][] = array(
+            'target_id' => $nid
+        );
+    }
+
+    taxonomy_term_save($term);
+}
+
+/**
+ * array queryAssetsByTopicsAndSort(array $topicIds)
+ *
+ * Returns an array of node-IDs, ordered in a specific order
+ */
+function queryAssetsByTopicsAndSort($topicIds = array()) {
+
+    // We require topic-IDs to work with (otherwise a PDO exception would occur)
+    if ( count($topicIds) === 0 ) {
+        return array();
+    }
+
+    $topicIds = implode(',', $topicIds);
+
+    $query = db_query("
+        SELECT att.entity_id AS entity_id
+        FROM field_data_field_asset_topic_taxonomy att
+        LEFT JOIN node n ON ( n.nid = att.entity_id )
+        LEFT JOIN field_data_field_priority p ON ( p.entity_id = att.entity_id )
+        LEFT JOIN field_data_field_archive_date ad ON ( ad.entity_id = att.entity_id )
+        WHERE 
+            field_asset_topic_taxonomy_tid IN ({$topicIds}) 
+            AND att.entity_type = 'node'
+        ORDER BY
+            IF( field_priority_value = 'Sticky', 1, 0 ) DESC, 
+            IF( field_priority_value = 'Sticky', n.title, 0 ) ASC, 
+            IF( ISNULL(field_archive_date_value), 0, 1 ) DESC,
+            field_archive_date_value ASC,
+            IF( field_priority_value = 'High', 1, 0 ) DESC,
+            field_priority_value ASC, 
+            n.title ASC
+    ");
+
+    $results = $query->fetchAllAssoc('entity_id');
+    $nids = array_keys($results);
+    return $nids;
+}

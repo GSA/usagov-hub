@@ -1,0 +1,236 @@
+<?php
+
+/*
+ * Implementation of hook_node_delete()
+ */
+function cmp_site_structure_taxonomy_node_delete($node){
+    _validate_remove_only_content_from_term($node);
+}
+
+function _validate_remove_only_content_from_term($node) {
+
+
+    if ($node != null && isset($node->field_asset_topic_taxonomy)) {
+
+        // find page which stores this term
+        $sql = "SELECT DISTINCT entity_id as sst_tid FROM field_data_field_asset_topic_taxonomy WHERE bundle = 'site_strucutre_taxonomy' AND field_asset_topic_taxonomy_tid = :asset_tid ";
+        $res = db_query($sql, array(':asset_tid'=>$node->field_asset_topic_taxonomy['und'][0]['tid']));
+    }
+}
+
+function cmp_site_structure_taxonomy_form_alter(&$form,&$form_state){
+    //dsm($form);
+
+    if (($form['#form_id'] == 'taxonomy_manager_form'
+            && isset($form['voc']['#value']->machine_name)
+            && $form['voc']['#value']->machine_name == 'site_strucutre_taxonomy')
+        || ($form['#form_id'] == 'taxonomy_form_term'
+            && isset($form['vocabulary_machine_name']['#value'])
+            && $form['vocabulary_machine_name']['#value'] == 'site_strucutre_taxonomy')
+    ){
+       drupal_add_js(drupal_get_path('module', 'cmp_site_structure_taxonomy') .'/cmp_sst.js');
+
+       if ($form['#form_id'] == 'taxonomy_manager_form'
+            && isset($form['voc']['#value']->machine_name)
+            && $form['voc']['#value']->machine_name == 'site_strucutre_taxonomy'){
+           $form['term_data']['field_directory_record_url']['und']['#options'] = _cmp_sst_get_dir_listing();
+
+           // set default value
+           if (isset($form['term_data']['#term']['field_directory_record_url']['und'][0]['value'])) {
+               $form['term_data']['field_directory_record_url']['und']['#default_value'][0] = $form['term_data']['#term']['field_directory_record_url']['und'][0]['value'];
+           }
+       }
+       else {
+           $form['field_directory_record_url']['und']['#options'] = _cmp_sst_get_dir_listing();
+           if ((isset($form['actions']['submit']['#value']) && $form['actions']['submit']['#value'] != 'Delete' ) && isset($form['#term']['field_directory_record_url']['und'][0]['value'])) {
+               $form['field_directory_record_url']['und']['#default_value'][0] = $form['#term']['field_directory_record_url']['und'][0]['value'];
+           }
+       }
+    }
+}
+
+function _cmp_sst_get_dir_listing() {
+
+    $ret = array();
+    $ret['_none'] = '-None-';
+
+    // A-Z list
+    foreach (range('A', 'Z') as $char) {
+        $ret['directory/'.strtolower($char)] = 'A-Z index - '.$char;
+    }
+
+    // alpha order name
+    $sql = "SELECT DISTINCT n.title, n.nid as page_url, LEFT(title,1) as letter, ao.field_alpha_order_name_value as ao_name, field_acronym_value as acronym
+                  FROM node n INNER JOIN field_data_field_for_use_by_text u ON u.entity_id=n.nid
+                  INNER JOIN field_data_field_directory_type d ON d.entity_id = n.nid AND field_directory_type_value LIKE 'Federal Agencies'
+                  INNER JOIN field_data_field_show_on_az_index az ON field_show_on_az_index_value='Yes' AND az.entity_id=n.nid
+                  INNER JOIN field_data_field_alpha_order_name ao ON ao.entity_id=n.nid AND LENGTH(field_alpha_order_name_value) > 0
+                  LEFT JOIN field_data_field_acronym ac ON ac.entity_id=n.nid "
+        ." WHERE n.status = 1 AND n.type ='directory_record_content_type' ORDER BY n.title";
+    $res = db_query($sql);
+
+    foreach($res as $row) {
+        //dsm($row);
+        $path = _cmp_sst_getUrlToDirectoryRecord($row->page_url); // Function defined in directory_pages.module
+        $ret[$path] = 'Federal - ' . $path;
+    }
+
+    $state_list = array('al'=>"alabama",'ak'=>"alaska",'az'=>"arizona",'ar'=>"arkansas",'ca'=>"california",'co'=>"colorado",'ct'=>"connecticut",'de'=>"delaware",'dc'=>"district of columbia",'fl'=>"florida",'ga'=>"georgia",'hi'=>"hawaii",'id'=>"idaho",'il'=>"illinois",'in'=>"indiana",'ia'=>"iowa",'ks'=>"kansas",'ky'=>"kentucky",'la'=>"louisiana",'me'=>"maine",'md'=>"maryland",'ma'=>"massachusetts",'mi'=>"michigan",'mn'=>"minnesota",'ms'=>"mississippi",'mo'=>"missouri",'mt'=>"montana",'ne'=>"nebraska",'nv'=>"nevada",'nh'=>"new hampshire",'nj'=>"new jersey",'nm'=>"new mexico",'ny'=>"new york",'nc'=>"north carolina",'nd'=>"north dakota",'oh'=>"ohio",'ok'=>"oklahoma",'or'=>"oregon",'pa'=>"pennsylvania",'ri'=>"rhode island",'sc'=>"south carolina",'sd'=>"south dakota",'tn'=>"tennessee",'tx'=>"texas",'ut'=>"utah",'vt'=>"vermont",'va'=>"virginia",'wa'=>"washington",'wv'=>"west virginia",'wi'=>"wisconsin",'wy'=>"wyoming", 'as' => 'american samoa', 'vi' => 'u.s. virgin islands', 'mp' => 'northern mariana islands', 'pr' => 'puerto rico', 'gu' => 'guam');
+
+    // consumer
+    foreach ( $state_list as $stateAcronym => $stateFullName ) {
+        $urlStateName = str_replace(' ', '-', strtolower($stateFullName));
+        $ret['state-consumer/'.$urlStateName] = 'Consumer - ' . ucwords($stateFullName);
+    }
+
+    // state
+    foreach ( $state_list as $stateAcronym => $stateFullName ) {
+        $ret['state-government/'.$stateAcronym] = 'State - ' . ucwords($stateFullName);
+    }
+
+    return $ret;
+}
+
+/**
+ * string _cmp_sst_getUrlToDirectoryRecord(int $nid)
+ * string _cmp_sst_getUrlToDirectoryRecord(object $node)
+ *
+ * !!NOTICE!! This function is copied over from usa_data_migration.module
+ * ANY CHANGE TO THIS FUNCTION SHOULD ALSO BE DONE TO THE FUNCTION IN USA_DATA_MIGRATION.MODULE
+ *
+ * Given a node-ID, this function returns a relative path (with a beginning slash)
+ * to the Directory-Record node. 
+ *
+ * Based on the directory record type, this will return:
+ *   /federal-agencies/<title converted to lower case with spaces converted to hyphens>
+ *   /state-consumer/<state name with spaces converted to hyphens in lowercase>
+ *   /state-government/<short state name with spaces converted to hyphens in lowercase>
+ *   or /directory/<alpha-order-name> 
+ */
+function _cmp_sst_getUrlToDirectoryRecord($n) {
+
+    // Load the node if it was not directly given to us
+    if ( gettype($n) === 'integer' || gettype($n) === 'string' ) {
+        $n = intval($n);
+        if ( $n > 0 ) {
+            $n = node_load($n);
+        } else {
+            $msg = 'Bad data given to '.__FUNCTION__;
+            error_log($msg);
+            drupal_set_message($msg, 'error', false);
+            return '/bad-data-'.__FUNCTION__;
+        }
+    }
+
+    // Determine which site we are running on (English or Spanish mode)
+    $siteName = variable_get('site_name', '');
+    if ( strpos(strtolower($siteName), 'gobierno') === false ) {
+        $englishMode = true;
+    } else {
+        $englishMode = false;
+    }
+
+    // Get the directory record-type
+    $dirRecordType = '- NO DATA -';
+    if ( !empty($n->field_directory_type['und'][0]['value']) ) {
+        $dirRecordType = $n->field_directory_type['und'][0]['value'];
+    }
+
+    // Get the URL-friendly version of the title, alpha-name, etc.
+    $urlAlphaOrderName = '!NotSetInCMP!';
+    if ( !empty($n->field_alpha_order_name['und'][0]['value']) ) {
+        $urlAlphaOrderName = $n->field_alpha_order_name['und'][0]['value'];
+        $urlAlphaOrderName = strtolower($urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace(' ', '-', $urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace('.', '-', $urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace(',', '-', $urlAlphaOrderName);
+    }
+    $urlTitle = '!NotSetInCMP!';
+    if ( !empty($n->title) ) {
+        $urlTitle = $n->title;
+        $urlTitle = strtolower($urlTitle);
+        $urlTitle = str_replace(' ', '-', $urlTitle);
+        $urlTitle = str_replace('.', '-', $urlTitle);
+        $urlTitle = str_replace(',', '-', $urlTitle);
+    }
+    $urlState = '!NotSetInCMP!';
+    if ( !empty($n->field_state['und'][0]['value']) ) {
+        $urlState = $n->field_state['und'][0]['value'];
+        $urlState = _cmp_sst_stateNameToAcronym($urlState);
+        $urlState = strtoupper($urlState);
+    }
+    $urlShortState = '!NotSetInCMP!';
+    if ( !empty($n->field_state['und'][0]['value']) ) {
+        $urlShortState = $n->field_state['und'][0]['value'];
+        $urlShortState = _cmp_sst_acronymToStateName($urlShortState);
+    }
+
+    // Based on the Directory-Record type, return an [alias] URL
+    switch ( strtolower($dirRecordType) ) {
+
+        case 'federal agencies';
+
+            return ( $englishMode ? '/federal-agencies/' : '/agencias-federales/') . $urlTitle;
+
+        case 'consumer organizations';
+        case 'government consumer protection offices';
+            
+            return ( $englishMode ? '/state-consumer/' : '/organizaciones-consumidor/') . $urlState;
+
+        case 'state government agencies';
+            
+            return ( $englishMode ? '/state-government/' : '/gobiernos-estatales/') . $urlShortState;
+
+        default:
+
+            return ( $englishMode ? '/directory/' : '/directorios/') . $urlAlphaOrderName;
+    }
+
+}
+
+
+/**
+ * mixed directory_pages_stateNameToAcronym(string $stateName, [mixed $whatToRetOnFail = false])
+ *
+ * Returns a 2-letter state-abbreviation based on input, or $whatToRetOnFail when not found.
+ */
+function _cmp_sst_stateNameToAcronym($stateName, $whatToRetOnFail = false) {
+
+    $stateName = trim($stateName);
+    $stateName = strtolower($stateName);
+
+    $state_list = array('al'=>"alabama",'ak'=>"alaska",'az'=>"arizona",'ar'=>"arkansas",'ca'=>"california",'co'=>"colorado",'ct'=>"connecticut",'de'=>"delaware",'dc'=>"district of columbia",'fl'=>"florida",'ga'=>"georgia",'hi'=>"hawaii",'id'=>"idaho",'il'=>"illinois",'in'=>"indiana",'ia'=>"iowa",'ks'=>"kansas",'ky'=>"kentucky",'la'=>"louisiana",'me'=>"maine",'md'=>"maryland",'ma'=>"massachusetts",'mi'=>"michigan",'mn'=>"minnesota",'ms'=>"mississippi",'mo'=>"missouri",'mt'=>"montana",'ne'=>"nebraska",'nv'=>"nevada",'nh'=>"new hampshire",'nj'=>"new jersey",'nm'=>"new mexico",'ny'=>"new york",'nc'=>"north carolina",'nd'=>"north dakota",'oh'=>"ohio",'ok'=>"oklahoma",'or'=>"oregon",'pa'=>"pennsylvania",'ri'=>"rhode island",'sc'=>"south carolina",'sd'=>"south dakota",'tn'=>"tennessee",'tx'=>"texas",'ut'=>"utah",'vt'=>"vermont",'va'=>"virginia",'wa'=>"washington",'wv'=>"west virginia",'wi'=>"wisconsin",'wy'=>"wyoming", 'as' => 'american samoa', 'vi' => 'u.s. virgin islands', 'mp' => 'northern mariana islands', 'pr' => 'puerto rico', 'gu' => 'guam');
+    $state_list = array_flip($state_list);
+
+    if ( empty($state_list[$stateName]) ) {
+        if ( in_array($stateName, $state_list) ) {
+            return $stateName;
+        } else {
+            return $whatToRetOnFail;
+        }
+    } else {
+        return strtoupper($state_list[$stateName]);
+    }
+}
+
+/**
+ * mixed directory_pages_acronymToStateName(string $stateAcronym, [mixed $whatToRetOnFail = false])
+ *
+ * Returns a 2-letter state-name based on input, or $whatToRetOnFail when not found.
+ */
+function _cmp_sst_acronymToStateName($acronym, $whatToRetOnFail = false) {
+
+    $acronym = strtolower($acronym);
+
+    $state_list = array('al'=>"alabama",'ak'=>"alaska",'az'=>"arizona",'ar'=>"arkansas",'ca'=>"california",'co'=>"colorado",'ct'=>"connecticut",'de'=>"delaware",'dc'=>"district of columbia",'fl'=>"florida",'ga'=>"georgia",'hi'=>"hawaii",'id'=>"idaho",'il'=>"illinois",'in'=>"indiana",'ia'=>"iowa",'ks'=>"kansas",'ky'=>"kentucky",'la'=>"louisiana",'me'=>"maine",'md'=>"maryland",'ma'=>"massachusetts",'mi'=>"michigan",'mn'=>"minnesota",'ms'=>"mississippi",'mo'=>"missouri",'mt'=>"montana",'ne'=>"nebraska",'nv'=>"nevada",'nh'=>"new hampshire",'nj'=>"new jersey",'nm'=>"new mexico",'ny'=>"new york",'nc'=>"north carolina",'nd'=>"north dakota",'oh'=>"ohio",'ok'=>"oklahoma",'or'=>"oregon",'pa'=>"pennsylvania",'ri'=>"rhode island",'sc'=>"south carolina",'sd'=>"south dakota",'tn'=>"tennessee",'tx'=>"texas",'ut'=>"utah",'vt'=>"vermont",'va'=>"virginia",'wa'=>"washington",'wv'=>"west virginia",'wi'=>"wisconsin",'wy'=>"wyoming", 'as' => 'american samoa', 'vi' => 'u.s. virgin islands', 'mp' => 'northern mariana islands', 'pr' => 'puerto rico', 'gu' => 'guam');
+
+    if ( empty($state_list[$acronym]) ) {
+        if ( in_array($acronym, $state_list) ) {
+            return $acronym;
+        } else {
+            return $whatToRetOnFail;
+        }
+    } else {
+        return $state_list[$acronym];
+    }
+}

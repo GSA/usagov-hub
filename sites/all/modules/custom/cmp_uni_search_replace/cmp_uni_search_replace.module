@@ -1,0 +1,538 @@
+<?php
+
+/*
+ * Implementation fo hook_menu()
+ */
+
+function cmp_uni_search_replace_menu() {
+    $items = array();
+    $items["admin/search_replace"]=array(
+        'title' => "Universal Search and Replace",
+        'page callback' => '_cmp_uni_search_replace_landing',
+        'access callback' => '_cmp_uni_search_replace_access',
+        'type' => MENU_NORMAL_ITEM
+    );
+    $items["admin/search_replace/result"]=array(
+        'title' => "Universal Search and Replace",
+        'page callback' => '_cmp_uni_search_replace_result',
+        'access callback' => '_cmp_uni_search_replace_access',
+        'type' => MENU_CALLBACK
+    );
+    $items["admin/search_replace/final"]=array(
+        'title' => "Universal Search and Replace",
+        'page callback' => '_cmp_uni_search_replace_final',
+        'access callback' => '_cmp_uni_search_replace_access',
+        'type' => MENU_CALLBACK
+    );
+    return $items;
+}
+
+function _cmp_uni_search_replace_access(){
+    global $user;
+    if ( !empty($user->roles) ) {
+        foreach ( $user->roles as $role ) {
+            switch ( $role ) {
+                case 'administrator':
+                case 'editor':
+                case 'usa administrator':
+                case 'content author':
+                case 'html author':
+                case 'ux member':
+                    return true;
+                default:
+                    // we dont return true here
+            }
+        }
+    }
+
+    return false;
+}
+
+function _cmp_uni_search_replace_result() {
+
+    $result = variable_get("search_result");
+    $ret = '';
+
+    if (count($result) > 0) {
+        // RENDER results
+        $ret = drupal_render(drupal_get_form('_cmp_result_form'));
+    }
+    return $ret;
+}
+
+function _cmp_uni_search_replace_landing() {
+
+    $ret = drupal_render(drupal_get_form('searchReplaceForm'));
+    return $ret;
+}
+
+function _cmp_result_form() {
+    // Start building Drupal form
+    $form = array();
+    $form['#submit'] = array('search_result_form_submit');
+    $form['#validate'] = array('search_result_form_validate');
+
+    // Content Type list
+    $form['search_results'] = array(
+        '#type' => 'fieldset',
+        '#title' => 'Search Results',
+        '#prefix' => "<div class='messages warning'> Search Text: <b>\"" . variable_get('search_text') . "\"</b></div>" ,
+        '#collapsible' => false,
+        '#collapsed' => false,
+    );
+    $result = variable_get("search_result");
+    $form['search_results']['check_all'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Check All',
+        '#default_value' => 0
+    );
+
+    foreach ( $result as $nid => $title) {
+
+        $form['search_results']['field_'.$nid] = array(
+            '#type' => 'checkbox',
+            '#title' => $title . ' <small><a href="/node/'.$nid.'/edit">Edit</a></small>',
+            '#default_value' => 0
+        );
+    }
+    $form['replace_str'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Replace'),
+        '#size' => 60,
+        '#maxlength' => 128,
+        '#required' => TRUE
+    );
+
+    $form['#attached']['js'] = array(
+        drupal_get_path('module', 'cmp_uni_search_replace') . '/cmp_uni_search_replace.js',
+    );
+
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#value' => 'Replace'
+    );
+
+    return $form;
+}
+
+function search_result_form_validate($form, $form_state) {
+
+    $selected_nids = array();
+    foreach ( $form_state['values'] as $formItemName => $formItemValue ) {
+
+       if (strpos($formItemName, 'field_') === 0 && intval($formItemValue) === 1 ) {
+           $names = explode('field_', $formItemName);
+           if (count($names) == 2) {
+               $selected_nids[] = $names[1];
+           }
+        }
+    }
+    if (count($selected_nids) == 0) {
+        form_set_error('search_results', 'Select contents to replace.');
+    }
+    else {
+        variable_set('replacing_nids', $selected_nids);
+    }
+}
+
+function search_result_form_submit($form, $form_state) {
+
+    //dsm(variable_get('search_text'));
+    //dsm(variable_get('replacing_nids'));
+    //dsm(variable_get('search_table_fields_mapping'));
+
+    $caseSensitive = variable_get('case_sensitive');
+    $replacingNids = variable_get('replacing_nids');
+    _cmp_uni_search_replace_ensureSpecialMysqlFunctExsists();
+
+    dsm( $replacingNids );
+
+    foreach ( variable_get('search_table_fields_mapping') as $table => $fields ) {
+
+        foreach( $fields as $field ) {
+
+            foreach ( $replacingNids as $nid ) {
+
+                $entityColumn = ( $table === 'node' ? 'nid' : 'entity_id' );
+
+                // Based on the data-table we are touching, determine the revision-table to touch
+                switch ( $table ) {
+                    case 'node':
+                        $revisionTable = 'node_revision';
+                        break;
+                    case 'field_data_body':
+                        $revisionTable = 'field_revision_body';
+                        break;
+                    default:
+                        $revisionTable = str_replace('field_data_field_', 'field_revision_field_', $table);
+                }
+
+                // Determine the queries based on weather or not the replacement should be done with case sensitivity
+                if ( $caseSensitive ) {
+                    $sqlData = "UPDATE {$table} SET {$field} = REPLACE({$field}, :search_str, :replace_str) WHERE {$entityColumn} = :nid";
+                    $sqlRevision = "UPDATE {$revisionTable} SET {$field} = REPLACE({$field}, :search_str, :replace_str) WHERE {$entityColumn} = :nid";
+                } else {
+                    $sqlData = "UPDATE {$table} SET {$field} = replace_ci({$field}, :search_str, :replace_str) WHERE {$entityColumn} = :nid";
+                    $sqlRevision = "UPDATE {$revisionTable} SET {$field} = replace_ci({$field}, :search_str, :replace_str) WHERE {$entityColumn} = :nid";
+                }
+
+                // Run the query to update the field_data_* table
+                db_query(
+                    $sqlData,
+                    array(
+                        ':search_str' => variable_get('search_text'),
+                        ':replace_str' => $form_state['values']['replace_str'],
+                        ':nid' => $nid
+                    )
+                );
+
+                // Run the query to update the field_revision_* table
+                db_query(
+                    $sqlRevision,
+                    array(
+                        ':search_str' => variable_get('search_text'),
+                        ':replace_str' => $form_state['values']['replace_str'],
+                        ':nid' => $nid
+                    )
+                );
+
+            }
+        }
+    }
+
+    // Clear the field cache
+    field_cache_clear();
+    entity_get_controller('node')->resetCache( $replacingNids );
+
+    // Pushed the effected nodes up into the Elastic search-index
+    foreach ( $replacingNids as $nid ) {
+        _cmp_uni_search_replace_pushNodesLatestRevisionIntoSearchIndex($nid);
+    }
+
+    variable_set('replace_text', $form_state['values']['replace_str']);
+    drupal_goto("admin/search_replace/final");
+}
+
+function _cmp_uni_search_replace_pushNodesLatestRevisionIntoSearchIndex($nid) {
+
+    // Get the latest revision-id for this node
+    $n = node_load($nid);
+    $nodeRevisions = array_keys( node_revision_list($n) );
+    $latestRevisonId = $nodeRevisions[0];
+
+    // Load the correct revision of this entity
+    $entities = array_values(entity_load(
+        'node',
+        array($nid),
+        array('vid' => $latestRevisonId)
+    ));
+    $entity = $entities[0];
+
+    /* Trigger HOOK_entity_update() within the search_api module. Effectively making 
+    the search_api module think that THIS $entity has been modified and that this $entity
+    should be pushed into the search index. */
+    search_api_entity_update($entity, 'node');
+}
+
+function _cmp_uni_search_replace_ensureSpecialMysqlFunctExsists() {
+
+    $link = _cmp_uni_search_replace_connectMySQL();
+    mysql_query("DROP FUNCTION IF EXISTS replace_ci");
+    mysql_query(
+        "CREATE FUNCTION `replace_ci` ( str TEXT,needle CHAR(255),str_rep CHAR(255))
+            RETURNS TEXT
+            DETERMINISTIC
+            BEGIN
+            DECLARE return_str TEXT DEFAULT '';
+            DECLARE lower_str TEXT;
+            DECLARE lower_needle TEXT;
+            DECLARE pos INT DEFAULT 1;
+            DECLARE old_pos INT DEFAULT 1;
+
+            IF needle = '' THEN
+            RETURN str;
+            END IF;
+
+            SELECT lower(str) INTO lower_str;
+            SELECT lower(needle) INTO lower_needle;
+            SELECT locate(lower_needle, lower_str, pos) INTO pos;
+            WHILE pos > 0 DO
+            SELECT concat(return_str, substr(str, old_pos, pos-old_pos), str_rep) INTO return_str;
+            SELECT pos + char_length(needle) INTO pos;
+            SELECT pos INTO old_pos;
+            SELECT locate(lower_needle, lower_str, pos) INTO pos;
+            END WHILE;
+            SELECT concat(return_str, substr(str, old_pos, char_length(str))) INTO return_str;
+            RETURN return_str;
+            END
+        ",
+        $link
+    );
+    mysql_close($link);
+}
+
+/*
+ * resource _cmp_uni_search_replace_connectMySQL()
+*
+ * Connects to the MySQL database that this Drupal instance is/will-be using
+ * This is meant to create a connection to the database that bypasses Drupal's db_query() and query alter hooks
+ */
+function _cmp_uni_search_replace_connectMySQL() {
+    $dbAuth = $GLOBALS["databases"]["default"]["default"];
+    $host = $dbAuth["host"];
+    $user = $dbAuth["username"];
+    $pass = $dbAuth["password"];
+    $port = $dbAuth["port"];
+    $db = $dbAuth["database"];
+    if ( !empty($port) ) {
+        $host .= ":" . $port;
+    }
+    $link = mysql_connect($host, $user, $pass);
+    mysql_select_db($db, $link);
+    return $link;
+}
+
+function _cmp_uni_search_replace_final() {
+    $ret = '';
+    $num = count(variable_get('replacing_nids'));
+
+    if ($num > 0) {
+        foreach(variable_get('replacing_nids') as $nid) {
+            // clear cache for specific nodes
+            cache_clear_all("field:node:$nid", 'cache_field');
+        }
+        $ret .= '<div class="messages warning">Search Text: <b>"' . variable_get('search_text') . '"</b> <br /> Replace Text: <b>"' . variable_get('replace_text') . '"</b> ';
+        $ret .= '<br/>' . $num . ' record' .($num == 1? " has":"s have") . ' been changed. </div>';
+        $ret .= views_embed_view("search_replace_result","block", implode("+",variable_get('replacing_nids')));
+    }
+
+    // unset global variables
+    unset_global_variables_used();
+    return $ret;
+}
+
+function unset_global_variables_used() {
+    variable_del('search_text');
+    variable_del('replace_text');
+    variable_del('search_table_fields_mapping');
+    variable_del('search_result');
+    variable_del('case_sensitive');
+}
+
+function searchReplaceForm() {
+
+    // Get information about all fields registered in this Drupal CMS
+    $fields = field_info_fields();
+
+    // Maps content-type [machine] names to field [machine] names
+    $contentTypeFields = array();
+    foreach ( $fields as $fieldMacName => $fieldInfo ) {
+
+        // Add to contentTypeFields map
+        if ( !empty($fieldInfo['bundles']['node']) ) {
+            foreach ( $fieldInfo['bundles']['node'] as $contTypeMacName ) {
+                if ( !isset($contentTypeFields[$contTypeMacName]) ) {
+                    $contentTypeFields[$contTypeMacName] = array();
+                }
+                $contentTypeFields[$contTypeMacName][] = $fieldMacName;
+            }
+        }
+    }
+
+    // Start building Drupal form
+    $form = array();
+    $form['#submit'] = array('searchReplaceForm_submit');
+    $form['#validate'] = array('searchReplaceForm_validate');
+
+    // Content Type list
+    $form['conttypes'] = array(
+        '#type' => 'fieldset',
+        '#title' => 'Content Types',
+        '#collapsible' => false,
+        '#collapsed' => false,
+    );
+    foreach ( $contentTypeFields as $contType => $contTypeFields) {
+        $type_obj = node_type_load($contType);
+        $name = $type_obj->name; #. ' <br/><small>' . $type_obj->description . '</small>';
+
+        $form['conttypes'][$contType] = array(
+            '#type' => 'checkbox',
+            '#title' => $name,
+            '#default_value' => 0
+        );
+    }
+
+    // Field list
+    $form['fields'] = array(
+        '#type' => 'fieldset',
+        '#title' => 'Content Type Fields',
+        '#collapsible' => false,
+        '#collapsed' => false,
+    );
+
+    // adding title field
+    $titleFieldFormItem = array(
+        '#type' => 'checkbox',
+        '#title' => 'title <br/><small><b>attached to</b>: All content types</small>',
+        '#default_value' => 0,
+        '#states' => array(
+            'visible' => array()
+        ),
+        '#weight'=>20
+    );
+
+    foreach ($contentTypeFields as $contType => $contTypeFields) {
+        if ( count($titleFieldFormItem['#states']['visible']) !== 0 ) {
+            $titleFieldFormItem['#states']['visible'][] = 'or';
+        }
+        $titleFieldFormItem['#states']['visible'][] = array(":input[name=\"{$contType}\"]" => array('checked' => true));
+    }
+
+    // adding title field
+    $form['fields']['title'] = $titleFieldFormItem;
+
+    $weight = 20;
+    foreach ( $fields as $fieldMacName => $fieldInfo ) {
+
+        // Ignore fields that are not attached to any content-type [nodesa]
+        if ( !empty($fieldInfo['bundles']['node']) ) {
+
+            // Ignore fields that are not text-fields
+            if (
+                !empty($fieldInfo['columns']['value']['type'])
+                && (
+                    $fieldInfo['columns']['value']['type'] === 'varchar'
+                    || $fieldInfo['columns']['value']['type'] === 'text'
+                )
+                && !in_array($fieldMacName, array('field_workflow_state_search'))
+                && !isset($fieldInfo['settings']['allowed_values'])
+            ) {
+
+                $content_type_names = "";
+                foreach($fieldInfo['bundles']['node'] as $type) {
+                    $type_obj = node_type_load($type);
+                    $fieldinfo = field_info_instance('node', $fieldMacName, $type);
+                    $content_type_names .= '<li>' . $fieldinfo['label'] . ' in ' . $type_obj->name . '</li>';
+                }
+                $weight++;
+                $checkboxTitle = $fieldMacName . ' <br/><small><b>attached to</b>: <ul>' . $content_type_names . '</ul></small>';
+                $newFieldFormItem = array(
+                    '#type' => 'checkbox',
+                    '#title' => $checkboxTitle,
+                    '#default_value' => 0,
+                    '#states' => array(
+                        'visible' => array()
+                    ),
+                    '#weight'=>$weight
+                );
+
+                foreach ( $fieldInfo['bundles']['node'] as $contTypeMacName ) {
+                    if ( count($newFieldFormItem['#states']['visible']) !== 0 ) {
+                        $newFieldFormItem['#states']['visible'][] = 'or';
+                    }
+                    $newFieldFormItem['#states']['visible'][] = array(":input[name=\"{$contTypeMacName}\"]" => array('checked' => true));
+                }
+
+                $form['fields'][$fieldMacName] = $newFieldFormItem;
+            }
+        }
+    }
+
+    $form['search_str'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Search'),
+        '#size' => 60,
+        '#maxlength' => 128,
+        '#required' => TRUE
+    );
+
+    $form['case_sensitivity'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Case Sensitive',
+        '#default_value' => 0
+    );
+
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#value' => 'Find'
+    );
+
+    return $form;
+}
+
+function searchReplaceForm_validate($form, $form_state) {
+
+    $queryJoins = array();
+    $queryWhere = array();
+    $search_field_tables = array();
+    $case_sensitive = '';
+
+    if ( intval($form_state['input']['case_sensitivity']) > 0 ) {
+        $case_sensitive = 'binary';
+    }
+
+    foreach ( $form_state['values'] as $formItemName => $formItemValue ) {
+
+        // If this form item is describing a field in Drupal, AND it's a ticked-checkbox...
+        if ($formItemName == 'body' && intval($formItemValue) === 1) {
+            $queryJoins[] = "LEFT JOIN field_data_body ON field_data_body.entity_id = n.nid ";
+            $queryWhere[] = "(InStr({$case_sensitive} body_value, :search_str) <> 0)"; //
+            $search_field_tables['field_data_body'] = array('body_summary', 'body_value');
+        }
+        elseif($formItemName == 'title' && intval($formItemValue) === 1) {
+            $queryWhere[] = "InStr( {$case_sensitive} n.title, :search_str) <> 0";
+            $search_field_tables['node'][] = 'title';
+        }
+        elseif (strpos($formItemName, 'field_') === 0 && intval($formItemValue) === 1 ) {
+            $queryJoins[] = "LEFT JOIN field_data_{$formItemName} ON field_data_{$formItemName}.entity_id = n.nid ";
+            $queryWhere[] = "InStr( {$case_sensitive} {$formItemName}_value, :search_str) <> 0";
+            $search_field_tables["field_data_{$formItemName}"][] = "{$formItemName}_value";
+        }
+    }
+
+    $fields = field_info_fields();
+    // adding content type filter
+    $selected_content_types = array();
+    foreach ( $fields as $fieldMacName => $fieldInfo ) {
+
+        // Add to contentTypeFields map
+        if ( !empty($fieldInfo['bundles']['node']) ) {
+            foreach ( $fieldInfo['bundles']['node'] as $contTypeMacName ) {
+                if (isset($form_state['values'][$contTypeMacName]) && $form_state['values'][$contTypeMacName]) {
+                    $selected_content_types[$contTypeMacName] = "'".$contTypeMacName."'";
+                }
+            }
+        }
+    }
+
+    if (count($queryWhere) > 0 && count($selected_content_types) > 0) {
+        $joins = implode($queryJoins, "\n        ");
+        $wheres = implode($queryWhere, "\n            OR ") ;
+
+        $grandQuery = "SELECT n.nid, n.title
+        FROM node n
+        " . ((!empty($joins))? $joins:'') . "
+        WHERE n.type IN (" . join(" , ", $selected_content_types) . ")" . ((!empty($wheres))? " AND (".$wheres.")":'');
+        $res = db_query($grandQuery, array(":search_str" => $form_state['values']['search_str']));
+
+        foreach ($res as $row) {
+            $ret[$row->nid] = $row->title;
+        }
+        if (count($ret) > 0) {
+            variable_set('search_result', $ret);
+            variable_set('search_text', $form_state['values']['search_str']);
+            variable_set('search_table_fields_mapping', $search_field_tables);
+            variable_set('case_sensitive', $form_state['case_sensitivity']);
+        }
+        else {
+            form_set_error('search_str', 'No Result found.');
+        }
+    }
+    else {
+        form_set_error('fields', 'Select at least one field.');
+    }
+}
+
+function searchReplaceForm_submit($form, $form_state) {
+    drupal_goto("admin/search_replace/result");
+}

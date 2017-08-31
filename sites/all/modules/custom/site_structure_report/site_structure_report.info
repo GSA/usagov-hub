@@ -1,0 +1,4 @@
+name = Site Structure Taxonomy Report
+description = Module will be used to generate site structure taxonomy report and export data into CSV file
+package = CTAC Custom
+core = 7.x

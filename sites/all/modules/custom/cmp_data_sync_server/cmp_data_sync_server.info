@@ -1,0 +1,9 @@
+name = CMP Data Sync Server
+description = Syncs data from CMP to Elasticsearch
+package = CTAC
+core = 7.x
+configure = admin/content/cmp-data-sync-server
+files[] = cmp_data_sync_server.queue.inc
+files[] = cmp_data_sync_server.module
+dependencies[] = bundle_copy
+dependencies[] = taxonomy_changed

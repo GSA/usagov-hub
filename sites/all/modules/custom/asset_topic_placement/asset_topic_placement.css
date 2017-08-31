@@ -1,0 +1,34 @@
+.group-asset-topic-placement .ervw-add-items,
+.group-homepage-container .ervw-add-items {
+  display: none !important;
+}
+.group-asset-topic-placement.term-count-0,
+.group-homepage-container.term-count-0 {
+  /*display: none !important;*/
+
+}
+.group-asset-topic-placement.term-processing,
+.group-homepage-container.term-processing {
+  background: url('/sites/all/modules/custom/asset_topic_placement/spinner.gif') no-repeat 50% 51%;
+  height: 150px;
+  display: block;
+}
+.group-asset-topic-placement.term-processing .fieldset-wrapper,
+.group-homepage-container.term-processing .fieldset-wrapper {
+  opacity: 0;
+}
+div.tabledrag-changed-warning.messages.warning,
+span.warning.tabledrag-changed {
+  display: none !important;
+}
+.drag-previous.odd {
+  background: #fff;
+}
+.drag-previous.even {
+  background: #f3f4ee;
+}
+
+input#refresh-content {
+    clear: both;
+    margin-top: 5px;
+    background-color: #9CD7F5;}

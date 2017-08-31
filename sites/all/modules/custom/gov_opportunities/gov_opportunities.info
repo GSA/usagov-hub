@@ -1,0 +1,6 @@
+name = Gov Opportunities
+description = Pulls Gov Opportunities into Elasticsearch
+package = CTAC
+core = 7.x
+configure = admin/content/gov_opportunities
+files[] = gov_opportunities.module

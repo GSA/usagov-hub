@@ -1,0 +1,4 @@
+name = CMP Import cleaning
+description = Module will be used for misc fix for CMP Project
+package = CTAC Custom
+core = 7.x

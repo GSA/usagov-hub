@@ -1,0 +1,45 @@
+<?php
+
+/**
+ * Implements hook_install().
+ */
+function cmp_soft_delete_install() {
+    //drupal_install_schema('cmp_soft_delete');
+}
+
+/**
+ * Implements hook_schema().
+ */
+function cmp_soft_delete_schema() {
+
+  $schema['node_deleted'] = array(
+      'fields' => array(
+          'nid' => array(
+            'type' => 'int',
+            'not null' => TRUE,
+            'default' => 0,
+            'no export' => TRUE,
+          ),
+          'deletion_uid' => array(
+            'type' => 'int',
+            'not null' => TRUE,
+            'default' => 0,
+            'no export' => TRUE,
+          ),
+          'deletion_timestamp' => array(
+            'type' => 'int',
+            'not null' => TRUE,
+            'default' => 0,
+            'no export' => TRUE,
+          ),
+          'deletion_state' => array(
+            'type' => 'varchar',
+            'length' => '20',
+            'default' => 'soft',
+            'no export' => TRUE,
+          ),
+      ),
+      'primary key' => array('nid')
+  );
+  return $schema;
+}

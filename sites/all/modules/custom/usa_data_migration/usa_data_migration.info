@@ -1,0 +1,9 @@
+name = USA Content Migration
+description = Migrates content from the USA.gov-DataEntry server (usagov.platform.gsa.gov) into this environment
+package = CTAC
+core = 7.x
+files[] = usa_data_migration.module
+files[] = usa_data_migration.client.inc
+files[] = usa_data_migration.server.inc
+configure = admin/content/usa-data-migration
+dependencies[] = bundle_copy

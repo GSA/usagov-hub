@@ -1,0 +1,283 @@
+<?php
+
+/**
+ * Implements HOOK_form_alter().
+ *
+ * A hacky way of hiding certain fields from the node-edit form form CMP-Feed nodes
+ */
+function cmp_feeds_form_alter(&$form, &$form_state, $form_id) {
+
+    if ( $form_id === 'cmp_feed_node_form' ) {
+
+        drupal_add_js(
+            "
+                jQuery(document).ready( function () {
+                    jQuery('.vertical-tabs strong:contains(\"URL path settings\")').parents('.vertical-tab-button').hide();
+                    jQuery('.vertical-tabs strong:contains(\"Comment settings\")').parents('.vertical-tab-button').hide();
+                    jQuery('.vertical-tabs strong:contains(\"Revision information\")').parents('.vertical-tab-button').hide();
+                });
+            ",
+            "inline"
+        );
+    }
+
+}
+
+/**
+ * Implements hook_node_insert()
+ *
+ * When a cmp_feed node is created, ensure the Friendly-URL field data is synched into its URL-alias
+ */
+function cmp_feeds_node_insert($node) {
+
+    if ( !empty($node->type) && $node->type === 'cmp_feed' ) {
+
+        // Can't do this now since HOOK_node_update is fiered before the save into MySQL so,...
+        register_shutdown_function('cmp_feeds_setCmpFeedsToFriendlyUrls');
+        register_shutdown_function('cmp_feeds_gotoLatestCmpFeed');
+    }
+}
+
+/**
+ * Implements hook_node_update()
+ *
+ * When a cmp_feed node is changed, ensure the Friendly-URL field data is synched into its URL-alias
+ */
+function cmp_feeds_node_update($node) {
+
+    if ( !empty($node->type) && $node->type === 'cmp_feed' ) {
+
+        // Can't do this now since HOOK_node_update is fiered before the save into MySQL so,...
+        register_shutdown_function('cmp_feeds_setCmpFeedsToFriendlyUrls');
+    }
+}
+
+/* A helper-function, redirects to the alias-path of the latest created CMP-Feed. */
+function cmp_feeds_gotoLatestCmpFeed() {
+
+    $nid = db_query("SELECT nid FROM node n WHERE n.type='cmp_feed' ORDER BY nid DESC LIMIT 1 ")->fetchColumn();
+    drupal_goto(drupal_get_path_alias('node/'.$nid));
+}
+
+/**
+ * Implements hook_theme().
+ *
+ */
+function cmp_feeds_theme() {
+
+    $modPath = rtrim(drupal_get_path('module', 'cmp_feeds'), '/').'/';
+    $themes = array();
+
+    // This impements directory_records_by_state.tpl.php
+    $themes['node__cmp_feed'] = array(
+        'template' => 'node--cmp_feed',
+        'path' => $modPath,
+        'variables' => array(),
+    );
+
+    return $themes;
+}
+
+/* implements HOOK_usa_data_migration_synched */
+function cmp_feeds_usa_data_migration_synched($entityType, $entityIds) {
+    if ( $entityType === 'nodes' ) {
+        cmp_feeds_setCmpFeedsToFriendlyUrls();
+    }
+}
+
+/* This function makes sure that the 'Friendly URL' field-value is used as 
+the alias-path for CMP-Feed nodes */
+function cmp_feeds_setCmpFeedsToFriendlyUrls() {
+
+    $records = db_query("
+        SELECT u.entity_id, u.field_friendly_url_value
+        FROM field_data_field_friendly_url u
+        WHERE u.entity_type = 'node' AND u.bundle = 'cmp_feed'
+    ");
+
+    foreach ( $records as $record ) {
+
+        $nid = $record->entity_id;
+
+        // Kill an alias that already exsists
+        db_query("DELETE FROM url_alias WHERE source = 'node/{$nid}' ");
+        drupal_clear_path_cache();
+
+        // Save new alias
+        $alias = trim($record->field_friendly_url_value);
+        $alias = str_replace('http://kids.usa.gov/', '', $alias);
+        $alias = str_replace('http://usa.gov/', '', $alias);
+        $alias = str_replace('http://', '', $alias);
+        $pathInfo = array(
+            'source' => 'node/'.$nid,
+            'alias' => ltrim($alias, '/'),
+        );
+
+        if ( $alias !== '' ) {
+            path_save($pathInfo);
+            error_log("Set alias path {$alias} for node {$nid}");
+        }
+    }
+
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ * thus, implements hook_preprocess_node().
+ *
+ * Triggers on theme('node'), all nodes, but does nothing unless the node 
+ * being themed is under the the cmp_feed content-type.
+ *
+ * Defines variables to be sent to the node--cmp_feed.tpl.php file.
+ */
+function cmp_feeds_preprocess_node(&$variables) {
+
+    // If theme('node') was called for theming a node under the 'cmp_feed' content-type...
+    if ( !empty($variables['node']) && $variables['node']->type === 'cmp_feed' ) {
+
+        $node = $variables['node'];
+        $output = false;
+        $variables['headContType'] = false;
+
+        $feedMode = $node->field_feed_type['und'][0]['value'];
+
+        switch ($feedMode) {
+            case 'RSS Feed':
+                $output = trim($node->field_feed_rss_markup['und'][0]['value']);
+                $variables['headContType'] = 'application/rss+xml';
+                break;
+            case 'JSON Feed':
+                $output = trim($node->field_json_feed_markup['und'][0]['value']);
+                $variables['headContType'] = 'application/json';
+                break;
+            default:
+                $output = 'ERROR - Unrecognized Feed-Type';
+                break;
+        }
+
+        // Handel general replacement-patterns
+        $output = str_replace('[title]', $node->title, $output);
+        $output = str_replace('[items]', cmp_feeds_renderFeedItems($feedMode, $node), $output, $output);
+        $output = str_replace('[description]', $node->body['und'][0]['value'], $output);
+        $output = str_replace('[request-path]', 'http://'.$_SERVER['HTTP_HOST'] . request_uri(), $output);
+
+        // Handel JSONP callback/jsoncallback replacement-pattern
+        $callback = 'null';
+        if ( !empty($_REQUEST['callback']) ) {
+            $callback = $_REQUEST['callback'];
+        }
+        if ( !empty($_REQUEST['jsoncallback']) ) {
+            $callback = $_REQUEST['jsoncallback'];
+        }
+        $output = str_replace('[callback]', $callback, $output);
+
+        // Expose the $output variable to the ~.tpl file
+        $variables['output'] = $output;
+
+    }
+}
+
+function cmp_feeds_renderFeedItems($feedMode, $feedNode) {
+
+    $retMarkups = array();
+
+    if ( !empty($feedNode->field_feed_items['und']) ) {
+        foreach ( $feedNode->field_feed_items['und'] as $nidContainer ) {
+            $nodeItem = node_load($nidContainer['target_id']);
+            $retMarkups[] = cmp_feeds_renderFeedItem($feedMode, 'node_feeditem', $nodeItem);
+        }
+    }
+
+    if ( !empty($feedNode->field_feed_items_terms['und']) ) {
+        foreach ( $feedNode->field_feed_items_terms['und'] as $tidContainer ) {
+            $termItem = taxonomy_term_load($tidContainer['target_id']);
+            $retMarkups[] = cmp_feeds_renderFeedItem($feedMode, 'term_site_structure', $termItem);
+        }
+    }
+
+    if ( $feedMode == 'RSS Feed' ) {
+        return trim(implode('', $retMarkups));
+    } else {
+        return trim(implode(',', $retMarkups));
+    }
+    
+}
+
+function cmp_feeds_renderFeedItem($feedMode, $itemType, $itemEntity) {
+
+    $retItemMarkup = '';
+
+    // Define template
+    switch ($feedMode) {
+        case 'RSS Feed':
+            $retItemMarkup = "
+<item>
+    <title>[title]</title>
+    <pubDate>[pubDate]</pubDate>
+    <link>[link]</link>
+    <description>[description]</description>
+</item>";
+            break;
+        case 'JSON Feed':
+            $retItemMarkup = '
+{
+    "ARTICLE": "CONTENT FLAG SET TO NO",
+    "LASTUPDATE": "[pubDate]",
+    "TITLE": "[title]",
+    "URL": "[link]"
+}';
+            break;
+    }
+
+    // Plug in data into template
+    switch ($itemType) {
+        case 'node_feeditem':
+            $dt = new DateTime($itemEntity->field_feed_item_pubdate['und'][0]['value']);
+            $retItemMarkup = str_replace('[title]', $itemEntity->title, $retItemMarkup);
+            $retItemMarkup = str_replace('[pubDate]', ($dt->format( $feedMode == 'RSS Feed' ? 'M d, Y H:i:s' : 'm/d/Y') ), $retItemMarkup);
+            $retItemMarkup = str_replace('[link]', $itemEntity->field_feed_item_link['und'][0]['value'], $retItemMarkup);
+            $retItemMarkup = str_replace('[description]', $itemEntity->body['und'][0]['value'], $retItemMarkup);
+            break;
+        case 'term_site_structure':
+            
+            // Get the date of the last time this term was updated/changed
+            $updateUnixTime = db_query("SELECT changed FROM taxonomy_dates WHERE tid=".$itemEntity->tid)->fetchColumn();
+            if ( $updateUnixTime === false ) {
+                $updateUnixTime = time();
+            }
+
+            // Get the taxonomy-term's top-level parent item, in order to tell which domain the link should point to
+            $termParents = taxonomy_get_parents_all($itemEntity->tid);
+            $termTopParent = array_pop($termParents);
+            switch ( strtolower($termTopParent->name) ) {
+                case 'usa.gov':
+                    $linkDomain = 'http://usa.gov/';
+                    break;
+                case 'kids.gov':
+                    $linkDomain = 'http://kids.usa.gov/';
+                    break;
+                case 'gobiernousa.gov':
+                    $linkDomain = 'http://www.usa.gov/gobiernousa/';
+                    break;
+                default:
+                    $linkDomain = '!ERROR!(Unrecognized Top Level Taxonomy Term)!/ERROR!';
+            }
+
+            // Parse out the URL-path from the "Friendly URL" (this field value may or may not be a full absolute-path)
+            $friendlyUrl = $itemEntity->field_friendly_url['und'][0]['value'];
+            if ( strpos($friendlyUrl, 'http://') === 0 || strpos($friendlyUrl, 'https://') === 0 ) {
+                $friendlyUrl = parse_url($friendlyUrl, PHP_URL_PATH);
+            }
+
+            // Concatenate the full link-target
+            $linkTarget = $linkDomain . ltrim($friendlyUrl, '/');
+
+            $retItemMarkup = str_replace('[title]', $itemEntity->field_page_title['und'][0]['value'], $retItemMarkup);
+            $retItemMarkup = str_replace('[pubDate]', date( ($feedMode == 'RSS Feed' ? 'M d, Y H:i:s' : 'm/d/Y'), $updateUnixTime), $retItemMarkup);
+            $retItemMarkup = str_replace('[link]', $linkTarget, $retItemMarkup);
+            $retItemMarkup = str_replace('[description]', $itemEntity->description, $retItemMarkup);
+            break;
+    }
+
+    return $retItemMarkup;
+}

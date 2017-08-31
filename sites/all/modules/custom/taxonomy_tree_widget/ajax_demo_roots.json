@@ -1,0 +1,4 @@
+[
+  { "id" : "usa_gov", "text" : "USA.gov", "children" : true, "type" : "root" },
+  { "id" : "kids_usa_gov", "text" : "Kids.USA.gov", "type" : "root" }
+]

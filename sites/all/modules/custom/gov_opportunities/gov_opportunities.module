@@ -1,0 +1,532 @@
+<?php
+
+require_once dirname(__FILE__) . '/lib/importer.class.php';
+// require_once drupal_get_path('module', 'gov_opportunities') .'/lib/mappings.php';
+
+function gov_opportunities_menu()
+{
+    $items = [];
+    // Configuration page
+    $items['admin/content/gov_opportunities'] = [
+      'title' => 'Gov Opportunities',
+      'description' => 'Settings',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => ['gov_opportunities_config_form'],
+      'access arguments' => ['administer government opportunities data'],
+      'type' => MENU_NORMAL_ITEM,
+      'file' => 'gov_opportunities.admin.inc',
+    ];
+    $items['admin/content/gov_opportunities/api/validate_elasticsearch'] = [
+      'title' => 'Validate Elasticsearch',
+      'description' => 'Validate Elasticsearch',
+      'page callback' => '_govopp_ajax_validate_elasticsearch',
+      'access arguments' => ['administer government opportunities data'],
+      'type' => MENU_CALLBACK,
+      'file' => 'gov_opportunities.admin.inc',
+    ];
+    $items['admin/content/gov_opportunities/api/setup_elasticsearch'] = [
+      'title' => 'Setup Elasticsearch',
+      'description' => 'Setup Elasticsearch',
+      'page callback' => '_govopp_ajax_setup_elasticsearch',
+      'access arguments' => ['administer government opportunities data'],
+      'type' => MENU_CALLBACK,
+      'file' => 'gov_opportunities.admin.inc',
+    ];
+    $items['admin/content/gov_opportunities/api/remove_closed'] = [
+      'title' => 'Remove Opportunities that have closed',
+      'description' => 'Remove Opportunities that have closed',
+      'page callback' => '_govopp_ajax_remove_closed',
+      'access arguments' => ['administer government opportunities data'],
+      'type' => MENU_CALLBACK,
+      'file' => 'gov_opportunities.admin.inc',
+    ];
+    $items['admin/content/gov_opportunities/api/pull_fbo_full'] = [
+      'title' => 'Import Opportunities from Full XML Dump',
+      'description' => 'Import Opportunities from Full XML Dump',
+      'page callback' => '_govopp_ajax_pull_fbo_full',
+      'access arguments' => ['administer government opportunities data'],
+      'type' => MENU_CALLBACK,
+      'file' => 'gov_opportunities.admin.inc',
+    ];
+    $items['admin/content/gov_opportunities/api/pull_fbo_daily/%'] = [
+      'title' => 'Import Opportunities from Daily XML Dump',
+      'description' => 'Import Opportunities from Daily XML Dump',
+      'page callback' => '_govopp_ajax_pull_fbo_daily',
+      'page arguments' => [5],
+      'access arguments' => ['administer government opportunities data'],
+      'type' => MENU_CALLBACK,
+      'file' => 'gov_opportunities.admin.inc',
+    ];
+    $items['admin/content/gov_opportunities/api/list_daily_fbo_files'] = [
+      'title' => 'List available daily files for FBO import',
+      'description' => 'List available daily files for FBO import',
+      'page callback' => '_govopp_ajax_list_daily_fbo_files',
+      'access arguments' => ['administer government opportunities data'],
+      'type' => MENU_CALLBACK,
+      'file' => 'gov_opportunities.admin.inc',
+    ];
+    $items['admin/content/gov_opportunities/api/pull_grants'] = [
+      'title' => 'Full Site Sync',
+      'description' => 'Send all content to Elasticsearch',
+      'page callback' => '_govopp_ajax_pull_grants',
+      'access arguments' => ['administer government opportunities data'],
+      'type' => MENU_CALLBACK,
+      'file' => 'gov_opportunities.admin.inc',
+    ];
+    return $items;
+}
+
+function gov_opportunities_permission()
+{
+    return [
+      'administer government opportunities data' => [
+        'title' => t('Administer Government Opportunities Data'),
+      ],
+    ];
+}
+
+/// drupal hooks
+
+function gov_opportunities_init()
+{
+    global $conf;
+    $conf['govopp_elasticsearch_server'] = _govopp_elasticsearch_server();
+}
+
+function gov_opportunities_cronapi($op,$job=null)
+{
+//   $items['govopp_pull_fbo_daily'] = array(
+//     'callback' => '_govopp_cron_pull_fbo_daily',
+//     'description' => 'FBOpen Sync Daily',
+//     'rule' => '0 3 * * *',
+//   );
+  $items['govopp_pull_fbo_full'] = array(
+    'callback' => '_govopp_cron_pull_fbo_full',
+    'description' => 'FBOpen Sync Weekly',
+    'rule' => '0 2 * * *',
+  );
+  return $items;
+}
+
+function _govopp_cron_pull_fbo_daily()
+{
+    _govopp_finish_request(false);
+    $dateString = date('Ymd',strtotime('yesterday'));
+    $dateString = str_ireplace('FBOFeed', '', $dateString);
+    $time = strtotime($dateString);
+    if ($time === false) {
+        return;
+    }
+    $fbo = new FBOXMLImport();
+    $fbo->setElasticsearchHost(variable_get('govopp_elasticsearch_server'));
+    $fbo->setFilename('FBOFeed' . date('Ymd', $time));
+    if (!$fbo->remoteFileExists()) {
+        return;
+    }
+    $fbo->processFile();
+    $fbo->removeClosedOpportunities();
+    $fbo->removeOldOpportunities();
+    $fbo->removeOldDownloadedFiles();
+
+}
+
+function _govopp_cron_pull_fbo_full()
+{
+    _govopp_finish_request(false);
+    // _govopp_long_running_process();
+    $fbo = new FBOXMLImport();
+    $fbo->setElasticsearchHost(variable_get('govopp_elasticsearch_server'));
+    $fbo->setFilename('Full');
+    $fbo->setCommandline(true);
+    if ( !$fbo->remoteFileExists() ) {
+      error_log('FBOpen '.__FUNCTION__.' '.__LINE__);
+      return;
+    }    
+    $fbo->processFile();
+    $fbo->removeClosedOpportunities();
+    $fbo->removeOldOpportunities();
+    $fbo->removeOldDownloadedFiles();
+
+    // error_log('FBOpen '.__FUNCTION__.' '.__LINE__);
+}
+
+/// setup functions
+function _govopp_validate_elasticsearch()
+{
+    $fbo = new FBOXMLImport();
+    $fbo->setElasticsearchHost(variable_get('govopp_elasticsearch_server'));
+    return [
+      'server' => $fbo->validateElasticsearch(),
+      'index' => $fbo->validateElasticsearchIndex(),
+    ];
+}
+
+function _govopp_setup_elasticsearch()
+{
+    $fbo = new FBOXMLImport();
+    $fbo->setElasticsearchHost(variable_get('govopp_elasticsearch_server'));
+    return $fbo->setupElasticsearch();
+}
+
+function _govopp_teardown_elasticsearch()
+{
+    $fbo = new FBOXMLImport();
+    $fbo->setElasticsearchHost(variable_get('govopp_elasticsearch_server'));
+    return $fbo->teardownElasticsearch();
+}
+
+function _govopp_setup_drupal()
+{
+    if (variable_get('govopp_syncing_enabled') === null) {
+        variable_set('govopp_syncing_enabled', false);
+    }
+    if (variable_get('govopp_elasticsearch_server') === null) {
+        variable_set('govopp_elasticsearch_server', _govopp_elasticsearch_server());
+    }
+}
+
+function _govopp_teardown_drupal()
+{
+    variable_del('govopp_syncing_enabled');
+    variable_del('govopp_elasticsearch_server');
+    return true;
+}
+
+/// action functions
+function _govopp_ajax_validate_elasticsearch()
+{
+    $result = _govopp_validate_elasticsearch();
+    $result['called'] = __FUNCTION__;
+    drupal_json_output($result);
+}
+
+function _govopp_ajax_setup_elasticsearch()
+{
+    $result = _govopp_validate_elasticsearch();
+    if (!empty($result['server']) && empty($result['index'])) {
+        _govopp_setup_elasticsearch();
+    }
+    _govopp_ajax_validate_elasticsearch();
+}
+
+function _govopp_ajax_pull_fbo_full()
+{
+    $fbo = new FBOXMLImport();
+    $fbo->setElasticsearchHost(variable_get('govopp_elasticsearch_server'));
+    $fbo->setFilename('Full');
+    if ( !$fbo->remoteFileExists() ) {
+      drupal_json_output([ 'success'=>false, 'message'=>'File not found: '.$fbo->filename]);
+      return;
+    }
+    // $alreadyImporting = _govopp_check_process($fbo->filename);
+    // if ( !empty($alreadyImporting) ) {
+    //   drupal_json_output([ 'success'=>true, 'message'=>'Already Importing '.$fbo->filename ]);
+    //   return;
+    // }
+    drupal_json_output(['success' => true, 'message' => 'Importing Full File']);
+    
+    _govopp_finish_request();
+    $fbo->processFile();
+    /// run all daily files since full file was created
+    $fbo->removeClosedOpportunities();
+    $fbo->removeOldOpportunities();
+    $fbo->removeOldDownloadedFiles();
+
+    // _govopp_log("FOUND: " . count($fbo->opportunities));
+    // _govopp_log("MEMORY: " . $fbo->getNiceSize(memory_get_peak_usage(), true));
+}
+
+function _govopp_ajax_pull_fbo_daily($dateString = null)
+{
+
+    // drupal_json_output([
+    //       'success' => false,
+    //       'message' => 'TURNED OFF',
+    //     ]);
+    //     return;
+
+    $dateString = str_ireplace('FBOFeed', '', $dateString);
+    $time = strtotime($dateString);
+    if ($time === false) {
+        drupal_json_output([
+          'success' => false,
+          'message' => 'bad format YYYYMMDD',
+        ]);
+        return;
+    }
+    $fbo = new FBOXMLImport();
+    $fbo->setElasticsearchHost(variable_get('govopp_elasticsearch_server'));
+    $fbo->setFilename('FBOFeed' . date('Ymd', $time));
+    if (!$fbo->remoteFileExists()) {
+        drupal_json_output([
+          'success' => false,
+          'message' => 'File not found: ' . $fbo->filename,
+        ]);
+        return;
+    }
+
+    // $alreadyImporting = _govopp_check_process($fbo->filename);
+    // if ( !empty($alreadyImporting) ) {
+    //   drupal_json_output([ 'success'=>true, 'message'=>'Already Importing '.$fbo->filename ]);
+    //   return;
+    // }
+
+    drupal_json_output([
+      'success' => true,
+      'message' => 'Importing ' . $fbo->filename,
+    ]);
+    _govopp_finish_request();
+    $fbo->processFile();
+    $fbo->removeClosedOpportunities();
+    $fbo->removeOldOpportunities();
+    $fbo->removeOldDownloadedFiles();
+
+}
+
+function _govopp_ajax_remove_closed($dateString = null)
+{
+    $fbo = new FBOXMLImport();
+    $fbo->setElasticsearchHost(variable_get('govopp_elasticsearch_server'));
+    $result = $fbo->removeClosedOpportunities();
+    drupal_json_output([
+      'success' => $result,
+      'message' => 'Removing closed Opportunities',
+    ]);
+}
+
+function _govopp_ajax_list_daily_fbo_files()
+{
+    $fbo = new FBOXMLImport();
+    $dailyFiles = $fbo->listFBODailyFiles();
+    drupal_json_output($dailyFiles);
+}
+
+function _govopp_ajax_pull_grants()
+{
+    drupal_json_output([
+      'success' => false,
+      'message' => 'not implemented',
+    ]);
+}
+
+
+function _govopp_elasticsearch_server()
+{
+    $host = variable_get('elasticsearch_server');
+    $port = variable_get('elasticsearch_port');
+    $ssl  = variable_get('elasticsearch_ssl', false);
+    if ( boolval($ssl)===false || ( is_string($ssl) && strlen($ssl)>0 && in_array(strtolower($ssl{0}),['n','f']) ) ) {
+        $ssl = false;
+    } else {
+        $ssl = true;
+    }
+    $scheme = ( $port=='443' || $ssl ) ? 'https' : 'http';
+    // dsm(['scheme'=>$scheme,'host'=>$host,'port'=>$port,'ssl'=>$ssl,'server'=> variable_get('govopp_elasticsearch_server')]);
+    return $scheme .'://'. $host . ':'. $port;
+}
+/// process management
+
+// only rule: don't double process a file (only one process per file at a time)
+// means that a bad read could lock up a file for a while
+/*
+function _govopp_list_processes()
+{
+    $result = db_query("
+        SELECT
+        `filename`, `start`, `update`, `server`, `pid`
+        FROM {govopp_processes}
+    ");
+    $processes = [];
+    $time = time();
+    while ($process = $result->fetchAssoc($result)) {
+        $process->since_start = $time - $process->start;
+        $process->since_update = $time - $process->start;
+        $processes[] = $process;
+    }
+    return $processes;
+}
+
+function _govopp_check_process($filename = null)
+{
+    if (empty($filename)) {
+        return null;
+    }
+    $result = db_query("
+        SELECT *
+        FROM {govopp_processes}
+        WHERE filename=:filename
+    ", [
+      ':filename' => $filename,
+    ]);
+    $processes = [];
+    $time = time();
+    while ($process = $result->fetchAssoc($result)) {
+        $process->since_start = $time - $process->start;
+        $process->since_update = $time - $process->start;
+        $processes[] = $process;
+    }
+    return $processes;
+}
+
+function _govopp_register_process($filename = null)
+{
+    $time = time();
+    $server = !empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'drush';
+    $trx = db_transaction();
+    $result = db_query("
+        REPLACE INTO {govopp_processes}
+        VALUES (:filename, :start, :update, :server, :pid)
+    ", [
+      ':filename' => $filename,
+      ':start' => $time,
+      ':update' => $time,
+      ':server' => $server,
+      ':pid' => getmypid(),
+    ]);
+    db_query("COMMIT");
+    try {
+        unset($trx);
+    } catch (Exception $e) {
+        /// pass
+    }
+    return $result;
+}
+
+function _govopp_unregister_process()
+{
+    $server = !empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'drush';
+    $trx = db_transaction();
+    $result = db_query("
+        UPDATE {govopp_processes}
+        SET `update`=0
+        WHERE `server`=:server AND `pid`=:pid
+    ", [
+      ':server' => $server,
+      ':pid' => getmypid(),
+    ]);
+    db_query("COMMIT");
+    try {
+        unset($trx);
+    } catch (Exception $e) {
+        /// pass
+    }
+    return $result;
+    // $result = db_query("
+    //   DELETE FROM {govopp_processes}
+    //   WHERE server=:server AND pid=:pid
+    // ",array(
+    //   ':server'=>$_SERVER['HOSTNAME'],
+    //   ':pid'=>getmypid()
+    // ));
+    // return $result;
+}
+
+function _govopp_touch_process()
+{
+    $server = !empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'drush';
+    $trx = db_transaction();
+    $result = db_query("
+        UPDATE {govopp_processes}
+        SET `update`=:update
+        WHERE `server`=:server AND `pid`=:pid
+    ", [
+      ':update' => time(),
+      ':server' => $server,
+      ':pid' => getmypid(),
+    ]);
+    db_query("COMMIT");
+    try {
+        unset($trx);
+    } catch (Exception $e) {
+        /// pass
+    }
+    return $result;
+}
+
+function _govopp_clear_processes()
+{
+    $timeout = strtotime('-60 Minutes');
+    $trx = db_transaction();
+    $result = db_query("
+        DELETE FROM {govopp_processes}
+        WHERE `start`<=:timeout
+    ", [
+      ':timeout' => $timeout,
+    ]);
+    db_query("COMMIT");
+    try {
+        unset($trx);
+    } catch (Exception $e) {
+        /// pass
+    }
+    return $result;
+}
+*/
+
+/// logging
+
+function _govopp_log($message, $destination = 'php')
+{
+    if ($destination == 'php') {
+        watchdog('GOVOPP', $message);
+        error_log($message);
+        // error_log($message."\n",3,'/var/www/cmp/error.log');
+    } else {
+        if ($destination == 'slack'
+          && function_exists('slack_send_message')
+          && in_array(
+            strtolower(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')),
+            [
+              'production',
+              'prod',
+              'prd',
+              'staging',
+              'stage',
+              'stg',
+              'testing',
+              'test',
+              'tst',
+            ])
+        ) {
+            slack_send_message(
+              slack_get_default_webhook_url(),
+              $message,
+              "#cmp-notify",
+              $_SERVER['HTTP_HOST'],
+              ['type' => '', 'icon' => 0, 'emoji' => 0]
+            );
+        }
+    }
+}
+
+$GLOBALS['_govopp_finished_request'] = false;
+function _govopp_finish_request($flush_output=true)
+{
+    if (!empty($GLOBALS['_govopp_finished_request'])) {
+        return;
+    }
+    $GLOBALS['_govopp_finished_request'] = true;
+    ignore_user_abort(1);
+    if ( $flush_output ) {
+        while (@ob_get_level() > 0) {
+            @ob_end_flush();
+        }
+        @ob_flush();
+        @flush();
+    }
+    if ( function_exists('fastcgi_finish_request') ) {
+        fastcgi_finish_request();
+    }
+    _govopp_long_running_process();
+}
+
+function _govopp_long_running_process()
+{
+    $minutes_to_process = 120;
+    if (session_id()) {
+        session_write_close();
+    }
+    set_time_limit($minutes_to_process * 60);
+    ini_set('max_execution_time', $minutes_to_process * 60);
+    ini_set('memory_limit', -1);
+}

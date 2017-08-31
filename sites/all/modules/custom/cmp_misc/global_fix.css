@@ -1,0 +1,35 @@
+.report-tree ul {
+    list-style: none !important;
+
+}
+.view-display-id-summarized_report_page li {
+    background-position: 0 1px;
+    background-repeat: no-repeat;
+    margin-bottom: 10px;
+}
+.report-tree a {
+
+}
+
+.report-tree .collapsable {
+    background-image: url(images/tv-collapsable.gif);
+}
+
+.report-tree .expandable {
+    background-image: url(images/tv-expandable.gif);
+}
+
+body.page-node-add div#edit-field-workflow-state-search,
+body.page-node-edit div#edit-field-workflow-state-search {
+	display: none;
+}
+
+/* hide menu flyouts for the autoload spellcheck on wysiwyg editors */
+body.hideScaytButtons .cke_menu_panel{
+	display:none;
+}
+
+input[name$="[value][time]"] + .description::after,
+.timeEntry_wrap + .description::after{
+	content: " - Use 24 Hour Format";
+}

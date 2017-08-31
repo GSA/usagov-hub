@@ -1,0 +1,68 @@
+<?php
+
+
+function gov_opportunities_uninstall()
+{
+    module_load_include('module', 'gov_opportunities', 'gov_opportunities');
+    _govopp_teardown_drupal();
+    // if ( _govopp_validate_elasticsearch_server() )
+    // {
+    //   _govopp_teardown_elasticsearch();
+    // }
+}
+
+function gov_opportunities_enable()
+{
+    module_load_include('module', 'gov_opportunities', 'gov_opportunities');
+    _govopp_setup_drupal();
+    if ( !_govopp_validate_elasticsearch() )
+    {
+      _govopp_setup_elasticsearch();
+    }
+}
+
+// function gov_opportunities_install()
+// {
+// }
+// function gov_opportunities_disable()
+// {
+// }
+// function gov_opportunities_schema()
+// {
+//   $schema['govopp_processes'] = array(
+//     'description' => 'Tacking running processes importing FBO Data.',
+//     'fields' => array(
+//       'filename' => array(
+//         'description' => 'File being processed.',
+//         'type' => 'char',
+//         'length' => 36,
+//         'not null' => TRUE
+//       ),
+//       'start' => array(
+//         'description' => 'Time of start.',
+//         'type' => 'int',
+//         'not null' => TRUE,
+//       ),
+//       'update' => array(
+//         'description' => 'Time of last communication.',
+//         'type' => 'int',
+//         'not null' => TRUE,
+//       ),
+//       'server' => array(
+//         'description' => 'Server Identification.',
+//         'type' => 'varchar',
+//         'length' => 255,
+//         'not null' => FALSE,
+//         'default' => 'drush',
+//       ),
+//       'pid' => array(
+//         'description' => 'Process ID',
+//         'type' => 'int',
+//         'not null' => TRUE,
+//       ),
+//     ),
+//     'primary key' => array('filename')
+//   );
+
+//   return $schema;
+// }

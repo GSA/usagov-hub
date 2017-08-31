@@ -1,0 +1,6 @@
+name = Repo Sync
+description = By use of a GitHub Web-Hook, syncs content from a target GitHub repo, into a BitBuccket repo
+package = CTAC
+core = 7.x
+configure = admin/repo-sync/ui
+files[] = repo_sync.module
