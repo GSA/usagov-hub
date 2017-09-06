@@ -28,7 +28,6 @@ function cmp_data_sync_server_drush_command()
     'aliases' => array('cdsqt'),
     'callback' => '_cdss_add_all_terms_to_queue',
   );
-
   return $items;
 }
 

@@ -100,14 +100,15 @@ function cmp_data_sync_server_permission()
 function cmp_data_sync_server_init()
 {
     global $conf;
-    if ( !empty($conf['elasticsearch_server']) )
-    {
-        $conf['cdss_elasticsearch_server'] = 'http://'.$conf['elasticsearch_server'];
-        if ( !empty($conf['elasticsearch_port']) )
-        {
-            $conf['cdss_elasticsearch_server'] .= ':'.$conf['elasticsearch_port'];
-        }
-    }
+    $conf['cdss_elasticsearch_server'] = _cdss_elasticsearch_server();
+    // if ( !empty($conf['elasticsearch_server']) )
+    // {
+    //     $conf['cdss_elasticsearch_server'] = 'http://'.$conf['elasticsearch_server'];
+    //     if ( !empty($conf['elasticsearch_port']) )
+    //     {
+    //         $conf['cdss_elasticsearch_server'] .= ':'.$conf['elasticsearch_port'];
+    //     }
+    // }
 }
 
 function cmp_data_sync_server_cron_queue_info()
@@ -247,10 +248,11 @@ function _cdss_teardown_elasticsearch()
 }
 function _cdss_setup_schema_index()
 {
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    // $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     try{
-        $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
-        if ( $response->code !== '200' )
+        //$response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
+        $response = _cdss_elasticsearch_request('/cmp-data-schema', array('method'=>'HEAD') );
+        if ( $response->code != 200 )
         {
             $data = '{
                 "settings" : {
@@ -264,12 +266,12 @@ function _cdss_setup_schema_index()
                 'method' => 'PUT',
                 'data' => $data,
             );
-            $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', $options);
-            if (  $response->code === '200' )
+            $response = _cdss_elasticsearch_request('/cmp-data-schema', $options);
+            if (  $response->code == 200 )
             {
                 _cdss_log('Info: CDSS '.__FUNCTION__.' Created ElasticSearch Index for CMP Schema : response='.$response->data);
                 return true;
-            } else if ( $response->code === '400' || $response->code === '201' ) {
+            } else if ( $response->code == 400 || $response->code == 201 ) {
                 _cdss_log('Info: CDSS '.__FUNCTION__.' ElasticSearch Index for CMP Schema already exists : response='.$response->data);
                 return true;
             }
@@ -283,16 +285,16 @@ function _cdss_setup_schema_index()
 }
 function _cdss_teardown_schema_index()
 {
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    // $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     try{
-        $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
-        if ( $response->code === '404' ) { return true; }
+        $response = _cdss_elasticsearch_request('/cmp-data-schema', array('method'=>'HEAD') );
+        if ( $response->code == 404 ) { return true; }
 
         $options = array(
             'method' => 'DELETE'
         );
-        $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', $options);
-        if ( $response->code === '200' )
+        $response = _cdss_elasticsearch_request('/cmp-data-schema', $options);
+        if ( $response->code == 200 )
         {
             _cdss_log('Info: CDSS '.__FUNCTION__.' Deleted ElasticSearch Index for CMP Schema : response='.$response->data);
             return true;
@@ -306,14 +308,15 @@ function _cdss_teardown_schema_index()
 }
 function _cdss_setup_content_index()
 {
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    // $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     try{
-        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', array('method'=>'HEAD') );
-        if ( $response->code === '200' ) { return true; }
+        $response = _cdss_elasticsearch_request('/cmp-data-entities', array('method'=>'HEAD') );
+        if ( $response->code == 200 ) { return true; }
 
         $data = '{
             "settings" : {
                 "index" : {
+                    "mapping.total_fields.limit" : 2000,
                     "number_of_shards" : 1,
                     "number_of_replicas" : 0
                 }
@@ -370,12 +373,12 @@ function _cdss_setup_content_index()
             'method' => 'PUT',
             'data'   => $data,
         );
-        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', $options);
-        if (  $response->code === '200' )
+        $response = _cdss_elasticsearch_request('/cmp-data-entities', $options);
+        if (  $response->code == 200 )
         {
             _cdss_log('Info: CDSS '.__FUNCTION__.' Created ElasticSearch Index for CMP Content : response='.$response->data);
             return true;
-        } else if ( $response->code === '400' || $response->code === '200' ) {
+        } else if ( $response->code == 400 || $response->code == 200 ) {
             _cdss_log('Info: CDSS '.__FUNCTION__.' ElasticSearch Index for CMP Content already exists : response='.$response->data);
             return true;
         }
@@ -388,16 +391,16 @@ function _cdss_setup_content_index()
 }
 function _cdss_teardown_content_index()
 {
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    // $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     try{
-        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', array('method'=>'HEAD') );
-        if ( $response->code === '404' ) { return true; }
+        $response = _cdss_elasticsearch_request('/cmp-data-entities', array('method'=>'HEAD') );
+        if ( $response->code == 404 ) { return true; }
 
         $options = array(
             'method' => 'DELETE'
         );
-        $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', $options);
-        if ( $response->code === '200' )
+        $response = _cdss_elasticsearch_request('/cmp-data-entities', $options);
+        if ( $response->code == 200 )
         {
             _cdss_log('Info: CDSS '.__FUNCTION__.' Deleted ElasticSearch Index for CMP Content : response='.$response->data);
             return true;
@@ -494,9 +497,9 @@ function _cdss_validate_elasticsearch_server()
   {
     return false;
   }
-  try{
-      $response = drupal_http_request($elasticsearch_server, array('method'=>'HEAD') );
-      if ( $response->code !== '200' )
+  try {
+      $response = _cdss_elasticsearch_request('/',['method'=>'HEAD']);
+      if ( $response->code != 200 )
       {
           return false;
       }
@@ -507,10 +510,10 @@ function _cdss_validate_elasticsearch_server()
 }
 function _cdss_validate_elasticsearch_content_index()
 {
-  $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+//   $elasticsearch_server = variable_get('cdss_elasticsearch_server');
   try{
-      $response = drupal_http_request($elasticsearch_server.'/cmp-data-entities', array('method'=>'HEAD') );
-      if ( $response->code !== '200' )
+      $response = _cdss_elasticsearch_request('/cmp-data-entities', array('method'=>'HEAD') );
+      if ( $response->code != 200 )
       {
         return false;
       }
@@ -521,10 +524,10 @@ function _cdss_validate_elasticsearch_content_index()
 }
 function _cdss_validate_elasticsearch_schema_index()
 {
-  $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+//   $elasticsearch_server = variable_get('cdss_elasticsearch_server');
   try{
-      $response = drupal_http_request($elasticsearch_server.'/cmp-data-schema', array('method'=>'HEAD') );
-      if ( $response->code !== '200' )
+      $response = _cdss_elasticsearch_request('/cmp-data-schema', array('method'=>'HEAD') );
+      if ( $response->code != 200 )
       {
         return false;
       }
@@ -635,7 +638,7 @@ function _cdss_process_queue_data( $q_item_data )
 
 function _cdss_send_schema_to_elasticsearch()
 {
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    // $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     try{
         $schema_node      = _cdss_export_node_structure();
         $schema_term      = _cdss_export_taxonomy_structure();
@@ -651,14 +654,14 @@ function _cdss_send_schema_to_elasticsearch()
             'node_sha1'     => $schema_node_sha1,
             'relation_sha1' => $schema_relation_sha1,
         );
-        $response = drupal_http_request(
-            $elasticsearch_server.'/cmp-data-schema/schema/node_term',
+        $response = _cdss_elasticsearch_request(
+            '/cmp-data-schema/schema/node_term',
             array(
                 'method' => 'PUT',
                 'data'   => json_encode($data),
             )
         );
-        if ( $response->code === '201' || $response->code === '200' )
+        if ( $response->code == 201 || $response->code == 200 )
         {
             _cdss_log('Info: CDSS '.__FUNCTION__.' Schema Sent : response='.$response->data);
             return true;
@@ -699,11 +702,11 @@ function _cdss_send_entity_to_elasticsearch( $e_uuid, $e_type, $timeout=10 )
         return CDSS_FATAL; /// remove from queue
     }
 
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    // $elasticsearch_server = variable_get('cdss_elasticsearch_server');
     // try{ // leave these exceptions for _cron_queue_info
     /// put with an explicit ID will act as an upsert
-    $response = drupal_http_request(
-        $elasticsearch_server.'/cmp-data-entities/entity/'.$e_uuid,
+    $response = _cdss_elasticsearch_request(
+        '/cmp-data-entities/entity/'.$e_uuid,
         array(
             'method'  => 'PUT',
             'data'    => json_encode($entity),
@@ -714,7 +717,7 @@ function _cdss_send_entity_to_elasticsearch( $e_uuid, $e_type, $timeout=10 )
     /// that should really be fatal and return NULL
     /// for now we are assuming anything but 200/201
     /// means a temporary problem and we will return FALSE
-    if ( $response->code === '201' || $response->code === '200' )
+    if ( $response->code == 201 || $response->code == 200 )
     {
         _cdss_log('Info: CDSS '.__FUNCTION__.' Indexed : entity_uuid='.$e_uuid.' entity_type='.$e_type);
         return CDSS_SUCCESS; /// remove from queue
@@ -732,15 +735,15 @@ function _cdss_send_entity_to_elasticsearch( $e_uuid, $e_type, $timeout=10 )
 }
 function _cdss_remove_entity_from_elasticsearch( $e_uuid, $timeout=10 )
 {
-    $elasticsearch_server = variable_get('cdss_elasticsearch_server');
-    $response = drupal_http_request(
-        $elasticsearch_server.'/cmp-data-entities/entity/'.$e_uuid,
+    // $elasticsearch_server = variable_get('cdss_elasticsearch_server');
+    $response = _cdss_elasticsearch_request(
+        '/cmp-data-entities/entity/'.$e_uuid,
         array(
             'method'  => 'DELETE',
             'timeout' => $timeout
         )
     );
-    if ( $response->code === '200' || $response->code === '404' )
+    if ( $response->code == 200 || $response->code == 404 )
     {
         _cdss_log('Info: CDSS '.__FUNCTION__.' Removed from Index : entity_uuid='.$e_uuid);
         return CDSS_SUCCESS; /// remove from queue
@@ -816,6 +819,7 @@ function _cdss_add_entity_to_queue( $e_uuid, $e_type )
         ));
         $GLOBALS['cdss_queued_entities'][$e_uuid] = true;
         _cdss_log('Info: CDSS '.__FUNCTION__.' : entity_uuid='.$e_uuid.' entity_type='.$e_type);
+        drupal_set_message('Info: CDSS '.__FUNCTION__.' : entity_uuid='.$e_uuid.' entity_type='.$e_type);
         return true;
     } catch (Exception $e) {
         _cdss_log('Fail: CDSS '.__FUNCTION__.' Exception : entity_uuid='.$e_uuid.' entity_type='.$e_type .' : '. $e->getMessage() .' : '. $e->getTraceAsString());
@@ -1328,6 +1332,68 @@ function &_cdss_uuid_info( $refresh=false )
         ")->fetchAllAssoc('uuid',PDO::FETCH_ASSOC);
     }
     return $uuid_info;
+}
+
+function _cdss_elasticsearch_server()
+{
+    $host = variable_get('elasticsearch_server');
+    $port = variable_get('elasticsearch_port');
+    $ssl  = variable_get('elasticsearch_ssl', false);
+    if ( boolval($ssl)===false || ( is_string($ssl) && strlen($ssl)>0 && in_array(strtolower($ssl{0}),['n','f']) ) ) {
+        $ssl = false;
+    } else {
+        $ssl = true;
+    }
+    $scheme = ( stripos($port,'443')!==false || $ssl ) ? 'https' : 'http';
+    return $scheme .'://'. $host . ':'. $port;
+}
+
+function _cdss_elasticsearch_request($path='/',$options=[])
+{
+    $uri = variable_get('cdss_elasticsearch_server').$path;
+    $response = new stdClass();
+    $response->code = null;
+    $response->data = '';
+    try {
+        $method  = !empty($options['method'])  ? $options['method'] : 'GET';
+        $data    = !empty($options['data'])    ? $options['data']   : '';
+        $timeout = !empty($options['timeout']) ? intval($options['timeout']) : null;
+        
+        $curl = curl_init();
+        curl_setopt($curl, CURLOPT_URL, $uri);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
+        if ( $method=='HEAD') {
+            curl_setopt($curl, CURLOPT_HEADER, true);
+            curl_setopt($curl, CURLOPT_NOBODY, true);
+        }
+
+        // if ( is_int($timeout) ) {
+        //     curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);            
+        // }
+        curl_setopt($curl, CURLOPT_HTTPHEADER,
+            ['CONTENT-TYPE: application/json; charset=utf-8']);
+
+        if ( !empty($data) ) {
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+        }
+
+        // curl_setopt($resource, CURLOPT_VERBOSE, 1);
+        // curl_setopt($resource, CURLOPT_FAILONERROR, TRUE);
+        
+        // if ( local AND ssl )
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
+        
+        $response->data = curl_exec($curl);
+        $response->code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+
+        curl_close($curl);
+        return $response;
+    } catch (Exception $e) {
+        /// pass
+    }
+    return $response;
 }
 
 /// logging
