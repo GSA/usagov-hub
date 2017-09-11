@@ -135,7 +135,7 @@ class FBOXMLImport
         ftp_pasv($conn_id, true);
         $ftp_date = ftp_mdtm($conn_id, $this->filename);
         $ftp_size = ftp_size($conn_id, $this->filename);
-        
+
         // if a tmp file alread exists from today and is the correct size - don't download again
         $size_match = false;
         $date_match = false;
@@ -154,10 +154,10 @@ class FBOXMLImport
             }
         }
         $this->log("FBO Needs Download: {$this->tmp_file} "
-                  ." ftp_date=". date('Y-m-d',$ftp_date) ." local_date=".date('Y-m-d',$local_date)
-                  ." date_match=". ($date_match?'Y':'N')
-                  ." ftp_size=". $this->getNiceSize($ftp_size) ." local_size=". $this->getNiceSize($local_size)
-                  ." size_match=". ($size_match?'Y':'N'));
+            ." ftp_date=". date('Y-m-d',$ftp_date) ." local_date=".date('Y-m-d',$local_date)
+            ." date_match=". ($date_match?'Y':'N')
+            ." ftp_size=". $this->getNiceSize($ftp_size) ." local_size=". $this->getNiceSize($local_size)
+            ." size_match=". ($size_match?'Y':'N'));
         $user = !empty($_SERVER['USER']) ? $_SERVER['USER'] : 'www-data';
         touch( $this->tmp_file, $ftp_date );
         chown( $this->tmp_file, $user );
@@ -189,7 +189,7 @@ class FBOXMLImport
             if ( preg_match('/(\d{4})(\d{2})(\d{2})/',$filename,$m) ) {
                 $file_date = strtotime("{$m[1]}-{$m[2]}-{$m[3]}");
                 if ( $file_date < $full_date ) {
-                    unlink($filename);                    
+                    unlink($filename);
                 }
             }
         }
@@ -234,7 +234,7 @@ class FBOXMLImport
     public function getType(&$item)
     {
         if (!empty($item['type'])) {
-                return trim($item['type']);
+            return trim($item['type']);
         }
         if (!empty($item['TYPE'])) {
             return trim($item['TYPE']);
@@ -259,7 +259,7 @@ class FBOXMLImport
                 $mod = (array)$mod;
                 $this->changeKeyCase($mod, CASE_LOWER);
                 if (isset($mod['email']) && is_array($mod['email'])
-                  && isset($mod['email']['address']) && isset($mod['email']['desc'])
+                    && isset($mod['email']['address']) && isset($mod['email']['desc'])
                 ) {
                     $mod['emaildesc'] = $mod['email']['desc'];
                     $mod['email'] = $mod['email']['address'];
@@ -289,7 +289,7 @@ class FBOXMLImport
                     if ( $item['type']=='PRESOL' && !empty($mod['document_packages']) && !empty($mod['document_packages']['package'])) {
                         foreach ($mod['document_packages']['package'] as $key => $package) {
                             if ( $package == 'Solicitation 1' ) {
-                                    $item['type'] = 'SOL';
+                                $item['type'] = 'SOL';
                             }
                         }
                     }
@@ -334,7 +334,7 @@ class FBOXMLImport
             unset($item['email_desc']);
         }
         if (isset($item['email']) && is_array($item['email']) &&
-          isset($item['email']['address']) && isset($item['email']['desc'])
+            isset($item['email']['address']) && isset($item['email']['desc'])
         ) {
             $item['emaildesc'] = $item['email']['desc'];
             $item['email'] = $item['email']['address'];
@@ -370,8 +370,8 @@ class FBOXMLImport
                 $item['state'] = $this->fbo_map['zips'][$zip]['state'];
                 $item['cities'] = $this->fbo_map['zips'][$zip]['cities'];
                 $item['geoloc'] = [
-                  $this->fbo_map['zips'][$zip]['lon'],
-                  $this->fbo_map['zips'][$zip]['lat'],
+                    $this->fbo_map['zips'][$zip]['lon'],
+                    $this->fbo_map['zips'][$zip]['lat'],
                 ];
             }
         }
@@ -379,13 +379,13 @@ class FBOXMLImport
         if (isset($item['awarddate'])) {
             $matches = [];
             if (preg_match('/^(\d\d)(\d\d)(\d{4})$/', $item['awarddate'],
-              $matches)) {
+                $matches)) {
                 if (!empty($matches[1]) && !empty($matches[2]) && !empty($matches[3])) {
                     $item['awarddate'] = "{$matches[3]}-{$matches[1]}-{$matches[2]}";
                 }
             } else {
                 if (preg_match('/^(\d\d)(\d\d)(\d\d)$/', $item['awarddate'],
-                  $matches)) {
+                    $matches)) {
                     if (!empty($matches[1]) && !empty($matches[2]) && !empty($matches[3])) {
                         $item['awarddate'] = "20{$matches[3]}-{$matches[1]}-{$matches[2]}";
                     }
@@ -395,13 +395,13 @@ class FBOXMLImport
         if (isset($item['respdate'])) {
             $matches = [];
             if (preg_match('/^(\d\d)(\d\d)(\d{4})$/', $item['respdate'],
-              $matches)) {
+                $matches)) {
                 if (!empty($matches[1]) && !empty($matches[2]) && !empty($matches[3])) {
                     $item['responsedate'] = "{$matches[3]}-{$matches[1]}-{$matches[2]}";
                 }
             } else {
                 if (preg_match('/^(\d\d)(\d\d)(\d\d)$/', $item['respdate'],
-                  $matches)) {
+                    $matches)) {
                     if (!empty($matches[1]) && !empty($matches[2]) && !empty($matches[3])) {
                         $item['responsedate'] = "20{$matches[3]}-{$matches[1]}-{$matches[2]}";
                     }
@@ -412,13 +412,13 @@ class FBOXMLImport
         if (isset($item['archdate'])) {
             $matches = [];
             if (preg_match('/^(\d\d)(\d\d)(\d{4})$/', $item['archdate'],
-              $matches)) {
+                $matches)) {
                 if (!empty($matches[1]) && !empty($matches[2]) && !empty($matches[3])) {
                     $item['archivedate'] = "{$matches[3]}-{$matches[1]}-{$matches[2]}";
                 }
             } else {
                 if (preg_match('/^(\d\d)(\d\d)(\d\d)$/', $item['archdate'],
-                  $matches)) {
+                    $matches)) {
                     if (!empty($matches[1]) && !empty($matches[2]) && !empty($matches[3])) {
                         $item['archivedate'] = "20{$matches[3]}-{$matches[1]}-{$matches[2]}";
                     }
@@ -426,7 +426,7 @@ class FBOXMLImport
             }
         }
         unset($item['archdate']);
-        
+
         $item['closedate'] = !empty($item['responsedate']) ? $item['responsedate'] : null;
         if ( !empty($item['archivedate']) && ( empty($item['closedate']) || strtotime($item['archivedate']) < strtotime($item['closedate']) ) ) {
             $item['closedate'] = $item['archivedate'];
@@ -447,7 +447,7 @@ class FBOXMLImport
             $item['postdate'] = '';
             $matches = [];
             if (preg_match('/^(\d\d)(\d\d)(\d{4})$/', $item['date'],
-              $matches)) {
+                $matches)) {
                 if (!empty($matches[1]) && !empty($matches[2]) && !empty($matches[3])) {
                     $item['postdate'] = "{$matches[3]}-{$matches[1]}-{$matches[2]}";
                 }
@@ -537,7 +537,7 @@ class FBOXMLImport
             return false;
         }
         // return true;
-        
+
         $this->startProcess();
         $startTime = time();
         $pid = getmypid();
@@ -562,7 +562,7 @@ class FBOXMLImport
         @fclose($handle);
         xml_parser_free($parser);
         if ($this->commandline) {
-            echo ' : '. $this->y ." / ". $this->z ." (".( count($this->opportunities) + count($this->mods) + count($this->awards) ).")\n";            
+            echo ' : '. $this->y ." / ". $this->z ." (".( count($this->opportunities) + count($this->mods) + count($this->awards) ).")\n";
         }
 
         // $this->touchProcess();
@@ -640,7 +640,7 @@ class FBOXMLImport
                     echo "-";
                 }
             } else {
-                $this->y++;                    
+                $this->y++;
                 /// we are finished building this item
                 $this->convertToCommonFormat($this->curr_item, $name);
                 if ($this->gettype($this->curr_item) === 'MOD') {
@@ -657,7 +657,7 @@ class FBOXMLImport
             if ($this->commandline) {
                 $this->z++;
                 if (($this->z%100)==0) {
-                    echo ' : '. $this->y ." / ". $this->z ."\n";                    
+                    echo ' : '. $this->y ." / ". $this->z ."\n";
                     // echo ' : '. ( count($this->opportunities) + count($this->mods) + count($this->awards) ) ." / ". $this->z ."\n";
                 }
             }
@@ -698,7 +698,7 @@ class FBOXMLImport
                     if (isset($mod['RESPDATE'])) {
                         $date = $mod['RESPDATE'];
                     } elseif (isset($mod['ARCHDATE'])) {
-                            $date = $mod['ARCHDATE'];
+                        $date = $mod['ARCHDATE'];
                     }
                 }
             }
@@ -732,7 +732,7 @@ class FBOXMLImport
             if ( !empty($item['POSTDATE']) ) {
                 $date = $item['POSTDATE'];
             } else if (!empty($item['postdate'])) {
-                $date = $item['postdate'];                
+                $date = $item['postdate'];
             }
             if (!empty($date)) {
                 $matches = [];
@@ -753,14 +753,14 @@ class FBOXMLImport
                 if ( !empty($item['TYPE']) ) {
                     $type = $item['TYPE'];
                 } else if ( !empty($item['type']) ) {
-                    $type = $item['type'];                
+                    $type = $item['type'];
                 }
                 if ( !empty($type) && in_array($type,['PRESOL','SRCSGT']) && strtotime($date) <= strtotime('-1 year') ) {
                     $this->closed[$id] = true;
                     return true;
                 } else if ( strtotime($date) <= strtotime('-6 years') ) {
                     $this->closed[$id] = true;
-                    return true;                    
+                    return true;
                 }
             }
         }
@@ -780,7 +780,7 @@ class FBOXMLImport
         $item = true;
         $this->es_batch .= $json;
         if (strlen($this->es_batch) > 4000000) {
-        // if (strlen($this->es_batch) > 100000) {
+            // if (strlen($this->es_batch) > 100000) {
             $this->es_results[] = $this->batchToElasticsearch($this->es_batch);
             $this->es_batch = '';
         }
@@ -824,7 +824,7 @@ class FBOXMLImport
 
     public function processDailyFile()
     {
-        
+
         if (!$this->downloadFile()) {
             $this->log('FBO Import: cannot download file ' . $this->filename);
             return false;
@@ -847,7 +847,7 @@ class FBOXMLImport
             if (preg_match("/<\/({$this->top_level_tags})>/", $chunk)) {
                 $item = $this->processDailyChunk($chunk);
                 if (!empty($item) && isset($item['TYPE'])
-                  && in_array($item['TYPE'], $this->included_tags)
+                    && in_array($item['TYPE'], $this->included_tags)
                 ) {
                     $this->convertToCommonFormat($item, $item['TYPE']);
                     if ($this->isItemClosed($item)) {
@@ -857,7 +857,7 @@ class FBOXMLImport
                         }
                     } else {
                         $this->opportunities[] = $item;
-                        $this->y++;                        
+                        $this->y++;
                         if ($this->commandline) {
                             echo "*";
                         }
@@ -874,10 +874,10 @@ class FBOXMLImport
                 }
                 // save the leftovers from this chunk for next time
                 $chunk = preg_replace(
-                  "/^.*?<\/({$this->top_level_tags})>/s",
-                  "",
-                  $chunk,
-                  1
+                    "/^.*?<\/({$this->top_level_tags})>/s",
+                    "",
+                    $chunk,
+                    1
                 );
             }
         }
@@ -913,12 +913,12 @@ class FBOXMLImport
         $parent = null;
         do {
             preg_match("/<({$this->mid_level_tags})>(.*?)(<(({$this->mid_level_tags})|(\/({$this->top_level_tags})))>|$)/s",
-              $raw, $match);
+                $raw, $match);
             if (empty($match[1])) {
                 continue;
             }
             $raw = preg_replace("/<({$this->mid_level_tags})>(.*?)(<(({$this->mid_level_tags})|(\/({$this->top_level_tags})))>|$)/s",
-              "$3", $raw, 1);
+                "$3", $raw, 1);
             $tag = $match[1];
             $val = $match[2];
             /// only leave main description untrimmed
@@ -927,13 +927,13 @@ class FBOXMLImport
             }
             /// is this tag a sub-tag?
             if (($parent == 'LINK' && !in_array($tag, ['URL', 'DESC']))
-              || ($parent == 'EMAIL' && !in_array($tag, ['EMAIL', 'DESC']))
+                || ($parent == 'EMAIL' && !in_array($tag, ['EMAIL', 'DESC']))
             ) {
                 $parent = null;
             }
             /// flatten subtags
             if (($parent == 'LINK' && in_array($tag, ['URL', 'DESC']))
-              || ($parent == 'EMAIL' && in_array($tag, ['EMAIL', 'DESC']))
+                || ($parent == 'EMAIL' && in_array($tag, ['EMAIL', 'DESC']))
             ) {
                 $data["{$parent}_{$tag}"] = $val;
             } elseif (in_array($tag, ['LINK', 'EMAIL'])) {
@@ -952,7 +952,7 @@ class FBOXMLImport
         try {
             if ( $date === null ) {
                 if ( !empty($this->file_date) ) {
-                    $date = $this->file_date; 
+                    $date = $this->file_date;
                 } else {
                     $date = 'now';
                 }
@@ -977,11 +977,11 @@ class FBOXMLImport
             curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "DELETE");
             curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
             curl_setopt($curl, CURLOPT_HTTPHEADER,
-              ['CONTENT-TYPE: application/json; charset=utf-8']);
+                ['CONTENT-TYPE: application/json; charset=utf-8']);
             // curl_setopt($curl, CURLOPT_VERBOSE, 1);
             // curl_setopt($curl, CURLOPT_FAILONERROR, true);
             // if ( local AND ssl )
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);  
+            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
             curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
             $result = curl_exec($curl);
             // $this->log(print_r(json_decode($result),1));
@@ -1007,15 +1007,15 @@ class FBOXMLImport
             $date2 = '';
             if ( $date === null ) {
                 if ( !empty($this->file_date) ) {
-                    $date = $this->file_date; 
+                    $date = $this->file_date;
                 } else {
                     $date = 'now';
                 }
                 $date1 = date('Y-m-d', strtotime($date.' - 6 years'));
                 $date2 = date('Y-m-d', strtotime($date.' - 1 year'));
             }
-            if ( !preg_match('/^\d{4}-\d{2}-\d{2}$/',$date1) 
-              || !preg_match('/^\d{4}-\d{2}-\d{2}$/',$date2) ) {
+            if ( !preg_match('/^\d{4}-\d{2}-\d{2}$/',$date1)
+                || !preg_match('/^\d{4}-\d{2}-\d{2}$/',$date2) ) {
                 return false;
             }
             $data = '{"query":{"bool":{
@@ -1039,11 +1039,11 @@ class FBOXMLImport
             curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "DELETE");
             curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
             curl_setopt($curl, CURLOPT_HTTPHEADER,
-              ['CONTENT-TYPE: application/json; charset=utf-8']);
+                ['CONTENT-TYPE: application/json; charset=utf-8']);
             // curl_setopt($curl, CURLOPT_VERBOSE, 1);
             // curl_setopt($curl, CURLOPT_FAILONERROR, true);
             // if ( local AND ssl )
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);  
+            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
             curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
             $result = curl_exec($curl);
             // $this->log(print_r(json_decode($result),1));
@@ -1064,16 +1064,16 @@ class FBOXMLImport
     {
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL,
-          $this->es_host . '/' . $this->es_index . '/' . $this->es_type . '/_bulk');
+            $this->es_host . '/' . $this->es_index . '/' . $this->es_type . '/_bulk');
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($curl, CURLOPT_POST, 1);
         curl_setopt($curl, CURLOPT_POSTFIELDS, $batch);
         curl_setopt($curl, CURLOPT_HTTPHEADER,
-          ['CONTENT-TYPE: application/json; charset=utf-8']);
+            ['CONTENT-TYPE: application/json; charset=utf-8']);
         // curl_setopt($curl, CURLOPT_VERBOSE, 1);
         // curl_setopt($curl, CURLOPT_FAILONERROR, TRUE);
         // if ( local AND ssl )
-        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);  
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
         // echo $this->es_host.'/'.$this->es_index.'/'.$this->es_type.'/_bulk'."\n";
         // return $result;
@@ -1087,8 +1087,8 @@ class FBOXMLImport
                 foreach ($r->items as $i) {
                     if (isset($i->index) && $i->index->status != 200 && $i->index->status != 201) {
                         $e = [
-                          '_id' => $i->index->_id,
-                          'status' => $i->index->status,
+                            '_id' => $i->index->_id,
+                            'status' => $i->index->status,
                         ];
                         if ($i->index->status != 404) {
                             $e['error'] = $i->index->error;
@@ -1097,8 +1097,8 @@ class FBOXMLImport
                     }
                     if (isset($i->update) && $i->update->status != 200 && $i->update->status != 201) {
                         $e = [
-                          '_id' => $i->update->_id,
-                          'status' => $i->update->status,
+                            '_id' => $i->update->_id,
+                            'status' => $i->update->status,
                         ];
                         if ($i->update->status != 404) {
                             $e['error'] = $i->update->error;
@@ -1126,17 +1126,17 @@ class FBOXMLImport
     {
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL,
-          $this->es_host . '/' . $this->es_index);
+            $this->es_host . '/' . $this->es_index);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "HEAD");
         curl_setopt($curl, CURLOPT_HEADER, true);
         curl_setopt($curl, CURLOPT_NOBODY, true);
         curl_setopt($curl, CURLOPT_HTTPHEADER,
-          ['CONTENT-TYPE: application/json; charset=utf-8']);
+            ['CONTENT-TYPE: application/json; charset=utf-8']);
         // curl_setopt($curl, CURLOPT_VERBOSE, 1);
         // curl_setopt($curl, CURLOPT_FAILONERROR, TRUE);
         // if ( local AND ssl )
-        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);  
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
         // $result = json_decode(curl_exec($curl));
         $result = curl_exec($curl);
@@ -1163,19 +1163,18 @@ class FBOXMLImport
           "settings" : {
                "index" : {
                    "number_of_shards" : 1,
-                   "number_of_replicas" : 0
-               },
-               "analysis": {
-                    "analyzer": {
-                        "case_insensitive": {
-                            "type":      "custom",
-                            "tokenizer": "standard",
-                            "filter": [
-                                "lowercase"
-                            ]
+                   "number_of_replicas" : 0,
+                   "analysis": {
+                        "analyzer": {
+                            "case_insensitive": {
+                                "tokenizer": "standard",
+                                "filter": [
+                                    "lowercase"
+                                ]
+                            }
                         }
-                    }
-                }
+                   }
+               }
           },
           "mappings": {
             "' . $this->es_type . '": {
@@ -1211,11 +1210,11 @@ class FBOXMLImport
                   "analyzer": "case_insensitive"
                 },
                 "subject" : {
-                  "type": "keyword",
+                  "type": "string",
                   "analyzer": "case_insensitive"
                 },
                 "desc" : {
-                  "type": "keyword",
+                  "type": "string",
                   "analyzer": "case_insensitive"
                 },
                 "solnbr" : {
@@ -1261,22 +1260,22 @@ class FBOXMLImport
             }
           }
         }';
+        // echo "Elasticsearch Creating ".$this->es_host.'/'.$this->es_index."\n";
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL,
-          $this->es_host . '/' . $this->es_index);
+            $this->es_host . '/' . $this->es_index);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "PUT");
         curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
         curl_setopt($curl, CURLOPT_HTTPHEADER,
-          ['CONTENT-TYPE: application/json; charset=utf-8']);
-        // curl_setopt($curl, CURLOPT_VERBOSE, 1);
-        // curl_setopt($curl, CURLOPT_FAILONERROR, TRUE);
-        // if ( local AND ssl )
-        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);  
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
+            ['CONTENT-TYPE: application/json; charset=utf-8']);
 
-        // $result = json_decode(curl_exec($curl));
-        $result = curl_exec($curl);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
+        $result = json_decode(curl_exec($curl));
+        print_r($result);
+        exit;
+
         curl_close($curl);
         if ($result) {
             if (!empty($result->error)) {
@@ -1293,22 +1292,22 @@ class FBOXMLImport
         try {
             $curl = curl_init();
             curl_setopt($curl, CURLOPT_URL,
-              $this->es_host . '/' . $this->es_index);
+                $this->es_host . '/' . $this->es_index);
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "DELETE");
             curl_setopt($curl, CURLOPT_HEADER, true);
             curl_setopt($curl, CURLOPT_HTTPHEADER,
-              ['CONTENT-TYPE: application/json; charset=utf-8']);
+                ['CONTENT-TYPE: application/json; charset=utf-8']);
             // curl_setopt($curl, CURLOPT_VERBOSE, 1);
             // curl_setopt($curl, CURLOPT_FAILONERROR, TRUE);
             // if ( local AND ssl )
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);  
+            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
             curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
             $result = json_decode(curl_exec($curl));
             $httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
             curl_close($curl);
             if ($httpcode == '404'
-              || ($httpcode == '200' && !empty($result->acknowledged))
+                || ($httpcode == '200' && !empty($result->acknowledged))
             ) {
                 return true;
             } elseif ($httpcode == '0') {
@@ -1330,11 +1329,11 @@ class FBOXMLImport
             curl_setopt($curl, CURLOPT_HEADER, true);
             curl_setopt($curl, CURLOPT_NOBODY, true);
             curl_setopt($curl, CURLOPT_HTTPHEADER,
-              ['CONTENT-TYPE: application/json; charset=utf-8']);
+                ['CONTENT-TYPE: application/json; charset=utf-8']);
             // curl_setopt($curl, CURLOPT_VERBOSE, 1);
             // curl_setopt($curl, CURLOPT_FAILONERROR, TRUE);
             // if ( local AND ssl )
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);  
+            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
             curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
             // $result = json_decode(curl_exec($curl));
             $result = curl_exec($curl);
@@ -1361,11 +1360,11 @@ class FBOXMLImport
             curl_setopt($curl, CURLOPT_HEADER, true);
             curl_setopt($curl, CURLOPT_NOBODY, true);
             curl_setopt($curl, CURLOPT_HTTPHEADER,
-              ['CONTENT-TYPE: application/json; charset=utf-8']);
+                ['CONTENT-TYPE: application/json; charset=utf-8']);
             // curl_setopt($curl, CURLOPT_VERBOSE, 1);
             // curl_setopt($curl, CURLOPT_FAILONERROR, TRUE);
             // if ( local AND ssl )
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);  
+            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
             curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
             // $result = json_decode(curl_exec($curl));
             $result = curl_exec($curl);
@@ -1381,6 +1380,7 @@ class FBOXMLImport
         }
         return false;
     }
+
 
     public function changeKeyCase(&$a, $c = CASE_LOWER)
     {
@@ -1414,14 +1414,14 @@ class FBOXMLImport
                 return '0 ' . $unit[0];
             }
             return @round($bytes / pow(1024, ($i = floor(log($bytes, 1024)))),
-                2) . ' ' . (isset($unit[$i]) ? $unit[$i] : 'B');
+                    2) . ' ' . (isset($unit[$i]) ? $unit[$i] : 'B');
         } else {
             $unit = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
             if ($bytes == 0) {
                 return '0 ' . $unit[0];
             }
             return @round($bytes / pow(1000, ($i = floor(log($bytes, 1000)))),
-                2) . ' ' . (isset($unit[$i]) ? $unit[$i] : 'B');
+                    2) . ' ' . (isset($unit[$i]) ? $unit[$i] : 'B');
         }
     }
 
