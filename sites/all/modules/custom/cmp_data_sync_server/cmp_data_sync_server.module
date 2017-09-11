@@ -1378,8 +1378,8 @@ function _cdss_elasticsearch_request($path='/',$options=[])
             curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
         }
 
-        // curl_setopt($resource, CURLOPT_VERBOSE, 1);
-        // curl_setopt($resource, CURLOPT_FAILONERROR, TRUE);
+        // curl_setopt($curl, CURLOPT_VERBOSE, 1);
+        // curl_setopt($curl, CURLOPT_FAILONERROR, TRUE);
         
         // if ( local AND ssl )
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);

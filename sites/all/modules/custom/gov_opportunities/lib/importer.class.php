@@ -1163,18 +1163,19 @@ class FBOXMLImport
           "settings" : {
                "index" : {
                    "number_of_shards" : 1,
-                   "number_of_replicas" : 0,
-                   "analysis": {
-                        "analyzer": {
-                            "case_insensitive": {
-                                "tokenizer": "standard",
-                                "filter": [
-                                    "lowercase"
-                                ]
-                            }
+                   "number_of_replicas" : 0
+               },
+               "analysis": {
+                    "analyzer": {
+                        "case_insensitive": {
+                            "type":      "custom",
+                            "tokenizer": "standard",
+                            "filter": [
+                                "lowercase"
+                            ]
                         }
-                   }
-               }
+                    }
+                }
           },
           "mappings": {
             "' . $this->es_type . '": {
@@ -1210,11 +1211,11 @@ class FBOXMLImport
                   "analyzer": "case_insensitive"
                 },
                 "subject" : {
-                  "type": "string",
+                  "type": "keyword",
                   "analyzer": "case_insensitive"
                 },
                 "desc" : {
-                  "type": "string",
+                  "type": "keyword",
                   "analyzer": "case_insensitive"
                 },
                 "solnbr" : {
@@ -1260,7 +1261,6 @@ class FBOXMLImport
             }
           }
         }';
-        // echo "Elasticsearch Creating ".$this->es_host.'/'.$this->es_index."\n";
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL,
           $this->es_host . '/' . $this->es_index);
@@ -1274,6 +1274,7 @@ class FBOXMLImport
         // if ( local AND ssl )
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);  
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
+
         // $result = json_decode(curl_exec($curl));
         $result = curl_exec($curl);
         curl_close($curl);
@@ -1380,7 +1381,6 @@ class FBOXMLImport
         }
         return false;
     }
-
 
     public function changeKeyCase(&$a, $c = CASE_LOWER)
     {
