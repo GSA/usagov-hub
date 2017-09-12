@@ -1168,6 +1168,13 @@ class FBOXMLImport
                           "char_filter": [],
                           "filter": ["lowercase"]
                         }
+                    },
+                    "analyzer": {
+                        "case_insensitive": {
+                          "type": "custom",
+                          "tokenizer": "standard",
+                          "filter": ["lowercase"]
+                        }
                     }
                    },
                "index" : {
@@ -1210,23 +1217,12 @@ class FBOXMLImport
                 },
                 "subject" : {
                     "type": "text",
-                    "fields": {
-                      "keyword": {
-                          "type": "keyword",
-                          "normalizer": "case_insensitive",
-                          "ignore_above": 256
-                      }
-                    }
+                    "analyzer": "case_insensitive",
+                    "fielddata": true
                 },
                 "desc" : {
-                  "type": "text",
-                  "fields": {
-                    "keyword": {
-                        "type": "keyword",
-                        "normalizer": "case_insensitive",
-                        "ignore_above": 256
-                    }
-                  }
+                    "type": "text",
+                    "analyzer": "case_insensitive"
                 },
                 "solnbr" : {
                   "type": "keyword",
