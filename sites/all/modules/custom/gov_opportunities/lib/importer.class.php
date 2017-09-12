@@ -1184,7 +1184,7 @@ class FBOXMLImport
                   "fields": {
                     "raw" : {
                       "type": "keyword",
-                      "index": "not_analyzed"
+                      "index": true
                     }
                   }
                 },
@@ -1209,12 +1209,24 @@ class FBOXMLImport
                   "normalizer": "case_insensitive"
                 },
                 "subject" : {
-                  "type": "keyword",
-                  "normalizer": "case_insensitive"
+                    "type": "text",
+                    "fields": {
+                      "keyword": {
+                          "type": "keyword",
+                          "normalizer": "case_insensitive",
+                          "ignore_above": 256
+                      }
+                    }
                 },
                 "desc" : {
-                  "type": "keyword",
-                  "normalizer": "case_insensitive"
+                  "type": "text",
+                  "fields": {
+                    "keyword": {
+                        "type": "keyword",
+                        "normalizer": "case_insensitive",
+                        "ignore_above": 256
+                    }
+                  }
                 },
                 "solnbr" : {
                   "type": "keyword",
