@@ -73,9 +73,51 @@ function gov_opportunities_menu()
       'type' => MENU_CALLBACK,
       'file' => 'gov_opportunities.admin.inc',
     ];
+    $items['error-handling'] = array(
+        'title' => 'FedBizOpps',
+        'page callback' => '_tttest',
+        'access callback' => true,
+        'type' => MENU_NORMAL_ITEM
+    );
     return $items;
 }
+function _tttest(){
 
+    /*$ret = _setupES();
+    if ($ret) {
+        $p = array('keyword'=>'', 'postdate'=>null,'submitteddate'=>time(), 'location'=>'', 'setaside'=>'setaside', 'show_na_setaside'=>0);
+        dsm(json_encode($p));
+       $rr = _index_userinfo($p);
+        dsm($rr);
+    }*/
+
+    $elasticsearch_server = 'https://' . variable_get('elasticsearch_server', 'elasticsearch_server'). ':' . variable_get('elasticsearch_port', 9443);
+    $header = array(
+        "CONTENT-TYPE: application/json; charset=utf-8"
+    );
+
+    $curl = curl_init();
+    curl_setopt($curl, CURLOPT_URL, $elasticsearch_server.'/opportunities');
+    curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+    curl_setopt($curl, CURLOPT_POST, 1);
+    $res = curl_exec($curl);
+    curl_close($curl);
+
+    $r = json_decode($res);
+
+    print_r($r);
+
+    $options = array(
+        'method' => 'DELETE'
+    );
+    $response = _cdss_elasticsearch_request('/opportunities', $options);
+
+    dsm($response);
+    return "hi";
+
+}
 function gov_opportunities_permission()
 {
     return [

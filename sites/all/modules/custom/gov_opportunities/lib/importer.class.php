@@ -1161,72 +1161,73 @@ class FBOXMLImport
         */
         $data = '{
           "settings" : {
+              "analysis": {
+                    "analyzer": {
+                        "case_insensitive": {
+                            "type": "custom",
+                            "tokenizer": "standard",
+                            "filter": [
+                                "lowercase"
+                            ]
+                        }
+                    }
+                   },
                "index" : {
                    "number_of_shards" : 1,
-                   "number_of_replicas" : 0,
-                   "analysis": {
-                        "analyzer": {
-                            "case_insensitive": {
-                                "tokenizer": "standard",
-                                "filter": [
-                                    "lowercase"
-                                ]
-                            }
-                        }
-                   }
+                   "number_of_replicas" : 0
                }
           },
           "mappings": {
             "' . $this->es_type . '": {
               "properties": {
                 "setaside" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive",
                   "fields": {
                     "raw" : {
-                      "type": "string",
+                      "type": "text",
                       "index": "not_analyzed"
                     }
                   }
                 },
                 "classcode" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive"
                 },
                 "classvalue" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive"
                 },
                 "naics" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive"
                 },
                 "agency" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive"
                 },
                 "office" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive"
                 },
                 "subject" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive"
                 },
                 "desc" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive"
                 },
                 "solnbr" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive"
                 },
                 "naicscode" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive"
                 },
                 "naicsvalue" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive"
                 },
                 "responsedate" : {
@@ -1250,7 +1251,7 @@ class FBOXMLImport
                   "format": "yyyy-MM-dd"
                 },
                 "state" : {
-                  "type": "string",
+                  "type": "text",
                   "analyzer": "case_insensitive"
                 },
                 "geoloc" : {
