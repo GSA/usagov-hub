@@ -57,10 +57,15 @@ class FBOXMLImport
 
     public function __construct()
     {
-        require dirname(__FILE__) . '/mappings.php';
-        require dirname(__FILE__) . '/zips.php';
+    }
 
-        $this->fbo_map = $fbo_map;
+    public function loadMappings()
+    {
+        if ( empty($this->fbo_map) ) {
+            require dirname(__FILE__) . '/mappings.php';
+            require dirname(__FILE__) . '/zips.php';    
+            $this->fbo_map = $fbo_map;
+        }
     }
 
     public function setCommandline($commandline = true)
@@ -244,6 +249,8 @@ class FBOXMLImport
 
     public function convertToCommonFormat(&$item, $type)
     {
+        $this->loadMappings();
+
         $this->changeKeyCase($item, CASE_LOWER);
         $item['type'] = $type;
         /// walk through any changes and update our main record (we should index only final form)

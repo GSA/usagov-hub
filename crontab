@@ -1,5 +1,3 @@
 # USAGov Hub
 # min   hour    day     month   weekday command
-*       *       *       *       *       wget --no-check-certificate -O - -q -t 1 --timeout=120 https://www.usa.dev/cron.php?cron_key=$CRON_KEY
-*       *       *       *       *       wget --no-check-certificate -O - -q -t 1 --timeout=120 https://blog.usa.dev/cron.php?cron_key=$CRON_KEY
-*       *       *       *       *       wget --no-check-certificate -O - -q -t 1 --timeout=120 https://gobierno.usa.dev/cron.php?cron_key=$CRON_KEY
+*       *       *       *       *       wget --no-check-certificate -O - -q -t 1 --timeout=120 https://$HOST_CMP/cron.php?cron_key=$CRON_KEY &2>1 >> /proc/self/fd/2
