@@ -298,7 +298,11 @@ function _govopp_ajax_list_daily_fbo_files()
 {
     $fbo = new FBOXMLImport();
     $dailyFiles = $fbo->listFBODailyFiles();
-    drupal_json_output($dailyFiles);
+    drupal_json_output([
+        'success' => true,
+        'message' => 'files found',
+        'files'   => $dailyFiles
+    ]);
 }
 
 function _govopp_ajax_pull_grants()

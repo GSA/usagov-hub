@@ -4,29 +4,6 @@ function gov_opportunities_config_form()
 {
   $form = array();
 
-  // $form['govopp_ajax_pull_fbo_full'] = array(
-  //   '#type' => 'item',
-  //   '#title' => 'Pull all Available Opportunities',
-  //   '#markup' => '
-  //   <script>
-  //     function ajax_pull_opportunities()
-  //     {
-  //       jQuery("#ajax_pull_opportunities_response").html("loading");
-  //       jQuery.ajax({
-  //         url: "/admin/content/gov_opportunities/api/pull_opportunities",
-  //         success:function(data) {
-  //           jQuery("#ajax_pull_opportunities_response").html("syncing");
-  //         },
-  //         error:function(data) {
-  //           jQuery("#ajax_pull_opportunities_response").html("failure");
-  //         }
-  //       });
-  //     }
-  //   </script><div class="form-item form-type-button form-item-ajax-pull-opportunities">
-  //   <input type="button" onclick="ajax_pull_opportunities();" value="Pull Opportunities" class="form-submit"/>
-  //   <div id="ajax_pull_opportunities_response" style="display:inline;"></div></div>'
-  // );
-
   $form['fbofeed'] = array(
     '#type' => 'fieldset',
     '#title' => t('FBO Feeds'),
@@ -34,18 +11,54 @@ function gov_opportunities_config_form()
     '#collapsed'   => FALSE,
   );
 
-  $daily = new FBOXMLImport();
-  $files = $daily->listFBODailyFiles();
-  $form['fbofeed']['govopp_fbo_daily_feed'] = array(
-    '#type' => 'select',
-    #'#title' => 'Available FBO Daily Feed Files',
+  // $daily = new FBOXMLImport();
+  // $files = $daily->listFBODailyFiles();
+  //   '#options' => $files,
+  //   '#default_value' => reset($files)
+  $form['fbofeed']['govopp_fbo_daily_feeds'] = array(
+    '#type' => 'item',
     '#title' => 'Pull Opportunities from Daily Feed',
-    '#options' => $files,
-    '#default_value' => reset($files)
+    '#markup' => '
+    <script>
+      function ajax_load_fbo_daily()
+      {
+        jQuery.ajax({
+          url: "/admin/content/gov_opportunities/api/list_daily_fbo_files",
+          success:function(data) {
+            console.log(data);
+            if ( data.success ) {
+              // jQuery("#ajax_load_fbo_daily_response").html(data.message);
+              if ( data.files ) {
+                var s = jQuery("#edit-govopp-fbo-daily-feed");
+                for ( file in data.files ) {
+                  var o = new Option(file,file);
+                  s.append(jQuery(o));
+                }
+              }
+            } else if ( data.message ) {
+              jQuery("#ajax_load_fbo_daily_response").html(data.message);
+            } else {
+              jQuery("#ajax_load_fbo_daily_response").html("failure");
+            }
+          },
+          error:function(data) {
+            if ( data.message ) {
+              jQuery("#ajax_load_fbo_daily_response").html(data.message);
+            } else {
+              jQuery("#ajax_load_fbo_daily_response").html("error");
+            }
+          }
+        });
+      }
+    </script><div class="form-item form-type-button form-item-ajax-fbo-daily-feed">
+      <input type="button" onclick="ajax_load_fbo_daily();" value="Show Daily Feeds" class="form-submit"/><br />
+      <select id="edit-govopp-fbo-daily-feed" name="govopp_fbo_daily_feed" class="form-select"></select>
+      <div id="ajax_load_fbo_daily_response" style="display:inline;"></div>
+    </div>
+    '
   );
   $form['fbofeed']['govopp_ajax_pull_fbo_daily'] = array(
     '#type' => 'item',
-    #'#title' => 'Pull Opportunities from Daily Feed',
     '#markup' => '
     <script>
       function ajax_pull_fbo_daily()
@@ -77,12 +90,6 @@ function gov_opportunities_config_form()
     <div id="ajax_pull_fbo_daily_response" style="display:inline;"></div></div>'
   );
 
-  // $form['fbofull'] = array(
-  //   '#type' => 'fieldset',
-  //   '#title' => t('FBO Full Feed'),
-  //   '#collapsible' => TRUE,
-  //   '#collapsed'   => FALSE,
-  // );
   $form['fbofeed']['govopp_ajax_pull_fbo_full'] = array(
     '#type' => 'item',
     '#title' => 'Pull Opportunities from Full Feed',
@@ -115,7 +122,7 @@ function gov_opportunities_config_form()
     <input type="button" onclick="ajax_pull_fbo_full();" value="Import FBO Full Feed" class="form-submit"/>
     <div id="ajax_pull_fbo_full_response" style="display:inline;"></div></div>'
   );
-    $form['fbofeed']['govopp_ajax_remove_closed'] = array(
+  $form['fbofeed']['govopp_ajax_remove_closed'] = array(
     '#type' => 'item',
     '#title' => 'Remove Closed Opportunities ( before today )',
     '#markup' => '

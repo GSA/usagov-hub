@@ -63,7 +63,7 @@ class FBOXMLImport
     {
         if ( empty($this->fbo_map) ) {
             require dirname(__FILE__) . '/mappings.php';
-            require dirname(__FILE__) . '/zips.php';    
+            require dirname(__FILE__) . '/zips.php';   
             $this->fbo_map = $fbo_map;
         }
     }
