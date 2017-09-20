@@ -10,9 +10,9 @@ dependencies[] = elasticsearch_connector
 configure = admin/config/elasticsearch-connector/statistics
 
 
-; Information added by Drupal.org packaging script on 2015-11-28
-version = "7.x-1.0-alpha9"
+; Information added by Drupal.org packaging script on 2017-02-25
+version = "7.x-5.x-dev"
 core = "7.x"
 project = "elasticsearch_connector"
-datestamp = "1448729942"
+datestamp = "1488030791"
 

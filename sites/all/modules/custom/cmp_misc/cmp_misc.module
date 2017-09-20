@@ -1531,29 +1531,54 @@ function cmp_misc_wysiwyg_editor_settings_alter(&$settings, $context)
 
 function cmp_misc_elasticsearch_connector_clusters_alter( &$clusters )
 {
-    $shortcode = variable_get('elasticsearch_shortcode');
-    $host      = variable_get('elasticsearch_server');
-    $port      = variable_get('elasticsearch_port');
-
-    if ( empty($shortcode) || empty($host) )
+    $shortcode  = variable_get('elasticsearch_shortcode');
+    $server_url = _cmp_misc_elasticsearch_server();
+    if ( empty($shortcode) || empty($server_url) )
     {
         return;
     }
-    foreach ( $clusters as $cluster )
+    foreach ( $clusters as &$cluster )
     {
-        $regex  = '/'.preg_replace('/(\W)/','\\\\\1',$shortcode).'(:\d+)?/';
-        $server = empty($port) ? "$host" : "$host:$port";
-        $altered_url = preg_replace($regex,$server,$cluster->url);
-        if ( !empty($altered_url) && $altered_url !== $cluster->url )
-        {
-            $cluster->url = $altered_url;
-            // db_query("UPDATE elasticsearch_connector_cluster
-            //           SET url=:altered_url WHERE cluster_id=:cluster_id",
-            //           array(':altered_url'=>$url,
-            //                 ':cluster_id'=>$cluster->cluster_id)
-            // );
+        if ( stristr($cluster->url,$shortcode) !== false ) {
+            error_log('US UPDATE '.$cluster->url.' >> '.$server_url);
+            $cluster->url = $server_url;
         }
     }
+    // $host      = variable_get('elasticsearch_server');
+    // $port      = variable_get('elasticsearch_port');
+    // if ( empty($shortcode) || empty($host) )
+    // {
+    //     return;
+    // }
+    // foreach ( $clusters as &$cluster )
+    // {
+    //     $regex  = '/'.preg_replace('/(\W)/','\\\\\1',$shortcode).'(:\d+)?/';
+    //     $server = empty($port) ? "$host" : "$host:$port";
+    //     $altered_url = preg_replace($regex,$server,$cluster->url);
+    //     if ( !empty($altered_url) && $altered_url !== $cluster->url )
+    //     {
+    //         error_log($cluster->url.' >> '.$altered_url);
+    //         $cluster->url = $altered_url;
+    //         // db_query("UPDATE elasticsearch_connector_cluster
+    //         //           SET url=:altered_url WHERE cluster_id=:cluster_id",
+    //         //           array(':altered_url'=>$url,
+    //         //                 ':cluster_id'=>$cluster->cluster_id)
+    //         // );
+    //     }
+    // }
+}
+function _cmp_misc_elasticsearch_server()
+{
+    $host = variable_get('elasticsearch_server');
+    $port = variable_get('elasticsearch_port');
+    $ssl  = variable_get('elasticsearch_ssl', false);
+    if ( boolval($ssl)===false || ( is_string($ssl) && strlen($ssl)>0 && in_array(strtolower($ssl{0}),['n','f']) ) ) {
+        $ssl = false;
+    } else {
+        $ssl = true;
+    }
+    $scheme = ( $port=='443' || $ssl ) ? 'https' : 'http';
+    return $scheme .'://'. $host . ':'. $port;
 }
 
 
