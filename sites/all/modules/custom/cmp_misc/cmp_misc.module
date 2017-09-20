@@ -1540,7 +1540,6 @@ function cmp_misc_elasticsearch_connector_clusters_alter( &$clusters )
     foreach ( $clusters as &$cluster )
     {
         if ( stristr($cluster->url,$shortcode) !== false ) {
-            error_log('US UPDATE '.$cluster->url.' >> '.$server_url);
             $cluster->url = $server_url;
         }
     }
