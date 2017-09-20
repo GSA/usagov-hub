@@ -5,7 +5,8 @@
     },
     "config": {
         "autoloader-suffix": "ComposerManager",
-        "vendor-dir": "../all/libraries/composer"
+        "vendor-dir": "../all/libraries/composer",
+		"preferred-install": {"*":"dist"}
     },
     "prefer-stable": true,
     "minimum-stability": "dev"

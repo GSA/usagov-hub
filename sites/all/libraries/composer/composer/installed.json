@@ -278,7 +278,7 @@
         },
         "time": "2017-05-23T10:55:47+00:00",
         "type": "library",
-        "installation-source": "source",
+        "installation-source": "dist",
         "autoload": {
             "psr-4": {
                 "nodespark\\DESConnector\\": "src/DESConnector/"
