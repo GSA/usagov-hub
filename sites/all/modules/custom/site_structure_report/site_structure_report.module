@@ -158,7 +158,7 @@ function _prepare_fbo_report(){
         exit('working');
 }
 function _userinput_report(){
-    $elasticsearch_server = 'http://' . variable_get('elasticsearch_server', 'elasticsearch_server'). ':' . variable_get('elasticsearch_port', 9200);
+    $elasticsearch_server = _govopp_elasticsearch_server();
 
     $header = array(
         "CONTENT-TYPE: application/json; charset=utf-8"
