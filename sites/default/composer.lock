@@ -168,16 +168,19 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/nodespark/des-connector.git",
-                "reference": "b6f0a8ae6a200865f57fb0d39e7d80023cc2790d"
+                "reference": "092e08ba54ad580ab75a00c4ce58ee7dc655f464"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nodespark/des-connector/zipball/b6f0a8ae6a200865f57fb0d39e7d80023cc2790d",
-                "reference": "b6f0a8ae6a200865f57fb0d39e7d80023cc2790d",
+                "url": "https://api.github.com/repos/nodespark/des-connector/zipball/092e08ba54ad580ab75a00c4ce58ee7dc655f464",
+                "reference": "092e08ba54ad580ab75a00c4ce58ee7dc655f464",
                 "shasum": ""
             },
             "require": {
                 "elasticsearch/elasticsearch": "~5.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^6.3"
             },
             "type": "library",
             "autoload": {
@@ -205,7 +208,7 @@
             ],
             "description": "An abstraction library for Elasticsearch Connector module for Drupal.",
             "homepage": "https://github.com/nodespark/des-connector",
-            "time": "2017-05-23T10:55:47+00:00"
+            "time": "2017-10-01T19:08:51+00:00"
         },
         {
             "name": "psr/log",

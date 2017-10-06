@@ -348,7 +348,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
           // their S3 bucket's s3fs_public_folder.
           return "{$GLOBALS['base_url']}/s3fs-css/" . drupal_encode_path($s3_key);
         }
-        else if (substr($s3_key, -3) == '.js') {
+        elseif (substr($s3_key, -3) == '.js') {
           // Send requests for public JS files to /s3fs-js/path/to/file.js.
           // Like with CSS, the user must set up that path as a proxy.
           return "{$GLOBALS['base_url']}/s3fs-js/" . drupal_encode_path($s3_key);
@@ -621,7 +621,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       if ($mode == 'r') {
         $this->_open_read_stream($this->params, $errors);
       }
-      else if ($mode == 'a') {
+      elseif ($mode == 'a') {
         $this->_open_append_stream($this->params, $errors);
       }
       else {
@@ -998,15 +998,13 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $bare_uri = rtrim($uri, '/');
     $slash_uri = $bare_uri . '/';
 
-    // Check if the folder is empty.
-    $files = db_select('s3fs_file', 's')
+    // If the folder is empty, it's eligible for deletion.
+    $file_count = db_select('s3fs_file', 's')
       ->fields('s')
       ->condition('uri', db_like($slash_uri) . '%', 'LIKE')
       ->execute()
-      ->fetchAll(PDO::FETCH_ASSOC);
-
-    // If the folder is empty, it's eligible for deletion.
-    if (empty($files)) {
+      ->rowCount();
+    if ($file_count === 0) {
       $result = $this->_delete_cache($bare_uri);
       clearstatcache(TRUE, $bare_uri);
 
@@ -1264,36 +1262,15 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     if (strpos($uri, 'public:///') === 0) {
       $uri = preg_replace('^public://[/]+^', 'public://', $uri);
     }
-    else if (strpos($uri, 'private:///') === 0) {
+    elseif (strpos($uri, 'private:///') === 0) {
       $uri = preg_replace('^private://[/]+^', 'private://', $uri);
     }
 
-    // Cache DB reads so that faster caching mechanisms (e.g. redis, memcache)
-    // can further improve performance.
-    $cid = S3FS_CACHE_PREFIX . $uri;
-    if ($cached = cache_get($cid, S3FS_CACHE_BIN)) {
-      $record = $cached->data;
-    }
-    else {
-      // Cache miss. Avoid a stampede.
-      if (!lock_acquire($cid, 1)) {
-        // Another request is building the variable cache. Wait, then re-run
-        // this function.
-        lock_wait($cid);
-        $record = $this->_read_cache($uri);
-      }
-      else {
-        $record = db_select('s3fs_file', 's')
-          ->fields('s')
-          ->condition('uri', $uri, '=')
-          ->execute()
-          ->fetchAssoc();
-
-        cache_set($cid, $record, S3FS_CACHE_BIN, CACHE_TEMPORARY);
-        lock_release($cid);
-      }
-    }
-
+    $record = db_select('s3fs_file', 's')
+      ->fields('s')
+      ->condition('uri', $uri, '=')
+      ->execute()
+      ->fetchAssoc();
     return $record ? $record : FALSE;
   }
 
@@ -1320,7 +1297,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     if (strpos($metadata['uri'], 'public:///') === 0) {
       $metadata['uri'] = preg_replace('^public://[/]+^', 'public://', $metadata['uri']);
     }
-    else if (strpos($metadata['uri'], 'private:///') === 0) {
+    elseif (strpos($metadata['uri'], 'private:///') === 0) {
       $metadata['uri'] = preg_replace('^private://[/]+^', 'private://', $metadata['uri']);
     }
 
@@ -1328,11 +1305,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       ->key(array('uri' => $metadata['uri']))
       ->fields($metadata)
       ->execute();
-
-    // Clear this URI from the Drupal cache, to ensure the next read isn't
-    // from a stale cache entry.
-    $cid = S3FS_CACHE_PREFIX . $metadata['uri'];
-    cache_clear_all($cid, S3FS_CACHE_BIN);
 
     $dirname = drupal_dirname($metadata['uri']);
     // If this file isn't in the root directory, also write this file's
@@ -1364,9 +1336,6 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $or = db_or();
     foreach ($uri as $u) {
       $or->condition('uri', $u, '=');
-      // Clear this URI from the Drupal cache.
-      $cid = S3FS_CACHE_PREFIX . $u;
-      cache_clear_all($cid, S3FS_CACHE_BIN);
     }
     $delete_query->condition($or);
     return $delete_query->execute();
@@ -1421,7 +1390,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       $params['Key'] = "$public_folder/{$params['Key']}";
     }
     // private:// file are all placed in the s3fs_private_folder.
-    else if (file_uri_scheme($uri) == 'private') {
+    elseif (file_uri_scheme($uri) == 'private') {
       $params['Key'] = "$private_folder/{$params['Key']}";
     }
 
@@ -1643,7 +1612,7 @@ if ($library['loaded']) {
       if ($whence == SEEK_SET) {
         $byte = $offset;
       }
-      else if ($whence == SEEK_CUR) {
+      elseif ($whence == SEEK_CUR) {
         $byte = $offset + $this->ftell();
       }
       else {

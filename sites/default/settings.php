@@ -101,8 +101,8 @@ $envToDrupalMap = array(
 
         's3fs_bucket'     => 'CMP_AWS_S3_BUCKET',
         's3fs_region'     => 'CMP_AWS_S3_REGION',
-        's3fs_hostname'   => 'CMP_DRUPAL_S3FS_HOSTNAME',
-        's3fs_domain'     => 'CMP_DRUPAL_S3FS_DOMAIN',
+        's3fs_hostname'   => 'CMP_DRUPAL_S3FS_CUSTOMHOST',
+        's3fs_domain'     => 'CMP_DRUPAL_S3FS_CNAME',
         's3fs_use_relative_urls' => 'CMP_DRUPAL_S3FS_USE_RELATIVE_URLS',
         's3fs_ignore_cache' => 'CMP_DRUPAL_S3FS_IGNORE_CACHE',
 

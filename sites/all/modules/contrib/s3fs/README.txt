@@ -251,7 +251,7 @@ $conf['s3fs_torrents'] = "yarrr/*";
 $conf['awssdk2_access_key'] = 'YOUR ACCESS KEY';
 $conf['awssdk2_secret_key'] = 'YOUR SECRET KEY';
 $conf['awssdk2_use_instance_profile'] = TRUE or FALSE;
-$conf['awssdk2_default_cache_config'] = '/path/to/cache';
+$conf['awssdk2_default_cache_config'] = '/tmp/cache';
 
 
 ===========================================

@@ -20,6 +20,7 @@ function s3fs_settings() {
     'us-west-2' => t('US West - Oregon (us-west-2)'),
     'us-gov-west-1' => t('USA GovCloud Standard (us-gov-west-1)'),
     'eu-west-1' => t('EU - Ireland  (eu-west-1)'),
+    'eu-west-2' => t('EU - London (eu-west-2)'),
     'eu-central-1' => t('EU - Frankfurt (eu-central-1)'),
     'ap-southeast-1' => t('Asia Pacific - Singapore (ap-southeast-1)'),
     'ap-southeast-2' => t('Asia Pacific - Sydney (ap-southeast-2)'),
@@ -43,9 +44,12 @@ function s3fs_settings() {
     '#collapsible' => TRUE,
     // Simplify the form by collapsing this fieldset if it's already been configured.
     '#collapsed'   => _s3fs_get_setting('awssdk2_access_key') ||
-                      _s3fs_get_setting('use_instance_profile'),
+                      _s3fs_get_setting('awssdk2_use_instance_profile'),
   );
 
+  # NOTE: The awssdk2 settings can be a bit confusing. They start with "s3fs_"
+  # to ensure that they get pulled as part of _s3fs_get_config(), but they can
+  # be hard-coded as overrides in settings.php without the s3fs_ prefix.
   $form['aws_credentials']['s3fs_awssdk2_access_key'] = array(
     '#type'          => 'textfield',
     '#title'         => t('Amazon Web Services Access Key'),
@@ -61,8 +65,7 @@ function s3fs_settings() {
   $form['aws_credentials']['s3fs_awssdk2_use_instance_profile'] = array(
     '#type'          => 'checkbox',
     '#title'         => t('Use EC2 Instance Profile Credentials'),
-    // TODO: Remove the 'use_instance_profile' and 's3fs_use_instance_profile' bits in 3.0.
-    '#default_value' => _s3fs_get_setting('awssdk2_use_instance_profile') || _s3fs_get_setting('use_instance_profile'),
+    '#default_value' => _s3fs_get_setting('awssdk2_use_instance_profile'),
     '#description'   => t(
       'If your Drupal site is running on an Amazon EC2 server, you may use the Instance Profile Credentials
       from that server rather than setting your AWS credentials directly.'
@@ -77,7 +80,7 @@ function s3fs_settings() {
       This must be a path to a folder in which the webserver can read and write.'),
     '#states'        => array(
       'visible' => array(
-        ':input[id=edit-s3fs-use-instance-profile]' => array('checked' => TRUE),
+        ':input[id=edit-s3fs-awssdk2-use-instance-profile]' => array('checked' => TRUE),
       ),
     ),
   );

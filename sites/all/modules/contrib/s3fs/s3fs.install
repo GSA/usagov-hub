@@ -49,7 +49,7 @@ function s3fs_requirements($phase) {
 
   // Check for the Libraries module. This shouldn't really be needed, but if
   // the user doesn't have Libraries, the error won't be reported correctly.
-  if (!function_exists('libraries_detect')) {
+  if (!module_exists('libraries')) {
     $requirements['s3fs_libraries'] = array(
       'title' => $t('Libraries module'),
       'value' => $t('Not installed.'),
@@ -84,9 +84,6 @@ function s3fs_requirements($phase) {
 
   if (_s3fs_get_setting('awssdk2_use_instance_profile')) {
     $default_cache_config = _s3fs_get_setting('awssdk2_default_cache_config');
-    if (isset($config['awssdk2_default_cache_config'])) {
-      $default_cache_config = $config['awssdk2_default_cache_config'];
-    }
 
     $message  = array(
       'title' => $t('AWS Instance Profile Cache'),
@@ -174,6 +171,7 @@ function s3fs_schema() {
     ),
     'primary key' => array('uri'),
   );
+
   return $schema;
 }
 
@@ -342,9 +340,31 @@ function s3fs_update_7202() {
   // As of the introduction of this update hook, s3fs_schema() now defines
   // the `uri` column with "binary = TRUE".
   $schema = s3fs_schema();
- db_change_field('s3fs_file', 'uri', 'uri', $schema['s3fs_file']['fields']['uri']);
+  db_change_field('s3fs_file', 'uri', 'uri', $schema['s3fs_file']['fields']['uri']);
 }
 
+/**
+ * Replace the s3fs_use_instance_profile variable with s3fs_awssdk2_use_instance_profile.
+ */
+function s3fs_update_7203() {
+  $old_var = variable_get('s3fs_use_instance_profile', 'unset');
+  if ($old_var !== 'unset') {
+    variable_del('s3fs_use_instance_profile');
+  }
+  variable_set('s3fs_awssdk2_use_instance_profile', $old_var);
+}
+
+/**
+ * Fix the bug in the previous update hook.
+ */
+function s3fs_update_7204() {
+  # The previous hook blindly set the s3fs_awssdk2_use_instance_profile variable to 'unset' if
+  # the previous version of the variable wasn't set. This is disastrous, as 'unset' equates to boolean true.
+  $var = variable_get('s3fs_awssdk2_use_instance_profile');
+  if ($var == 'unset') {
+    variable_del('s3fs_awssdk2_use_instance_profile');
+  }
+}
 
 
 /******************************************************************************

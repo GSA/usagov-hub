@@ -81,7 +81,8 @@ function usasearch_preprocess_page(&$variables) {
     if (variable_get('usasearch_autocomplete', TRUE)) {
       $inline_js .= "var script = document.createElement('script');\n";
       $inline_js .= "script.type = 'text/javascript';\n";
-      $inline_js .= "script.src = '$action_domain/javascripts/remote.loader.js';\n";
+      #$inline_js .= "script.src = '$action_domain/javascripts/remote.loader.js';\n";
+      $inline_js .= "script.src = 'http://search.usa.gov/javascripts/remote.loader.js';\n";
       $inline_js .= "document.getElementsByTagName('head')[0].appendChild(script);\n";
     }
   }

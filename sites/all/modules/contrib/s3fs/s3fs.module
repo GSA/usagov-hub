@@ -9,12 +9,6 @@ use Doctrine\Common\Cache\FilesystemCache;
 use Guzzle\Cache\DoctrineCacheAdapter;
 
 /**
- * The prefix for our Drupal-cached metadata.
- */
-define('S3FS_CACHE_PREFIX', 's3fs:uri:');
-define('S3FS_CACHE_BIN', 'cache');
-
-/**
  * Class used to differentiate between known and unknown exception states.
  */
 class S3fsException extends Exception {}
@@ -155,7 +149,7 @@ function s3fs_help($path, $arg) {
     );
     return "<p>$msg</p>";
   }
-  else if ($path == $actions) {
+  elseif ($path == $actions) {
     $msg = t('These are the actions that you can perform upon S3 File System.');
     $msg .= '<br>' . t('To change your settings, visit the !link.', array('!link' => l(t('settings page'), $settings)));
     return "<p>$msg</p>";
@@ -461,7 +455,7 @@ function _s3fs_refresh_cache($config) {
       $key = str_replace("$public_folder_name/", '', $key);
       $uri = "public://$key";
     }
-    else if (strpos($key, "$private_folder_name/") === 0) {
+    elseif (strpos($key, "$private_folder_name/") === 0) {
       $key = str_replace("$private_folder_name/", '', $key);
       $uri = "private://$key";
     }
@@ -533,9 +527,6 @@ function _s3fs_refresh_cache($config) {
   db_rename_table('s3fs_file', 's3fs_file_old');
   db_rename_table('s3fs_file_temp', 's3fs_file');
   db_drop_table('s3fs_file_old');
-
-  // Clear every s3fs entry in the Drupal cache.
-  cache_clear_all(S3FS_CACHE_PREFIX, S3FS_CACHE_BIN, TRUE);
 
   if (function_exists('drush_log')) {
     drush_log(dt('S3 File System cache refreshed.'));
@@ -651,7 +642,7 @@ function _s3fs_convert_metadata($uri, $s3_metadata) {
     if (isset($s3_metadata['ContentLength'])) {
       $metadata['filesize'] = $s3_metadata['ContentLength'];
     }
-    else if (isset($s3_metadata['Size'])) {
+    elseif (isset($s3_metadata['Size'])) {
       $metadata['filesize'] = $s3_metadata['Size'];
     }
 
@@ -695,18 +686,9 @@ function _s3fs_get_amazons3_client($config) {
     if (isset($config['awssdk2_secret_key'])) {
       $secret_key = $config['awssdk2_secret_key'];
     }
-    // BACKWARD COMPATIBILITY.
-    // TODO: REMOVE IN 3.0
-    $use_instance_profile = _s3fs_get_setting('use_instance_profile');
-    if (isset($config['use_instance_profile'])) {
-      $use_instance_profile = $config['use_instance_profile'];
-    }
-    if (_s3fs_get_setting('awssdk2_use_instance_profile') || isset($config['awssdk2_use_instance_profile'])) {
-      // END BACKWARDS COMPATIBILITY
-      $use_instance_profile = _s3fs_get_setting('awssdk2_use_instance_profile');
-      if (isset($config['awssdk2_use_instance_profile'])) {
-        $use_instance_profile = $config['awssdk2_use_instance_profile'];
-      }
+    $use_instance_profile = _s3fs_get_setting('awssdk2_use_instance_profile');
+    if (isset($config['awssdk2_use_instance_profile'])) {
+      $use_instance_profile = $config['awssdk2_use_instance_profile'];
     }
     $default_cache_config = _s3fs_get_setting('awssdk2_default_cache_config');
     if (isset($config['awssdk2_default_cache_config'])) {
@@ -719,20 +701,23 @@ function _s3fs_get_amazons3_client($config) {
         t('Unable to load the AWS SDK. Please ensure that the awssdk2 library is installed correctly.')
       );
     }
-    else if (!class_exists('Aws\S3\S3Client')) {
+    elseif (!class_exists('Aws\S3\S3Client')) {
       throw new S3fsException(
         t('Cannot load Aws\S3\S3Client class. Please ensure that the awssdk2 library is installed correctly.')
       );
     }
-    else if (!$use_instance_profile && (!$secret_key || !$access_key)) {
+    elseif (!$use_instance_profile && (!$secret_key || !$access_key)) {
+      # s3fs isn't configured to use instance profile credentials, but also doesn't have the secret/access keys defined.
       throw new S3fsException(t("Your AWS credentials have not been properly configured.
         Please set them on the S3 File System !settings_page or
         set \$conf['awssdk2_access_key'] and \$conf['awssdk2_secret_key'] in settings.php.",
         array('!settings_page' => l(t('settings page'), 'admin/config/media/s3fs/settings')))
       );
     }
-    else if ($use_instance_profile && (
-        empty($default_cache_config) || !(is_writable($default_cache_config) && is_readable($default_cache_config)))) {
+    elseif ($use_instance_profile &&
+        (empty($default_cache_config) || !(is_writable($default_cache_config) && is_readable($default_cache_config)))) {
+      # s3fs is configured to use instance profile credentials, but the default_cache_config folder is either unset or
+      # isn't read/writable by the web server.
       throw new s3fsException(t("Your AWS credentials have not been properly configured.
         You are attempting to use instance profile credentials but you have not set a valid default cache location.
         Please set it on the !settings_page or set \$conf['awssdk2_default_cache_config'] in settings.php.
@@ -784,9 +769,10 @@ function _s3fs_get_amazons3_client($config) {
  *
  * @return array
  *   An associative array of all the s3fs_* config settings, with the "s3fs_"
- *   prefix removed from their names.
+ *   prefix removed from their names. Also includes any awsdsk2_ prefixed vars,
+ *   with their prefix left intact.
  */
-function _s3fs_get_config($reset=FALSE) {
+function _s3fs_get_config($reset = FALSE) {
   $config = &drupal_static('_s3fs_get_config');
   if ($config === NULL || $reset) {
     // The global $conf array contains all the variables, including overrides
@@ -794,8 +780,16 @@ function _s3fs_get_config($reset=FALSE) {
     global $conf;
     $config = array();
     foreach ($conf as $key => $value) {
+      // Retrieve the s3fs_ prefixed vars, and strip the prefix.
       if (substr($key, 0, 5) == 's3fs_') {
         $config[substr($key, 5)] = $value;
+      }
+    }
+    foreach ($conf as $key => $value) {
+      // Retrieve the awssdk2_ prefixed vars, but don't strip the prefix.
+      // These will override any s3fs_awssdk2_ prefixed vars.
+      if (substr($key, 0, 8) == 'awssdk2_') {
+        $config[$key] = $value;
       }
     }
     // Remove any leading or trailing slashes from these settings, in case the user added them.
@@ -821,31 +815,11 @@ function _s3fs_get_config($reset=FALSE) {
  * @param string $setting
  *   The short name of the setting. e.g. the "s3fs_use_cname" variable's short name is "use_cname".
  */
-function _s3fs_get_setting($setting, $default='') {
-  global $conf;
-  // $config is just the s3fs_* variables with that prefix removed.
+function _s3fs_get_setting($setting, $default = '') {
   $config = _s3fs_get_config();
-
-  // Get the value from _s3fs_get_config(), if it's set. This will include any overrides from settings.php.
-  $value = !empty($config[$setting]) ? $config[$setting] : $default;
-
-  // The SDK settings are treated a little differently, as they have overrides in settings.php with different names.
-  if ($setting == 'awssdk2_access_key' && isset($conf['awssdk2_access_key'])) {
-    $value = $conf['awssdk2_access_key'];
-  }
-  if ($setting == 'awssdk2_secret_key' && isset($conf['awssdk2_secret_key'])) {
-    $value = $conf['awssdk2_secret_key'];
-  }
-  // This OR check is for backwards compatibility with the old s3fs_use_instance_profile variable.
-  // TODO: Remove it in 3.0.
-  if (($setting == 'awssdk2_use_instance_profile' || $setting == 'use_instance_profile') && isset($conf['awssdk2_use_instance_profile'])) {
-    $value = $conf['awssdk2_use_instance_profile'];
-  }
-  if ($setting == 'awssdk2_default_cache_config' && isset($conf['awssdk2_default_cache_config'])) {
-    $value = $conf['awssdk2_default_cache_config'];
-  }
-
-  return $value;
+  // Get the value from _s3fs_get_config(), if it's set. This will include any overrides from settings.php, including
+  // the awssdk2_ prefixed vars.
+  return !empty($config[$setting]) ? $config[$setting] : $default;
 }
 
 /**
@@ -896,7 +870,7 @@ function _s3fs_copy_file_system_to_s3($scheme) {
   if ($scheme == 'public') {
     $source_folder = realpath(variable_get('file_public_path', conf_path() . '/files'));
   }
-  else if ($scheme == 'private') {
+  elseif ($scheme == 'private') {
     $source_folder = variable_get('file_private_path', '');
     $source_folder_real = realpath($source_folder);
     if (empty($source_folder) || empty($source_folder_real)) {
