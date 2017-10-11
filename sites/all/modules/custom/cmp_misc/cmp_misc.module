@@ -26,7 +26,7 @@ if ( !empty(getenv('CMP_AWS_S3_BUCKET')) )
         $_REQUEST['s3fs_bucket'] = getenv('CMP_AWS_S3_BUCKET');
     }
 }*/
-function cmp_misc__audit_log(Auditlog $log) {
+function cmp_misc_audit_log(Auditlog $log) {
     $roles = user_roles(TRUE);
     foreach ( $log->role_ids as $i=>$rid  ) {
         $log->role_ids[$i] = $rid.':'.$roles[$rid];
