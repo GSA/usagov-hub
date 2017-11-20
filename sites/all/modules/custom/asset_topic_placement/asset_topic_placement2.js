@@ -21,7 +21,6 @@ jQuery(document).ready(function(){
     var selectedItemsArray = getCurrentlySelectedItems();
     var historyItemsArray = getCurrentlySelectedItems();
 
-
     getNodes();
     regionPlacementToggle();
     parentTermWidget();
@@ -149,7 +148,7 @@ jQuery(document).ready(function(){
             rebuildTable(data, selectedItemsArray, historyItemsArray);
             setSelectedItems(selectedItemsArray, historyItemsArray);
 
-            
+
         });
     }
 

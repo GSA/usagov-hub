@@ -205,8 +205,6 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
         $allAssetsNew = ( is_null($allAssetsNew) ? array() : $allAssetsNew );
         $allAssetsOld = getAssetsInSiteStructTerm($termOld, false);
         $allAssetsOld = ( is_null($allAssetsOld) ? array() : $allAssetsOld );
-        dsm($allAssetsNew);
-        dsm($allAssetsOld);
         // Check if the assets are being changed
         if ( implode(',', $allAssetsNew) !== implode(',', $allAssetsOld) ) {
             //dsm('calling');
@@ -659,10 +657,6 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
     // Get a list of users to email (users in this role)
     $uids = db_query("SELECT DISTINCT uid FROM users_roles WHERE rid = {$role->rid}")->fetchCol();
 
-    if (isset($term->field_term_owner['und'][0]['target_id'])){
-        $uids[$term->field_term_owner['und'][0]['target_id']] = $term->field_term_owner['und'][0]['target_id'];
-        //dsm($term->field_term_owner['und'][0]['target_id']);
-    }
     $mtMembers = user_load_multiple($uids);
 
     // Send a message to each member of the SS_CHANGE_NOTIFY_ROLE role
@@ -673,10 +667,10 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
         // Do not send to users marked for no notifications
         if (
             variable_get("tax_no_notify_".$uid, false) !== true
-            && strpos($mtMember->name, '@') !== false
-            && strpos($mtMember->name, '.') !== false
+            && strpos($mtMember->mail, '@') !== false
+            && strpos($mtMember->mail, '.') !== false
         ) {
-            $arrTo[] = $mtMember->name;
+            $arrTo[] = $mtMember->mail;
         }
     }
     $strTo = trim(implode(',', $arrTo), ',');
@@ -778,6 +772,7 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
 
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
         be called and used to determine the email-message to send. */
+
         $res = drupal_mail(
             'cmp_misc',
             'scanning_content',

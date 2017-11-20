@@ -473,20 +473,20 @@ function repo_sync_triggerSyncMenuCallback() {
 
     // Don't continue if we are not ready yet
     if ( !empty(variable_get('repo_sync_disabled')) ) {
-      repo_sync_logEvent(false, 'Rejected a request to sync since the service has been disabled');
+      repo_sync_logEvent('Rejected a request to sync since the service has been disabled');
       exit('Error - This service disabled');
     }
 
     // Don't continue if we are not ready yet
     if ( count(repo_sync_settings()) === 0 ) {
-        repo_sync_logEvent(false, 'Rejected a request to sync since the service is not yet setup');
+        repo_sync_logEvent('Rejected a request to sync since the service is not yet setup');
         exit('Error - This service is not yet setup');
     }
 
     // Verify security key
     $expectKey = repo_sync_settings('secret');
     if ( empty($expectKey) || empty($_REQUEST['key']) || $_REQUEST['key'] !== $expectKey ) {
-        repo_sync_logEvent(true, 'Error - Incorrect security key provided by requester. No sync triggered.');
+        repo_sync_logEvent('Error - Incorrect security key provided by requester. No sync triggered.');
         exit();
     }
 
@@ -497,11 +497,11 @@ function repo_sync_triggerSyncMenuCallback() {
     }
 
     // Fire the function that does the real logic
-    repo_sync_logEvent(false, 'A request for a sync has occurred - now syncing.', false);
+    repo_sync_logEvent('A request for a sync has occurred - now syncing.', true);
     if ( repo_sync_triggerSync() === false ) {
-        repo_sync_logEvent(false, 'Repo-Sync failure!', false);
+        repo_sync_logEvent('Repo-Sync failure!', true);
     } else {
-        repo_sync_logEvent(false, 'Repo-Sync Complete', false);
+        repo_sync_logEvent('Repo-Sync Complete', true);
     }
 }
 
@@ -513,7 +513,7 @@ function repo_sync_triggerSyncMenuCallback() {
 function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
 
     if ( !empty(variable_get('repo_sync_disabled')) ) {
-      repo_sync_logEvent(true,'ERROR - Repo Sync has been disabled',true);
+      repo_sync_logEvent('ERROR - Repo Sync has been disabled');
       return false;
     }
 
@@ -522,58 +522,71 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
 
     // Create a working directory
     $wdir = '/tmp/gitsync'.time();
+    // $GLOBALS['repo_sync_log'][] = "mkdir $wdir";
     if ( !@mkdir($wdir) ) {
-        repo_sync_logEvent(true, 'ERROR - Could not create directory '.$wdir, true);
+        repo_sync_logEvent('ERROR - Could not create directory '.$wdir);
+        // print_r($GLOBALS['repo_sync_log']);
         return false;
     }
+    // $GLOBALS['repo_sync_log'][] = "mkdir $wdir/src";
     if ( !@mkdir($wdir.'/src') ) {
-        repo_sync_logEvent(true, 'ERROR - Could not create directory '.$wdir, true);
+        repo_sync_logEvent('ERROR - Could not create directory '.$wdir);
+        // print_r($GLOBALS['repo_sync_log']);
         return false;
     }
+    // $GLOBALS['repo_sync_log'][] = "mkdir $wdir/dest";
     if ( !@mkdir($wdir.'/dest') ) {
-        repo_sync_logEvent(true, 'ERROR - Could not create directory '.$wdir, true);
+        repo_sync_logEvent('ERROR - Could not create directory '.$wdir);
+        // print_r($GLOBALS['repo_sync_log']);
         return false;
     }
 
     // Pull down the source-repo
-    $cloneUrl = 'https://'.urlencode($settings['srcuser']).':'.urlencode($settings['srcpass']).'@'.$settings['src'];
+    $cloneSrcUrl = 'https://'.urlencode($settings['srcuser']).':'.urlencode($settings['srcpass']).'@'.$settings['src'];
+    // $cloneSrcUrlSafe = 'https://'.urlencode($settings['srcuser']).':pass@'.$settings['src'];
 
-    $rslt = `git clone '{$cloneUrl}' {$wdir}/src 2>&1`;
+
+    // $GLOBALS['repo_sync_log'][] = "git clone '{$cloneSrcUrl}' {$wdir}/src 2>&1";
+    $rslt = `git clone '{$cloneSrcUrl}' {$wdir}/src 2>&1`;
     if ( strpos($rslt, 'Authentication failed') !== false ) {
-        repo_sync_logEvent(true, 'Error - Could not pull down source-repository due to authentication-error.', true);
+        repo_sync_logEvent('Error - Could not pull down source-repository due to authentication-error.', true);
+        // print_r($GLOBALS['repo_sync_log']);
         return false;
     }
 
     if ( strpos($rslt, 'not found') !== false ) {
-        repo_sync_logEvent(true, 'Error - Could not pull find source-repository', true);
+        repo_sync_logEvent('Error - Could not find source-repository', true);
+        // print_r($GLOBALS['repo_sync_log']);
         return false;
     }
 
     // Switch to target branch (source repo)
-    #echo "cd {$wdir}/src && git checkout {$settings['srcbranch']} 2>&1\n\n";
+    // $GLOBALS['repo_sync_log'][] = "cd {$wdir}/src && git checkout {$settings['srcbranch']} 2>&1";
     $rslt = `cd {$wdir}/src && git checkout {$settings['srcbranch']} 2>&1`;
     if ( strpos($rslt, 'error') === 0 ) {
-        repo_sync_logEvent(
-            true,
-            "Error - Could not switch to branch \"{$settings['srcbranch']}\" in source-repo. "
+        repo_sync_logEvent("Error - Could not switch to branch \"{$settings['srcbranch']}\" in source-repo. "
                 ."Are you sure this branch exsist on the server?",
             true
         );
+        // print_r($GLOBALS['repo_sync_log']);
         return false;
     }
 
     // Pull down the destination repo
-    $cloneUrl = 'https://'.urlencode($settings['destuser']).':'.urlencode($settings['destpass']).'@'.$settings['dest'];
-    $GLOBALS['repo_sync_log'][] = "git clone '{$cloneUrl}' {$wdir}/dest 2>&1";
-    $rslt = `git clone '{$cloneUrl}' {$wdir}/dest 2>&1`;
+    $cloneDestUrl = 'https://'.urlencode($settings['destuser']).':'.urlencode($settings['destpass']).'@'.$settings['dest'];
+    // $cloneDestUrlSafe = 'https://'.urlencode($settings['destuser']).':pass@'.$settings['dest'];
+    // $GLOBALS['repo_sync_log'][] = "git clone '{$cloneDestUrl}' {$wdir}/dest 2>&1";
+    $rslt = `git clone '{$cloneDestUrl}' {$wdir}/dest 2>&1`;
 
     if ( strpos($rslt, 'Authentication failed') !== false ) {
-        repo_sync_logEvent(true, 'Error - Could not pull down destination-repository due to authentication-error.', true);
+        repo_sync_logEvent('Error - Could not pull down destination-repository due to authentication-error.', true);
+        // print_r($GLOBALS['repo_sync_log']);
         return false;
     }
 
     if ( strpos($rslt, 'not found') !== false ) {
-        repo_sync_logEvent(true, 'Error - Could not pull find destination-repository', true);
+        repo_sync_logEvent('Error - Could not find destination-repository', true);
+        // print_r($GLOBALS['repo_sync_log']);
         return false;
     }
 
@@ -583,12 +596,14 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     $wlPath = $wdir . '/src/' . $settings['srcwlistpath'];
     $whiteList = array();
     if ( !file_exists($wlPath) ) {
-        repo_sync_logEvent(true, "Error - No white-list found at {$settings['srcwlistpath']} in the source-repository.", true);
+        repo_sync_logEvent("Error - No white-list found at {$settings['srcwlistpath']} in the source-repository.", true);
+        // print_r($GLOBALS['repo_sync_log']);
         return;
     }
     $whiteList = file($wlPath, FILE_SKIP_EMPTY_LINES + FILE_IGNORE_NEW_LINES);
     if ( $whiteList === false ) {
-        repo_sync_logEvent(true, "Error - Could not read white-list file, are permissions set correctly?", true);
+        repo_sync_logEvent("Error - Could not read white-list file, are permissions set correctly?", true);
+        // print_r($GLOBALS['repo_sync_log']);
         return;
     }
     $whiteList[] = 'blog/mars-zen/mars/js/*';
@@ -620,11 +635,10 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     $branches = preg_split('/[\~\^\,\:\s\b]+/',$settings['destbranch']);
     foreach ( $branches as $destbranch )
     {
+        // $GLOBALS['repo_sync_log'][] = "cd {$wdir}/dest && git checkout {$destbranch} 2>&1";
         $rslt = `cd {$wdir}/dest && git checkout {$destbranch} 2>&1`;
         if ( strpos($rslt, 'error') === 0 ) {
-            repo_sync_logEvent(
-                true,
-                "Error - Could not switch to branch \"{$destbranch}\" in destination-repo. "
+            repo_sync_logEvent("Error - Could not switch to branch \"{$destbranch}\" in destination-repo. "
                     ."Are you sure this branch exsist on the server?",
                 true
             );
@@ -645,19 +659,20 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
 
             // Sanity-check - directories should have been filtered out by repo_sync_resolve()
             if ( is_dir($filePathSrc) ) {
+                repo_sync_logEvent("Warning - White-list file path src is not a directory {$filePathSrc}");
                 continue;
             }
 
             // Security
             if ( strpos($filePathSrc, '..') !== false || strpos($filePathDest, '..') !== false ) {
-                repo_sync_logEvent(true, "Warning - White-list entry contains unacceptable \"..\" in row {$lineNumb}");
+                repo_sync_logEvent("Warning - White-list entry contains unacceptable \"..\" in row {$lineNumb}");
                 continue;
             }
 
             // Security - Directory-Jail
             $dirTarget = realpath( dirname($filePathDest) );
             if ( !in_array($dirTarget, $allowedDirs) ) {
-                repo_sync_logEvent(true, "Warning - White-listed file '{$fileRelSrc}' is not allowed to be written "
+                repo_sync_logEvent("Warning - White-listed file '{$fileRelSrc}' is not allowed to be written "
                     ."to '{$fileRelDest}' ($filePathDest=$dirTarget) as per the directory-jail rules, skipping...");
                 continue;
             }
@@ -666,42 +681,53 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
             $fileExt = pathinfo($filePathSrc, PATHINFO_EXTENSION);
             $fileExt = strtolower($fileExt);
             if ( !in_array($fileExt, $arrAllowedExt) ) {
-                repo_sync_logEvent(true, "Warning - White-listed file '{$fileRelSrc}' is not allowed to be written "
+                repo_sync_logEvent("Warning - White-listed file '{$fileRelSrc}' is not allowed to be written "
                     ."to the target-repo since .{$fileExt} files are not granted xfer permission, skipping...");
                 continue;
             }
 
             // Existence check
             if ( !file_exists($filePathSrc) ) {
-                repo_sync_logEvent(true,"Warning - White-listed file {$fileRelSrc} does not exist in source-repo, skipping...");
+                repo_sync_logEvent("Warning - White-listed file {$fileRelSrc} does not exist in source-repo, skipping...");
                 continue;
             }
 
+            // if ( !file_exists($filePathDest) || md5_file($filePathSrc) !== md5_file($filePathDest) ) {
             // Copy the file over into the dest-repo
+            // $GLOBALS['repo_sync_log'][] = "rm $filePathDest";
             @unlink($filePathDest);
             if ( !copy($filePathSrc, $filePathDest) ) {
-                repo_sync_logEvent(true, "Error - Failed to copy \"{$filePathSrc}\" to \"{$filePathDest}\". Permissions? Skipping...");
-            } else {
-                // Not logging this event here anymore since constant-pings to Slack can lag things...
+                repo_sync_logEvent("Error - Failed to copy \"{$filePathSrc}\" to \"{$filePathDest}\". Permissions? Skipping...");
+                // } else {
+                //     repo_sync_logEvent("Updating $filePathDest from $filePathSrc");
             }
+            //} else {
+            // $GLOBALS['repo_sync_log'][] = "Skipping $filePathSrc: no change";
+            // }
         }
 
         // Add all file-changes under Git-tracking
+        // $GLOBALS['repo_sync_log'][] = "cd {$wdir}/dest \
+        //       && git config push.default simple \
+        //       && git config user.email 'dnarkiewicz+ctacbot@ctacorp.com' \
+        //       && git config user.name  'Drupal Repo-Sync Module' \
+        //       && git add -A 2>&1 && git commit -m 'Russell Repo Sync' 2>&1";
         $rslt = `cd {$wdir}/dest \
               && git config push.default simple \
               && git config user.email 'dnarkiewicz+ctacbot@ctacorp.com' \
               && git config user.name  'Drupal Repo-Sync Module' \
               && git add -A 2>&1 && git commit -m 'Russell Repo Sync' 2>&1`;
         if ( strpos($rslt, 'nothing to commit') !== false ) {
-            repo_sync_logEvent(true, "Warning: Nothing was pushed in repo-sync, no files appear to be updated.");
+            repo_sync_logEvent("Warning: Nothing was pushed in repo-sync, no files appear to be updated.",true);
         } else {
+            //$GLOBALS['repo_sync_log'][] = "cd {$wdir}/dest && git push {$cloneUrl} 2>&1";
             $rslt = `cd {$wdir}/dest && git push {$cloneUrl} 2>&1`;
             if ( strpos($rslt, 'error') !== false || strpos($rslt, 'fatal') !== false) {
-                repo_sync_logEvent(true, "Error: An unexpected error occurred during git-push.");
+                repo_sync_logEvent("Error: An unexpected error occurred during git-push.",true);
             } else {
                 $something_got_updated = true;
                 $retLines = explode("\n", trim($rslt));
-                repo_sync_logEvent(true, "Notice: Repo-sync completed successfully. Git returned: ".$retLines[count($retLines)-1]);
+                repo_sync_logEvent("Notice: Repo-sync completed successfully. Git returned: ".$retLines[count($retLines)-1],true);
             }
         }
     }
@@ -719,7 +745,9 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
     }
 
     // Clean up
+    //$GLOBALS['repo_sync_log'][] = "rm -rf /tmp/gitsync*";
     `rm -rf /tmp/gitsync*`;
+    // print_r($GLOBALS['repo_sync_log']);
 }
 
 function repo_sync_mail($key, &$message, $params) {
@@ -762,10 +790,8 @@ function repo_sync_resolve($wdir, $whiteList) {
 
         // If the target contains a wild-card, inclued files matching pathspec
         if ( strpos($filePathSrc, '*')  === false) {
-
             $ret[] = $entry;
         } else {
-
             $starFiles = @explode("\n",`ls -Ad $filePathSrc`);
             foreach ( $starFiles as $starFile ) {
                 $starFile = str_replace($wdir.'/src/', '', $starFile);
@@ -777,7 +803,6 @@ function repo_sync_resolve($wdir, $whiteList) {
 
     // Filter out errous lines
     foreach ( $ret as $key => $entry ) {
-
         if ( trim($entry) === '' || basename(trim($entry)) === '*' ) {
             unset($ret[$key]);
         }
@@ -834,19 +859,19 @@ function repo_sync_determinRepoRelTarget($relSource, $settings = 'ASSUME-DEFAULT
 
 }
 
-function repo_sync_logEvent($print, $strMessage, $isVerbose = true) {
+function repo_sync_logEvent($strMessage, $isVerbose = false) {
 
     //@TODO - add to a log specific log file or table
 
     $GLOBALS['repo_sync_log'][] = $strMessage;
 
     // Print the string if requested
-    if ( $print ) {
-#        print $strMessage;
+    if ( drupal_is_cli() ) {
+       print $strMessage."\n";
     }
 
     // Log to PHP's error-log (which should in tern, log to Splunk)
-    error_log( 'Repo-Sync: ' . $strMessage );
+    watchdog( 'Repo-Sync', $strMessage );
 
     // Log to Slack
     $settings = repo_sync_settings('ALL');

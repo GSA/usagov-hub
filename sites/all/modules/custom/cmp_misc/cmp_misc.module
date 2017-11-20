@@ -4,28 +4,7 @@
 if ( empty($GLOBALS['base_url']) && !empty($_SERVER['HTTP_HOST']) )
 {
     $GLOBALS['base_url'] = ( (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS']=='on') ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'];
-} else {
-    //header('XXX: BASE_URL ALREADY SET');
 }
-/*
-if ( !empty(getenv('CMP_AWS_S3_BUCKET')) )
-{
-    if ( empty(variable_get('s3fs_bucket')) )
-    {
-        variable_set( 's3fs_bucket',     getenv('CMP_AWS_S3_BUCKET') );
-        variable_set( 'amazons3_bucket', getenv('CMP_AWS_S3_BUCKET') );
-        if ( isset($GLOBALS['conf']) && isset($GLOBALS['conf']['s3fs_bucket']) )
-        {
-            $GLOBALS['conf']['s3fs_bucket'] = getenv('CMP_AWS_S3_BUCKET');
-        }
-    }
-
-    if ( isset($_POST['s3fs_bucket']) && empty($_POST['s3fs_bucket']) )
-    {
-        $_POST['s3fs_bucket']    = getenv('CMP_AWS_S3_BUCKET');
-        $_REQUEST['s3fs_bucket'] = getenv('CMP_AWS_S3_BUCKET');
-    }
-}*/
 function cmp_misc_audit_log(Auditlog $log) {
     $roles = user_roles(TRUE);
     foreach ( $log->role_ids as $i=>$rid  ) {
@@ -158,7 +137,7 @@ function _get_region_node_count_by_tid($tids) {
         INNER JOIN field_data_field_asset_order_menu t ON n.nid = t.field_asset_order_menu_target_id
         WHERE t.entity_id IN (' . implode(',', $tids) . ') AND n.status = 1';
     $res_m = db_query($sql_m)->fetchField();
-*/
+    */
     if ( empty($tids) ) { return 0; }
     $tid_list = implode(',',$tids);
     if ( empty($tid_list) ) { return 0; }
@@ -294,7 +273,7 @@ function cmp_misc_views_pre_render(&$view) {
                 . ($is_asset_topic || $is_site_structure? (', ' . ($child_topics . ' Asset Node' . (($child_topics!=0)?'s':''))) : '')
                 . ' )';
 
-            $view->result[$i]->taxonomy_term_data_name = $new_title;
+            $view->result[$i]->taxonomy_term_data_name = $new_title ;
             $i++;
         }
 
@@ -897,62 +876,59 @@ function _cmp_misc_check_content_freshness()
 
 function _cmp_misc_auto_publish_content()
 {
-    /// trigger a workflow state transition to published, this will aoutomatically trigger a legit publish as well
+    /// trigger a workflow state transition to published, this will automatically trigger a legit publish as well
     $records = db_query(
         'SELECT
-                n.nid, n.vid as pub_rev, c.vid as curr_rev,
-                r.status as curr_rev_status,
-                d.deletion_timestamp,
-                a.field_archive_date_value,
-                p.field_schedule_publish_value,
-                w.state
+                n.nid
+                #,n.vid, n.status, d.deletion_timestamp, a.field_archive_date_value, p.field_schedule_publish_value, w.state
               FROM
                 {node} n
-                LEFT JOIN ( # use current revision
-                    select nid, max(vid) as vid
-                    from   {node_revision}
-                    group by nid
-                )                                                 c on ( c.nid = n.nid )
-                LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
-                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
-                LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
-                LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
+                LEFT JOIN {node_deleted}                      d on ( n.nid = d.nid )
+                LEFT JOIN {field_data_field_archive_date}     a on ( n.nid = a.entity_id )
+                LEFT JOIN {field_data_field_schedule_publish} p on ( n.nid = p.entity_id )
+                LEFT JOIN {workbench_moderation_node_history} w on ( n.nid = w.nid AND n.vid = w.vid AND w.is_current = 1 )
               WHERE
                 # node is not deleted
                 ( d.deletion_state IS NULL OR d.deletion_state != :soft )
                 # current revision is not already published
-                AND r.status != 1
+                AND n.status != 1
                 # is not archived
-                AND (
-                    # no archive date set
-                    a.field_archive_date_value IS NULL
-                    OR (
-                        # has archive date set
-                        a.field_archive_date_value IS NOT NULL
-                        AND # archive date is in the future
-                        UNIX_TIMESTAMP(a.field_archive_date_value) > :now
+                AND NOT (
+                    # archive date set
+                    a.field_archive_date_value IS NOT NULL
+                    AND # archive date is in the past
+                    a.field_archive_date_value <= NOW()
+                    AND ( # there is no auto-publish date
+                        p.field_schedule_publish_value IS NULL
+                        OR # the auto-publish date is in the future
+                        p.field_schedule_publish_value >= NOW()
+                        OR # the auto-publish date was before the auto-archive date
+                        p.field_schedule_publish_value <= a.field_archive_date_value
                     )
                 )
                 # is publishable
-                AND (
-                    # has no publish date set
+                AND ( # has no publish date set
                     p.field_schedule_publish_value IS NULL
-                    OR (
-                        # has publish date set
-                        p.field_schedule_publish_value IS NOT NULL
-                        AND # publish date is in the past
-                        UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
+                    OR ( # has publish date in the past
+                        p.field_schedule_publish_value <= NOW()
+                        AND (
+                            a.field_archive_date_value IS NULL
+                            OR
+                            a.field_archive_date_value > NOW()
+                            OR # archive date is before publish date
+                            a.field_archive_date_value > p.field_schedule_publish_value
+                        )
                     )
                 )
                 AND w.state = :scheduled_for_publication
-            ',array( ":now" => REQUEST_TIME, ":soft" => "soft", ":scheduled_for_publication" => "scheduled_for_publication"  )
+            ',array( ":soft" => "soft", ":scheduled_for_publication" => "scheduled_for_publication" )
     )->fetchAll();
 
     foreach  ( $records as $record )
     {
-        $node = node_load($record->nid,$record->curr_rev);
+        $node = node_load($record->nid);
         workbench_moderation_moderate($node,workbench_moderation_state_published());
+        error_log('Auto Publish: nid='.$node->nid.' vid='.$node->vid.' uuid='.$node->uuid);
     }
     return count($records);
 }
@@ -960,16 +936,18 @@ function _cmp_misc_auto_publish_content()
 function _cmp_misc_auto_archive_content()
 {
     /// Just unplublish any nodes with a previous archive date. archive date trumps publication date
-    $records = db_query(
-        'SELECT
-                n.nid, n.vid as curr_rev,
-                n.status,
-                d.deletion_state,
-                a.field_archive_date_value
+    $records = db_query('
+              SELECT
+                n.nid
+                #,n.vid, n.status, d.deletion_state, a.field_archive_date_value
               FROM
                 {node} n
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
-                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND n.vid = a.revision_id )
+                LEFT JOIN {node_deleted} d
+                    ON ( n.nid = d.nid )
+                LEFT JOIN {field_data_field_archive_date} a
+                    ON ( n.nid = a.entity_id )
+                LEFT JOIN {field_data_field_schedule_publish} p
+                    ON ( n.nid = p.entity_id )
               WHERE
                 # node is not deleted
                 ( d.deletion_state IS NULL OR d.deletion_state != :soft )
@@ -980,78 +958,31 @@ function _cmp_misc_auto_archive_content()
                     # archive date set
                     a.field_archive_date_value IS NOT NULL
                     AND # archive date is in the past
-                    UNIX_TIMESTAMP(a.field_archive_date_value) < :now
-                )
-            ',array( ":now" => REQUEST_TIME, ":soft" => "soft" )
+                    a.field_archive_date_value <= NOW()
+                    AND ( # there is no auto-publish date
+                        p.field_schedule_publish_value IS NULL
+                        OR # the auto-publish date is in the future
+                        p.field_schedule_publish_value >= NOW()
+                        OR # the auto-publish date was before the auto-archive date
+                        p.field_schedule_publish_value <= a.field_archive_date_value
+                    )
+                )',
+                array( ':soft' => 'soft' )
     )->fetchAll();
-
     foreach  ( $records as $record )
     {
-        $node = node_load($record->nid,$record->curr_rev);
+        $node = node_load($record->nid);
         $node->status = 0;
         node_save($node);
+        error_log('Auto Archive: nid='.$node->nid.' vid='.$node->vid.' uuid='.$node->uuid);
+        //// do we need to manually set workbench_moderation_state ?
     }
     return count($records);
 }
 
-function _cmp_misc_node_past_publication_date($node)
-{
-    /// Not deleted, not already published, not archived, has past publish date
-    return db_query(
-        'SELECT
-                n.nid, n.vid as pub_rev, c.vid as curr_rev,
-                r.status as curr_rev_status,
-                d.deletion_state,
-                a.field_archive_date_value,
-                p.field_schedule_publish_value
-              FROM
-                {node} n
-                LEFT JOIN ( # use current revision
-                    SELECT nid, max(vid) as vid
-                    FROM   {node_revision}
-                    WHERE nid = :nid
-                    GROUP BY nid
-                )                                                 c on ( n.nid = c.nid )
-                LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
-                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
-                LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
-                LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
-              WHERE
-                # node is our node
-                n.nid = :nid
-                # node is not deleted
-                AND ( d.deletion_state IS NULL OR d.deletion_state != :soft )
-                # current revision is not already published
-                AND r.status != 1
-                # is not archived
-                AND (
-                    # no archive date set
-                    a.field_archive_date_value IS NULL
-                    OR (
-                        # has archive date set
-                        a.field_archive_date_value IS NOT NULL
-                        AND # archive date is in the future
-                        UNIX_TIMESTAMP(a.field_archive_date_value) > :now
-                    )
-                )
-                # is publishable
-                AND (
-                    # has no publish date set
-                    p.field_schedule_publish_value IS NULL
-                    OR (
-                        # has publish date set
-                        p.field_schedule_publish_value IS NOT NULL
-                        AND # publish date is in the past
-                        UNIX_TIMESTAMP(p.field_schedule_publish_value) <= :now
-                    )
-                )
-            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME, ":soft" => "soft"  )
-    )->rowCount();
-}
-
 function _cmp_misc_node_is_publishable($node)
 {
+    /// whole node is deleted
     $is_deleted = db_query(
             'SELECT 1
          FROM {node_deleted} d
@@ -1062,89 +993,31 @@ function _cmp_misc_node_is_publishable($node)
                )',
             array(':nid'=>$node->nid,':soft'=>'soft')
         )->rowCount() >= 1;
+    /// whole node has been archived
     $is_archived = (
-    @isset($node->field_archive_date['und'][0]['value'])
+        @isset($node->field_archive_date['und'][0]['value'])
         && strtotime($node->field_archive_date['und'][0]['value']) <= time()
+        && (
+            @empty($node->field_schedule_publish['und'][0]['value'])
+            || strtotime($node->field_schedule_publish['und'][0]['value']) > time()
+            || strtotime($node->field_schedule_publish['und'][0]['value']) < strtotime($node->field_archive_date['und'][0]['value'])
+        )
     );
+    /// node is publishable
     $is_scheduled = (
-    @isset($node->field_schedule_publish['und'][0]['value'])
-        && strtotime($node->field_schedule_publish['und'][0]['value']) > time()
+        @empty($node->field_schedule_publish['und'][0]['value'])
+        || (
+            strtotime($node->field_schedule_publish['und'][0]['value']) <= time()
+            && (
+                @empty($node->field_archive_date['und'][0]['value'])
+                || strtotime($node->field_archive_date['und'][0]['value']) > time()
+                || strtotime($node->field_archive_date['und'][0]['value']) < strtotime($node->field_schedule_publish['und'][0]['value'])
+            )
+        )
     );
-    return  !($is_deleted || $is_archived || $is_scheduled);
+
+    return ( !$is_deleted && !$is_archived && $is_scheduled );
 }
-
-function _cmp_misc_node_future_publication_date($node)
-{
-    /// Not deleted, not already published, not archived, has future publish date
-    return db_query(
-        'SELECT
-                n.nid, n.vid as pub_rev, c.vid as curr_rev,
-                r.status as curr_rev_status,
-                d.deletion_state,
-                a.field_archive_date_value,
-                p.field_schedule_publish_value
-              FROM
-                {node} n
-                LEFT JOIN ( # use current revision
-                    SELECT nid, max(vid) as vid
-                    FROM   {node_revision}
-                    WHERE nid = :nid
-                    GROUP BY nid
-                )                                                 c on ( n.nid = c.nid )
-                LEFT JOIN {node_revision}                         r on ( r.nid = c.nid       AND r.vid = c.vid )
-                LEFT JOIN {node_deleted}                          d on ( n.nid = d.nid )
-                LEFT JOIN {field_revision_field_archive_date}     a on ( n.nid = a.entity_id AND c.vid = a.revision_id )
-                LEFT JOIN {field_revision_field_schedule_publish} p on ( n.nid = p.entity_id AND c.vid = p.revision_id )
-                LEFT JOIN {workbench_moderation_node_history}     w on ( n.nid = w.nid       AND c.vid = w.vid AND w.is_current = 1 )
-              WHERE
-                # node is our node
-                n.nid = :nid
-                # node is not deleted
-                AND ( d.deletion_state IS NULL OR d.deletion_state != :soft )
-                # current revision is not already published
-                AND r.status != 1
-                # is not archived
-                AND (
-                    # no archive date set
-                    a.field_archive_date_value IS NULL
-                    OR (
-                        # has archive date set
-                        a.field_archive_date_value IS NOT NULL
-                        AND # archive date is in the future
-                        UNIX_TIMESTAMP(a.field_archive_date_value) > :now
-                    )
-                )
-                # is future-publishable
-                AND (
-                    # has publish date set
-                    p.field_schedule_publish_value IS NOT NULL
-                    AND # publish date is in the past
-                    UNIX_TIMESTAMP(p.field_schedule_publish_value) > :now
-                )
-            ',array( ":nid" => $node->nid, ":now" => REQUEST_TIME, ":soft" => "soft"  )
-    )->rowCount();
-}
-
-// function _cmp_misc_forget_recent_publish($node)
-// {
-//     $hist = db_query('SELECT *
-// 	          FROM   workbench_moderation_node_history h
-// 	          WHERE nid = :nid
-// 	          ORDER BY stamp DESC LIMIT 2',array(":nid"=>$node->nid))->fetchAll();
-//     if ( count($hist) == 2 && $hist[0]->state==workbench_moderation_state_published() && $hist[1]->state=='scheduled_for_publication' )
-//     {
-//         db_query(
-//             'update {workbench_moderation_node_history} set from_state = :from_state where hid = :hid',
-//             array( ":from_state"=>$hist[0]->from_state, ":hid"=>$hist[1]->hid ));
-//         db_query(
-//             'delete from {workbench_moderation_node_history} where hid = :hid',
-//             array( ":hid"=>$hist[0]->hid ));
-//     }
-
-//     /* Bug killer - in some specific edge case, another process (after the call to this function) may set the status
-//     to 1 for this node on the node table - so we shall ensure that status is 0 by use of register_shutdown_function() */
-//     drupal_register_shutdown_function("db_query", "UPDATE node SET status=0 WHERE nid={$node->nid}");
-// }
 
 function _cmp_misc_get_expiring_nodes()
 {
@@ -1192,15 +1065,6 @@ function _finally_publish_node($nid,$vid)
  */
 function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_state)
 {
-    #if ( $new_state == workbench_moderation_state_published()
-    /// allow a user to force a published transition for items already in 'scheduled' state
-    /// so two publish attempts in a row would immediately publish the content
-    # && $previous_state != 'scheduled_for_publication'
-    #      && _cmp_misc_node_future_publication_date($node) )
-    #{
-    #    workbench_moderation_moderate( $node, 'scheduled_for_publication' );
-    #    _cmp_misc_forget_recent_publish($node);
-    #}
 
     // any state >>> scheduled_for_publication
     // throw this straight to published if we can

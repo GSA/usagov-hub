@@ -93,6 +93,31 @@ function _taxonomy_manager_form_fixer(&$form)
     }
 }
 
+function _parent_tid_by_tid($tid){
+    $field = db_query("SELECT parent FROM taxonomy_term_hierarchy WHERE tid = :tid", array(':tid'=>$tid))->fetchField(0);
+
+    /* 381 USA.gov
+   125 Gobierno
+   126 Call Center
+   11279 Blog.USA.gov
+   3897 Kids.gov
+   11632 For Teachers Stickers
+    */
+
+    if (empty($field)){
+        return 0;
+    }
+    $parents= array(381, 125, 126, 11279, 3897,11632);
+
+    if (in_array($field, $parents)){
+        return $field;
+    }
+    else {
+        return _parent_tid_by_tid($field);
+    }
+
+}
+
 function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id)
 {
     drupal_add_js("jQuery(document).ready(function(){ setTimeout(setupAssetTopicEvents,200) });", 'inline');
@@ -243,18 +268,49 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
         exit();
     }
 
+    // ADD USEBY LOGIC
+    $uby = array();
+    /* 381 USA.gov
+       125 Gobierno
+       126 Call Center
+       11279 Blog.USA.gov
+       3897 Kids.gov
+       11632 For Teachers Stickers
+    */
+
+    foreach($tids as $t) {
+        $ptid = _parent_tid_by_tid($t);
+
+        if ($ptid == 381){
+            $uby[] = 'USA.gov';
+        }
+        if ($ptid == 125){
+            $uby[] = 'GobiernoUSA.gov';
+        }
+        if ($ptid == 11279){
+            $uby[] = 'Blog.USA.gov';
+        }
+    }
+
+
     /* Get all node-ids that are associated with the given Asset-Topic terms, based
      on the information in the field_data_field_asset_topic_taxonomy table */
     $nids = db_query("
       SELECT t.entity_id
       FROM field_data_field_asset_topic_taxonomy t
-			   LEFT JOIN node_deleted d
-                   ON ( t.entity_id = d.nid AND d.deletion_state='soft' )
-      WHERE
-			   t.entity_type = 'node'
-         AND d.deletion_state IS NULL
-         AND field_asset_topic_taxonomy_tid IN (:tids)
-    ",array(':tids'=>$tids))->fetchCol();
+      INNER JOIN node n ON n.nid = t.entity_id and n.status = 1
+      INNER JOIN field_data_field_for_use_by_text ubyt ON field_for_use_by_text_value IN (:USEBY_TEXT) AND ubyt.entity_id = n.nid
+	  LEFT JOIN node_deleted d ON ( t.entity_id = d.nid AND d.deletion_state='soft' )
+      WHERE t.entity_type = 'node' AND d.deletion_state IS NULL AND field_asset_topic_taxonomy_tid IN (:tids)
+      UNION
+      SELECT t.entity_id
+      FROM field_data_field_asset_topic_taxonomy t
+      INNER JOIN node n ON n.nid = t.entity_id and n.status = 1
+      INNER JOIN field_data_field_for_use_by uby ON field_for_use_by_value IN (:USEBY_TEXT) AND uby.entity_id = n.nid
+	  LEFT JOIN node_deleted d ON ( t.entity_id = d.nid AND d.deletion_state='soft' )
+      WHERE t.entity_type = 'node' AND d.deletion_state IS NULL AND field_asset_topic_taxonomy_tid IN (:tids)
+    ",array(':tids'=>$tids, ':USEBY_TEXT'=>$uby))->fetchCol();
+
     if (count($nids) === 0) {
         echo '{}';
         exit();
@@ -520,13 +576,13 @@ function asset_topic_placement_node_update($node)
             if (db_query("SELECT COUNT(*) FROM field_data_{$region} WHERE entity_id=:sstid AND {$region}_target_id=:nid", array(':sstid'=>$sstid->entity_id, ':nid'=>$nid))->fetchField() > 0) {
 
                 $changed_sstids[] = $sstid->entity_id;
+                $t_old = taxonomy_term_load($sstid->entity_id);
                 db_query("DELETE FROM field_data_{$region} WHERE entity_id=:sstid AND {$region}_target_id=:nid", array(':sstid' => $sstid->entity_id, ':nid' => $nid));
                 db_query("DELETE FROM field_revision_{$region} WHERE entity_id=:sstid AND {$region}_target_id=:nid", array(':sstid' => $sstid->entity_id, ':nid' => $nid));
                 cache_clear_all('field:taxonomy_term:' . $sstid->entity_id, 'cache_field');
                 $t = taxonomy_term_load($sstid->entity_id);
                 taxonomy_term_save($t);
                 drupal_set_message("\"".$node->title."\" is removed from \"". $t->name."\" site structure taxonomy.");
-
             }
         }
     }
