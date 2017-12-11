@@ -206,7 +206,7 @@ function _cdss_entity_queue( $entity, $type, $remove=null )
     /// node && published && of-syncable-type
     /// term && of-syncable-vocabulary
     if ( ( $type === 'node'
-        && ( $entity->status === 1 || !empty($entity->deleted) )
+        && ( $entity->status == 1 || !empty($entity->deleted) )
         && in_array($entity->type,
                     variable_get('cdss_node_bundles',array())) )
     || ( $type === 'taxonomy_term'
@@ -1358,7 +1358,7 @@ function _cdss_elasticsearch_request($path='/',$options=[])
         $method  = !empty($options['method'])  ? $options['method'] : 'GET';
         $data    = !empty($options['data'])    ? $options['data']   : '';
         $timeout = !empty($options['timeout']) ? intval($options['timeout']) : null;
-        
+
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $uri);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
@@ -1369,7 +1369,7 @@ function _cdss_elasticsearch_request($path='/',$options=[])
         }
 
         // if ( is_int($timeout) ) {
-        //     curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);            
+        //     curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
         // }
         curl_setopt($curl, CURLOPT_HTTPHEADER,
             ['CONTENT-TYPE: application/json; charset=utf-8']);
@@ -1380,11 +1380,11 @@ function _cdss_elasticsearch_request($path='/',$options=[])
 
         // curl_setopt($curl, CURLOPT_VERBOSE, 1);
         // curl_setopt($curl, CURLOPT_FAILONERROR, TRUE);
-        
+
         // if ( local AND ssl )
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
-        
+
         $response->data = curl_exec($curl);
         $response->code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
 
