@@ -7,10 +7,12 @@ jQuery(document).ready(function(){
     //Things to do on initial page load....
 
     //redraw this terms parent iframe page's jstree
-    window.parent.redrawTree();
+
 
     // //Call back to the parent of this terms iframe and tell it to reload if needed.
-    if ( window.hasOwnProperty('parent')){
+    if ( window.hasOwnProperty('parent') &&  'redrawTree' in window.parent )
+    {
+        window.parent.redrawTree();
         jQuery('input.form-submit').click(function(){
             window.parent.redrawTreeValue = true;
         });
@@ -19,7 +21,7 @@ jQuery(document).ready(function(){
     var nodes = [];
     var selectedItemsArray = [];
     var selectedItemsArray = getCurrentlySelectedItems();
-    var historyItemsArray = getCurrentlySelectedItems();
+    var historyItemsArray  = getCurrentlySelectedItems();
 
     getNodes();
     regionPlacementToggle();
@@ -60,7 +62,7 @@ jQuery(document).ready(function(){
             "plugins": [
                 "themes",
                 "wholerow",
-                "checkbox" 
+                "checkbox"
             ]
         }).on('ready.jstree', function () {
             //get selected parent and forces that selection on tree
@@ -109,7 +111,7 @@ jQuery(document).ready(function(){
             }
         });
 
-        jQuery('#edit-relations').hide();
+        jQuery('fieldset#edit-relations').hide();
     }
 
 
@@ -140,16 +142,17 @@ jQuery(document).ready(function(){
     //Ajax call to get nodes associated to the selected term ids from asset-topics list
     function getNodes(){
         var tidAssetTopics = [];
-        tidAssetTopics = jQuery('input[name="field_asset_topic_taxonomy[und]"]').val().split(',');
-        tidAssetTopics = tidAssetTopics.filter(function(v){return v!==''});
-        jQuery.get('/atm/get-nodes-under-topics?terms='+tidAssetTopics.join(','), function (items) {
-            nodes = items;
-        }).done(function(data) {
-            rebuildTable(data, selectedItemsArray, historyItemsArray);
-            setSelectedItems(selectedItemsArray, historyItemsArray);
-
-
-        });
+        $tidAssetTopics = jQuery('input[name="field_asset_topic_taxonomy[und]"]');
+        if ( $tidAssetTopics.length ) {
+            tidAssetTopics = $tidAssetTopics.first().val().split(',');
+            tidAssetTopics = tidAssetTopics.filter(function(v){return v!==''});
+            jQuery.get('/atm/get-nodes-under-topics?terms='+tidAssetTopics.join(','), function (items) {
+                nodes = items;
+            }).done(function(data) {
+                rebuildTable(data, selectedItemsArray, historyItemsArray);
+                setSelectedItems(selectedItemsArray, historyItemsArray);
+            });
+        }
     }
 
 
@@ -191,13 +194,13 @@ jQuery(document).ready(function(){
 
     //Sets the selected items in the tables after they have been rebuilt
     function setSelectedItems(items, itemsHistory){
-        
+
         for (var i = 0; i < items.length; i++) {
-            
+
             var item = items[i];
             var selector = '#' + item[0] + ' table tr input';
             var itemsChecked = item[1];
-            
+
             jQuery(selector).each(function(){
 
                 var inputValue = jQuery(this).val();
@@ -216,11 +219,11 @@ jQuery(document).ready(function(){
 
 
         for (var i = 0; i < itemsHistory.length; i++) {
-            
+
             var item = itemsHistory[i];
             var selector = '#' + item[0] + ' table tr input';
             var itemsChecked = item[1];
-            
+
             jQuery(selector).each(function(){
 
                 var inputValue = jQuery(this).val();
@@ -435,7 +438,7 @@ jQuery(document).ready(function(){
             var nTitle = '';
             var emptyNodes = jQuery.isEmptyObject(nodes);
 
-            
+
             // Sorting the ajaxed nodes in the order of the previously checked nodes weights
             if(emptyNodes == false){
 
@@ -526,7 +529,7 @@ jQuery(document).ready(function(){
 
         // Updates the historyItemsArray, which keeps track of which items were ever checked in the asset topic placement area
         jQuery('.group-asset-placement table tr input.form-checkbox, .group-homepage-container table tr input.form-checkbox').change(function(){
-            
+
             var tabName = jQuery(this).parent().parent().parent().parent().parent().parent().parent().parent().attr('id');
 
             if(jQuery(this).prop('checked') == true){
@@ -544,12 +547,12 @@ jQuery(document).ready(function(){
                     for(i = 0; i < historyItemsArray.length; i++){
                         if(historyItemsArray[i][0] == tabName){
 
-                            var itemIndex = jQuery.inArray(jQuery(this).attr('value'), historyItemsArray[i][1]); 
+                            var itemIndex = jQuery.inArray(jQuery(this).attr('value'), historyItemsArray[i][1]);
                             if(itemIndex == -1){
                                 historyItemsArray[i][1].push(jQuery(this).attr('value'));
                             }
-                        } 
-                    }  
+                        }
+                    }
                 } else {
                     var selectedItem = [];
                     selectedItem.push(jQuery(this).attr('value'));
