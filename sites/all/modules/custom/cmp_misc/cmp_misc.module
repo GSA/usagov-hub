@@ -16,13 +16,13 @@ function cmp_misc_user_login(&$edit, $account) {
   watchdog('audit','User login name:"%name" uid:%uid',[
         '%name' => $account->name,
         '%uid'  => $account->uid
-  ]);
+  ],WATCHDOG_ALERT);
 }
 function cmp_misc_user_logout($account) {
   watchdog('audit','User logout name:"%name" uid:%uid',[
         '%name' => $account->name,
         '%uid'  => $account->uid
-  ]);
+  ],WATCHDOG_ALERT);
 }
 function cmp_misc_user_presave(&$edit, $account, $category)
 {
@@ -470,7 +470,10 @@ function cmp_misc_mail_alter(&$message) {
 /*
  * Implements HOOK_node_presave
  */
-function cmp_misc_node_presave($node) {
+function cmp_misc_node_presave($node)
+{
+
+    watchdog('DBG',__FUNCTION__.' nid:'.$node->nid.' vid:'.$node->vid,[],WATCHDOG_ALERT);
 
     // Strip trailing empty <p> tags from text-asset body fields
     if ( $node->type == 'text_content_type' && !empty($node->body['und'][0]['value']) ) {
@@ -871,7 +874,7 @@ function _cmp_misc_check_content_freshness()
 {
     $pub = _cmp_misc_auto_publish_content();
     $arv = _cmp_misc_auto_archive_content();
-    watchdog( 'cron', "FreshCheck: Auto-Publish($pub) Auto-Archive($arv)");
+    watchdog( 'cron', "FreshCheck: Auto-Publish(:pub) Auto-Archive(:arv)",[':pub'=>$pub,':arv'=>$arv],WATCHDOG_WARNING);
 }
 
 function _cmp_misc_auto_publish_content()
@@ -1045,6 +1048,7 @@ function _cmp_misc_get_expiring_nodes()
 
 function _finally_publish_node($nid,$vid)
 {
+    watchdog('DBG',__FUNCTION__.' nid:'.$nid.' vid:'.$vid,[],WATCHDOG_ALERT);
     $node = node_load($nid, $vid);
     if ( $node ) {
         workbench_moderation_moderate( $node, workbench_moderation_state_published() );
@@ -1069,6 +1073,7 @@ function cmp_misc_workbench_moderation_transition($node, $previous_state, $new_s
     // any state >>> scheduled_for_publication
     // throw this straight to published if we can
 
+    watchdog('DBG',__FUNCTION__.' nid:'.$node->nid.' vid:'.$node->vid.' prev_state:'. $previous_state .' new_state:'.$new_state,[],WATCHDOG_ALERT);
 
     // sets to publish if the node is publishable
     if ( $new_state=='scheduled_for_publication'
@@ -1256,7 +1261,7 @@ function _cmp_misc_send_report() {
         return;
     }
 
-    watchdog('cron',"STARTED >> DAILY SCANNING CONTENT: " . date('Y-m-d H:i:s'));
+    watchdog('cron',"STARTED >> DAILY SCANNING CONTENT: " . date('Y-m-d H:i:s'),[],WATCHDOG_ALERT);
 
     $ret = _cmp_misc_get_expiring_nodes();
     $subject = "CMP Content Scan Result: " . date('Y-m-d H:i:s');
@@ -1290,16 +1295,16 @@ function _cmp_misc_send_report() {
 
         $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
         if ($res["send"]) {
-            watchdog("cron", "DAILY SCANNING CONTENT SENT AN EMAIL TO " . $to . date('Y-m-d H:i:s'));
+            watchdog("cron", "DAILY SCANNING CONTENT SENT AN EMAIL TO " . $to . date('Y-m-d H:i:s'),[],WATCHDOG_ALERT);
         }
         else {
-            watchdog("cron", "DAILY SCANNING CONTENT ERROR OCCURRED ". $res["result"]);
+            watchdog("cron", "DAILY SCANNING CONTENT ERROR OCCURRED ". $res["result"],[],WATCHDOG_ALERT);
         }
         // Flood control
         flood_register_event('cmp_misc');
     }
 
-    watchdog('cron',"FINISHED >> DAILY SCANNING CONTENT: ". date('Y-m-d H:i:s'));
+    watchdog('cron',"FINISHED >> DAILY SCANNING CONTENT: ". date('Y-m-d H:i:s'),[],WATCHDOG_ALERT);
 
     return $res;
 }

@@ -131,7 +131,7 @@ function gov_opportunities_config_form()
       {
         jQuery("#ajax_remove_closed_response").html("loading");
         jQuery.ajax({
-          url: "/admin/content/gov_opportunities/api/ajax_remove_closed",
+          url: "/admin/content/gov_opportunities/api/remove_closed",
           success:function(data) {
             if ( data.success ) {
               jQuery("#ajax_remove_closed_response").html(data.message);
