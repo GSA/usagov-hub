@@ -47,8 +47,8 @@ function asset_topic_placement_menu() {
 function _taxonomy_manager_form_fixer(&$form)
 {
     $form['assetTopicTrigger'] = array(
-      '#markup' => "<script>setTimeout(setupAssetTopicEvents,200);</script>",
-      '#weight' => 1000,
+        '#markup' => "<script>setTimeout(setupAssetTopicEvents,200);</script>",
+        '#weight' => 1000,
     );
     if (!empty($form['#term']['field_asset_order_content']['und'])) {
         $js_inline = array(
@@ -87,8 +87,8 @@ function _taxonomy_manager_form_fixer(&$form)
             ";
         }
         $form['assetTopicJS'] = array(
-          '#markup' => "<script>". implode("\n",$js_inline) ."</script>",
-          '#weight' => -10,
+            '#markup' => "<script>". implode("\n",$js_inline) ."</script>",
+            '#weight' => -10,
         );
     }
 }
@@ -105,7 +105,7 @@ function _parent_tid_by_tid($tid){
     */
 
     if (empty($field)){
-        return 0;
+        return $tid;
     }
     $parents= array(381, 125, 126, 11279, 3897,11632);
 
@@ -127,23 +127,23 @@ function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_stat
     if ( is_array($form['#term']) )
     {
         if ( !empty($form['#term']['field_asset_order_content'])
-          && !empty($form['#term']['field_asset_order_content']['und']) )
+            && !empty($form['#term']['field_asset_order_content']['und']) )
         {
             $field_asset_order_content = $form['#term']['field_asset_order_content']['und'];
         }
         if ( !empty($form['#term']['field_asset_topic_taxonomy'])
-          && !empty($form['#term']['field_asset_topic_taxonomy']['und']) )
+            && !empty($form['#term']['field_asset_topic_taxonomy']['und']) )
         {
             $field_asset_topic_taxonomy = $form['#term']['field_asset_topic_taxonomy']['und'];
         }
     } else if ( is_object($form['#term']) ) {
         if ( !empty($form['#term']->field_asset_order_content)
-          && !empty($form['#term']->field_asset_order_content['und']) )
+            && !empty($form['#term']->field_asset_order_content['und']) )
         {
             $field_asset_order_content = $form['#term']->field_asset_order_content['und'];
         }
         if ( !empty($form['#term']->field_asset_topic_taxonomy)
-          && !empty($form['#term']->field_asset_topic_taxonomy['und']) )
+            && !empty($form['#term']->field_asset_topic_taxonomy['und']) )
         {
             $field_asset_topic_taxonomy = $form['#term']->field_asset_topic_taxonomy['und'];
         }
@@ -281,14 +281,17 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
     foreach($tids as $t) {
         $ptid = _parent_tid_by_tid($t);
 
-        if ($ptid == 381){
+        if ($ptid == 381 || $t==381){
             $uby[] = 'USA.gov';
         }
-        if ($ptid == 125){
+        if ($ptid == 125 || $t==125){
             $uby[] = 'GobiernoUSA.gov';
         }
-        if ($ptid == 11279){
+        if ($ptid == 11279 || $t==11279){
             $uby[] = 'Blog.USA.gov';
+        }
+        if ($ptid == 3897 || $t==3897){
+            $uby[] = 'Kids.gov';
         }
     }
 
@@ -521,12 +524,20 @@ function asset_topic_placement_taxonomy_term_presave($term)
         if ( !isset($remove[$asset->region]) ) { $remove[$asset->region] = array(); }
         $remove[$asset->region][] = $asset->nid;
     }
+    $changed_tids  = array();
     /// remove any unwanted asset ids from each region's table
     foreach ( $remove as $region=>$nids )
     {
+        $sql_sstid = "SELECT entity_id FROM field_data_field_asset_order_{$region} WHERE entity_id = :tid AND field_asset_order_{$region}_target_id IN (:nids)";
+        $sstid_rest = db_query($sql_sstid,array( ':tid'=>$term->tid, ':nids'=>$nids ));
+        foreach($sstid_rest as $rtid){
+            $changed_tids[$rtid] = $rtid;
+        }
+
         $sql = "DELETE FROM field_data_field_asset_order_{$region} WHERE entity_id = :tid AND field_asset_order_{$region}_target_id IN (:nids)";
         db_query($sql,array( ':tid'=>$term->tid, ':nids'=>$nids ));
     }
+
 }
 /// When a Node changes it's topics, go out and find any affected Terms and fix them
 function asset_topic_placement_node_update($node)
