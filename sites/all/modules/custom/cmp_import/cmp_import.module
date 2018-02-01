@@ -2591,7 +2591,7 @@ foreach($parent_terms as $parent) {
     }
 }
 
-if($top_parent_term->tid == 381 || $top_parent_term->name =='USA.gov') { //'USA.gov'
+if($top_parent_term->tid == 11726 || $top_parent_term->name =='USA.gov') { //'USA.gov'
     $ret[]=array('value'=>'USA.gov');
     $ret[]=array('value'=>'NCC Knowledge Base');
 }

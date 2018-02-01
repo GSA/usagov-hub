@@ -315,7 +315,7 @@ function _compileSuperAssetReportToCSV(){
                     $usagovURL="//stage-usagov.ctacdev.com";
                 }
                 // USA
-                if ($get_all_parents[$at_lvl-1]->tid == 381 || $get_ssall_parents[$sst_lvl-1] == 3062){
+                if ($get_all_parents[$at_lvl-1]->tid == 11726 || $get_ssall_parents[$sst_lvl-1] == 3062){
                     $url = $usagovURL;
                 }
                 // GOBIERNO
@@ -879,7 +879,7 @@ function _prepare_report()
     unset($site_structure_array);
     $site_structure_array[0]=array('Site','Owner','Hierarchy Level','Page Type','Topic Desk Replacement','Friendly URL','CMP Edit Link','Page ID','Page Title',
         'Parent Title','Level 6','Level 5', 'Level 4', 'Level 3',' Level 2', 'Level 1', 'USAGov Topic Crosswalk', 'GA style URL', 'VOC tool export URL style','Last Changed Date', 'Assets on Page', 'Toggle URL');
-    
+
     $get_root_level_site_name = taxonomy_get_tree(42,0,1);
     foreach($get_root_level_site_name as $root_level){
         $site_names[$root_level->tid]=$root_level->name;

@@ -96,7 +96,7 @@ function _taxonomy_manager_form_fixer(&$form)
 function _parent_tid_by_tid($tid){
     $field = db_query("SELECT parent FROM taxonomy_term_hierarchy WHERE tid = :tid", array(':tid'=>$tid))->fetchField(0);
 
-    /* 381 USA.gov
+    /* 11726 USA.gov
    125 Gobierno
    126 Call Center
    11279 Blog.USA.gov
@@ -105,9 +105,9 @@ function _parent_tid_by_tid($tid){
     */
 
     if (empty($field)){
-        return 0;
+        return $tid;
     }
-    $parents= array(381, 125, 126, 11279, 3897,11632);
+    $parents= array(11726, 125, 126, 11279, 3897,11632);
 
     if (in_array($field, $parents)){
         return $field;
@@ -270,7 +270,7 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
 
     // ADD USEBY LOGIC
     $uby = array();
-    /* 381 USA.gov
+    /* 11726 USA.gov
        125 Gobierno
        126 Call Center
        11279 Blog.USA.gov
@@ -281,7 +281,7 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
     foreach($tids as $t) {
         $ptid = _parent_tid_by_tid($t);
 
-        if ($ptid == 381 || $t==381){
+        if ($ptid == 11726 || $t==11726){
             $uby[] = 'USA.gov';
         }
         if ($ptid == 125 || $t==125){
