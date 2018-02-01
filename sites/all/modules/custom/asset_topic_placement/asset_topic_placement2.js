@@ -73,10 +73,12 @@ jQuery(document).ready(function(){
 
             //remove currently edited term from the list in the tree
             var currentTermId = '';
-            currentTermId = jQuery('#navigation ul.tabs li a:contains("Edit")').attr('href');
-            currentTermId = currentTermId.replace('/taxonomy/term/', '');
-            currentTermId = currentTermId.replace('/edit', '');
-            jQuery('#parent-term').jstree(true).hide_node(currentTermId);
+            if (jQuery('#navigation ul.tabs li a:contains("Edit")').length > 0) {
+                currentTermId = jQuery('#navigation ul.tabs li a:contains("Edit")').attr('href');
+                currentTermId = currentTermId.replace('/taxonomy/term/', '');
+                currentTermId = currentTermId.replace('/edit', '');
+                jQuery('#parent-term').jstree(true).hide_node(currentTermId);
+            }
         });
 
         //updating parent using the select tree
@@ -454,17 +456,17 @@ jQuery(document).ready(function(){
                             var nodes_sorted  = [];
 
                             for(j = 0 ; j < sort_by.length ; j++){
-                              var nid = parseInt(sort_by[j]);
-                              for(k = 0; k < things_to_sort.length ; k++){
-                                if(things_to_sort[k].nid == nid){
-                                  nodes_sorted.push(things_to_sort[k]);
-                                  things_to_sort.splice(k,1);
+                                var nid = parseInt(sort_by[j]);
+                                for(k = 0; k < things_to_sort.length ; k++){
+                                    if(things_to_sort[k].nid == nid){
+                                        nodes_sorted.push(things_to_sort[k]);
+                                        things_to_sort.splice(k,1);
+                                    }
                                 }
-                              }
                             }
 
                             for(l=0; l<things_to_sort.length; l++){
-                              nodes_sorted.push(things_to_sort[l]);
+                                nodes_sorted.push(things_to_sort[l]);
                             }
 
                         }
@@ -483,17 +485,17 @@ jQuery(document).ready(function(){
                                 var nodes_sorted  = [];
 
                                 for(j = 0 ; j < sort_by.length ; j++){
-                                  var nid = parseInt(sort_by[j]);
-                                  for(k = 0; k < things_to_sort.length ; k++){
-                                    if(things_to_sort[k].nid == nid){
-                                      nodes_sorted.push(things_to_sort[k]);
-                                      things_to_sort.splice(k,1);
+                                    var nid = parseInt(sort_by[j]);
+                                    for(k = 0; k < things_to_sort.length ; k++){
+                                        if(things_to_sort[k].nid == nid){
+                                            nodes_sorted.push(things_to_sort[k]);
+                                            things_to_sort.splice(k,1);
+                                        }
                                     }
-                                  }
                                 }
 
                                 for(l=0; l<things_to_sort.length; l++){
-                                  nodes_sorted.push(things_to_sort[l]);
+                                    nodes_sorted.push(things_to_sort[l]);
                                 }
 
                             }

@@ -105,7 +105,7 @@ function _parent_tid_by_tid($tid){
     */
 
     if (empty($field)){
-        return $tid;
+        return 0;
     }
     $parents= array(381, 125, 126, 11279, 3897,11632);
 
