@@ -712,11 +712,14 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
         //       && git config user.email 'dnarkiewicz+ctacbot@ctacorp.com' \
         //       && git config user.name  'Drupal Repo-Sync Module' \
         //       && git add -A 2>&1 && git commit -m 'Russell Repo Sync' 2>&1";
+
+        /// add [ci stage] [ci test]
+
         $rslt = `cd {$wdir}/dest \
               && git config push.default simple \
               && git config user.email 'dnarkiewicz+ctacbot@ctacorp.com' \
               && git config user.name  'Drupal Repo-Sync Module' \
-              && git add -A 2>&1 && git commit -m 'Russell Repo Sync' 2>&1`;
+              && git add -A 2>&1 && git commit -m 'Russell Repo Sync [ci {$destbranch}]' 2>&1`;
         if ( strpos($rslt, 'nothing to commit') !== false ) {
             repo_sync_logEvent("Warning: Nothing was pushed in repo-sync, no files appear to be updated.",true);
         } else {
