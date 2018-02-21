@@ -65,6 +65,7 @@ hooks_reaction_add(
 
             }
         }
+        drupal_add_js(drupal_get_path('module', 'hooks_reaction') . '/js/hide_ready_rp_state.js');
 
     }
 );
