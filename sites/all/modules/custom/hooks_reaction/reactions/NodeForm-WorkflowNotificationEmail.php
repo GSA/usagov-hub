@@ -51,6 +51,7 @@ hooks_reaction_add(
         "form_directory_record_content_type_node_form_alter",
         "form_file_content_type_node_form_alter",
         "form_state_details_node_form_alter",
+        "form_workbench_moderation_moderate_form_alter"
     ),
     function (&$form, &$form_state, $form_id) {
 
