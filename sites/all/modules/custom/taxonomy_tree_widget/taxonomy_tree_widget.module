@@ -161,6 +161,10 @@ function taxonomy_tree_widget_form_taxonomy_form_term_alter(&$form, &$form_state
 
       drupal_add_css(drupal_get_path('module', 'taxonomy_tree_widget') . '/dist/themes/default/style.min.css','file');
       drupal_add_css(drupal_get_path('module', 'taxonomy_tree_widget') . '/css/ .css','file');
+    if ($form['vid']['#value'] == 42){
+        unset($form["description"]);
+    }
+
 
 }
 
