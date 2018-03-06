@@ -37,7 +37,7 @@ function getReport(reqId, noInit) {
             jQuery('#reportDownloadingUiProgress').hide();
             jQuery('#reportDownloadingUiComplete').show();
             var csvData = new Blob([data], { type: 'text/csv' });
-            jQuery('#reportDownloadingUiComplete a').attr('href', URL.createObjectURL(csvData));
+            jQuery('#reportDownloadingUiComplete a').eq(0).attr('href', URL.createObjectURL(csvData));
             jQuery('#reportDownloadingUiComplete a').eq(0).click();
         }
     });
