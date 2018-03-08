@@ -673,7 +673,7 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
             $arrTo[] = $mtMember->mail;
         }
     }
-    $strTo = trim(implode(',', $arrTo), ',');
+    $strTo = trim(implode(', ', $arrTo), ',');
 
     // Email Subject
     $params['subject'] = 'CMP: Site-Taxonomy Alteration Notifications';
@@ -772,14 +772,13 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
 
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
         be called and used to determine the email-message to send. */
-
+        $l = language_default();
         $res = drupal_mail(
             'cmp_misc',
             'scanning_content',
-            $strTo,
-            language_default(),
-            $params,
-            $params['from']
+            trim($strTo),
+            $l,
+            $params
         );
         if ($res["send"]) {
             drupal_set_message("Sent taxonomy-update notification emails to: " . $strTo);
