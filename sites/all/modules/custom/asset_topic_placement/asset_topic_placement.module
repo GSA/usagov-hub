@@ -281,7 +281,7 @@ function asset_topic_placement_ajaxReturnNodesUnderTopics() {
     foreach($tids as $t) {
         $ptid = _parent_tid_by_tid($t);
 
-        if ($ptid == 11726 || $t==11726){
+        if ($ptid == 11726 || $t==11726 || $ptid == 381 || $t==381){
             $uby[] = 'USA.gov';
         }
         if ($ptid == 125 || $t==125){

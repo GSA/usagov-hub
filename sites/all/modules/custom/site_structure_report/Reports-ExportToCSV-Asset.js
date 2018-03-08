@@ -36,7 +36,8 @@ function _getReport(reqId, noInit) {
         } else {
             jQuery('#reportDownloadingUiProgress').hide();
             jQuery('#reportDownloadingUiComplete').show();
-            jQuery('#reportDownloadingUiComplete a').eq(0).attr('href', 'data:application/vnd.ms-excel;charset=utf-8,'+encodeURIComponent(data));
+            var csvData = new Blob([data], { type: 'text/csv' });
+            jQuery('#reportDownloadingUiComplete a').eq(0).attr('href', URL.createObjectURL(csvData));
             jQuery('#reportDownloadingUiComplete a').eq(0).click();
         }
     });
@@ -134,7 +135,8 @@ function _getFBOReport(reqId, noInit) {
         } else {
             jQuery('#reportDownloadingUiProgress').hide();
             jQuery('#reportDownloadingUiComplete').show();
-            jQuery('#reportDownloadingUiComplete a').eq(0).attr('href', 'data:application/vnd.ms-excel;charset=utf-8,'+encodeURIComponent(data));
+            var csvData = new Blob([data], { type: 'text/csv' });
+            jQuery('#reportDownloadingUiComplete a').eq(0).attr('href', URL.createObjectURL(csvData));
             jQuery('#reportDownloadingUiComplete a').eq(0).click();
         }
     });
