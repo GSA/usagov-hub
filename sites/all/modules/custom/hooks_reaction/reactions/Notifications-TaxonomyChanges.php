@@ -25,7 +25,8 @@ define("SS_CHANGE_ASSET", 4);
 /**
  * Implements HOOK_menu().
  */
-hooks_reaction_add("menu",
+hooks_reaction_add(
+    "menu",
     function () {
 
         $menuArr = array();
@@ -46,7 +47,8 @@ hooks_reaction_add("menu",
 /**
  * Implements HOOK_taxonomy_term_delete
  */
-hooks_reaction_add("HOOK_taxonomy_term_delete",
+hooks_reaction_add(
+    "HOOK_taxonomy_term_delete",
     function ($term) {
         informPmTeamOfPageChange(SS_CHANGE_DEL, $term, false, $term);
     }
@@ -55,7 +57,8 @@ hooks_reaction_add("HOOK_taxonomy_term_delete",
 /**
  * Implements HOOK_taxonomy_term_insert
  */
-hooks_reaction_add("HOOK_taxonomy_term_insert",
+hooks_reaction_add(
+    "HOOK_taxonomy_term_insert",
     function ($term) {
         informPmTeamOfPageChange(SS_CHANGE_ADD, $term, false, $term);
     }
@@ -68,11 +71,12 @@ hooks_reaction_add("HOOK_taxonomy_term_insert",
  * Checks if an Asset-Topic taxonomy-term is being deleted, and if so, checks to see
  * which pages were altered by this action, and informs the appropriate users.
  */
-hooks_reaction_add("HOOK_taxonomy_term_delete",
+hooks_reaction_add(
+    "HOOK_taxonomy_term_delete",
     function ($term) {
 
         // We only carte about Asset-Topic tax-terms here
-        if ( $term->vocabulary_machine_name !== 'asset_topic_taxonomy' ) {
+        if ($term->vocabulary_machine_name !== 'asset_topic_taxonomy') {
             return;
         }
 
@@ -86,8 +90,7 @@ hooks_reaction_add("HOOK_taxonomy_term_delete",
         ")->fetchCol();
 
         // We only care about pages that will loose some assets due to this action
-        foreach ($loosingPages as $loosingPageTid ) {
-
+        foreach ($loosingPages as $loosingPageTid) {
             // We need to get the before and after snapshot of the S.S.-tax-term (of $loosingPageTid)
             /* It is important to note here that while the A-Topic term is deleted already, the
             S.S.-term still points to it (because that cleanup hasten happened yet)
@@ -103,7 +106,7 @@ hooks_reaction_add("HOOK_taxonomy_term_delete",
             // If this page did not loose any assets, OR, if it lost ALL of its assets...
             // NOTE: We don't care about a total-loss to assets because the Notifications-EmptyTaxonomy.php script will get that
             // We only care about pages that loose some, but NOT ALL assets here
-            if ( count($assetsBefore) == count($assetsAfter) && count($assetsAfter) !== 0 ) {
+            if (count($assetsBefore) == count($assetsAfter) && count($assetsAfter) !== 0) {
                 // ...then we dont care about this page
                 unset($loosingPages[$loosingPageTid]);
             }
@@ -111,13 +114,11 @@ hooks_reaction_add("HOOK_taxonomy_term_delete",
 
         // At this point $loosingPages should be a list of pages that are now empty with this action
         foreach ($loosingPages as $loosingPageTid) {
-
             error_log("S.S.taxonomy-term {$loosingPageTid} has lost some assets due to the "
                 ."deletion of Asset-Topic {$term->tid}");
 
             informPmTeamOfPageChange(SS_CHANGE_ASSET, $ssTermAfter, $ssTermBefore, $ssTermAfter);
         }
-
     }
 );
 
@@ -127,22 +128,20 @@ hooks_reaction_add("HOOK_taxonomy_term_delete",
  * Given a loaded taxonomy-term, this function will check for Asset-Topics that
  * no longer exist anymore in the database, and remove them from the term
  */
-function cleanSiteStructTerm_clearDeletedTopics($term) {
+function cleanSiteStructTerm_clearDeletedTopics($term)
+{
 
-    if ( empty($term->field_asset_topic_taxonomy['und']) )
-    {
+    if (empty($term->field_asset_topic_taxonomy['und'])) {
         return $term;
     }
-    foreach ( $term->field_asset_topic_taxonomy['und'] as $index => $tidContainer) {
-
+    foreach ($term->field_asset_topic_taxonomy['und'] as $index => $tidContainer) {
         $checkTid = $tidContainer['tid'];
 
         // If this Topic-taxonomy-term dosnt exist...
         $tidExsists = db_query("SELECT COUNT(tid) FROM taxonomy_term_data WHERE tid={$checkTid}")->fetchColumn();
-        if ( intval($tidExsists) === 0 ) {
-
+        if (intval($tidExsists) === 0) {
             // ...then remove it from this S.S.-tax-term
-            unset( $term->field_asset_topic_taxonomy['und'][$index] );
+            unset($term->field_asset_topic_taxonomy['und'][$index]);
         }
     }
 
@@ -160,16 +159,19 @@ function cleanSiteStructTerm_clearDeletedTopics($term) {
  *     page URLs are changed
  *     assets are added or deleted from a page
  */
-hooks_reaction_add("HOOK_taxonomy_term_presave",
+hooks_reaction_add(
+    "HOOK_taxonomy_term_presave",
     function ($term) {
 
-        if ( empty($term->tid) ) { return; }
+        if (empty($term->tid)) {
+            return;
+        }
 
         $termOld = taxonomy_term_load($term->tid);
         $termNew = $term;
 
         // Check if the title is being changed
-        if ( property_exists($termOld,'field_page_title') && property_exists($termNew,'field_page_title')
+        if (property_exists($termOld, 'field_page_title') && property_exists($termNew, 'field_page_title')
              && ( empty($termOld->field_page_title) !== empty($termNew->field_page_title)
                || empty($termOld->field_page_title['und']) !== empty($termNew->field_page_title['und'])
                || empty($termOld->field_page_title['und'][0]) !== empty($termNew->field_page_title['und'][0])
@@ -184,7 +186,7 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
         }
 
         // Check if the URL is being changed
-        if ( property_exists($termOld,'field_friendly_url') && property_exists($termNew,'field_friendly_url')
+        if (property_exists($termOld, 'field_friendly_url') && property_exists($termNew, 'field_friendly_url')
              && (!empty($termOld->field_friendly_url['und'])             || !empty($termNew->field_friendly_url['und']) )
              && ( empty($termOld->field_friendly_url)                    !== empty($termNew->field_friendly_url)
                || empty($termOld->field_friendly_url['und'])             !== empty($termNew->field_friendly_url['und'])
@@ -206,7 +208,7 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
         $allAssetsOld = getAssetsInSiteStructTerm($termOld, false);
         $allAssetsOld = ( is_null($allAssetsOld) ? array() : $allAssetsOld );
         // Check if the assets are being changed
-        if ( implode(',', $allAssetsNew) !== implode(',', $allAssetsOld) ) {
+        if (implode(',', $allAssetsNew) !== implode(',', $allAssetsOld)) {
             //dsm('calling');
             informPmTeamOfPageChange(
                 SS_CHANGE_ASSET,
@@ -215,7 +217,6 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
                 $termNew
             );
         }
-
     }
 );
 
@@ -225,21 +226,22 @@ hooks_reaction_add("HOOK_taxonomy_term_presave",
  * Checks if a node is being removed from an Asset-Topic, and if/when so,
  * send a notifications about which pages are effected by this
  */
-hooks_reaction_add("HOOK_workbench_moderation_transition",
+hooks_reaction_add(
+    "HOOK_workbench_moderation_transition",
     function ($node, $previous_state, $new_state) {
 
         // We don't want to fire this functionality on newly created nodes
-        if ( empty($node->nid) || node_load($node->nid) === false ) {
+        if (empty($node->nid) || node_load($node->nid) === false) {
             return;
         }
 
         // We only want to send a notifications out when a node become published
-        if ( $new_state !== 'scheduled_for_publication' ) {
+        if ($new_state !== 'scheduled_for_publication') {
             return;
         }
 
         // We don't want to fire this functionality on nodes that don't have an Asset-Topic field
-        if ( !isset($node->field_asset_topic_taxonomy) ) {
+        if (!isset($node->field_asset_topic_taxonomy)) {
             return;
         }
 
@@ -260,22 +262,22 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
 
         // Get the Asset topics this node is associated with (before save)
         $nodeOldTopics = array();
-        if ( !empty($nodeBefore->field_asset_topic_taxonomy['und']) ) {
-            foreach ($nodeBefore->field_asset_topic_taxonomy['und'] as $tidContainer ) {
+        if (!empty($nodeBefore->field_asset_topic_taxonomy['und'])) {
+            foreach ($nodeBefore->field_asset_topic_taxonomy['und'] as $tidContainer) {
                 $nodeOldTopics[] = $tidContainer['tid'];
             }
         }
 
         // Get the Asset topics this node is associated with (after save)
         $nodeNewTopics = array();
-        if ( !empty($nodeAfter->field_asset_topic_taxonomy['und']) ) {
-            foreach ($nodeAfter->field_asset_topic_taxonomy['und'] as $tidContainer ) {
+        if (!empty($nodeAfter->field_asset_topic_taxonomy['und'])) {
+            foreach ($nodeAfter->field_asset_topic_taxonomy['und'] as $tidContainer) {
                 $nodeNewTopics[] = $tidContainer['tid'];
             }
         }
 
         // If no topics are being changed, there is no notifications to send about this
-        if ( implode(',', $nodeOldTopics) == implode(',', $nodeNewTopics) ) {
+        if (implode(',', $nodeOldTopics) == implode(',', $nodeNewTopics)) {
             return;
         }
 
@@ -284,15 +286,15 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
         $gainingTopics = array_diff($nodeNewTopics, $nodeOldTopics);
 
         // Debug reporting
-        foreach ($loosingTopics as $loosingTopicId ) {
+        foreach ($loosingTopics as $loosingTopicId) {
             error_log("Asset-topic {$loosingTopicId} has just lost the association of node {$node->nid}");
         }
-        foreach ($gainingTopics as $gainingTopicId ) {
+        foreach ($gainingTopics as $gainingTopicId) {
             error_log("Asset-topic {$gainingTopicId} has just gained the association of node {$node->nid}");
         }
 
         // Find all pages (SS-tax-terms) associated with these loosing topics
-        if ( count($loosingTopics) == 0 ) {
+        if (count($loosingTopics) == 0) {
             $loosingPages = array();
         } else {
             $strLoosingTopics = implode(',', $loosingTopics);
@@ -307,7 +309,7 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
         }
 
         // Find all pages (SS-tax-terms) associated with these gaining topics
-        if ( count($gainingTopics) == 0 ) {
+        if (count($gainingTopics) == 0) {
             $gainingPages = array();
         } else {
             $strGainingTopics = implode(',', $gainingTopics);
@@ -323,7 +325,6 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
 
         // Inform the SS_CHANGE_NOTIFY_ROLE team that the $loosingPages pages has lost $node
         informPmTeamAssetLoss($node, $loosingTopics, $gainingTopics, $loosingPages, $gainingPages);
-
     }
 );
 
@@ -335,22 +336,22 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
  *
  * Returns an array of node-IDs, or array of loaded nodes (based on the seconds argument).
  */
-if ( !function_exists('getAssetsInSiteStructTerm') ) {
-    function getAssetsInSiteStructTerm($term, $loadAssets = false, $maintainSections = false, $ignoreTopicIds = array()) {
+if (!function_exists('getAssetsInSiteStructTerm')) {
+    function getAssetsInSiteStructTerm($term, $loadAssets = false, $maintainSections = false, $ignoreTopicIds = array())
+    {
 
         $ret = array();
 
         // Get the top-level-term name for this $term
-        if ( empty($term->tid) ) {
+        if (empty($term->tid)) {
             return array();
         }
         $tltName = db_query("SELECT tlt_name FROM taxonomy_tlt_name WHERE tid=".$term->tid)->fetchColumn();
-        if ( $tltName === false ) {
+        if ($tltName === false) {
             return array();
         }
 
-        if ( $tltName === 'Kids.gov' ) {
-
+        if ($tltName === 'Kids.gov') {
             // These fields in S.S-taxonomy-terms hold pointers to nodes (assets)
             $assetFieldContainers = array(
                 'field_asset_order_carousel',
@@ -360,15 +361,13 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
             );
 
             // Look in each of these fields for node-id references
-            foreach ( $assetFieldContainers as $assetFieldContainer ) {
-                if ( !empty($term->{$assetFieldContainer}) && !empty($term->{$assetFieldContainer}['und']) ) {
-
+            foreach ($assetFieldContainers as $assetFieldContainer) {
+                if (!empty($term->{$assetFieldContainer}) && !empty($term->{$assetFieldContainer}['und'])) {
                     // Look for [multiple] node-id references in this field
-                    foreach ( $term->{$assetFieldContainer}['und'] as $targetContainer ) {
-
-                        if ( $maintainSections ) {
+                    foreach ($term->{$assetFieldContainer}['und'] as $targetContainer) {
+                        if ($maintainSections) {
                             $regionName = strrev(strtok(strrev($assetFieldContainer), '_'));
-                            if ( !isset($ret[$regionName]) ) {
+                            if (!isset($ret[$regionName])) {
                                 $ret[$regionName] = array();
                             }
                             $ret[$regionName][] = $targetContainer['target_id'];
@@ -378,16 +377,14 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
                     }
                 }
             }
-
         } else {
-
             /* NON-Kids site logic (lookup based on Asset-Topic assignment) */
 
             // Get all topic-ids this $term references
             $arrTopicIds = array();
-            if ( !empty($term->field_asset_topic_taxonomy) && !empty($term->field_asset_topic_taxonomy['und']) ) {
-                foreach ( $term->field_asset_topic_taxonomy['und'] as $topicIdContainer ) {
-                    if ( !in_array($topicIdContainer['tid'], $ignoreTopicIds) ) {
+            if (!empty($term->field_asset_topic_taxonomy) && !empty($term->field_asset_topic_taxonomy['und'])) {
+                foreach ($term->field_asset_topic_taxonomy['und'] as $topicIdContainer) {
+                    if (!in_array($topicIdContainer['tid'], $ignoreTopicIds)) {
                         $arrTopicIds[] = $topicIdContainer['tid'];
                     }
                 }
@@ -395,13 +392,10 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
             $strTopicIds = implode(',', $arrTopicIds);
 
             // Get all node-IDs that reference these $strTermIds
-            if ( trim($strTopicIds) === '' ) {
-
+            if (trim($strTopicIds) === '') {
                 // There are no Topics selected, so there can't be any assets associated
                 $ret  = array();
-
             } else {
-
                 // Query MySQL to get all node-IDs that reference these $strTermIds
                 $ret = db_query("
                     SELECT entity_id
@@ -412,23 +406,22 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
                 ")->fetchCol();
             }
 
-            if ( $maintainSections ) {
+            if ($maintainSections) {
                 $ret = array(
                     'content' => $ret
                 );
             }
-
         }
 
-        if ( !$maintainSections ) {
+        if (!$maintainSections) {
             sort($ret);
         }
 
         // Load the assets if requested
-        if ( $loadAssets ) {
-            if ( $maintainSections ) {
+        if ($loadAssets) {
+            if ($maintainSections) {
                 foreach ($ret as &$section) {
-                    foreach ( $section as &$n ) {
+                    foreach ($section as &$n) {
                         $n = node_load($n);
                     }
                 }
@@ -443,7 +436,8 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
     }
 }
 
-function notify_tax_change_form() {
+function notify_tax_change_form()
+{
 
     $form = array();
 
@@ -463,7 +457,7 @@ function notify_tax_change_form() {
 
     // Get the role-id for SS_CHANGE_NOTIFY_ROLE
     $role = user_role_load_by_name(SS_CHANGE_NOTIFY_ROLE);
-    if ( $role === false ) {
+    if ($role === false) {
         drupal_set_message(
             'The "'.SS_CHANGE_NOTIFY_ROLE.'" role does not exsist in this system. Please create '
                 .'this role and assign users to it.',
@@ -475,7 +469,7 @@ function notify_tax_change_form() {
     // Get all the users assigned to this role
     $uids = db_query("SELECT DISTINCT uid FROM users_roles WHERE rid = {$role->rid}")->fetchCol();
     $mtMembers = user_load_multiple($uids);
-    if ( count($mtMembers) === 0 ) {
+    if (count($mtMembers) === 0) {
         drupal_set_message(
             'The "'.SS_CHANGE_NOTIFY_ROLE.'" role does not have any users assigned to it. You can '
                 .'not change any settings here until some users are assigned.',
@@ -484,7 +478,7 @@ function notify_tax_change_form() {
         return array();
     }
 
-    foreach ( $mtMembers as $mtMember ) {
+    foreach ($mtMembers as $mtMember) {
         $key = "tax_no_notify_".$mtMember->uid;
         $form["nonotify"][$key] = array(
             '#type' => 'checkbox',
@@ -501,13 +495,14 @@ function notify_tax_change_form() {
     return $form;
 }
 
-function notify_tax_change_form_submit($form, &$form_state) {
+function notify_tax_change_form_submit($form, &$form_state)
+{
 
     $role = user_role_load_by_name(SS_CHANGE_NOTIFY_ROLE);
     $uids = db_query("SELECT DISTINCT uid FROM users_roles WHERE rid = {$role->rid}")->fetchCol();
     $mtMembers = user_load_multiple($uids);
 
-    foreach ( $mtMembers as $mtMember ) {
+    foreach ($mtMembers as $mtMember) {
         $key = "tax_no_notify_".$mtMember->uid;
         $noSend = ( intval($form_state['input'][$key]) === 1 );
         variable_set($key, $noSend);
@@ -523,11 +518,12 @@ function notify_tax_change_form_submit($form, &$form_state) {
  * the given $node was altered in such a way that the given pages will gain/loose
  * this asset on them.
  */
-function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossTids, $pageGainTids) {
+function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossTids, $pageGainTids)
+{
 
     // Get the role-id for the SS_CHANGE_NOTIFY_ROLE role
     $role = user_role_load_by_name(SS_CHANGE_NOTIFY_ROLE);
-    if ( $role === false ) {
+    if ($role === false) {
         return;
     }
 
@@ -538,10 +534,8 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
     // Send a message to each member of the SS_CHANGE_NOTIFY_ROLE role
     $arrTo = array();
     foreach ($mtMembers as $uid => $mtMember) {
-
         // Do not send to users marked for no notifications
-        if (
-            variable_get("tax_no_notify_".$uid, false) !== true
+        if (variable_get("tax_no_notify_".$uid, false) !== true
             && strpos($mtMember->name, '@') !== false
             && strpos($mtMember->name, '.') !== false
         ) {
@@ -560,11 +554,10 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
         ."associated-topic(s) changed on the CMP.<br/><br/>";
 
     // EMail body - topics lost
-    if ( count($topicLossTids) > 0 ) {
-
+    if (count($topicLossTids) > 0) {
         $msg .= "The asset \"{$nodeAnchor}\" was disassociated with the topic(s): <br/>";
         $msg .= "<ul>";
-        foreach ( $topicLossTids as $topicLossTid ) {
+        foreach ($topicLossTids as $topicLossTid) {
             $topicTerm = taxonomy_term_load($topicLossTid);
             $termHref = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$topicTerm->tid."/edit";
             $msg .= "<li>".l($topicTerm->name, $termHref)."</li>";
@@ -573,11 +566,10 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
     }
 
     // EMail body - topics gained
-    if ( count($topicGainTids) > 0 ) {
-
+    if (count($topicGainTids) > 0) {
         $msg .= "The asset \"{$nodeAnchor}\" was associated with the topic(s): <br/>";
         $msg .= "<ul>";
-        foreach ( $topicGainTids as $topicGainTid ) {
+        foreach ($topicGainTids as $topicGainTid) {
             $topicTerm = taxonomy_term_load($topicGainTid);
             $termHref = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$topicTerm->tid."/edit";
             $msg .= "<li>".l($topicTerm->name, $termHref)."</li>";
@@ -586,11 +578,10 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
     }
 
     // EMail body - pages gained
-    if ( count($pageLossTids) > 0 ) {
-
+    if (count($pageLossTids) > 0) {
         $msg .= "This actions removes \"{$nodeAnchor}\" from the page(s): <br/>";
         $msg .= "<ul>";
-        foreach ( $pageLossTids as $pageLossTid ) {
+        foreach ($pageLossTids as $pageLossTid) {
             $ssTerm = taxonomy_term_load($pageLossTid);
             $termHref = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$ssTerm->tid."/edit";
             $msg .= "<li>".l($ssTerm->name, $termHref)."</li>";
@@ -599,11 +590,10 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
     }
 
     // EMail body - pages gained
-    if ( count($pageGainTids) > 0 ) {
-
+    if (count($pageGainTids) > 0) {
         $msg .= "This actions adds \"{$nodeAnchor}\" to the page(s): <br/>";
         $msg .= "<ul>";
-        foreach ( $pageGainTids as $pageGainTid ) {
+        foreach ($pageGainTids as $pageGainTid) {
             $ssTerm = taxonomy_term_load($pageGainTid);
             $termHref = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$ssTerm->tid."/edit";
             $msg .= "<li>".l($ssTerm->name, $termHref)."</li>";
@@ -634,23 +624,23 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
             $params,
             $params['from']
         );
-        if ($res["send"]) {
-            drupal_set_message("Send taxonomy-update notification emails to: " . $strTo);
-        }
+    if ($res["send"]) {
+        drupal_set_message("Send taxonomy-update notification emails to: " . $strTo);
+    }
 
 
     // } else {
     //     // then we are running on someone's local, do NOT send the email
     //     drupal_set_message("Notification email has NOT been sent because this environment is neither STAGE nor PROD."._get_env_string());
     // }
-
 }
 
-function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term = false) {
+function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term = false)
+{
 
     // Get the role-id for the SS_CHANGE_NOTIFY_ROLE role
     $role = user_role_load_by_name(SS_CHANGE_NOTIFY_ROLE);
-    if ( $role === false ) {
+    if ($role === false) {
         return;
     }
 
@@ -663,10 +653,8 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
     $arrTo = array();
 
     foreach ($mtMembers as $uid => $mtMember) {
-
         // Do not send to users marked for no notifications
-        if (
-            variable_get("tax_no_notify_".$uid, false) !== true
+        if (variable_get("tax_no_notify_".$uid, false) !== true
             && strpos($mtMember->mail, '@') !== false
             && strpos($mtMember->mail, '.') !== false
         ) {
@@ -679,8 +667,8 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
     $params['subject'] = 'CMP: Site-Taxonomy Alteration Notifications';
 
     // Determin the human-friendly term's vocab-name
-    $termVocab = ucwords( str_replace('_', ' ', $term->vocabulary_machine_name) );
-    $termVocab = trim( str_replace('Taxonomy', '', $termVocab) );
+    $termVocab = ucwords(str_replace('_', ' ', $term->vocabulary_machine_name));
+    $termVocab = trim(str_replace('Taxonomy', '', $termVocab));
     $termVocab = str_replace('Strucutre', 'Structure', $termVocab); // *sigh* the machine name is misspelled -_-
     $termVocab = str_replace(' ', '-', $termVocab);
 
@@ -712,17 +700,17 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
             $msg .= "The assigned assets were originally:\n<br/>";
             $msg .= "\n<br/>";
             $assets = getAssetsInSiteStructTerm($oldValue, true, true);
-            if ( count($assets) === 0 ) {
+            if (count($assets) === 0) {
                 $msg .= "<ul><li><i>empty</i></li></ul>";
             } else {
                 $msg .= "<ul>";
-                foreach ( $assets as $section => $nodes ) {
+                foreach ($assets as $section => $nodes) {
                     $msg .= ucwords($section)." region:";
                     $msg .= "<ol>";
-                    if ( count($nodes) === 0 ) {
+                    if (count($nodes) === 0) {
                         $msg .= '<li><i>empty</i></li>';
                     } else {
-                        foreach ( $nodes as $node ) {
+                        foreach ($nodes as $node) {
                             $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
                             $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
                         }
@@ -735,17 +723,17 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
             $msg .= "\n";
             $msg .= "And now the asset assignment is:\n";
             $assets = getAssetsInSiteStructTerm($newValue, true, true);
-            if ( count($assets) === 0 ) {
+            if (count($assets) === 0) {
                 $msg .= "<ul><li><i>empty</i></li></ul>";
             } else {
                 $msg .= "<ul>";
-                foreach ( $assets as $section => $nodes ) {
+                foreach ($assets as $section => $nodes) {
                     $msg .= ucwords($section)." region:";
                     $msg .= "<ol>";
-                    if ( count($nodes) === 0 ) {
+                    if (count($nodes) === 0) {
                         $msg .= '<li><i>empty</i></li>';
                     } else {
-                        foreach ( $nodes as $node ) {
+                        foreach ($nodes as $node) {
                             $nodeTitle = str_replace(array("\n","\r","\t","\f"), '', $node->title);
                             $msg .= "<li><a href=\"https://{$_SERVER['HTTP_HOST']}/node/{$node->nid}/edit\">{$nodeTitle}</a></li>";
                         }
@@ -780,13 +768,12 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
             $l,
             $params
         );
-        if ($res["send"]) {
-            drupal_set_message("Sent taxonomy-update notification emails to: " . $strTo);
-        }
+    if ($res["send"]) {
+        drupal_set_message("Sent taxonomy-update notification emails to: " . $strTo);
+    }
 
     // } else {
     //     // then we are running on someone's local, do NOT send the email
     //     drupal_set_message("Notification email has NOT been sent because this environment is neither STAGE nor PROD.");
     // }
-
 }
