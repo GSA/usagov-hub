@@ -114,6 +114,8 @@ $envToDrupalMap = array(
         'smtp_password'   => 'CMP_DRUPAL_SMTP_PASSWORD',
         'smtp_from'       => 'CMP_DRUPAL_SMTP_FROM',
         'smtp_fromname'   => 'CMP_DRUPAL_SMTP_FROMNAME',
+        'smtp_client_hostname' => 'CMP_DRUPAL_SMTP_CLIENT_HOSTNAME',
+        'smtp_client_helo'     => 'CMP_DRUPAL_SMTP_CLIENT_HELO',
 
         'mimemail_name' => 'CMP_DRUPAL_EMAIL_SENDER_NAME',
         'mimemail_mail' => 'CMP_DRUPAL_EMAIL_SENDER_ADDRESS',

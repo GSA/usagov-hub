@@ -629,7 +629,7 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
         $res = drupal_mail(
             'cmp_misc',
             'scanning_content',
-            'dnarkiewicz@ctacorp.com',//$strTo,
+            $strTo,
             language_default(),
             $params,
             $params['from']
