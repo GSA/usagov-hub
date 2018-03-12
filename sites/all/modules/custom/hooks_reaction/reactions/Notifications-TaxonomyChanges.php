@@ -753,6 +753,7 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
     $from = variable_get('site_mail', '');
     $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
     $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+    $params['headers']['Content-Type'] = 'text/html; charset=UTF-8;';
 
     // We check and prevent developer's locals from sending emails here
     // $prodStageDomains = variable_get('udm_prod_domains', array());

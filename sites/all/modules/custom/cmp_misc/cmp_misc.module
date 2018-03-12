@@ -457,7 +457,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
  */
 function cmp_misc_mail_alter(&$message) {
     //Sanitize and decode HTML entities in email subject
-    $message['headers']['Content-Type'] = "html/text; charset=UTF-8; format=flowed; delsp=yes";
+    //$message['headers']['Content-Type'] = "html/text; charset=UTF-8; format=flowed; delsp=yes";
 
     // Telling email recipient which environment the email is coming from if not from Prod
     if(!empty(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')) && getenv('CMP_DRUPAL_ENVIRONMENT_NAME') != 'Prod'){
