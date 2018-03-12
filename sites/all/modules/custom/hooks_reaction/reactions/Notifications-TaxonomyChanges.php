@@ -764,9 +764,9 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
         $l = language_default();
         $res = drupal_mail(
             'cmp_misc',
-            'scanning_content',
+            'cmp-taxonomy-change',
             trim($strTo),
-            $l,
+            language_default(),
             $params
         );
     if ($res["send"]) {

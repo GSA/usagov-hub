@@ -457,7 +457,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
  */
 function cmp_misc_mail_alter(&$message) {
     //Sanitize and decode HTML entities in email subject
-    //$message['headers']['Content-Type'] = "html/text; charset=UTF-8; format=flowed; delsp=yes";
+    // $message['headers']['Content-Type'] = "html/text; charset=UTF-8; format=flowed; delsp=yes";
 
     // Telling email recipient which environment the email is coming from if not from Prod
     if(!empty(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')) && getenv('CMP_DRUPAL_ENVIRONMENT_NAME') != 'Prod'){
@@ -1312,12 +1312,12 @@ function cmp_misc_mail($key, &$message, $params) {
     $language = $message['language'];
     if ($key == 'scanning_content') {
         $message['headers']['MIME-Version'] = '1.0';
-        //$message['headers']['Content-Type'] = 'text/html; charset=utf-8';
+        $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
         $message['headers']['Reply-To'] = $params['headers']['Reply-To'];
 
         $message['subject']=t($params['subject']);
         $message['body'][]=$params['body'];
-        //$message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
+        $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
     }
     elseif ($key == 'send_report') {
         $message['headers'] = array(
