@@ -1315,30 +1315,36 @@ function _cmp_misc_send_report() {
 
     return $res;
 }
-// function cmp_misc_mail($key, &$message, $params) {
-//     $language = $message['language'];
-//     if ($key == 'scanning_content') {
-//         $message['headers']['MIME-Version'] = '1.0';
-//         $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
-//         $message['headers']['Reply-To'] = $params['headers']['Reply-To'];
-//
-//         $message['subject']=t($params['subject']);
-//         $message['body'][]=$params['body'];
-//         $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
-//     }
-//     elseif ($key == 'send_report') {
-//         $message['headers'] = array(
-//             'MIME-Version' => '1.0',
-//             'Content-Type' => 'text/csv; charset=UTF-8; format=flowed; delsp=yes',
-//             'Content-Transfer-Encoding' => '8Bit',
-//             'X-Mailer' => 'Drupal',
-//             'Content-Disposition' => 'attachment; filename="'. $params['attachment']['filename'].'"',
-//         );
-//         $message['subject'] = $params['subject'];
-//         $message['body'][] = $params['body'];
-//         $message['params']['attachments'][] =  $message['attachment'];
-//     }
-// }
+function cmp_misc_mail($key, &$message, $params) {
+    if ( empty($message['subject']) && !empty($params['subject']) ) {
+      $message['subject'] = $params['subject'];
+    }
+    if ( empty($message['body']) && !empty($params['body']) ) {
+      if ( is_array($params['body']) ) {
+        $message['body'] = $params['body'];
+      } else {
+        $message['body'][] = $params['body'];
+      }
+    }
+    $language = $message['language'];
+    if ($key == 'scanning_content') {
+        $message['headers']['MIME-Version'] = '1.0';
+        $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
+        $message['headers']['Reply-To'] = $params['headers']['Reply-To'];
+
+        $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
+    }
+    elseif ($key == 'send_report') {
+        $message['headers'] = array(
+            'MIME-Version' => '1.0',
+            'Content-Type' => 'text/csv; charset=UTF-8; format=flowed; delsp=yes',
+            'Content-Transfer-Encoding' => '8Bit',
+            'X-Mailer' => 'Drupal',
+            'Content-Disposition' => 'attachment; filename="'. $params['attachment']['filename'].'"',
+        );
+        $message['params']['attachments'][] =  $message['attachment'];
+    }
+}
 
 // class Cmp_miscMailSystem implements MailSystemInterface {
 //     /**

@@ -446,7 +446,7 @@ return;
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
         be called and used to determine the email-message to send. */
         $res = drupal_mail(
-            'hooks_reaction',
+            'cmp_misc',
             'taxonomy-notification',
             $strTo,
             language_default(),
