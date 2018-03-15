@@ -100,7 +100,7 @@ function _aliasPathHelper_urlFriendlyString($string)
     $string = strtolower($string);
     $string = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $string);
 
-    $replaceWithDashe = array('_', '/', "\\", ' ', '.', '~', '(', ')', '[', ']', ':', ';', '!', '@', '”', '"', "'", "?");
+    $replaceWithDashe = array('_', '/', "\\", ' ', '.', '~', '(', ')', '[', ']', ':', ';', '!', '@', '”', '"', "'", "?", ",");
 
     $string = str_replace($replaceWithDashe, '-', $string);
 
