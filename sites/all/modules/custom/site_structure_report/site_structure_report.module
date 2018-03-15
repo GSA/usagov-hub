@@ -532,10 +532,15 @@ function _userinput_report(){
         "CONTENT-TYPE: application/json; charset=utf-8"
     );
 
+    $past120 = strtotime("-120 day");
+    $param = '{
+    "query": {"range": {"submitteddate": {"gte": "'.$past120.'"}}}}';
+
     $curl = curl_init();
     curl_setopt($curl, CURLOPT_URL, $elasticsearch_server."/opportunityuserinputs/_search");
     curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($curl, CURLOPT_POSTFIELDS, $param);
 
     $res = curl_exec($curl);
     curl_close($curl);
@@ -551,6 +556,7 @@ function _userinput_report(){
         curl_setopt($curl, CURLOPT_URL, $elasticsearch_server . "/opportunityuserinputs/_search?size=10&from=".$from."&pretty");
         curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $param);
 
         $res = curl_exec($curl);
         curl_close($curl);
