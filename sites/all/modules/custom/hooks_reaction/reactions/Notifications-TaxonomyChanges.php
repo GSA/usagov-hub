@@ -762,8 +762,8 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
         be called and used to determine the email-message to send. */
         $res = drupal_mail(
-            'cmp_misc',
-            'cmp-taxonomy-change',
+            'hooks_reaction',
+            'taxonomy-change',
             trim($strTo),
             language_default(),
             $params
