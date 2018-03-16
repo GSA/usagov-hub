@@ -457,7 +457,7 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
  */
 function cmp_misc_mail_alter(&$message) {
     //Sanitize and decode HTML entities in email subject
-    //$message['headers']['Content-Type'] = "html/text; charset=UTF-8; format=flowed; delsp=yes";
+    // $message['headers']['Content-Type'] = "html/text; charset=UTF-8; format=flowed; delsp=yes";
 
     // Telling email recipient which environment the email is coming from if not from Prod
     if(!empty(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')) && getenv('CMP_DRUPAL_ENVIRONMENT_NAME') != 'Prod'){
@@ -650,7 +650,12 @@ function _cmp_misc_email_SSAssets_report_with_attachment(){
     $to = 'achuluunkhuu@ctacorp.com, david.kaufmann@gsa.gov, marybeth.murphy@gsa.gov, joanne.mcgovern@gsa.gov';
     //$to = 'achuluunkhuu@ctacorp.com';
 
-    $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
 }
 
 function _cmp_misc_email_asTT_report_with_attachment(){
@@ -715,7 +720,13 @@ function _cmp_misc_email_asTT_report_with_attachment(){
     $to = 'achuluunkhuu@ctacorp.com, david.kaufmann@gsa.gov, marybeth.murphy@gsa.gov, joanne.mcgovern@gsa.gov';
     //$to = 'achuluunkhuu@ctacorp.com';
 
-    $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
+
 }
 
 function _cmp_misc_email_con_report_with_attachment(){
@@ -767,7 +778,13 @@ function _cmp_misc_email_con_report_with_attachment(){
     $to = 'achuluunkhuu@ctacorp.com, david.kaufmann@gsa.gov, marybeth.murphy@gsa.gov, joanne.mcgovern@gsa.gov';
     //$to = 'achuluunkhuu@ctacorp.com';
 
-    $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
+
 }
 
 function _cmp_misc_email_fbo_report_with_attachment(){
@@ -810,7 +827,13 @@ function _cmp_misc_email_fbo_report_with_attachment(){
     $to = 'achuluunkhuu@ctacorp.com, david.kaufmann@gsa.gov, marybeth.murphy@gsa.gov, joanne.mcgovern@gsa.gov';
     //$to = 'achuluunkhuu@ctacorp.com';
 
-    $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
+
 }
 
 function _cmp_misc_email_sst_report_with_attachment(){
@@ -867,7 +890,13 @@ function _cmp_misc_email_sst_report_with_attachment(){
     $to = 'achuluunkhuu@ctacorp.com, david.kaufmann@gsa.gov, marybeth.murphy@gsa.gov, joanne.mcgovern@gsa.gov';
     //$to = 'achuluunkhuu@ctacorp.com';
 
-    $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
+
 }
 
 function _cmp_misc_check_content_freshness()
@@ -1211,10 +1240,18 @@ function _cmp_misc_send_needs_approval_notice_person( $node) {
 
         $from = variable_get('site_mail', '');
 
-        $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
-        $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+        // $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+        // $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+        $params['from'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . $from . '>');
+        $params['headers']['Reply-To'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . variable_get('site_mail', '') . '>');
 
-        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        try {
+          $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        } catch(Exception $e) {
+          watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+          return;
+        }
+
 
         if ($res["send"]) {
             drupal_set_message("Approval notification email has been sent." . $to . _get_env_string());
@@ -1238,10 +1275,17 @@ function _cmp_misc_send_last_edited_person($user_to_send, $node, $msg=null) {
 
     $from = variable_get('site_mail', '');
 
-    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
-    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+    // $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+    // $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+    $params['from'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . $from . '>');
+    $params['headers']['Reply-To'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . variable_get('site_mail', '') . '>');
 
-    $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
 
     if ($res["send"]) {
         drupal_set_message((($msg == null)? "Person who last revision created is ": $msg) . $user_to_send->name . ". Notification email has been sent." . $to ._get_env_string());
@@ -1290,10 +1334,19 @@ function _cmp_misc_send_report() {
             $from = variable_get('site_mail', '');
         }
 
-        $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
-        $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+        // $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+        // $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
 
-        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        $params['from'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . $from . '>');
+        $params['headers']['Reply-To'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . variable_get('site_mail', '') . '>');
+
+        try {
+          $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        } catch(Exception $e) {
+          watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+          return;
+        }
+
         if ($res["send"]) {
             watchdog("cron", "DAILY SCANNING CONTENT SENT AN EMAIL TO " . $to . date('Y-m-d H:i:s'),[],WATCHDOG_ALERT);
         }
@@ -1309,15 +1362,23 @@ function _cmp_misc_send_report() {
     return $res;
 }
 function cmp_misc_mail($key, &$message, $params) {
+    if ( empty($message['subject']) && !empty($params['subject']) ) {
+      $message['subject'] = $params['subject'];
+    }
+    if ( empty($message['body']) && !empty($params['body']) ) {
+      if ( is_array($params['body']) ) {
+        $message['body'] = $params['body'];
+      } else {
+        $message['body'][] = $params['body'];
+      }
+    }
     $language = $message['language'];
     if ($key == 'scanning_content') {
         $message['headers']['MIME-Version'] = '1.0';
-        //$message['headers']['Content-Type'] = 'text/html; charset=utf-8';
+        $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
         $message['headers']['Reply-To'] = $params['headers']['Reply-To'];
 
-        $message['subject']=t($params['subject']);
-        $message['body'][]=$params['body'];
-        //$message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
+        $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
     }
     elseif ($key == 'send_report') {
         $message['headers'] = array(
@@ -1327,58 +1388,56 @@ function cmp_misc_mail($key, &$message, $params) {
             'X-Mailer' => 'Drupal',
             'Content-Disposition' => 'attachment; filename="'. $params['attachment']['filename'].'"',
         );
-        $message['subject'] = $params['subject'];
-        $message['body'][] = $params['body'];
         $message['params']['attachments'][] =  $message['attachment'];
     }
 }
 
-class Cmp_miscMailSystem implements MailSystemInterface {
-    /**
-     * Concatenate and wrap the e-mail body for plain-text mails.
-     *
-     * @param $message
-     *   A message array, as described in hook_mail_alter().
-     *
-     * @return
-     *   The formatted $message.
-     */
-    public function format(array $message) {
-        $message['body'] = implode("\n\n", $message['body']);
-        return $message;
-    }
-
-    /**
-     * Send an e-mail message, using Drupal variables and default settings.
-     *
-     * @see http://php.net/manual/en/function.mail.php
-     * @see drupal_mail()
-     *
-     * @param $message
-     *   A message array, as described in hook_mail_alter().
-     * @return
-     *   TRUE if the mail was successfully accepted, otherwise FALSE.
-     */
-    public function mail(array $message) {
-        $mimeheaders = array();
-        foreach ($message['headers'] as $name => $value) {
-            $mimeheaders[] = $name . ': ' . mime_header_encode($value);
-        }
-        $line_endings = variable_get('mail_line_endings', MAIL_LINE_ENDINGS);
-        return mail(
-            $message['to'],
-            mime_header_encode($message['subject']),
-            // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
-            // on Unix and CRLF on Windows. Drupal automatically guesses the
-            // line-ending format appropriate for your system. If you need to
-            // override this, adjust $conf['mail_line_endings'] in settings.php.
-            preg_replace('@\r?\n@', $line_endings, $message['body']),
-            // For headers, PHP's API suggests that we use CRLF normally,
-            // but some MTAs incorrectly replace LF with CRLF. See #234403.
-            join("\n", $mimeheaders)
-        );
-    }
-}
+// class Cmp_miscMailSystem implements MailSystemInterface {
+//     /**
+//      * Concatenate and wrap the e-mail body for plain-text mails.
+//      *
+//      * @param $message
+//      *   A message array, as described in hook_mail_alter().
+//      *
+//      * @return
+//      *   The formatted $message.
+//      */
+//     public function format(array $message) {
+//         $message['body'] = implode("\n\n", $message['body']);
+//         return $message;
+//     }
+//
+//     /**
+//      * Send an e-mail message, using Drupal variables and default settings.
+//      *
+//      * @see http://php.net/manual/en/function.mail.php
+//      * @see drupal_mail()
+//      *
+//      * @param $message
+//      *   A message array, as described in hook_mail_alter().
+//      * @return
+//      *   TRUE if the mail was successfully accepted, otherwise FALSE.
+//      */
+//     public function mail(array $message) {
+//         $mimeheaders = array();
+//         foreach ($message['headers'] as $name => $value) {
+//             $mimeheaders[] = $name . ': ' . mime_header_encode($value);
+//         }
+//         $line_endings = variable_get('mail_line_endings', MAIL_LINE_ENDINGS);
+//         return mail(
+//             $message['to'],
+//             mime_header_encode($message['subject']),
+//             // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
+//             // on Unix and CRLF on Windows. Drupal automatically guesses the
+//             // line-ending format appropriate for your system. If you need to
+//             // override this, adjust $conf['mail_line_endings'] in settings.php.
+//             preg_replace('@\r?\n@', $line_endings, $message['body']),
+//             // For headers, PHP's API suggests that we use CRLF normally,
+//             // but some MTAs incorrectly replace LF with CRLF. See #234403.
+//             join("\n", $mimeheaders)
+//         );
+//     }
+// }
 
 /**
  * Implements hook_search_api_alter_callback_info()

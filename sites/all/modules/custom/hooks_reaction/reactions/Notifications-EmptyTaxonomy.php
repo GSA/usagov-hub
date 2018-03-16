@@ -371,7 +371,7 @@ if ( !function_exists('getAssetsInSiteStructTerm') ) {
 }
 
 function informPmTeamOfEmptyPage($term, $pendingChange = false) {
-return;
+
     // The $term given MUST be a Site-Structure taxonomy-term, if the term is from any other Vocabulary, then this function was called in error
     if ( $term->vocabulary_machine_name !== 'site_strucutre_taxonomy' ) {
         return; // bail
@@ -434,8 +434,10 @@ return;
 
     // Email headers
     $from = variable_get('site_mail', '');
-    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
-    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+    // $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+    // $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+    $params['from'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . $from . '>');
+    $params['headers']['Reply-To'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . variable_get('site_mail', '') . '>');
 
     // We check and prevent developer's locals from sending emails here
     //$prodStageDomains = variable_get('udm_prod_domains', array());
@@ -443,14 +445,20 @@ return;
 
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
         be called and used to determine the email-message to send. */
-        $res = drupal_mail(
-            'cmp_misc',
-            'scanning_content',
-            'dnarkiewicz@ctacorp.com',//$strTo,
-            language_default(),
-            $params,
-            $params['from']
-        );
+        try {
+          $res = drupal_mail(
+              'cmp_misc',
+              'taxonomy-notification',
+              $strTo,
+              language_default(),
+              $params,
+              $params['from']
+          );
+        } catch(Exception $e) {
+          watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+          return;
+        }
+
         if ($res["send"]) {
             drupal_set_message("Empty-Page notification has been sent to: " . $strTo ._get_env_string());
         }

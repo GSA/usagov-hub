@@ -675,10 +675,17 @@ function _cmp_soft_delete_send_email_to_editors($node)
 
         $from = variable_get('site_mail', '');
 
-        $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
-        $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+        // $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+        // $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+        $params['from'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . $from . '>');
+        $params['headers']['Reply-To'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . variable_get('site_mail', '') . '>');
 
-        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        try {
+          $res = drupal_mail('cmp_misc', 'soft-delete', trim($to), language_default(), $params, $params['from']);
+        } catch(Exception $e) {
+          watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+          return;
+        }
 
         if ($res["send"]) {
             drupal_set_message("Node deletion email is " . $to . ". Notification email has been sent." . $to ._get_env_string());

@@ -616,14 +616,19 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
 
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
         be called and used to determine the email-message to send. */
+    try {
         $res = drupal_mail(
             'cmp_misc',
-            'scanning_content',
+            'taxonomy-notification',
             $strTo,
             language_default(),
             $params,
             $params['from']
         );
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
     if ($res["send"]) {
         drupal_set_message("Send taxonomy-update notification emails to: " . $strTo);
     }
@@ -751,9 +756,9 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
 
     // Email headers
     $from = variable_get('site_mail', '');
-    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
-    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
-    $params['headers']['Content-Type'] = 'text/html; charset=UTF-8;';
+    $params['from'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . $from . '>');
+    $params['headers']['Reply-To'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . variable_get('site_mail', '') . '>');
+    //$params['headers']['Content-Type'] = 'text/html; charset=\"utf-8\";';
 
     // We check and prevent developer's locals from sending emails here
     // $prodStageDomains = variable_get('udm_prod_domains', array());
@@ -761,14 +766,18 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
 
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
         be called and used to determine the email-message to send. */
-        $l = language_default();
+    try {
         $res = drupal_mail(
             'cmp_misc',
-            'scanning_content',
+            'taxonomy-change',
             trim($strTo),
-            $l,
+            language_default(),
             $params
         );
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
     if ($res["send"]) {
         drupal_set_message("Sent taxonomy-update notification emails to: " . $strTo);
     }
