@@ -737,14 +737,19 @@ function repo_sync_triggerSync($settings = 'ASSUME-DEFAULT') {
 
     if ( $something_got_updated && !empty(getenv('CMP_DRUPAL_SMTP_ON')) )
     {
-      drupal_mail(
-          'repo_sync',
-          'sync_proccessed '. $settings['srcbranch'] .' > '. implode(', ',$branches),
-          'dfrey@ctacorp.com, russell.oneill@gsa.gov, dnarkiewicz@ctacorp.com, rashley@ctacorp.com',
-          language_default(),
-          array(),
-          variable_get('site_mail', '')
-      );
+      try {
+        drupal_mail(
+            'cmp_misc',
+            'ui-repo-sync',
+            'dfrey@ctacorp.com, russell.oneill@gsa.gov, dnarkiewicz@ctacorp.com, rashley@ctacorp.com',
+            language_default(),
+            array('body'=>['sync_proccessed '. $settings['srcbranch'] .' > '. implode(', ',$branches)]),
+            variable_get('site_mail', '')
+        );
+      } catch(Exception $e) {
+        watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+        return;
+      }
     }
 
     // Clean up

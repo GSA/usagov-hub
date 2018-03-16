@@ -650,7 +650,12 @@ function _cmp_misc_email_SSAssets_report_with_attachment(){
     $to = 'achuluunkhuu@ctacorp.com, david.kaufmann@gsa.gov, marybeth.murphy@gsa.gov, joanne.mcgovern@gsa.gov';
     //$to = 'achuluunkhuu@ctacorp.com';
 
-    $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
 }
 
 function _cmp_misc_email_asTT_report_with_attachment(){
@@ -715,7 +720,13 @@ function _cmp_misc_email_asTT_report_with_attachment(){
     $to = 'achuluunkhuu@ctacorp.com, david.kaufmann@gsa.gov, marybeth.murphy@gsa.gov, joanne.mcgovern@gsa.gov';
     //$to = 'achuluunkhuu@ctacorp.com';
 
-    $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
+
 }
 
 function _cmp_misc_email_con_report_with_attachment(){
@@ -767,7 +778,13 @@ function _cmp_misc_email_con_report_with_attachment(){
     $to = 'achuluunkhuu@ctacorp.com, david.kaufmann@gsa.gov, marybeth.murphy@gsa.gov, joanne.mcgovern@gsa.gov';
     //$to = 'achuluunkhuu@ctacorp.com';
 
-    $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
+
 }
 
 function _cmp_misc_email_fbo_report_with_attachment(){
@@ -810,7 +827,13 @@ function _cmp_misc_email_fbo_report_with_attachment(){
     $to = 'achuluunkhuu@ctacorp.com, david.kaufmann@gsa.gov, marybeth.murphy@gsa.gov, joanne.mcgovern@gsa.gov';
     //$to = 'achuluunkhuu@ctacorp.com';
 
-    $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
+
 }
 
 function _cmp_misc_email_sst_report_with_attachment(){
@@ -867,7 +890,13 @@ function _cmp_misc_email_sst_report_with_attachment(){
     $to = 'achuluunkhuu@ctacorp.com, david.kaufmann@gsa.gov, marybeth.murphy@gsa.gov, joanne.mcgovern@gsa.gov';
     //$to = 'achuluunkhuu@ctacorp.com';
 
-    $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'send_report', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
+
 }
 
 function _cmp_misc_check_content_freshness()
@@ -1216,7 +1245,13 @@ function _cmp_misc_send_needs_approval_notice_person( $node) {
         $params['from'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . $from . '>');
         $params['headers']['Reply-To'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . variable_get('site_mail', '') . '>');
 
-        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        try {
+          $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        } catch(Exception $e) {
+          watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+          return;
+        }
+
 
         if ($res["send"]) {
             drupal_set_message("Approval notification email has been sent." . $to . _get_env_string());
@@ -1245,7 +1280,12 @@ function _cmp_misc_send_last_edited_person($user_to_send, $node, $msg=null) {
     $params['from'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . $from . '>');
     $params['headers']['Reply-To'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . variable_get('site_mail', '') . '>');
 
-    $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+    try {
+      $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
 
     if ($res["send"]) {
         drupal_set_message((($msg == null)? "Person who last revision created is ": $msg) . $user_to_send->name . ". Notification email has been sent." . $to ._get_env_string());
@@ -1300,7 +1340,13 @@ function _cmp_misc_send_report() {
         $params['from'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . $from . '>');
         $params['headers']['Reply-To'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . variable_get('site_mail', '') . '>');
 
-        $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        try {
+          $res = drupal_mail('cmp_misc', 'scanning_content', trim($to), language_default(), $params, $params['from']);
+        } catch(Exception $e) {
+          watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+          return;
+        }
+
         if ($res["send"]) {
             watchdog("cron", "DAILY SCANNING CONTENT SENT AN EMAIL TO " . $to . date('Y-m-d H:i:s'),[],WATCHDOG_ALERT);
         }

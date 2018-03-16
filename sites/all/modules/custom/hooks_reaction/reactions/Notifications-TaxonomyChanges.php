@@ -616,6 +616,7 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
 
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
         be called and used to determine the email-message to send. */
+    try {
         $res = drupal_mail(
             'cmp_misc',
             'taxonomy-notification',
@@ -624,6 +625,10 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
             $params,
             $params['from']
         );
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
     if ($res["send"]) {
         drupal_set_message("Send taxonomy-update notification emails to: " . $strTo);
     }
@@ -761,6 +766,7 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
 
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
         be called and used to determine the email-message to send. */
+    try {
         $res = drupal_mail(
             'cmp_misc',
             'taxonomy-change',
@@ -768,6 +774,10 @@ function informPmTeamOfPageChange($change, $newValue, $oldValue = false, $term =
             language_default(),
             $params
         );
+    } catch(Exception $e) {
+      watchdog('cmp mailer',__FUNCTION__.' : '.$e->getMessage() );
+      return;
+    }
     if ($res["send"]) {
         drupal_set_message("Sent taxonomy-update notification emails to: " . $strTo);
     }
