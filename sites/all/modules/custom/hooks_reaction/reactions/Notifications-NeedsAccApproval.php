@@ -1,15 +1,15 @@
 <?php /*
 
     [--] PURPOSE [--]
-    
+
     The purpose of this script is to notify the Accessibility-Team when a node is moved into
-    the "Needs Accessibility Approval" workflow-state. An email must also be sent to 
+    the "Needs Accessibility Approval" workflow-state. An email must also be sent to
     fcic-accessibility-team@gsa.gov
 
     [--] TICKET HISTORY [--]
 
     2015-07-07 - Created to resolve ticket: usagov-100473 Would like to modify workflow so that [...]
-        
+
 */
 
 /**
@@ -84,14 +84,16 @@ function informAccTeamOfMultNeedingApproval($node) {
 
     // Email headers
     $from = variable_get('site_mail', '');
-    $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
-    $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+    // $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+    // $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+    $params['from'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . $from . '>');
+    $params['headers']['Reply-To'] = trim(variable_get('site_name', "CMP USA.gov") . ' <' . variable_get('site_mail', '') . '>');
 
-    /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will 
+    /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
     be called and used to determine the email-message to send. */
     $res = drupal_mail(
         'cmp_misc',
-        'scanning_content',
+        'needs-approval-notification',
         $strTo,
         language_default(),
         $params,

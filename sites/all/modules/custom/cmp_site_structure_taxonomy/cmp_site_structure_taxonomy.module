@@ -19,7 +19,6 @@ function _validate_remove_only_content_from_term($node) {
 }
 
 function cmp_site_structure_taxonomy_form_alter(&$form,&$form_state){
-    //dsm($form);
 
     if (($form['#form_id'] == 'taxonomy_manager_form'
             && isset($form['voc']['#value']->machine_name)
@@ -99,13 +98,13 @@ function _cmp_sst_get_dir_listing() {
  * ANY CHANGE TO THIS FUNCTION SHOULD ALSO BE DONE TO THE FUNCTION IN USA_DATA_MIGRATION.MODULE
  *
  * Given a node-ID, this function returns a relative path (with a beginning slash)
- * to the Directory-Record node. 
+ * to the Directory-Record node.
  *
  * Based on the directory record type, this will return:
  *   /federal-agencies/<title converted to lower case with spaces converted to hyphens>
  *   /state-consumer/<state name with spaces converted to hyphens in lowercase>
  *   /state-government/<short state name with spaces converted to hyphens in lowercase>
- *   or /directory/<alpha-order-name> 
+ *   or /directory/<alpha-order-name>
  */
 function _cmp_sst_getUrlToDirectoryRecord($n) {
 
@@ -174,11 +173,11 @@ function _cmp_sst_getUrlToDirectoryRecord($n) {
 
         case 'consumer organizations';
         case 'government consumer protection offices';
-            
+
             return ( $englishMode ? '/state-consumer/' : '/organizaciones-consumidor/') . $urlState;
 
         case 'state government agencies';
-            
+
             return ( $englishMode ? '/state-government/' : '/gobiernos-estatales/') . $urlShortState;
 
         default:
