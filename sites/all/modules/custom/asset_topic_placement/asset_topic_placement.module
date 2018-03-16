@@ -170,7 +170,7 @@ function asset_topic_placement_form_taxonomy_form_term_alter(&$form, &$form_stat
     $nutCacheKey = '';
     foreach ( $topics as $topic )
     {
-        if ( is_array($topic) && isset($topic['tid']) ) {
+        if ( is_array($topic) && !empty($topic['tid']) && is_numeric($topic['tid']) ) {
           $nutCacheKey += 't'.intval($topic['tid']);
         }
     }
