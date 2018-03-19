@@ -25,7 +25,7 @@ jQuery(document).ready(function(){
 
     getNodes();
     regionPlacementToggle();
-    //parentTermWidget();
+    parentTermWidget();
 
     // Things to do after someone selects a different asset topic from the asset topic taxonomy tree
     jQuery('input[name="field_asset_topic_taxonomy[und]"]').change(function() {
