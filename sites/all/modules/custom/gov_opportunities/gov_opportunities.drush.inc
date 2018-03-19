@@ -5,17 +5,17 @@ function gov_opportunities_drush_command()
 
   $items = array();
   $items['govopp-elasticsearch-validate'] = array(
-    'description' => 'Check Elsaticsearch for Valid indexes.',
+    'description' => 'Check Elasticsearch for Valid indexes.',
     'aliases' => array('goev'),
     'callback' => '_govopp_drush_validate_elasticsearch',
   );
   $items['govopp-elasticsearch-setup'] = array(
-    'description' => 'Setup Elsaticsearch indexes.',
+    'description' => 'Setup Elasticsearch indexes.',
     'aliases' => array('goes'),
     'callback' => '_govopp_drush_setup_elasticsearch',
   );
   $items['govopp-elasticsearch-rebuild'] = array(
-    'description' => 'Rebuild Elsaticsearch indexes.',
+    'description' => 'Rebuild Elasticsearch indexes.',
     'aliases' => array('goer'),
     'callback' => '_govopp_drush_rebuild_elasticsearch',
   );
@@ -45,7 +45,7 @@ function _govopp_drush_validate_elasticsearch()
 {
     _govopp_long_running_process();
     $result = _govopp_validate_elasticsearch();
-    echo "Elasticsearch: "; 
+    echo "Elasticsearch: ";
     print_r($result);
 }
 
@@ -79,7 +79,7 @@ function _govopp_drush_clean_data($dateString = null)
     $fbo->removeClosedOpportunities();
     $fbo->removeOldOpportunities();
     $fbo->removeOldDownloadedFiles();
-    
+
 }
 
 function _govopp_drush_pull_fbo_full()
@@ -96,7 +96,7 @@ function _govopp_drush_pull_fbo_full()
       echo 'File not found: '.$fbo->filename."\n";
       return;
     }
-    
+
     $fbo->processFile();
     $fbo->removeClosedOpportunities();
     $fbo->removeOldOpportunities();
@@ -106,7 +106,7 @@ function _govopp_drush_pull_fbo_full()
     echo "ITEMS  : ". (count($fbo->opportunities)+count($fbo->mods)+count($fbo->awards)) ."\n";
     echo "MEMORY : ". $fbo->getNiceSize(memory_get_peak_usage(),TRUE) ."\n";
     echo "TIME   : ". (time()-$t) ." seconds \n";
-    
+
 }
 
 function _govopp_drush_pull_fbo_daily($dateString=null)

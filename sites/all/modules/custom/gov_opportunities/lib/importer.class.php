@@ -63,7 +63,7 @@ class FBOXMLImport
     {
         if ( empty($this->fbo_map) ) {
             require dirname(__FILE__) . '/mappings.php';
-            require dirname(__FILE__) . '/zips.php';   
+            require dirname(__FILE__) . '/zips.php';
             $this->fbo_map = $fbo_map;
         }
     }
@@ -150,7 +150,7 @@ class FBOXMLImport
             $local_size = filesize($this->tmp_file);
             $local_date = filemtime($this->tmp_file);
             $size_match = $ftp_size==$local_size;
-            $date_match = $ftp_date==$local_date;
+            $date_match = $ftp_date<=$local_date;
             if ( $size_match && $date_match) {
                 if ($this->commandline) {
                     $this->log("FBO No Download: {$this->tmp_file} matches server file from ".date('Y-m-d',$ftp_date)."\n");
@@ -890,7 +890,7 @@ class FBOXMLImport
         }
         if ($this->commandline) {
             // echo ' : '. count($this->opportunities) ." / ". $this->z ."\n";
-            // echo ' : '. $this->y ." / ". $this->z ." (".( count($this->opportunities) + count($this->mods) + count($this->awards) ).")\n";                                
+            // echo ' : '. $this->y ." / ". $this->z ." (".( count($this->opportunities) + count($this->mods) + count($this->awards) ).")\n";
             echo ' : '. $this->y ." / ". $this->z ."\n";
         }
 
@@ -955,7 +955,7 @@ class FBOXMLImport
 
     public function removeClosedOpportunities($date = null)
     {
-        // return true;        
+        // return true;
         try {
             if ( $date === null ) {
                 if ( !empty($this->file_date) ) {
@@ -979,9 +979,9 @@ class FBOXMLImport
             $this->log('FBO Removing opportunities that have been closed before '.$date);
             // $this->log('FBO '.$data);
             $curl = curl_init();
-            curl_setopt($curl, CURLOPT_URL, $this->es_host . '/' . $this->es_index . '/' . $this->es_type . '/_query' );
+            curl_setopt($curl, CURLOPT_URL, $this->es_host . '/' . $this->es_index . '/' . $this->es_type . '/_delete_by_query' );
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+            curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "POST");
             curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
             curl_setopt($curl, CURLOPT_HTTPHEADER,
                 ['CONTENT-TYPE: application/json; charset=utf-8']);
@@ -1041,9 +1041,9 @@ class FBOXMLImport
             $this->log('FBO Removing opportunities posted before '.$date1.' and '.$date2);
             // $this->log('FBO '.$data);
             $curl = curl_init();
-            curl_setopt($curl, CURLOPT_URL, $this->es_host . '/' . $this->es_index . '/' . $this->es_type . '/_query' );
+            curl_setopt($curl, CURLOPT_URL, $this->es_host . '/' . $this->es_index . '/' . $this->es_type . '/_delete_by_query' );
             curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+            curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "POST");
             curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
             curl_setopt($curl, CURLOPT_HTTPHEADER,
                 ['CONTENT-TYPE: application/json; charset=utf-8']);
