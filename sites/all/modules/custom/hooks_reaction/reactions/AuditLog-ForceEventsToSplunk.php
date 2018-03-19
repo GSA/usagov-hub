@@ -184,7 +184,6 @@ function _auditlog_pushMessageToSplunk($msgPre, $msgPost = '') {
     $msg = $msgPre . _auditlog_getUserLogString() . $msgPost;
 
     // All error_log() calls should automatically go into Splunk in the CMP-2.0 system
-    dsm($msg);
     error_log($msg);
 }
 
