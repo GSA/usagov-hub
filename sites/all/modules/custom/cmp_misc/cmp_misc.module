@@ -1367,7 +1367,7 @@ function cmp_misc_mail($key, &$message, $params) {
     }
     if ( empty($message['body']) && !empty($params['body']) ) {
       if ( is_array($params['body']) ) {
-        $message['body'] = $params['body'];
+        $message['body'] = array_merge( $message['body'], $params['body'] );
       } else {
         $message['body'][] = $params['body'];
       }
