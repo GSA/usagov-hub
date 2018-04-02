@@ -1375,7 +1375,7 @@ function cmp_misc_mail($key, &$message, $params) {
     $language = $message['language'];
     if ($key == 'scanning_content') {
         $message['headers']['MIME-Version'] = '1.0';
-        $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
+        // $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
         $message['headers']['Reply-To'] = $params['headers']['Reply-To'];
 
         $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
@@ -1383,7 +1383,7 @@ function cmp_misc_mail($key, &$message, $params) {
     elseif ($key == 'send_report') {
         $message['headers'] = array(
             'MIME-Version' => '1.0',
-            'Content-Type' => 'text/csv; charset=UTF-8; format=flowed; delsp=yes',
+            'Content-Type' => 'text/html; charset=UTF-8; format=flowed; delsp=yes',
             'Content-Transfer-Encoding' => '8Bit',
             'X-Mailer' => 'Drupal',
             'Content-Disposition' => 'attachment; filename="'. $params['attachment']['filename'].'"',
