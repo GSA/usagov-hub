@@ -1295,8 +1295,8 @@ function _cmp_misc_send_last_edited_person($user_to_send, $node, $msg=null) {
 function _cmp_misc_send_report() {
 
     // We check and prevent developer's locals from sending emails here
-    $prodStageDomains = variable_get('udm_prod_domains', array());
-    if ( !in_array($_SERVER['HTTP_HOST'], $prodStageDomains) ) {
+    // $prodStageDomains = variable_get('udm_prod_domains', array());
+    if ( !in_array(getenv('CMP_DRUPAL_ENVIRONMENT_NAME'), ["Stage","Prod"]) ) {
         drupal_set_message(
             __FUNCTION__.'() blocked from execution as this appears to NOT be a Dev nor Stage environment.',
             'warning',
@@ -1375,7 +1375,7 @@ function cmp_misc_mail($key, &$message, $params) {
     $language = $message['language'];
     if ($key == 'scanning_content') {
         $message['headers']['MIME-Version'] = '1.0';
-        $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
+        // $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
         $message['headers']['Reply-To'] = $params['headers']['Reply-To'];
 
         $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
@@ -1383,7 +1383,7 @@ function cmp_misc_mail($key, &$message, $params) {
     elseif ($key == 'send_report') {
         $message['headers'] = array(
             'MIME-Version' => '1.0',
-            'Content-Type' => 'text/csv; charset=UTF-8; format=flowed; delsp=yes',
+            'Content-Type' => 'text/html; charset=UTF-8; format=flowed; delsp=yes',
             'Content-Transfer-Encoding' => '8Bit',
             'X-Mailer' => 'Drupal',
             'Content-Disposition' => 'attachment; filename="'. $params['attachment']['filename'].'"',

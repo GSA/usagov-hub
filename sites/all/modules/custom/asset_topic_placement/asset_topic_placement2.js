@@ -41,6 +41,10 @@ jQuery(document).ready(function(){
 
     function parentTermWidget(){
 
+        var ep = document.getElementById('edit-parent');
+        if ( ep ) { ep.setAttribute('size',20); }
+        return;
+
         // this var is to make sure the parent select box isnt effected on initial load of tree
         var initial_click = false;
 
