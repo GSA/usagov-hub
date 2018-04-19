@@ -778,6 +778,67 @@ class SearchApiElasticsearchConnector extends SearchApiAbstractService {
     }
   }
 
+    /**
+    +   * Normalizes complicated filters.
+    +   */
+  protected function normalizeFilters($filters, $conjunction) {
+        $result = array();
+
+        if (isset($filters['filter'])) {
+              $result['filter'] = $filters['filter'];
+              unset($filters['filter']);
+    }
+
+    if (isset($filters['should'])) {
+              $result['should'] = $filters['should'];
+              unset($filters['should']);
+    }
+
+    if (isset($filters['must_not'])) {
+        $result['must_not'] = $filters['must_not'];
+              unset($filters['must_not']);
+    }
+
+    if (count($filters)) {
+              foreach ($filters as $key => $value) {
+                    if (is_int($key)) {
+                          if (isset($value['must_not'])) {
+                                if (isset($result['must_not'])) {
+                                      $result['must_not'] += array($value['must_not']);
+                                    }
+            else {
+                                      $result['must_not'] = array($value['must_not']);
+                                    }
+          }
+          else {
+                                if ($conjunction === 'AND') {
+                                      if (!isset($result['filter'])) {
+                                            $result['filter'] = array();
+                                            $result['filter'] = array($value);
+                                          }
+              else {
+                                            $result['filter'][] = array($value);
+                                          }
+            }
+            else {
+                                      if (!isset($result['should'])) {
+                                            $result['should'] = array();
+                                            $result['should'] = array($value);
+                                          }
+              else {
+                                            $result['should'][] = array($value);
+                                          }
+            }
+          }
+        }
+        else {
+                          $result['filter'][] = array($value);
+                        }
+      }
+    }
+    return $result;
+  }
+
   /**
    * Normalizes complicated filters.
    */
@@ -1717,11 +1778,9 @@ class SearchApiElasticsearchConnector extends SearchApiAbstractService {
     if (isset($query_options['search_api_location'])) {
       $spatial = $query_options['search_api_location'];
     }
-
     if (isset($query_search_filter['should'])) {
       $query_search_filter['minimum_should_match'] = 1;
     }
-
     return array(
       'query_offset' => $query_offset,
       'query_limit' => $query_limit,
