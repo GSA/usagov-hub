@@ -1,0 +1,24 @@
+<?php
+
+
+ function cmp_misc_views_query_alter(&$view, &$query) {
+    if($view->name == 'search_files_v' && $view->current_display == 'page') {
+        $k = 0;
+        foreach($query->where[1]['conditions'] as $w){
+
+            if ($w['field'] == 'node_node_revision__field_data_field_owner.field_owner_target_id') {
+                $query->add_where(1,'users_field_data_field_owner.name',  $w['value'], 'LIKE');
+                unset($query->where[1]['conditions'][$k]);
+            }
+            $k++;
+                    }
+        $latest_vids =array();
+        $res = db_query('SELECT hid FROM workbench_moderation_node_history w INNER JOIN node n ON n.nid=w.nid WHERE n.type=\'file_content_type\' AND  is_current=1');
+        foreach($res as $r){
+         $latest_vids[] = $r->hid;
+        }
+        $query->add_where(1,'node_node_revision__workbench_moderation_node_history.hid', $latest_vids, 'IN');
+    }
+}
+
+

@@ -1,0 +1,4 @@
+name = CMP Internal Search
+description = This module is used for internal search functionality
+package = CTAC Custom
+core = 7.x
