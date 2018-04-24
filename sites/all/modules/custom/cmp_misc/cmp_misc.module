@@ -17,6 +17,9 @@ function cmp_misc_user_login(&$edit, $account) {
         '%name' => $account->name,
         '%uid'  => $account->uid
   ],WATCHDOG_ALERT);
+  if (isset($edit['redirect']) && !empty($edit['redirect'])) {
+    drupal_goto($edit['redirect']);
+  }
 }
 function cmp_misc_user_logout($account) {
   watchdog('audit','User logout name:"%name" uid:%uid',[
