@@ -1,6 +1,5 @@
 <?php
 
-
  function cmp_misc_views_query_alter(&$view, &$query) {
 
      $type = '';

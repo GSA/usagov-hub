@@ -532,28 +532,18 @@ function _userinput_report(){
         "CONTENT-TYPE: application/json; charset=utf-8"
     );
 
-    $past120 = strtotime("-120 day");
-    $param = '{
-    "query": {"range": {"submitteddate": {"gte": "'.$past120.'"}}}}';
 
-    $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, $elasticsearch_server."/opportunityuserinputs/_search");
-    curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($curl, CURLOPT_POSTFIELDS, $param);
-
-    $res = curl_exec($curl);
-    curl_close($curl);
-    $r = json_decode($res);
-
-    $total = $r->hits->total;
-    $j = ceil($total/10);
     $datas = array();
 
-    for($i = 0; $i <= $j; $i++) {
-        $from = $i*10;
+    for($i = 120; $i >= 10; $i-=10) {
+        $gt =strtotime("-".$i." day");
+        $lt = strtotime("-".($i-10)." day");
+        $param = '{
+    "query": {"range": {"submitteddate": {"gt": "'.$gt.'", "lt": "'.$lt.'"}}}}';
+
+
         $curl = curl_init();
-        curl_setopt($curl, CURLOPT_URL, $elasticsearch_server . "/opportunityuserinputs/_search?size=10&from=".$from."&pretty");
+        curl_setopt($curl, CURLOPT_URL, $elasticsearch_server . "/opportunityuserinputs/_search?size=10000&pretty");
         curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($curl, CURLOPT_POSTFIELDS, $param);
@@ -570,11 +560,11 @@ function _userinput_report(){
                     'Posted Date Filter' => ($o->_source->postdate != null) ? date('m/d/y', strtotime($o->_source->postdate)) : '',
                     'Setaside Type Filter' => $o->_source->setaside,
                     'Show Non-Setaside Selector' => ($o->_source->show_na_setaside) ? 'TRUE' : 'FALSE');
-                $datas[] = $data;
+                $datas[date('m/d/y H:s', $o->_source->submitteddate).$o->_source->keyword.$o->_source->location.$o->_source->setaside.$o->_source->show_na_setaside.$o->_source->postdate] = $data;
             }
         }
     }
-   // dsm($datas);
+    //dsm($datas);
     return $datas;
 }
 

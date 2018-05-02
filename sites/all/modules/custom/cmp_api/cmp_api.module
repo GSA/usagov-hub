@@ -1,0 +1,44 @@
+<?php
+
+function cmp_api_services_resources()
+{
+    $api = array(
+        'narratives' => array(
+            'operations' => array(
+                'retrieve' => array(
+                    'help' => 'All text assets will be served via this api call.',
+                    'callback' => '_cmp_api_get_narratives',
+                    'access callback' => '_cmp_api_perm',
+                    'access arguments' => array('access content'),
+                    'access arguments append' => FALSE,
+                    'args' => array(
+                        array(
+                            'name' => 'fn',
+                            'type' => 'string',
+                            'description' => 'asset id',
+                            'source' => array('path' => '0'),
+                            'optional' => TRUE,
+                            'default' => '0',
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    );
+    return $api;
+}
+
+function _cmp_api_get_narratives($fn='all') {
+    $ret = array();
+    $res = db_query("SELECT * FROM node WHERE type = 'text_content_type' LIMIT 30" );
+    foreach($res as $r) {
+        $n = node_load($r->nid);
+        $ret[] = array("id"=>$n->nid,
+            "title"=>$n->title);
+    }
+    return $ret;
+}
+
+function _cmp_api_perm(){
+    return TRUE;
+}
