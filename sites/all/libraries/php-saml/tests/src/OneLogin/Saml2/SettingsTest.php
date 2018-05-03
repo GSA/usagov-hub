@@ -7,7 +7,7 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
 {
 
     /**
-    * Tests the OneLogin_Saml2_Settings Constructor. 
+    * Tests the OneLogin_Saml2_Settings Constructor.
     * Case load setting from array
     *
     * @covers OneLogin_Saml2_Settings
@@ -31,8 +31,8 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
 
         try {
             $settings2 = new OneLogin_Saml2_Settings($settingsInfo);
-            $this->assertFalse(true);
-        } catch (Exception $e) {
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_Error $e) {
             $this->assertContains('Invalid array settings', $e->getMessage());
         }
 
@@ -43,7 +43,7 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-    * Tests the OneLogin_Saml2_Settings Constructor. 
+    * Tests the OneLogin_Saml2_Settings Constructor.
     * Case load setting from OneLogin_Saml_Settings's object
     *
     * @covers OneLogin_Saml2_Settings
@@ -60,7 +60,7 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-    * Tests the OneLogin_Saml2_Settings Constructor. 
+    * Tests the OneLogin_Saml2_Settings Constructor.
     * Case load setting from file
     *
     * @covers OneLogin_Saml2_Settings
@@ -126,10 +126,139 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
     }
 
     /**
+    * Tests shouldCompressRequests method of OneLogin_Saml2_Settings.
+    *
+    * @covers OneLogin_Saml2_settings::shouldCompressRequests
+    */
+    public function testShouldCompressRequests()
+    {
+        //The default value should be true.
+        $settings = new OneLogin_Saml2_Settings();
+        $this->assertTrue($settings->shouldCompressRequests());
+
+        $settingsDir = TEST_ROOT .'/settings/';
+        include $settingsDir.'settings1.php';
+
+        //settings1.php contains a true value for compress => requests.
+        $settings = new OneLogin_Saml2_Settings($settingsInfo);
+        $this->assertTrue($settings->shouldCompressRequests());
+
+        $settingsDir = TEST_ROOT .'/settings/';
+        include $settingsDir.'settings2.php';
+
+        //settings2 contains a false value for compress => requests.
+        $settings = new OneLogin_Saml2_Settings($settingsInfo);
+        $this->assertFalse($settings->shouldCompressRequests());
+    }
+
+    /**
+    * Tests shouldCompressResponses method of OneLogin_Saml2_Settings.
+    *
+    * @covers OneLogin_Saml2_settings::shouldCompressResponses
+    */
+    public function testShouldCompressResponses()
+    {
+        //The default value should be true.
+        $settings = new OneLogin_Saml2_Settings();
+        $this->assertTrue($settings->shouldCompressResponses());
+
+        $settingsDir = TEST_ROOT .'/settings/';
+        include $settingsDir.'settings1.php';
+
+        //settings1.php contains a true value for compress => responses.
+        $settings = new OneLogin_Saml2_Settings($settingsInfo);
+        $this->assertTrue($settings->shouldCompressResponses());
+
+        $settingsDir = TEST_ROOT .'/settings/';
+        include $settingsDir.'settings2.php';
+
+        //settings2 contains a false value for compress => responses.
+        $settings = new OneLogin_Saml2_Settings($settingsInfo);
+        $this->assertFalse($settings->shouldCompressResponses());
+    }
+
+    /**
+     * Tests the checkCompressionSettings method of OneLogin_Saml2_settings.
+     * @dataProvider invalidCompressSettingsProvider
+     * @covers OneLogin_Saml2_settings::checkCompressionSettings
+     */
+    public function testNonArrayCompressionSettingsCauseSyntaxError($invalidValue)
+    {
+
+        $settingsDir = TEST_ROOT .'/settings/';
+        include $settingsDir.'settings1.php';
+
+        $settingsInfo['compress'] = $invalidValue;
+
+        try {
+            $settings = new OneLogin_Saml2_Settings($settingsInfo);
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_Error $e) {
+            $expectedMessage = "Invalid array settings: invalid_syntax";
+            $this->assertEquals($expectedMessage, $e->getMessage());
+            return;
+        }
+
+        $this->fail("An OneLogin_Saml2_error should have been caught.");
+    }
+
+    /**
+     * Tests the checkCompressionSettings method of OneLogin_Saml2_settings.
+     * @dataProvider invalidCompressSettingsProvider
+     * @covers OneLogin_Saml2_settings::checkCompressionSettings
+     */
+    public function testThatOnlyBooleansCanBeUsedForCompressionSettings($invalidValue)
+    {
+
+        $requestsIsInvalid = false;
+        $responsesIsInvalid = false;
+
+        try {
+            $settingsDir = TEST_ROOT .'/settings/';
+            include $settingsDir.'settings1.php';
+
+            $settingsInfo['compress']['requests'] = $invalidValue;
+            $settings = new OneLogin_Saml2_Settings($settingsInfo);
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_Error $e) {
+             $expectedMessage = "Invalid array settings: 'compress'=>'requests' values must be true or false.";
+             $this->assertEquals($expectedMessage, $e->getMessage());
+             $requestsIsInvalid = true;
+        }
+
+        try {
+            $settingsDir = TEST_ROOT .'/settings/';
+            include $settingsDir.'settings1.php';
+
+            $settingsInfo['compress']['responses'] = $invalidValue;
+            $settings = new OneLogin_Saml2_Settings($settingsInfo);
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_error $e) {
+             $expectedMessage = "Invalid array settings: 'compress'=>'responses' values must be true or false.";
+             $this->assertEquals($expectedMessage, $e->getMessage());
+             $responsesIsInvalid = true;
+        }
+
+        $this->assertTrue($requestsIsInvalid);
+        $this->assertTrue($responsesIsInvalid);
+    }
+
+    public function invalidCompressSettingsProvider()
+    {
+        return array(
+            array(1),
+            array(0.1),
+            array(new \stdClass),
+            array("A random string.")
+        );
+    }
+
+    /**
     * Tests the checkSPCerts method of the OneLogin_Saml2_Settings
     *
     * @covers OneLogin_Saml2_Settings::checkSPCerts
     * @covers OneLogin_Saml2_Settings::getSPcert
+    * @covers OneLogin_Saml2_Settings::getSPcertNew
     * @covers OneLogin_Saml2_Settings::getSPkey
     */
     public function testCheckSPCerts()
@@ -147,6 +276,16 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
 
         $this->assertEquals($settings2->getSPkey(), $settings->getSPkey());
         $this->assertEquals($settings2->getSPcert(), $settings->getSPcert());
+        $this->assertNull($settings2->getSPcertNew());
+
+        include $settingsDir.'settings5.php';
+        $settings3 = new OneLogin_Saml2_Settings($settingsInfo);
+        $this->assertTrue($settings3->checkSPCerts());
+
+        $this->assertEquals($settings3->getSPkey(), $settings->getSPkey());
+        $this->assertEquals($settings3->getSPcert(), $settings->getSPcert());
+        $this->assertNotNull($settings3->getSPcertNew());
+        $this->assertNotEquals($settings3->getSPcertNew(), $settings3->getSPcert());
     }
 
     /**
@@ -161,16 +300,16 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
 
         try {
             $settings = new OneLogin_Saml2_Settings($settingsInfo);
-            $this->assertFalse(true);
-        } catch (Exception $e) {
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_error $e) {
             $this->assertContains('Invalid array settings: invalid_syntax', $e->getMessage());
         }
 
         $settingsInfo['strict'] = true;
         try {
             $settings = new OneLogin_Saml2_Settings($settingsInfo);
-            $this->assertFalse(true);
-        } catch (Exception $e) {
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_error $e) {
             $this->assertContains('idp_not_found', $e->getMessage());
             $this->assertContains('sp_not_found', $e->getMessage());
         }
@@ -183,8 +322,8 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         $settingsInfo['security']['signMetadata'] = false;
         try {
             $settings = new OneLogin_Saml2_Settings($settingsInfo);
-            $this->assertFalse(true);
-        } catch (Exception $e) {
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_error $e) {
             $this->assertContains('idp_entityId_not_found', $e->getMessage());
             $this->assertContains('idp_sso_not_found', $e->getMessage());
             $this->assertContains('sp_entityId_not_found', $e->getMessage());
@@ -198,8 +337,8 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         $settingsInfo['sp']['singleLogoutService']['url'] = 'invalid_value';
         try {
             $settings = new OneLogin_Saml2_Settings($settingsInfo);
-            $this->assertFalse(true);
-        } catch (Exception $e) {
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_error $e) {
             $this->assertContains('idp_sso_url_invalid', $e->getMessage());
             $this->assertContains('idp_slo_url_invalid', $e->getMessage());
             $this->assertContains('sp_acs_url_invalid', $e->getMessage());
@@ -209,16 +348,16 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         $settingsInfo['security']['wantAssertionsSigned'] = true;
         try {
             $settings = new OneLogin_Saml2_Settings($settingsInfo);
-            $this->assertFalse(true);
-        } catch (Exception $e) {
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_error $e) {
             $this->assertContains('idp_cert_or_fingerprint_not_found_and_required', $e->getMessage());
         }
 
         $settingsInfo['security']['nameIdEncrypted'] = true;
         try {
             $settings = new OneLogin_Saml2_Settings($settingsInfo);
-            $this->assertFalse(true);
-        } catch (Exception $e) {
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_error $e) {
             $this->assertContains('idp_cert_not_found_and_required', $e->getMessage());
         }
 
@@ -244,8 +383,8 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
 
         try {
             $settings = new OneLogin_Saml2_Settings($settingsInfo);
-            $this->assertFalse(true);
-        } catch (Exception $e) {
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_error $e) {
             $this->assertContains('sp_signMetadata_invalid', $e->getMessage());
             $this->assertContains('organization_not_enought_data', $e->getMessage());
             $this->assertContains('contact_type_invalid', $e->getMessage());
@@ -275,7 +414,41 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         $this->assertContains('WantAssertionsSigned="false"', $metadata);
         $this->assertContains('<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="http://stuff.com/endpoints/endpoints/acs.php" index="1"/>', $metadata);
         $this->assertContains('<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="http://stuff.com/endpoints/endpoints/sls.php"/>', $metadata);
-        $this->assertContains('<md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified</md:NameIDFormat>', $metadata);
+        $this->assertContains('<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>', $metadata);
+    }
+
+    /**
+    * Tests the getSPMetadata method of the OneLogin_Saml2_Settings
+    * Case with x509certNew
+    *
+    * @covers OneLogin_Saml2_Settings::getSPMetadata
+    */
+    public function testGetSPMetadataWithX509CertNew()
+    {
+        $settingsDir = TEST_ROOT .'/settings/';
+        include $settingsDir.'settings5.php';
+
+        $settingsInfo['security']['wantNameIdEncrypted'] = false;
+        $settingsInfo['security']['wantAssertionsEncrypted'] = false;
+        $settings = new OneLogin_Saml2_Settings($settingsInfo);
+        $metadata = $settings->getSPMetadata();
+
+        $this->assertEquals(2, substr_count($metadata, "<md:KeyDescriptor"));
+
+        $this->assertEquals(2, substr_count($metadata, '<md:KeyDescriptor use="signing"'));
+
+        $this->assertEquals(0, substr_count($metadata, '<md:KeyDescriptor use="encryption"'));
+
+        $settingsInfo['security']['wantNameIdEncrypted'] = true;
+        $settingsInfo['security']['wantAssertionsEncrypted'] = true;
+        $settings2 = new OneLogin_Saml2_Settings($settingsInfo);
+        $metadata2 = $settings2->getSPMetadata();
+
+        $this->assertEquals(4, substr_count($metadata2, "<md:KeyDescriptor"));
+
+        $this->assertEquals(2, substr_count($metadata2, '<md:KeyDescriptor use="signing"'));
+
+        $this->assertEquals(2, substr_count($metadata2, '<md:KeyDescriptor use="encryption"'));
     }
 
     /**
@@ -305,7 +478,7 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         $this->assertContains('WantAssertionsSigned="false"', $metadata);
         $this->assertContains('<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="http://stuff.com/endpoints/endpoints/acs.php" index="1"/>', $metadata);
         $this->assertContains('<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="http://stuff.com/endpoints/endpoints/sls.php"/>', $metadata);
-        $this->assertContains('<md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified</md:NameIDFormat>', $metadata);
+        $this->assertContains('<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>', $metadata);
 
         $this->assertContains('<ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>', $metadata);
         $this->assertContains('<ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>', $metadata);
@@ -332,7 +505,7 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         $this->assertContains('WantAssertionsSigned="false"', $metadata2);
         $this->assertContains('<md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="http://stuff.com/endpoints/endpoints/acs.php" index="1"/>', $metadata2);
         $this->assertContains('<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="http://stuff.com/endpoints/endpoints/sls.php"/>', $metadata2);
-        $this->assertContains('<md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified</md:NameIDFormat>', $metadata2);
+        $this->assertContains('<md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified</md:NameIDFormat>', $metadata2);
 
         $this->assertContains('<ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>', $metadata2);
         $this->assertContains('<ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>', $metadata2);
@@ -360,8 +533,8 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         try {
             $settings = new OneLogin_Saml2_Settings($settingsInfo);
             $metadata = $settings->getSPMetadata();
-            $this->assertFalse(true);
-        } catch (Exception $e) {
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_error $e) {
             $this->assertContains('sp_signMetadata_invalid', $e->getMessage());
         }
 
@@ -374,8 +547,8 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         $settings = new OneLogin_Saml2_Settings($settingsInfo);
         try {
             $metadata = $settings->getSPMetadata();
-            $this->assertFalse(true);
-        } catch (Exception $e) {
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_error $e) {
             $this->assertContains('Private key file not found', $e->getMessage());
         }
 
@@ -387,8 +560,8 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
 
         try {
             $metadata = $settings->getSPMetadata();
-            $this->assertFalse(true);
-        } catch (Exception $e) {
+            $this->fail('OneLogin_Saml2_Error was not raised');
+        } catch (OneLogin_Saml2_error $e) {
             $this->assertContains('Public cert file not found', $e->getMessage());
         }
     }
@@ -405,6 +578,7 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         include $settingsDir.'settings1.php';
 
         $cert = $settingsInfo['idp']['x509cert'];
+        $settingsInfo['idp']['certFingerprint'] = 'AF:E7:1C:28:EF:74:0B:C8:74:25:BE:13:A2:26:3D:37:97:1D:A1:F9';
         unset($settingsInfo['idp']['x509cert']);
 
         $settings = new OneLogin_Saml2_Settings($settingsInfo);
@@ -492,7 +666,7 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         $metadata = '';
         try {
             $errors = $settings->validateMetadata($metadata);
-            $this->assertFalse(true);
+            $this->fail('Exception was not raised');
         } catch (Exception $e) {
             $this->assertContains('Empty string supplied as input', $e->getMessage());
         }
@@ -569,6 +743,23 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         $x509cert = 'MIICgTCCAeoCCQCbOlrWDdX7FTANBgkqhkiG9w0BAQUFADCBhDELMAkGA1UEBhMCTk8xGDAWBgNVBAgTD0FuZHJlYXMgU29sYmVyZzEMMAoGA1UEBxMDRm9vMRAwDgYDVQQKEwdVTklORVRUMRgwFgYDVQQDEw9mZWlkZS5lcmxhbmcubm8xITAfBgkqhkiG9w0BCQEWEmFuZHJlYXNAdW5pbmV0dC5ubzAeFw0wNzA2MTUxMjAxMzVaFw0wNzA4MTQxMjAxMzVaMIGEMQswCQYDVQQGEwJOTzEYMBYGA1UECBMPQW5kcmVhcyBTb2xiZXJnMQwwCgYDVQQHEwNGb28xEDAOBgNVBAoTB1VOSU5FVFQxGDAWBgNVBAMTD2ZlaWRlLmVybGFuZy5ubzEhMB8GCSqGSIb3DQEJARYSYW5kcmVhc0B1bmluZXR0Lm5vMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDivbhR7P516x/S3BqKxupQe0LONoliupiBOesCO3SHbDrl3+q9IbfnfmE04rNuMcPsIxB161TdDpIesLCn7c8aPHISKOtPlAeTZSnb8QAu7aRjZq3+PbrP5uW3TcfCGPtKTytHOge/OlJbo078dVhXQ14d1EDwXJW1rRXuUt4C8QIDAQABMA0GCSqGSIb3DQEBBQUAA4GBACDVfp86HObqY+e8BUoWQ9+VMQx1ASDohBjwOsg2WykUqRXF+dLfcUH9dWR63CtZIKFDbStNomPnQz7nbK+onygwBspVEbnHuUihZq3ZUdmumQqCw4Uvs/1Uvq3orOo/WJVhTyvLgFVK2QarQ4/67OZfHd7R+POBXhophSMv1ZOo';
         $formatedx509cert = OneLogin_Saml2_Utils::formatCert($x509cert);
         $this->assertEquals($formatedx509cert, $idpData['x509cert']);
+
+        include $settingsDir.'settings6.php';
+
+        $settings2 = new OneLogin_Saml2_Settings($settingsInfo);
+        $idpData2 = $settings2->getIdPData();
+        $this->assertNotEmpty($idpData2);
+        $this->assertArrayHasKey('x509certMulti', $idpData2);
+        $this->assertArrayHasKey('signing', $idpData2['x509certMulti']);
+        $this->assertArrayHasKey('encryption', $idpData2['x509certMulti']);
+
+        $x509cert2 = 'MIICbDCCAdWgAwIBAgIBADANBgkqhkiG9w0BAQ0FADBTMQswCQYDVQQGEwJ1czETMBEGA1UECAwKQ2FsaWZvcm5pYTEVMBMGA1UECgwMT25lbG9naW4gSW5jMRgwFgYDVQQDDA9pZHAuZXhhbXBsZS5jb20wHhcNMTQwOTIzMTIyNDA4WhcNNDIwMjA4MTIyNDA4WjBTMQswCQYDVQQGEwJ1czETMBEGA1UECAwKQ2FsaWZvcm5pYTEVMBMGA1UECgwMT25lbG9naW4gSW5jMRgwFgYDVQQDDA9pZHAuZXhhbXBsZS5jb20wgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAOWA+YHU7cvPOrBOfxCscsYTJB+kH3MaA9BFrSHFS+KcR6cw7oPSktIJxUgvDpQbtfNcOkE/tuOPBDoech7AXfvH6d7Bw7xtW8PPJ2mB5Hn/HGW2roYhxmfh3tR5SdwN6i4ERVF8eLkvwCHsNQyK2Ref0DAJvpBNZMHCpS24916/AgMBAAGjUDBOMB0GA1UdDgQWBBQ77/qVeiigfhYDITplCNtJKZTM8DAfBgNVHSMEGDAWgBQ77/qVeiigfhYDITplCNtJKZTM8DAMBgNVHRMEBTADAQH/MA0GCSqGSIb3DQEBDQUAA4GBAJO2j/1uO80E5C2PM6Fk9mzerrbkxl7AZ/mvlbOn+sNZE+VZ1AntYuG8ekbJpJtG1YfRfc7EA9mEtqvv4dhv7zBy4nK49OR+KpIBjItWB5kYvrqMLKBa32sMbgqqUqeF1ENXKjpvLSuPdfGJZA3dNa/+Dyb8GGqWe707zLyc5F8m';
+        $formatedx509cert2 = OneLogin_Saml2_Utils::formatCert($x509cert2);
+
+        $idpCertSign = $idpData2['x509certMulti']['signing'];
+        $this->assertEquals($formatedx509cert2, $idpData2['x509certMulti']['signing'][0]);
+        $this->assertEquals($formatedx509cert, $idpData2['x509certMulti']['signing'][1]);
+        $this->assertEquals($formatedx509cert, $idpData2['x509certMulti']['encryption'][0]);
     }
 
     /**
@@ -593,7 +784,7 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('http://stuff.com/endpoints/metadata.php', $spData['entityId']);
         $this->assertEquals('http://stuff.com/endpoints/endpoints/acs.php', $spData['assertionConsumerService']['url']);
         $this->assertEquals('http://stuff.com/endpoints/endpoints/sls.php', $spData['singleLogoutService']['url']);
-        $this->assertEquals('urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified', $spData['NameIDFormat']);
+        $this->assertEquals('urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified', $spData['NameIDFormat']);
     }
 
     /**
@@ -621,6 +812,7 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
         $this->assertArrayHasKey('wantNameIdEncrypted', $security);
         $this->assertArrayHasKey('requestedAuthnContext', $security);
         $this->assertArrayHasKey('wantXMLValidation', $security);
+        $this->assertArrayHasKey('wantNameId', $security);
     }
 
     /**
@@ -671,6 +863,9 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
 
         $this->assertArrayHasKey('wantXMLValidation', $security);
         $this->assertTrue($security['wantXMLValidation']);
+
+        $this->assertArrayHasKey('wantNameId', $security);
+        $this->assertTrue($security['wantNameId']);
     }
 
     /**
@@ -734,9 +929,9 @@ class OneLogin_Saml2_SettingsTest extends PHPUnit_Framework_TestCase
 
         try {
             $settings->setStrict('a');
-            $this->assertTrue(false);
+            $this->fail('Exception was not raised');
         } catch (Exception $e) {
-            $this->assertContains('Assertion "is_bool($value)" failed', $e->getMessage());
+            $this->assertContains('Invalid value passed to setStrict()', $e->getMessage());
         }
     }
 

@@ -1,0 +1,4 @@
+name = CMP API
+description = Module will be used for custom API implementation
+package = CTAC Custom
+core = 7.x

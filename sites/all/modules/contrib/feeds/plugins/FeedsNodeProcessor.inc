@@ -33,14 +33,32 @@ class FeedsNodeProcessor extends FeedsProcessor {
   }
 
   /**
+   * Overrides parent::languageOptions().
+   */
+  public function languageOptions() {
+    // Content types can have "extended" language enabled, allowing all
+    // available languages, not just enabled. Account for this here.
+    if (module_exists('i18n_node')) {
+      $node = new stdClass();
+      $node->type = $this->bundle();
+      $node->is_new = TRUE;
+      node_object_prepare($node);
+      $languages = array(LANGUAGE_NONE => t('Language neutral')) + i18n_node_language_list($node);
+      return $languages;
+    }
+
+    // If i18n_node is not enabled, default to enabled languages.
+    return parent::languageOptions();
+  }
+
+  /**
    * Creates a new node in memory and returns it.
    */
   protected function newEntity(FeedsSource $source) {
-    $node = new stdClass();
+    $node = parent::newEntity($source);
     $node->type = $this->bundle();
     $node->changed = REQUEST_TIME;
     $node->created = REQUEST_TIME;
-    $node->language = LANGUAGE_NONE;
     $node->is_new = TRUE;
     node_object_prepare($node);
     // Populate properties that are set by node_object_prepare().
@@ -127,8 +145,17 @@ class FeedsNodeProcessor extends FeedsProcessor {
    * Validates a node.
    */
   protected function entityValidate($entity) {
+    parent::entityValidate($entity);
+
+    // Set or correct user ID.
     if (!isset($entity->uid) || !is_numeric($entity->uid)) {
        $entity->uid = $this->config['author'];
+    }
+    elseif (!is_int($entity->uid)) {
+      // Cast user ID to an integer to prevent array_flip() notices in
+      // DrupalDefaultEntityController::load() which occur when an user ID is
+      // not an integer nor a string.
+      $entity->uid = (int) $entity->uid;
     }
   }
 
@@ -238,6 +265,12 @@ class FeedsNodeProcessor extends FeedsProcessor {
       case 'created':
         $target_node->created = feeds_to_unixtime($value, REQUEST_TIME);
         break;
+      case 'changed':
+        // The 'changed' value will be set on the node in feeds_node_presave().
+        // This is because node_save() always overwrites this value (though
+        // before invoking hook_node_presave()).
+        $target_node->feeds_item->node_changed = feeds_to_unixtime($value, REQUEST_TIME);
+        break;
       case 'feeds_source':
         // Get the class of the feed node importer's fetcher and set the source
         // property. See feeds_node_update() how $node->feeds gets stored.
@@ -303,6 +336,10 @@ class FeedsNodeProcessor extends FeedsProcessor {
     $targets['created'] = array(
       'name' => t('Published date'),
       'description' => t('The UNIX time when a node has been published.'),
+    );
+    $targets['changed'] = array(
+      'name' => t('Updated date'),
+      'description' => t('The Unix timestamp when a node has been last updated.'),
     );
     $targets['promote'] = array(
       'name' => t('Promoted to front page'),

@@ -53,7 +53,7 @@ abstract class FeedsPlugin extends FeedsConfigurable implements FeedsSourceInter
       throw new InvalidArgumentException(t('Empty configuration identifier.'));
     }
 
-    static $instances = array();
+    $instances = &drupal_static(__METHOD__, array());
 
     if (!isset($instances[$class][$id])) {
       $instance = new $class($id);
@@ -107,6 +107,16 @@ abstract class FeedsPlugin extends FeedsConfigurable implements FeedsSourceInter
    */
   public function save() {
     feeds_importer($this->id)->save();
+  }
+
+  /**
+   * Overrides FeedsConfigurable::configDefaults().
+   *
+   * Invokes a hook to add in additional default configuration.
+   */
+  public function configDefaults() {
+    $hook = 'feeds_' . $this->pluginType() . '_config_defaults';
+    return module_invoke_all($hook, $this) + parent::configDefaults();
   }
 
   /**
@@ -210,6 +220,12 @@ abstract class FeedsPlugin extends FeedsConfigurable implements FeedsSourceInter
   public static function child($plugin_key, $parent_plugin) {
     ctools_include('plugins');
     $plugins = ctools_get_plugins('feeds', 'plugins');
+
+    if (!isset($plugins[$plugin_key])) {
+      // Plugin is not available.
+      return FALSE;
+    }
+
     $info = $plugins[$plugin_key];
 
     if (empty($info['handler']['parent'])) {

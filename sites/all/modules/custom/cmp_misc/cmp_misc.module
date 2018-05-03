@@ -17,6 +17,9 @@ function cmp_misc_user_login(&$edit, $account) {
         '%name' => $account->name,
         '%uid'  => $account->uid
   ],WATCHDOG_ALERT);
+  // if (isset($edit['redirect']) && !empty($edit['redirect'])) {
+  //   drupal_goto($edit['redirect']);
+  // }
 }
 function cmp_misc_user_logout($account) {
   watchdog('audit','User logout name:"%name" uid:%uid',[
@@ -1373,71 +1376,77 @@ function cmp_misc_mail($key, &$message, $params) {
       }
     }
     $language = $message['language'];
-    if ($key == 'scanning_content') {
-        $message['headers']['MIME-Version'] = '1.0';
-        // $message['headers']['Content-Type'] = 'text/html; charset=utf-8';
-        $message['headers']['Reply-To'] = $params['headers']['Reply-To'];
-
-        $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed';
+    // if ($key == 'scanning_content') {
+    $message['headers']['MIME-Version'] = '1.0';
+    $message['headers']['Reply-To'] = $params['headers']['Reply-To'];
+    $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+    if ( array_key_exists('attachment',$params) && !empty($params['attachment']) )
+    {
+        $message['headers']['Content-Disposition'] = 'attachment; filename="'. $params['attachment']['filename'].'"';
     }
-    elseif ($key == 'send_report') {
-        $message['headers'] = array(
-            'MIME-Version' => '1.0',
-            'Content-Type' => 'text/html; charset=UTF-8; format=flowed; delsp=yes',
-            'Content-Transfer-Encoding' => '8Bit',
-            'X-Mailer' => 'Drupal',
-            'Content-Disposition' => 'attachment; filename="'. $params['attachment']['filename'].'"',
-        );
+    if ( array_key_exists('attachment',$message) && !empty( $message['attachment']) )
+    {
         $message['params']['attachments'][] =  $message['attachment'];
     }
+    // }
+    // elseif ($key == 'send_report') {
+    //     $message['headers'] = array(
+    //         'MIME-Version' => '1.0',
+    //         'Content-Type' => 'text/html; charset=UTF-8; format=flowed; delsp=yes',
+    //         'Content-Transfer-Encoding' => '8Bit',
+    //         'X-Mailer' => 'Drupal',
+    //         'Content-Disposition' => 'attachment; filename="'. $params['attachment']['filename'].'"',
+    //     );
+    //     $message['params']['attachments'][] =  $message['attachment'];
+    // }
 }
 
-// class Cmp_miscMailSystem implements MailSystemInterface {
-//     /**
-//      * Concatenate and wrap the e-mail body for plain-text mails.
-//      *
-//      * @param $message
-//      *   A message array, as described in hook_mail_alter().
-//      *
-//      * @return
-//      *   The formatted $message.
-//      */
-//     public function format(array $message) {
-//         $message['body'] = implode("\n\n", $message['body']);
-//         return $message;
-//     }
-//
-//     /**
-//      * Send an e-mail message, using Drupal variables and default settings.
-//      *
-//      * @see http://php.net/manual/en/function.mail.php
-//      * @see drupal_mail()
-//      *
-//      * @param $message
-//      *   A message array, as described in hook_mail_alter().
-//      * @return
-//      *   TRUE if the mail was successfully accepted, otherwise FALSE.
-//      */
-//     public function mail(array $message) {
-//         $mimeheaders = array();
-//         foreach ($message['headers'] as $name => $value) {
-//             $mimeheaders[] = $name . ': ' . mime_header_encode($value);
-//         }
-//         $line_endings = variable_get('mail_line_endings', MAIL_LINE_ENDINGS);
-//         return mail(
-//             $message['to'],
-//             mime_header_encode($message['subject']),
-//             // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
-//             // on Unix and CRLF on Windows. Drupal automatically guesses the
-//             // line-ending format appropriate for your system. If you need to
-//             // override this, adjust $conf['mail_line_endings'] in settings.php.
-//             preg_replace('@\r?\n@', $line_endings, $message['body']),
-//             // For headers, PHP's API suggests that we use CRLF normally,
-//             // but some MTAs incorrectly replace LF with CRLF. See #234403.
-//             join("\n", $mimeheaders)
-//         );
-//     }
-// }
+class Cmp_miscMailSystem implements MailSystemInterface {
+    /**
+     * Concatenate and wrap the e-mail body for plain-text mails.
+     *
+     * @param $message
+     *   A message array, as described in hook_mail_alter().
+     *
+     * @return
+     *   The formatted $message.
+     */
+    public function format(array $message) {
+        $message['body'] = implode("\n\n", $message['body']);
+        return $message;
+    }
+
+    /**
+     * Send an e-mail message, using Drupal variables and default settings.
+     *
+     * @see http://php.net/manual/en/function.mail.php
+     * @see drupal_mail()
+     *
+     * @param $message
+     *   A message array, as described in hook_mail_alter().
+     * @return
+     *   TRUE if the mail was successfully accepted, otherwise FALSE.
+     */
+    public function mail(array $message) {
+        $mimeheaders = array();
+        foreach ($message['headers'] as $name => $value) {
+            $mimeheaders[] = $name . ': ' . mime_header_encode($value);
+        }
+        $line_endings = variable_get('mail_line_endings', MAIL_LINE_ENDINGS);
+        return mail(
+            $message['to'],
+            mime_header_encode($message['subject']),
+            // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
+            // on Unix and CRLF on Windows. Drupal automatically guesses the
+            // line-ending format appropriate for your system. If you need to
+            // override this, adjust $conf['mail_line_endings'] in settings.php.
+            preg_replace('@\r?\n@', $line_endings, $message['body']),
+            // For headers, PHP's API suggests that we use CRLF normally,
+            // but some MTAs incorrectly replace LF with CRLF. See #234403.
+            join("\n", $mimeheaders)
+        );
+    }
+}
 
 /**
  * Implements hook_search_api_alter_callback_info()
