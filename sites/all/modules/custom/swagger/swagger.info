@@ -1,0 +1,5 @@
+name = Swagger
+description = Document RESTful Endpoints with Swagger
+dependencies[] = services
+package = Services
+core = 7.x

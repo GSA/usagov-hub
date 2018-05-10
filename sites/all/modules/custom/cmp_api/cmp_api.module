@@ -1,5 +1,597 @@
 <?php
 
+function cmp_api_menu(){
+    $items = array();
+    $items['usaapi'] = array(
+        'title' => 'USAGov Platform API Interactive Documentation',
+        'page callback' => 'api_landing_page',
+        'access arguments' => TRUE,
+        'type' => MENU_NORMAL_ITEM,
+    );
+    $items['usaapi/narratives.json'] = array(
+        'title' => 'USAGov Platform API Interactive Documentation',
+        'page callback' => '_cmp_api_get_text_assets',
+        'access arguments' => TRUE,
+        'type' => MENU_NORMAL_ITEM,
+    );
+    $items['usaapi/narratives/%'] = array(
+        'title' => 'USAGov Platform API Interactive Documentation',
+        'page callback' => '_cmp_api_get_text_asset_by_id',
+        'access arguments' => TRUE,
+        'type' => MENU_NORMAL_ITEM,
+    );
+    $items['usaapi/directory_records.json'] = array(
+        'title' => 'USAGov Platform API Interactive Documentation',
+        'page callback' => '_cmp_api_get_directory_records_router',
+        'access arguments' => TRUE,
+        'type' => MENU_NORMAL_ITEM,
+    );
+    $items['usaapi/directory_records/%'] = array(
+        'title' => 'USAGov Platform API Interactive Documentation',
+        'page callback' => '_cmp_api_get_directory_records_router',
+        'access arguments' => TRUE,
+        'type' => MENU_NORMAL_ITEM,
+    );
+    return $items;
+}
+/**
+ * Implements hook_theme().
+ */
+function cmp_api_theme() {
+    return array(
+        'api-landing' => array(
+            'template' => 'api-landing',
+            'variables' => array(),
+        ),
+    );
+}
+
+function api_landing_page(){
+    // HIde the header areas
+    drupal_add_css(
+        '
+                #admin-menu {
+                    display: none !important;
+                }
+                #branding {
+                    display: none !important;
+                }
+                .slicknav_menu{
+                    display: none !important;
+                }
+            ',
+        'inline'
+    );
+    drupal_add_css(drupal_get_path('module', 'cmp_api') . "/css/custom-swagger.css");
+    drupal_add_css(drupal_get_path('module', 'cmp_api') . "/js/custom-swagger.js");
+    $links = array();
+    return array(
+        '#theme' => 'api-landing',
+        '#links' => $links,
+    );
+}
+function _cmp_api_get_text_asset_by_id(){
+    $nid=arg(2);
+    if(isset($nid)) {
+        $n = node_load($nid);
+        if (!empty($n)) {
+            $ret = cmp_api_get_text_asset($n);
+            drupal_json_output(array("metadata" => array("exists" => true), "result" => $ret));
+        }
+        else {
+
+            drupal_json_output(array("metadata"=>array("exists"=>false)));
+        }
+    }
+    else{
+        drupal_json_output(array("metadata"=>array("exists"=>false)));
+    }
+}
+
+function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null){
+    $ret = array();
+
+    if (isset($_REQUEST["page_size"]) && !empty($_REQUEST["page_size"])){
+        $page_size = $_REQUEST["page_size"];
+    }
+    if (isset($_REQUEST["page"]) && !empty($_REQUEST["page"])){
+        $page = $_REQUEST["page"];
+    }
+    if (isset($_REQUEST["query"]) && !empty($_REQUEST["query"])){
+        $query = $_REQUEST["query"];
+    }
+    $add_where[] = "n.type = 'text_content_type'";
+    $where_param = array();
+    $join = array();
+    if (isset($_REQUEST["date_filter"]) && !empty($_REQUEST["date_filter"])){
+        $dates = $_REQUEST["date_filter"];
+        $dts = explode(',',$dates);
+        $error_occurred = false;
+        if (count($dts) == 2){
+            if (validateDate($dts[0]) && validateDate($dts[1])) {
+                // between query
+                $add_where[] = ' n.changed >= :dt1 ';
+                $add_where[] = ' n.changed <= :dt2 ';
+                $where_param[":dt1"] = strtotime($dts[0]);
+                $where_param[":dt2"] = strtotime($dts[1]);
+            }
+            else{
+                $error_occurred=true;
+            }
+        }
+        elseif(count($dts) == 1){
+            if (validateDate($dts[0])) {
+                // since
+                $add_where[] = ' n.changed >= :dt1';
+                $where_param[":dt1"] = strtotime($dts[0]);
+            }
+            else{
+                $error_occurred=true;
+            }
+        }
+
+        if ($error_occurred) {
+            drupal_json_output(array("metadata" => array("message" => "There was an error in your query", "errors" => array("date_filter" => "Time is out of range, format is YYYY-MM-DD(,YYYY-MM-DD)"))));
+            return;
+        }
+    }
+    if (!empty($query)){
+        $join[] = ' INNER JOIN field_data_body fdb ON fdb.entity_id = n.nid ';
+        $add_where[] = ' (n.title LIKE :str OR fdb.body_value LIKE :str )';
+        $where_param[":str"] = '%'.db_like($query).'%';
+    }
+
+
+    $sql_count = "SELECT count(*) FROM node n ".join(' ',$join)." WHERE ".join(' AND ', $add_where);
+    $sql = "SELECT * FROM node n ".join(' ',$join)." WHERE  ".join(' AND ', $add_where)." LIMIT ".$page_size .' OFFSET '.$page ;
+
+    $count = db_query($sql_count, $where_param)->fetchField(0);
+    $pages = round(($count/$page_size), 0, PHP_ROUND_HALF_UP);
+
+    $res = db_query($sql, $where_param);
+    foreach($res as $r) {
+        $n = node_load($r->nid);
+        $ret[] =cmp_api_get_text_asset($n);
+    }
+
+    drupal_json_output(array("metadata"=>array("count"=>$count, "page"=>$page, "page_size"=>$page_size, "pages"=>$pages),"results"=>$ret));
+}
+function validateDate($date, $format = 'Y-m-d')
+{
+    $d = DateTime::createFromFormat($format, $date);
+    return $d && $d->format($format) == $date;
+}
+function _cmp_api_get_directory_records_router(){
+    $args = arg();
+
+    if (isset($args[2])){
+        if ($args[2] =='bbb'){
+            $extra_where[]=' fdt.field_directory_type_value LIKE \'Better Business Bureaus\' ';
+            $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
+            _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
+        }
+        elseif ($args[2] =='federal'){
+            $extra_where[]=' fdt.field_directory_type_value LIKE \'Federal Agencies\' ';
+            $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
+            _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
+        }
+        elseif ($args[2] =='consumer_agencies'){
+            $extra_where[]=' fdt.field_directory_type_value LIKE \'Government Consumer Protection Offices\' ';
+            $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
+            _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
+        }
+        elseif ($args[2] =='state' && isset($arg[3])){
+            $extra_where[]=' fs.field_state_value LIKE :state';
+            $extra_join[] =' INNER JOIN field_data_field_state fs ON fs.entity_id = n.nid ';
+            $where_param[":state"] = '%'.db_like($arg[3]).'%';
+            _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join, $where_param );
+        }
+        elseif(is_numeric($args[2])){
+            $extra_where[]=' n.nid = :nid';
+            $where_param[":nid"] = $args[2];
+            _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where, $extra_join = null, $where_param,null,false,"single_dirtype" );
+        }
+        elseif($args[2] =='autocomplete' && isset($_REQUEST["directory_type"])){
+            $extra_where[]=' fdt.field_directory_type_value LIKE :dir_type';
+            $where_param[":dir_type"] = db_like($_REQUEST["directory_type"]);
+            $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
+
+            if (isset($_REQUEST["language"])){
+                $extra_where[]=' fl.field_language_value LIKE :langu';
+                $where_param[":langu"] = db_like($_REQUEST["language"]);
+                $extra_join[] =' INNER JOIN field_data_field_language fl ON fl.entity_id = n.nid ';
+            }
+            if (isset($_REQUEST["name"])){
+                $extra_where[]=' n.title LIKE :name';
+                $where_param[":name"] = '%'.db_like($_REQUEST["name"]).'%';
+            }
+            _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null, $extra_where, $extra_join, $where_param, array('id', 'title', 'source_url'), true );
+        }
+        else{
+            drupal_json_output(array("metadata"=>array("exists"=>false)));
+        }
+    }
+    elseif(isset($args[1]) && $args[1] == 'directory_records.json'){
+        _cmp_api_get_directory_records();
+    }
+    else {
+        drupal_json_output(array("metadata"=>array("exists"=>false)));
+    }
+}
+function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where =null, $extra_join = null, $extra_where_param = null, $cols=null, $all_result=false, $type=null ){
+
+    $ret = array();
+
+    if (isset($_REQUEST["page_size"]) && !empty($_REQUEST["page_size"])){
+        $page_size = $_REQUEST["page_size"];
+    }
+    if (isset($_REQUEST["page"]) && !empty($_REQUEST["page"])){
+        $page = $_REQUEST["page"];
+    }
+    if (isset($_REQUEST["query"]) && !empty($_REQUEST["query"])){
+        $query = $_REQUEST["query"];
+    }
+
+    $add_where[] = "n.type = 'directory_record_content_type'";
+    if (!empty($extra_where)){
+        $add_where = array_merge($add_where, $extra_where);
+    }
+    $where_param = (!empty($extra_where_param)? $extra_where_param : array());
+    $join = (!empty($extra_join)? $extra_join : array());
+
+    if (isset($_REQUEST["date_filter"]) && !empty($_REQUEST["date_filter"])){
+        $dates = $_REQUEST["date_filter"];
+        $dts = explode(',',$dates);
+        $error_occurred = false;
+        if (count($dts) == 2){
+            if (validateDate($dts[0]) && validateDate($dts[1])) {
+                // between query
+                $add_where[] = ' n.changed >= :dt1 ';
+                $add_where[] = ' n.changed <= :dt2 ';
+                $where_param[":dt1"] = strtotime($dts[0]);
+                $where_param[":dt2"] = strtotime($dts[1]);
+            }
+            else{
+                $error_occurred=true;
+            }
+        }
+        elseif(count($dts) == 1){
+            if (validateDate($dts[0])) {
+                // since
+                $add_where[] = ' n.changed >= :dt1';
+                $where_param[":dt1"] = strtotime($dts[0]);
+            }
+            else{
+                $error_occurred=true;
+            }
+        }
+
+        if ($error_occurred) {
+            drupal_json_output(array("metadata" => array("message" => "There was an error in your query", "errors" => array("date_filter" => "Time is out of range, format is YYYY-MM-DD(,YYYY-MM-DD)"))));
+            return;
+        }
+    }
+    if (!empty($query)){
+        $join[] = ' INNER JOIN field_data_field_alpha_order_name aon ON aon.entity_id = n.nid ';
+        $add_where[] = ' (n.title LIKE :str)';
+        $add_where[] = ' (aon.field_alpha_order_name_value LIKE :str)';
+        $where_param[":str"] = '%'.db_like($query).'%';
+    }
+
+    $sql_count = "SELECT count(*) FROM node n ".join(' ',$join)." WHERE ".join(' AND ', $add_where);
+    $sql = "SELECT * FROM node n ".join(' ',$join)." WHERE ".join(' AND ', $add_where).((!$all_result)? (" LIMIT ".$page_size .' OFFSET '.$page) : "" );
+
+    $count = db_query($sql_count, $where_param)->fetchField(0);
+    $pages = round(($count/$page_size), 0, PHP_ROUND_HALF_UP);
+
+    $res = db_query($sql, $where_param);
+    foreach($res as $r) {
+        $n = node_load($r->nid);
+        $ret[] =cmp_api_get_directory_record($n, $cols);
+    }
+
+    if (empty($ret)){
+        drupal_json_output(array("metadata" => array("exists" => false)));
+        return;
+    }
+    elseif(!empty($type) && $type =='single_dirtype'){
+
+        drupal_json_output(array("metadata" => array("exists" => true), "result" => $ret));
+    }
+    elseif (!$all_result) {
+        drupal_json_output(array("metadata" => array("count" => $count, "page" => $page, "page_size" => $page_size, "pages" => $pages), "results" => $ret));
+    }
+
+    else {
+        drupal_json_output(array("results" => $ret));
+    }
+
+}
+function cmp_api_get_directory_record($n,$cols){
+    $ret = array();
+    $cached_terms=array();
+    $useby = array();
+    foreach($n->field_for_use_by_text['und'] as $uby){
+        $useby[] = $uby;
+    }
+
+    if ($n->field_language['und'][0]['value'] == 'Spanish'){
+        $englishMode=false;
+        $site = "https://gobierno.usa.gov";
+    }
+    else{
+        $englishMode=true;
+        $site = 'https://usa.gov';
+    }
+
+    $parent = array();
+    foreach($n->field_parent_record_en['und'] as $att){
+        if (array_key_exists($att['target_id'],$cached_terms)) {
+            $parent[] = array("id"=>$att['target_id'], "title"=>$cached_terms[$att['target_id']]);
+        }
+        else {
+            $r = db_query("SELECT title FROM node WHERE nid =:nid", array(":nid" => $att['target_id']));
+            foreach ($r as $node) {
+                $parent[] = array("id"=>$att['target_id'], "title"=>$node->title);
+                $cached_terms[$att['target_id']] =$node->title;
+            }
+        }
+    }
+
+    $children = array();
+    foreach($n->field_child_records_en['und'] as $att){
+        if (array_key_exists($att['target_id'],$cached_terms)) {
+            $children[] =  array("id"=>$att['target_id'], "title"=>$cached_terms[$att['target_id']]);
+        }
+        else {
+            $r = db_query("SELECT title FROM node WHERE nid =:nid", array(":nid" => $att['target_id']));
+            foreach ($r as $node) {
+                $children[$att['target_id']] =  array("id"=>$att['target_id'], "title"=>$node->title);
+                $cached_terms[$att['target_id']] =$node->title;
+            }
+        }
+    }
+
+    // for url
+    $title = $n->title;
+    $dirRecordType = $n->field_directory_type['und'][0]['value'];
+    $urlAlphaOrderName = $n->field_alpha_order_name['und'][0]['value'];
+    $dbState = $n->field_state['und'][0]['value'];
+
+    // URL-friendly version of the alpha-name
+    if ( empty($urlAlphaOrderName) ) {
+        $urlAlphaOrderName = '!NotSetInCMP!';
+    } else {
+        $urlAlphaOrderName = strtolower($urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace(' ', '-', $urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace('.', '-', $urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace(',', '-', $urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace(')', '-', $urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace('(', '-', $urlAlphaOrderName);
+        $urlAlphaOrderName = rtrim($urlAlphaOrderName, '-');
+        $urlAlphaOrderName = ltrim($urlAlphaOrderName, '-');
+        while ( strpos($urlAlphaOrderName, '--') !== false ) {
+            $urlAlphaOrderName = str_replace('--', '-', $urlAlphaOrderName);
+        }
+    }
+
+    // URL-friendly version of the title
+    if ( empty($title) ) {
+        $urlTitle = '!NotSetInCMP!';
+    } else {
+        $urlTitle = $title;
+        $urlTitle = strtolower($urlTitle);
+        $urlTitle = str_replace(' ', '-', $urlTitle);
+        $urlTitle = str_replace('.', '-', $urlTitle);
+        $urlTitle = str_replace(',', '-', $urlTitle);
+        $urlTitle = str_replace('(', '-', $urlTitle);
+        $urlTitle = str_replace(')', '-', $urlTitle);
+        $urlTitle = rtrim($urlTitle, '-');
+        $urlTitle = ltrim($urlTitle, '-');
+        while ( strpos($urlTitle, '--') !== false ) {
+            $urlTitle = str_replace('--', '-', $urlTitle);
+        }
+    }
+
+    // URL-friendly version of [full] state name
+    if ( empty($dbState) ) {
+        $urlShortState = '!NotSetInCMP!';
+    } else {
+        $urlShortState = directory_pages_acronymToStateName($dbState);
+    }
+    // Based on the Directory-Record type, return an [alias] URL
+    switch ( strtolower($dirRecordType) ) {
+
+        case 'federal agencies';
+        case 'Better Business Bureaus';
+
+            $source_url = ( $englishMode ? '/federal-agencies/' : '/agencias-federales/') . _sanitzie_path($urlTitle);break;
+
+        case 'consumer organizations';
+        case 'government consumer protection offices';
+
+            $source_url= ( $englishMode ? '/state-consumer/' : '/organizaciones-consumidor/') . _sanitzie_path($urlShortState);break;
+
+        case 'state government agencies';
+
+            $source_url= ( $englishMode ? '/state-government/' : '/gobiernos-estatales/') . _sanitzie_path($urlShortState);break;
+        default:
+
+            $source_url= ( $englishMode ? '/federal-agencies/' : '/federal-agencies/') . _sanitzie_path($urlTitle);
+    }
+
+
+    if (empty($cols)) {
+        $ret = array("id" => $n->nid,
+            "title" => $n->title,
+            "source_url" => $site . $source_url,
+            "language" => $n->field_language['und'][0]['value'],
+            "alpha_order_name" => $n->field_alpha_order_name['und'][0]['value'],
+            "street_one" => $n->field_street_1['und'][0]['value'],
+            "street_two" => $n->field_street_2['und'][0]['value'],
+            "status" => ($n->status ? "Published" : "Draft"),
+            "city" => $n->field_city['und'][0]['value'],
+            "state" => $n->field_state['und'][0]['value'],
+            "zip" => $n->field_zip['und'][0]['value'],
+            "summary" => $n->field_description['und'][0]['value'],
+            "directory_type" => $n->field_directory_type['und'][0]['value'],
+            "donated_money" => $n->field_donated_money['und'][0]['value'],
+            "government_branch" => $n->field_government_branch['und'][0]['value'],
+            "phone_number" => $n->field_phone_number['und'][0]['value'],
+            "acronym" => $n->field_acronym['und'][0]['value'],
+            "contact_links" => $n->field_contact_links['und'][0]['value'],
+            "website_links" => $n->field_website_links['und'][0]['value'],
+            "created_at" => date("Y-m-dTG:i:s", $n->created),
+            "updated_at" => date("Y-m-dTG:i:s", $n->changed),
+            "changed_at" => date("Y-m-dTG:i:s", $n->changed),
+            "parent" => $parent,
+            "children" => $children
+        );
+    }
+    else{
+        $ret = [];
+        if (in_array('id',$cols)){
+            $ret['id'] = $n->nid;
+        }
+        if (in_array('title',$cols)){
+            $ret['title'] = $n->title;
+        }
+        if (in_array('source_url',$cols)){
+            $ret['source_url'] = $site . $source_url;
+        }
+    }
+
+    return $ret;
+}
+function cmp_api_get_text_asset($n, $cols=null){
+    $ret = array();
+    $cached_terms=array();
+        $useby = array();
+        $tags = array();
+        $topics = array();
+        $location = array();
+        foreach($n->field_for_use_by_text['und'] as $uby){
+            $useby[] = $uby;
+        }
+
+        foreach($n->field_asset_topic_taxonomy['und'] as $att){
+            if (array_key_exists($att['tid'],$cached_terms)) {
+                $topics[] = $cached_terms[$att['tid']];
+            }
+            else {
+                $r = db_query("SELECT name FROM taxonomy_term_data WHERE tid =:tid", array(":tid" => $att['tid']));
+                foreach ($r as $term) {
+                    $topics[] = $term->name;
+                    $cached_terms[$att['tid']] =$term->name;
+                }
+            }
+        }
+
+        foreach($n->field_content_tags['und'] as $ctag){
+
+            if (array_key_exists($ctag['tid'],$cached_terms)) {
+                $tags[] = $cached_terms[$ctag['tid']];
+            }
+            else {
+                $r = db_query("SELECT name FROM taxonomy_term_data WHERE tid =:tid", array(":tid" => $ctag['tid']));
+                foreach ($r as $term) {
+                    $tags[] = $term->name;
+                    $cached_terms[$ctag['tid']] =$term->name;
+                }
+            }
+        }
+        $site = '';
+        if (in_array("GobiernoUSA.gov", $useby)){
+
+            $site="https://gobierno.usa.gov";
+        }
+        else{
+            $site="https://usa.gov";
+        }
+
+        $r = db_query("SELECT fu.field_friendly_url_value, t.name FROM field_data_field_asset_order_content aoc
+      INNER JOIN field_data_field_friendly_url fu ON fu.entity_id = aoc.entity_id
+      INNER JOIN taxonomy_term_data t ON t.tid=aoc.entity_id
+      WHERE field_asset_order_content_target_id = :nid", array(":nid"=>$n->nid));
+        foreach($r as $l){
+            $location[] = array("page_title"=>$l->name, "url"=> $site.$l->field_friendly_url_value."#item-".$n->nid);
+        }
+
+        if (empty($cols)) {
+            $ret = array("id" => $n->nid,
+                "title" => $n->title,
+                "summary" => $n->field_description['und'][0]['value'],
+                "language" => $n->field_language['und'][0]['value'],
+                "html" => $n->body['und'][0]['value'],
+                "contact_center_only" => $n->field_contact_center_only['und'][0]['value'],
+                "status" => ($n->status ? "Published" : "Draft"),
+                "location" => $location,
+                "for_use_by" => $useby,
+                "tags" => $tags,
+                "topics" => $topics,
+                "created_at" => date("Y-m-dTG:i:s", $n->created),
+                "updated_at" => date("Y-m-dTG:i:s", $n->changed),
+                "changed_at" => date("Y-m-dTG:i:s", $n->changed)
+            );
+        }
+        else{
+            if (in_array('id', $cols)){
+                $ret['id'] = $n->nid;
+            }
+
+        }
+
+    return $ret;
+}
+function _sanitzie_path($str) {
+
+    $table = array(
+        ' '=>'-', 'Š'=>'S', 'š'=>'s', 'Ð'=>'Dj', 'Ž'=>'Z', 'ž'=>'z', 'C'=>'C', 'c'=>'c', 'C'=>'C', 'c'=>'c',
+        'À'=>'A', 'Á'=>'A', 'Â'=>'A', 'Ã'=>'A', 'Ä'=>'A', 'Å'=>'A', 'Æ'=>'A', 'Ç'=>'C', 'È'=>'E', 'É'=>'E',
+        'Ê'=>'E', 'Ë'=>'E', 'Ì'=>'I', 'Í'=>'I', 'Î'=>'I', 'Ï'=>'I', 'Ñ'=>'N', 'Ò'=>'O', 'Ó'=>'O', 'Ô'=>'O',
+        'Õ'=>'O', 'Ö'=>'O', 'Ø'=>'O', 'Ù'=>'U', 'Ú'=>'U', 'Û'=>'U', 'Ü'=>'U', 'Ý'=>'Y', 'Þ'=>'B', 'ß'=>'Ss',
+        'à'=>'a', 'á'=>'a', 'â'=>'a', 'ã'=>'a', 'ä'=>'a', 'å'=>'a', 'æ'=>'a', 'ç'=>'c', 'è'=>'e', 'é'=>'e',
+        'ê'=>'e', 'ë'=>'e', 'ì'=>'i', 'í'=>'i', 'î'=>'i', 'ï'=>'i', 'ð'=>'o', 'ñ'=>'n', 'ò'=>'o', 'ó'=>'o',
+        'ô'=>'o', 'õ'=>'o', 'ö'=>'o', 'ø'=>'o', 'ù'=>'u', 'ú'=>'u', 'û'=>'u', 'ý'=>'y', 'ý'=>'y', 'þ'=>'b',
+        'ÿ'=>'y', 'R'=>'R', 'r'=>'r', "'"=>'-', '"'=>'-', '.'=>'-', ','=>'-'
+    );
+
+    $sanitized = strtr($str, $table);
+    $sanitized = preg_replace('/-{2,}/','-',$sanitized);
+    return $sanitized;
+}
+function directory_pages_acronymToStateName($acronym, $whatToRetOnFail = false) {
+
+    $acronym = strtolower($acronym);
+
+    $state_list = _state_list();
+
+    if ( empty($state_list[$acronym]) ) {
+        if ( in_array($acronym, $state_list) ) {
+            return $acronym;
+        } else {
+            return $whatToRetOnFail;
+        }
+    } else {
+        return $state_list[$acronym];
+    }
+}
+function _state_list(){
+    $state_list = array('um'=>'minor outlying islands','mh'=>'republic of the marshall islands','pw'=>'republic of palau','fm'=>'federated states of micronesia','gu'=>'guam','as'=>'american samoa','al'=>"alabama",'ak'=>"alaska",'az'=>"arizona",'ar'=>"arkansas",'ca'=>"california",'co'=>"colorado",'ct'=>"connecticut",'de'=>"delaware",'dc'=>"district of columbia",'fl'=>"florida",'ga'=>"georgia",'hi'=>"hawaii",'id'=>"idaho",'il'=>"illinois",'in'=>"indiana",'ia'=>"iowa",'ks'=>"kansas",'ky'=>"kentucky",'la'=>"louisiana",'me'=>"maine",'md'=>"maryland",'ma'=>"massachusetts",'mi'=>"michigan",'mn'=>"minnesota",'ms'=>"mississippi",'mo'=>"missouri",'mt'=>"montana",'ne'=>"nebraska",'nv'=>"nevada",'nh'=>"new hampshire",'nj'=>"new jersey",'nm'=>"new mexico",'ny'=>"new york",'nc'=>"north carolina",'nd'=>"north dakota",'oh'=>"ohio",'ok'=>"oklahoma",'or'=>"oregon",'pa'=>"pennsylvania",'ri'=>"rhode island",'sc'=>"south carolina",'sd'=>"south dakota",'tn'=>"tennessee",'tx'=>"texas",'ut'=>"utah",'vt'=>"vermont",'va'=>"virginia",'wa'=>"washington",'wv'=>"west virginia",'wi'=>"wisconsin",'wy'=>"wyoming", 'as' => 'american samoa', 'vi' => 'u.s. virgin islands', 'mp' => 'northern mariana islands', 'pr' => 'puerto rico', 'gu' => 'guam');
+    $stateQuery = "SELECT distinct ca.field_state_acronym_value as abbr,
+                          cn.field_state_canonical_name_value as canonical
+                        FROM node n
+                        INNER JOIN field_data_field_state_canonical_name cn ON n.nid = cn.entity_id
+                        INNER JOIN field_data_field_state_acronym ca ON n.nid = ca.entity_id
+    					WHERE n.status = 1";
+    $stateAggs = db_query($stateQuery);
+
+    foreach($stateAggs as $item){
+        $state_list[$item->abbr]=$item->canonical;
+    }
+
+    return $state_list;
+}
 function cmp_api_services_resources()
 {
     $api = array(
