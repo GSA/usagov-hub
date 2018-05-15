@@ -1,0 +1,554 @@
+<?php
+
+/**
+ * @file
+ * Generates swagger-parsable json documentation for service endpoints.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function swagger_menu() {
+  $items = array();
+
+  // Callback for the swagger json describing an endpoint.
+  $items['admin/structure/services/list/%/swagger/api'] = array(
+    'title' => 'Swagger API',
+    'page callback' => 'swagger_api_page',
+    'page arguments' => array(4),
+    'type' => MENU_CALLBACK,
+    'access arguments' => array('view swagger'),
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  // Callback for the swagger json describing a resource.
+  $items['admin/structure/services/list/%/swagger/api/%'] = array(
+    'title' => 'Swagger API',
+    'page callback' => 'swagger_api_resource',
+    'page arguments' => array(4, 7),
+    'type' => MENU_CALLBACK,
+    'access arguments' => array('view swagger'),
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  if (module_exists('libraries')) {
+    $swagger = libraries_detect('swagger');
+    if ($swagger && $swagger['installed']) {
+      // Convenience page for listing all the swagger api pages.
+      $items['admin/structure/services/list/swagger'] = array(
+        'title' => 'Swagger APIs',
+        'page callback' => 'swagger_list_page',
+        'type' => MENU_LOCAL_TASK,
+        'access arguments' => array('view swagger'),
+      );
+
+      // Display the Swagger UI for an endpoint.
+      $items['admin/structure/services/list/%/swagger'] = array(
+        'title' => 'Swagger API',
+        'page callback' => 'swagger_page',
+        'page arguments' => array(4),
+        'type' => MENU_LOCAL_TASK,
+        'access arguments' => array('view swagger'),
+      );
+    }
+  }
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function swagger_permission() {
+  return array(
+    'view swagger' => array(
+      'title' => t('View Swagger UI and JSON'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_libraries_info().
+ */
+function swagger_libraries_info() {
+  return array(
+    'swagger' => array(
+      'name' => t('Swagger UI'),
+      'vendor url' => 'http://swagger.wordnik.com/',
+      'download url' => 'https://dev.flarecast.eu/stash/projects/SAND/repos/swagger-ui/',
+      'version' => '1.1.15',
+      'files' => array(
+        'js' => array(
+          'lib/shred.bundle.js',
+          'lib/jquery.slideto.min.js',
+          'lib/jquery.wiggle.min.js',
+          'lib/jquery.ba-bbq.min.js',
+          'lib/handlebars-1.0.0.js',
+          'lib/underscore-min.js',
+          'lib/backbone-min.js',
+          'lib/swagger.js',
+          'swagger-ui.js',
+          'lib/highlight.7.3.pack.js',
+        ),
+        'css' => array(
+          'css/highlight.default.css',
+          'css/screen.css',
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * Implements hook_theme().
+ */
+function swagger_theme() {
+  return array(
+    'swagger_page' => array(
+      'template' => 'swagger_page',
+      'variables' => array(),
+    ),
+  );
+}
+
+/**
+ * Page callback: Displays a link to the Swagger UI for each services endpoint.
+ *
+ * @return array
+ *   A list of links to the Swagger UI documentation for each endpoint.
+ */
+function swagger_list_page() {
+  $links = array();
+  $endpoints = services_endpoint_load_all();
+  foreach ($endpoints as $endpoint_name => $endpoint) {
+    $links[] = array(
+      'title' => t('Swagger @endpoint', array('@endpoint' => $endpoint_name)),
+      'href' => 'admin/structure/services/list/' . $endpoint_name . '/swagger',
+    );
+  }
+
+  return array(
+    '#theme' => 'links',
+    '#links' => $links,
+  );
+}
+
+/**
+ * Page callback: Displays the Swagger UI for a given endpoint.
+ *
+ * @param string $endpoint
+ *   The machine name of an endpoint.
+ *
+ * @return array
+ *   Returns a page that will render the Swagger UI for the given endpoint
+ *   via Ajax.
+ */
+function swagger_page($endpoint) {
+
+  drupal_add_js(drupal_get_path('module', 'swagger') . '/swagger.js');
+  drupal_add_js(array(
+    'swagger' => array(
+      'endpoint' => url('admin/structure/services/list/' . $endpoint . '/swagger/api', array('absolute' => TRUE)),
+    ),
+  ), 'setting');
+
+  libraries_load('swagger');
+
+  return array(
+    '#theme' => 'swagger_page',
+  );
+}
+
+/**
+ * Page callback: Returns the swagger-formatted JSON for the given endpoint.
+ *
+ * @param string $endpoint
+ *   The machine name of an endpoint.
+ *
+ * @return array
+ *   A swagger-parsable array of data describing the endpoint and the resources
+ *   it contains.
+ */
+function swagger_api_page($endpoint) {
+  if (!function_exists('services_auth_invoke')) {
+    // Some versions of services don't seem to include this file.
+    module_load_include('inc', 'services', 'services.runtime');
+  }
+
+  $server = services_endpoint_load($endpoint);
+  $server_resources = services_get_resources($endpoint);
+
+  if (empty($server) || empty($server_resources)) {
+    return drupal_not_found();
+  }
+
+  $swagger_resources = array();
+  foreach ($server->resources as $resource_name => $resource_info) {
+    $resource_alias = isset($resource_info['alias']) ? $resource_info['alias'] : $resource_name;
+    $swagger_resources[] = array(
+      'path' => '/' . $resource_alias,
+    );
+  }
+
+  $authorizations = array();
+
+  $api_data = array(
+    'swaggerVersion' => '1.2',
+    'apis' => $swagger_resources,
+    'authorizations' => $authorizations,
+  );
+
+  drupal_alter('swagger_api', $api_data);
+
+  return $api_data;
+}
+
+/**
+ * Page callback: Returns the swagger-formatted JSON for the given resource.
+ *
+ * Some commonly used terms in this code:
+ * - Endpoint: An endpoint is a collection of resources bound to a specific
+ *   path.
+ * - Resource: A type of content that exists in order to be queried, created, or
+ *   manipulated.
+ * - Method: A particular url structure for accessing a resource that may be
+ *   shared by multiple operations. For instance, the index and create
+ *   operations typically share the same url.
+ * - Operation: A combination of a url structure and an HTTP method that
+ *   uniquely identify the type of action to perform within a resource.
+ *
+ * @param string $endpoint
+ *   The machine name of the endpoint from which to fetch which operations have
+ *   been enabled.
+ * @param string $resource
+ *   The machine name of the resource (or the alias, if the resource has one),
+ *   that identifies it within the endpoint.
+ *
+ * @return array
+ *   A swagger-parsable array of data describing the methods and operations
+ *   available for this resource.
+ */
+function swagger_api_resource($endpoint, $resource) {
+  if (!function_exists('services_auth_invoke')) {
+    // Some versions of services don't seem to include this file.
+    module_load_include('inc', 'services', 'services.runtime');
+  }
+
+  $server = services_endpoint_load($endpoint);
+  $server_resources = services_get_resources($endpoint);
+
+  // A dictionary of the methods for this resource, keyed by their path to
+  // prevent duplicate methods. Each method has its own list of operations to
+  // handle the different actions that can be taken at a url.
+  $server_apis = array();
+
+  // A set of model ids used by the resource.
+  $server_models = array();
+
+  if (empty($server) || empty($server_resources)) {
+    return drupal_not_found();
+  }
+
+  // If the resource is an alias, find the original name.
+  foreach ($server->resources as $resource_name => $resource_info) {
+    if (isset($resource_info['alias']) && $resource_info['alias'] == $resource) {
+      $resource = $resource_name;
+      break;
+    }
+  }
+
+  // If the resource can't be located, abort.
+  if (!isset($server->resources[$resource])) {
+    return array();
+  }
+
+  $resource_info = $server->resources[$resource];
+  $resource_alias = isset($resource_info['alias']) ? $resource_info['alias'] : $resource;
+  foreach ($resource_info as $method_group => $methods) {
+    if (!is_array($methods)) {
+      continue;
+    }
+
+    foreach ($methods as $method_name => $method_info) {
+
+      // If this method hasn't been enabled in the endpoint, don't document it.
+      if (!isset($method_info['enabled']) || !$method_info['enabled']) {
+        continue;
+      }
+
+      // Check that the method has a definition.
+      if (!isset($server_resources[$resource_alias][$method_group][$method_name])) {
+        watchdog('swagger', 'Missing operation: !resource => !group => !method', array(
+          '!resource' => $resource_alias,
+          '!group' => $method_group,
+          '!method' => $method_name,
+        ));
+        continue;
+      }
+
+      $method_data = $server_resources[$resource_alias][$method_group][$method_name];
+
+      $summary = '';
+      $notes = '';
+      if (isset($method_data['help'])) {
+        $summary = strlen($method_data['help']) > 60 ? substr($method_data['help'], 0, 57) . '...' : $method_data['help'];
+        $notes = $method_data['help'];
+      }
+
+      // Swagger structure for a method.
+      $method = array();
+      $method['path'] = array();
+      // @todo Decide what property, if any, would be appropriate for the method
+      //   description, keeping in mind that methods are usually shared by
+      //   multiple operations.
+      $method['description'] = '';
+
+      // Swagger structure for an operation.
+      $operation = array();
+      $operation['method'] = _swagger_api_get_method($method_group, $method_name, $method['path']);
+      $operation['nickname'] = _swagger_api_get_nickname($resource_alias, $method_name);
+      $operation['type'] = isset($method_data['swagger_model']) ? $method_data['swagger_model'] : '';
+      $operation['parameters'] = array();
+      $operation['summary'] = $summary;
+      $operation['notes'] = $notes;
+      $operation['errorResponses'] = array();
+
+      // Store the models id to fetch later.
+      if (!empty($operation['type'])) {
+        $server_models[$operation['type']] = TRUE;
+      }
+
+      if (isset($method_data['args'])) {
+        $path_arguments = array();
+        foreach ($method_data['args'] as $method_argument) {
+
+          $param_type = '';
+          $param_name = $method_argument['name'];
+
+          // Check that the parameter has either a source or a default value.
+          if (!isset($method_argument['source'])) {
+            if (isset($method_argument['default value'])) {
+              // Argument has no source, but has a default value, so ignore it.
+              // We can't tell where it will be read from, so it won't be
+              // documented.
+              continue;
+            }
+            else {
+              watchdog('swagger', 'Parameter is missing its source attribute: !parameter', array('!parameter' => $param_name));
+              continue;
+            }
+          }
+
+          if (is_array($method_argument['source'])) {
+            reset($method_argument['source']);
+            $param_source = key($method_argument['source']);
+            switch ($param_source) {
+              // Path arguments show up in the url of the request. The value
+              // here represents the relative index of the parameter.
+              case 'path':
+                $param_type = 'path';
+                $path_arguments[$method_argument['source']['path']] = $param_name;
+                break;
+
+              // Param arguments show up in the query arguments of GET requests.
+              // The value here will map to the parameter name.
+              case 'param':
+                $param_type = 'query';
+                $param_name = $method_argument['source']['param'];
+                break;
+
+              // Data arguments show up in the body of non-GET requests. The
+              // value here will map to the parameter name.
+              case 'data':
+                $param_type = 'form';
+                $param_name = $method_argument['source']['data'];
+                break;
+
+              default:
+                watchdog('swagger', 'Unrecognized parameter source: !source', array('!source' => $param_source));
+                continue 2;
+            }
+          }
+          else {
+            switch ($method_argument['source']) {
+              // Data arguments that aren't an array represent the entire body
+              // of a non-GET request.
+              case 'data':
+                $param_type = 'body';
+                break;
+
+              default:
+                watchdog('swagger', 'Unrecognized parameter source: !source', array('!source' => $method_argument['source']));
+                continue 2;
+            }
+          }
+
+          // Resource operation definitions can declare their data model
+          // themselves, either in the initial definition, or through
+          // hook_services_resources_alter.
+          if (isset($method_argument['swagger_model'])) {
+            $data_type = $method_argument['swagger_model'];
+            $server_models[$data_type] = TRUE;
+          }
+          else {
+            // Otherwise, infer the swagger output type.
+            $data_type = '';
+            switch ($method_argument['type']) {
+              case 'int':
+                $data_type = 'integer';
+                $data_format = 'int64';
+                break;
+
+              case 'array':
+              case 'struct':
+                $data_type = 'array';
+                $data_items = array();
+                break;
+
+              case 'string':
+                $data_type = 'string';
+                break;
+
+              default:
+                watchdog('swagger', 'Unhandled argument type: !type', array('!type' => $method_argument['type']));
+                break;
+            }
+          }
+
+          // Arguments that are not explicitly marked as optional are not
+          // optional.
+          if (!isset($method_argument['optional'])) {
+            $method_argument['optional'] = FALSE;
+          }
+
+          // Swagger structure for an operation parameter.
+          $parameter = array(
+            'paramType' => $param_type,
+            'name' => $param_name,
+            'description' => isset($method_argument['description']) ? $method_argument['description'] : '',
+            'dataType' => $data_type,
+            'required' => !$method_argument['optional'],
+          );
+
+          if (isset($data_format)) {
+            $parameter['format'] = $data_format;
+          }
+
+          if (isset($data_items)) {
+            $parameter['items'] = $data_items;
+          }
+
+          $operation['parameters'][] = $parameter;
+        }
+
+        foreach ($path_arguments as $i => $path_argument) {
+          $method['path'][$i] = '{' . $path_argument . '}';
+        }
+      }
+
+      // Path arguments aren't necessarily added in order, so sort them.
+      ksort($method['path']);
+
+      // Prefix the path with the resource.
+      array_unshift($method['path'], $resource_alias);
+      $method['path'] = '/' . implode('/', $method['path']) . '.{format}';
+
+      drupal_alter('swagger_api_operation', $method, $operation);
+
+      // @todo Decide how to handle overlaps with method paths. We'll need to
+      //   find a situation where this occurs first. For now, just assume that
+      //   the initial method data is accurate.
+      if (!isset($server_apis[$method['path']])) {
+        $server_apis[$method['path']] = $method;
+      }
+
+      $server_apis[$method['path']]['operations'][] = $operation;
+    }
+  }
+
+  // Use the set of model ids to aggregate the list of models.
+  $resource_models = array();
+  foreach (array_keys($server_models) as $model) {
+    if (isset($server_resources[$resource_alias]['swagger_models'][$model])) {
+      $resource_models[$model] = $server_resources[$resource_alias]['swagger_models'][$model];
+    }
+  }
+
+  // Swagger structure for a resource.
+  $api_data = array(
+    'swaggerVersion' => '1.2',
+    'basePath' => url($server->path, array('absolute' => TRUE)),
+    'resourcePath' => '/' . $resource_alias,
+    'apis' => array_values($server_apis),
+    'models' => $resource_models,
+  );
+
+  drupal_alter('swagger_api', $api_data);
+
+  return $api_data;
+}
+
+/**
+ * Returns the HTTP method associated with the given operation and method.
+ *
+ * @param string $group
+ *   The method group ("operations", "actions", etc).
+ * @param string $method
+ *   The name of the specific operation ("create", "index", "delete", etc).
+ * @param array $path
+ *   For non-CRUDI operations, this will be returned with the operation name at
+ *   the appropriate index for use as a url path.
+ *
+ * @return string|false
+ *   The HTTP method for the given operation and method, or FALSE if one could
+ *   not be found.
+ */
+function _swagger_api_get_method($group, $method, array &$path) {
+  switch ($group) {
+    case 'operations':
+      switch ($method) {
+        case 'index':
+        case 'retrieve':
+          return 'GET';
+
+        case 'create':
+          return 'POST';
+
+        case 'update':
+          return 'PUT';
+
+        case 'delete':
+          return 'DELETE';
+      }
+      break;
+
+    case 'actions':
+      $path[0] = $method;
+      return 'POST';
+
+    case 'targeted_actions':
+      $path[1] = $method;
+      return 'POST';
+
+    case 'relationships':
+      $path[1] = $method;
+      return 'GET';
+  }
+
+  return FALSE;
+}
+
+/**
+ * Creates a method nickname based on the resource name and the operation name.
+ *
+ * @param string $resource
+ *   The resource name.
+ * @param string $method
+ *   The operation name.
+ *
+ * @return string
+ *   A swagger-appropriate nickname.
+ */
+function _swagger_api_get_nickname($resource, $method) {
+  return $method . '_' . $resource;
+}

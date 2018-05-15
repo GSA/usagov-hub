@@ -105,7 +105,43 @@ function gov_opportunities_cronapi($op,$job=null)
     'description' => 'FBOpen Sync Weekly',
     'rule' => '0 2 * * *',
   );
+    $items['govopp_cron_check_updated'] = array(
+        'callback' => '_govopp_cron_check_updated',
+        'description' => 'FBOpen Checker',
+        'rule' => '0 4 * * *',
+    );
   return $items;
+}
+
+function _govopp_cron_check_updated(){
+    $st =variable_get('gov_opp_st'.date("Ymd",time()));
+    $fn =variable_get('gov_opp_fn'.date("Ymd",time()));
+    $file_not_found =variable_get('gov_opp_file_not_found'.date("Ymd",time()));
+
+    $error = false;
+    if ($st != 'started' || $fn!='finished' || strlen($file_not_found) > 0){
+        $error = true;
+        variable_del('gov_opp_st'.date("Ymd",time()));
+        variable_del('gov_opp_fn'.date("Ymd",time()));
+        variable_del('gov_opp_file_not_found'.date("Ymd",time()));
+    }
+
+    if ($error) {
+        $from = variable_get('site_mail', '');
+        $params['subject'] = 'Date-' . date('Y-F-d', time()) . ": GOV Opp Email";
+        $params['body'] = "ST: " . $st . " FN" . $fn . (strlen($file_not_found) > 0? $file_not_found: '');
+        $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
+        $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
+        $to = 'achuluunkhuu@ctacorp.com';
+
+        $res = drupal_mail(
+            'cmp_misc',
+            'taxonomy-change',
+            trim($to),
+            language_default(),
+            $params
+        );
+    }
 }
 
 function _govopp_cron_pull_fbo_daily()
@@ -132,6 +168,7 @@ function _govopp_cron_pull_fbo_daily()
 
 function _govopp_cron_pull_fbo_full()
 {
+    variable_set('gov_opp_st'.date("Ymd",time()), 'started');
     _govopp_finish_request(false);
     // _govopp_long_running_process();
     $fbo = new FBOXMLImport();
@@ -148,6 +185,7 @@ function _govopp_cron_pull_fbo_full()
     $fbo->removeOldDownloadedFiles();
 
     // error_log('FBOpen '.__FUNCTION__.' '.__LINE__);
+    variable_set('gov_opp_fn'.date("Ymd",time()), 'finished');
 }
 
 /// setup functions
@@ -216,6 +254,7 @@ function _govopp_ajax_pull_fbo_full()
     $fbo->setFilename('Full');
     if ( !$fbo->remoteFileExists() ) {
       drupal_json_output([ 'success'=>false, 'message'=>'File not found: '.$fbo->filename]);
+        variable_set('gov_opp_file_not_found'.date("Ymd",time()), 'File not found: '.$fbo->filename);
       return;
     }
     // $alreadyImporting = _govopp_check_process($fbo->filename);
@@ -262,6 +301,7 @@ function _govopp_ajax_pull_fbo_daily($dateString = null)
           'success' => false,
           'message' => 'File not found: ' . $fbo->filename,
         ]);
+        variable_set('gov_opp_file_not_found'.date("Ymd",time()), 'File not found: ' . $fbo->filename);
         return;
     }
 
