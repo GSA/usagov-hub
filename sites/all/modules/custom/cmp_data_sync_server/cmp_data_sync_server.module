@@ -960,15 +960,36 @@ function _cdss_add_reference_info( &$entity )
             $field_info = field_info_field($field);
             if ( !isset($field_info['type'])
               || !in_array($field_info['type'],
-                           ['taxonomy_term_reference','relation_add','entityreference']) )
+                           ['taxonomy_term_reference','relation_add','entityreference','node_reference']) )
             {
                 continue;
             }
             foreach ( $entity->{$field}['und'] as $i=>$ref )
             {
                 $ref_uuid = null;
-                if ( isset($ref['tid']) )
+                if ( isset($ref['nid']) )
                 {
+                    if ( isset($ref['uuid']) )
+                    {
+                        $ref_uuid = $ref['uuid'];
+                    } else if ( is_string($ref['id']) && strlen($ref['nid'])==36 ) {
+                        $ref_uuid = $ref['id'];
+                    } else {
+                        $ref_uuid = entity_get_uuid_by_id('node', array($ref['nid']));
+                        $ref_uuid = reset($ref_uuid);
+                    }
+                    if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
+                    {
+                        $entity->{$field} = array();
+                        _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
+                        continue;
+                    }
+                    $entity->{$field}['und'][$i]['uuid']   = $ref_uuid;
+                    $entity->{$field}['und'][$i]['type']   = $uuid_info[$ref_uuid]['type'];
+                    $entity->{$field}['und'][$i]['bundle'] = $uuid_info[$ref_uuid]['bundle'];
+                    $entity->{$field}['und'][$i]['nid']    = $ref['nid'];
+
+                } else if ( isset($ref['tid']) ) {
                     if ( isset($ref['uuid']) )
                     {
                         $ref_uuid = $ref['uuid'];
