@@ -9,7 +9,7 @@ CKEDITOR.plugins.add( 'noinlinestyles',
 		{
 			if (ev.data.html || ev.data.dataValue) {
                 var html = ev.data.html || ev.data.dataValue;
-                var filtered_html = html.replace(/\s*style="[^"]*"/i,'');
+                var filtered_html = html.replace(/\s*style="[^"]*?"/gim,'');
                 if (ev.data.html) {
                     ev.data.html = filtered_html;
                 }
