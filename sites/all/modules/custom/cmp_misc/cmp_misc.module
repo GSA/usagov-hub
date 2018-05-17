@@ -1588,7 +1588,7 @@ function _cmp_misc_elasticsearch_server()
 function cmp_misc_ckeditor_plugin() 
 {
     return array(
-      'pasteformat' => array(
+      'noinlinestyles' => array(
         'name' => 'noinlinestyles',
         'desc' => t('No Inline Styles: Plugin to remove style attribute from pasted text'),
         'path' => drupal_get_path('module', 'cmp_misc') . '/plugins/noinlinestyles/',
