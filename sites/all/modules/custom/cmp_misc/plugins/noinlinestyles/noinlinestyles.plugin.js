@@ -7,7 +7,6 @@ CKEDITOR.plugins.add( 'noinlinestyles',
 	{
 		function noinlinestyles_cleanup( ev )
 		{
-			console.log(ev.data);
 			if (ev.data.html || ev.data.dataValue) {
                 var html = ev.data.html || ev.data.dataValue;
                 var filtered_html = html.replace(/\s*style="[^"]*"/i,'');
@@ -18,7 +17,6 @@ CKEDITOR.plugins.add( 'noinlinestyles',
                     ev.data.dataValue = filtered_html;
                 }
             }
-			/onsole.log(ev.data);
 		}
 		editor.on( 'paste', noinlinestyles_cleanup );
 	}
