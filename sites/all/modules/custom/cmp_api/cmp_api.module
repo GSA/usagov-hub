@@ -100,6 +100,10 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
     if (isset($_REQUEST["query"]) && !empty($_REQUEST["query"])){
         $query = $_REQUEST["query"];
     }
+    if (isset($_REQUEST["result_filter"]) && !empty($_REQUEST["result_filter"])){
+        $allowed_cols = array("id", "title", "summary", "language", "html", "contact_center_only", "status", "location", "for_use_by", "topics", "tags", "created_at", "updated_at", "changed_at");
+    }
+
     $add_where[] = "n.type = 'text_content_type'";
     $where_param = array();
     $join = array();
@@ -221,7 +225,8 @@ function _cmp_api_get_directory_records_router(){
 function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where =null, $extra_join = null, $extra_where_param = null, $cols=null, $all_result=false, $type=null ){
 
     $ret = array();
-
+    $allowed_cols = array("id","title", "source_url", "state_detail_id", "language", "alpha_order_name", "street_one", "street_two", "city", "state","status",
+        "zip", "summary", "directory_type", "donated_money", "government_branch", "phone_number", "acronym", "contact_links", "website_links", "created_at", "updated_at", "changed_at", "parent", "children");
     if (isset($_REQUEST["page_size"]) && !empty($_REQUEST["page_size"])){
         $page_size = $_REQUEST["page_size"];
     }
@@ -230,6 +235,149 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
     }
     if (isset($_REQUEST["query"]) && !empty($_REQUEST["query"])){
         $query = $_REQUEST["query"];
+    }
+    if (isset($_REQUEST["result_filter"]) && !empty($_REQUEST["result_filter"])){
+
+        $columns = explode(",",strtolower(trim($_REQUEST["result_filter"])));
+
+       foreach($columns as $c){
+           if (!empty($c) && !in_array(trim($c), $allowed_cols)){
+               drupal_json_output(array("metadata" => array("message" => "There was an error in your query", "errors" => array("result_filter" =>$c." is not exist."))));
+               return;
+           }
+           $cols[]=trim($c);
+       }
+    }
+    if (isset($_REQUEST["terms_filter"]) && !empty($_REQUEST["terms_filter"])){
+        $terms = explode("::",strtolower(trim($_REQUEST["terms_filter"])));
+
+        foreach($terms as $tt){
+            $fieldVal=explode(":",trim($tt));
+            if (count($fieldVal) ==2){
+                if (!in_array($fieldVal[0], $allowed_cols)){
+                    drupal_json_output(array("metadata" => array("message" => "There was an error in your query", "errors" => array("terms_filter" =>$fieldVal[0]." is not correct."))));
+                    return;
+                }
+                $vals = explode(",", $fieldVal[1]);
+               //build query based on field
+                if ($fieldVal[0] == 'id'){
+                    $extra_where[]=' n.nid IN (:nid)';
+                    $extra_where_param[":nid"] = $vals;
+                }
+                if ($fieldVal[0] == 'title'){
+                    $extra_where[]=' n.title IN (:title) ';
+                    $extra_where_param[":title"] = $vals;
+                }
+                if ($fieldVal[0] == 'status'){
+                    $extra_where[]=' n.status = :sstatus ';
+                    $extra_where_param[":sstatus"] = (strtolower($vals[0]) == 'published'? 1 : 0);
+                }
+                if ($fieldVal[0] == 'created_at'){
+                    $extra_where[]=' n.created = :created_at ';
+                    $extra_where_param[":created_at"] =strtotime($vals);
+                }
+                if ($fieldVal[0] == 'updated_at'){
+                    $extra_where[]=' n.changed = :changed_at ';
+                    $extra_where_param[":changed_at"] = strtotime($vals);
+                }
+                if ($fieldVal[0] == 'changed_at'){
+                    $extra_where[]=' n.changed = :changed_at ';
+                    $extra_where_param[":changed_at"] = strtotime($vals);
+                }
+                if ($fieldVal[0] == 'state'){
+                    $extra_join[] =' INNER JOIN field_data_field_state fs ON fs.entity_id = n.nid ';
+                    $extra_where[]=' fs.field_state_value IN (:state) ';
+                    $extra_where_param[":state"] = $vals;
+                }
+                if ($fieldVal[0] == 'directory_type'){
+                    $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
+                    $extra_where[]=' fdt.field_directory_type_value IN (:dirtype) ';
+                    $extra_where_param[":dirtype"] = $vals;
+                }
+                if ($fieldVal[0] == 'language'){
+                    $extra_join[] =' INNER JOIN field_data_field_language fl ON fl.entity_id = n.nid ';
+                    $extra_where[]=' fl.field_language_value IN (:lang) ';
+                    $extra_where_param[":lang"] = $vals;
+                }
+                if ($fieldVal[0] == 'alpha_order_name'){
+                    $extra_join[] =' INNER JOIN field_data_field_alpha_order_name faon ON faon.entity_id = n.nid ';
+                    $extra_where[]=' faon.field_alpha_order_name_value IN (:aoname) ';
+                    $extra_where_param[":aoname"] = $vals;
+                }
+                if ($fieldVal[0] == 'street_one'){
+                    $extra_join[] =' INNER JOIN field_data_field_street_1 fs1 ON fs1.entity_id = n.nid ';
+                    $extra_where[]=' fs1.field_street_1_value IN (:st1) ';
+                    $extra_where_param[":st1"] = $vals;
+                }
+                if ($fieldVal[0] == 'street_two'){
+                    $extra_join[] =' INNER JOIN field_data_field_street_2 fs2 ON fs2.entity_id = n.nid ';
+                    $extra_where[]=' fs2.field_street_2_value IN (:st2) ';
+                    $extra_where_param[":st2"] = $vals;
+                }
+                if ($fieldVal[0] == 'city'){
+                    $extra_join[] =' INNER JOIN field_data_field_city fc ON fc.entity_id = n.nid ';
+                    $extra_where[]=' fc.field_city_value IN (:city) ';
+                    $extra_where_param[":city"] = $vals;
+                }
+                if ($fieldVal[0] == 'zip'){
+                    $extra_join[] =' INNER JOIN field_data_field_zip fz ON fz.entity_id = n.nid ';
+                    $extra_where[]=' fz.field_zip_value IN (:zip) ';
+                    $extra_where_param[":zip"] = $vals;
+                }
+                if ($fieldVal[0] == 'summary'){
+                    $extra_join[] = ' INNER JOIN field_data_field_description fd ON fd.entity_id = n.nid ';
+                    if(count($vals) ==1){
+                        $extra_where[]=' fd.field_description_value LIKE :desc ';
+                        $extra_where_param[":desc"] = '%'.db_like($vals[0]).'%';
+                    }
+                    elseif(count($vals) >1){
+                        $temp_extra_where = array();
+                        $i =0;
+                        foreach($vals as $v){
+                            $temp_extra_where[] = 'fd.field_description_value LIKE :desc'.$i;
+                            $extra_where_param[":desc".$i] = '%'.db_like($v).'%';
+                            $i++;
+                        }
+                        $extra_where[]=' ('.join(' OR ', $temp_extra_where).') ';
+                    }
+                }
+                if ($fieldVal[0] == 'donated_money'){
+                    $extra_join[] =' INNER JOIN field_data_field_donated_money fdm ON fdm.entity_id = n.nid  ';
+                    $extra_where[]=' fdm.field_donated_money_value IN (:donated_money) ';
+                    $extra_where_param[":donated_money"] = $vals;
+                }
+                if ($fieldVal[0] == 'government_branch'){
+                    $extra_join[] =' INNER JOIN field_data_field_government_branch fgb ON fgb.entity_id = n.nid  ';
+                    $extra_where[]=' fgb.field_government_branch_value IN (:gov_branch) ';
+                    $extra_where_param[":gov_branch"] = $vals;
+                }
+                if ($fieldVal[0] == 'phone_number'){
+                    $extra_join[] =' INNER JOIN field_data_field_phone_number fpn ON fpn.entity_id = n.nid  ';
+                    $extra_where[]=' fpn.field_phone_number_value LIKE :phone_num ';
+                    $extra_where_param[":phone_num"] = '%'.db_like($vals[0]).'%';
+                }
+                if ($fieldVal[0] == 'acronym'){
+                    $extra_join[] =' INNER JOIN field_data_field_acronym fa ON fa.entity_id = n.nid  ';
+                    $extra_where[]=' fa.field_acronym_value IN (:acronym) ';
+                    $extra_where_param[":acronym"] = $vals;
+                }
+                if ($fieldVal[0] == 'contact_links'){
+                    $extra_join[] =' INNER JOIN field_data_field_contact_links fcl ON fcl.entity_id = n.nid  ';
+                    $extra_where[]=' fcl.field_contact_links_value LIKE :contact_links ';
+                    $extra_where_param[":contact_links"] = '%'.db_like($vals[0]).'%';
+                }
+                if ($fieldVal[0] == 'website_links'){
+                    $extra_join[] =' INNER JOIN field_data_field_website_links fwl ON fwl.entity_id = n.nid  ';
+                    $extra_where[]=' fwl.field_website_links_value LIKE :website_links ';
+                    $extra_where_param[":website_links"] = '%'.db_like($vals[0]).'%';
+                }
+            }
+            else
+            {
+                drupal_json_output(array("metadata" => array("message" => "There was an error in your query", "errors" => array("terms_filter" =>$tt." is not correct."))));
+                return;
+            }
+        }
     }
 
     $add_where[] = "n.type = 'directory_record_content_type'";
@@ -280,7 +428,8 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
 
     $sql_count = "SELECT count(*) FROM node n ".join(' ',$join)." WHERE ".join(' AND ', $add_where);
     $sql = "SELECT * FROM node n ".join(' ',$join)." WHERE ".join(' AND ', $add_where).((!$all_result)? (" LIMIT ".$page_size .' OFFSET '.$page) : "" );
-
+    //print_r($where_param);
+    //exit;
     $count = db_query($sql_count, $where_param)->fetchField(0);
     $pages = round(($count/$page_size), 0, PHP_ROUND_HALF_UP);
 
@@ -308,7 +457,7 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
 
 }
 function cmp_api_get_directory_record($n,$cols){
-    $ret = array();
+
     $cached_terms=array();
     $useby = array();
     foreach($n->field_for_use_by_text['und'] as $uby){
@@ -426,7 +575,7 @@ function cmp_api_get_directory_record($n,$cols){
             "title" => $n->title,
             "source_url" => $site . $source_url,
             "language" => $n->field_language['und'][0]['value'],
-            "alpha_order_name" => $n->field_alpha_order_name['und'][0]['value'],
+            "alpha_order_name" => $n->alpha_order_name['und'][0]['value'],
             "street_one" => $n->field_street_1['und'][0]['value'],
             "street_two" => $n->field_street_2['und'][0]['value'],
             "status" => ($n->status ? "Published" : "Draft"),
@@ -449,6 +598,7 @@ function cmp_api_get_directory_record($n,$cols){
         );
     }
     else{
+
         $ret = [];
         if (in_array('id',$cols)){
             $ret['id'] = $n->nid;
@@ -458,6 +608,69 @@ function cmp_api_get_directory_record($n,$cols){
         }
         if (in_array('source_url',$cols)){
             $ret['source_url'] = $site . $source_url;
+        }
+        if (in_array('language',$cols)){
+            $ret['language'] = $n->field_language['und'][0]['value'];
+        }
+        if (in_array('alpha_order_name',$cols)){
+            $ret['alpha_order_name'] = $n->alpha_order_name['und'][0]['value'];
+        }
+        if (in_array('street_one',$cols)){
+            $ret['street_one'] = $n->field_street_1['und'][0]['value'];
+        }
+        if (in_array('street_two',$cols)){
+            $ret['street_two'] = $n->field_street_2['und'][0]['value'];
+        }
+        if (in_array('status',$cols)){
+            $ret['status'] = ($n->status ? "Published" : "Draft");
+        }
+        if (in_array('city',$cols)){
+            $ret['city'] = $n->field_city['und'][0]['value'];
+        }
+        if (in_array('state',$cols)){
+            $ret['state'] = $n->field_state['und'][0]['value'];
+        }
+        if (in_array('zip',$cols)){
+            $ret['zip'] = $n->field_zip['und'][0]['value'];
+        }
+        if (in_array('summary',$cols)){
+            $ret['summary'] = $n->field_description['und'][0]['value'];
+        }
+        if (in_array('directory_type',$cols)){
+            $ret['directory_type'] = $n->field_directory_type['und'][0]['value'];
+        }
+        if (in_array('donated_money',$cols)){
+            $ret['donated_money'] = $n->field_donated_money['und'][0]['value'];
+        }
+        if (in_array('government_branch',$cols)){
+            $ret['government_branch'] = $n->field_government_branch['und'][0]['value'];
+        }
+        if (in_array('phone_number',$cols)){
+            $ret['phone_number'] = $n->field_phone_number['und'][0]['value'];
+        }
+        if (in_array('acronym',$cols)){
+            $ret['acronym'] = $n->field_acronym['und'][0]['value'];
+        }
+        if (in_array('contact_links',$cols)){
+            $ret['contact_links'] = $n->field_contact_links['und'][0]['value'];
+        }
+        if (in_array('website_links',$cols)){
+            $ret['website_links'] = $n->field_website_links['und'][0]['value'];
+        }
+        if (in_array('created_at',$cols)){
+            $ret['created_at'] = date("Y-m-dTG:i:s", $n->created);
+        }
+        if (in_array('updated_at',$cols)){
+            $ret['updated_at'] = date("Y-m-dTG:i:s", $n->changed);
+        }
+        if (in_array('changed_at',$cols)){
+            $ret['changed_at'] = date("Y-m-dTG:i:s", $n->changed);
+        }
+        if (in_array('parent',$cols)){
+            $ret['parent'] = $parent;
+        }
+        if (in_array('children',$cols)){
+            $ret['children'] = $children;
         }
     }
 
