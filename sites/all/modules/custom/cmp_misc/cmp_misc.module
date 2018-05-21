@@ -1585,6 +1585,22 @@ function _cmp_misc_elasticsearch_server()
     return $scheme .'://'. $host . ':'. $port;
 }
 
+function cmp_misc_wysiwyg_plugin($editor, $version) 
+{
+    if ($editor == 'ckeditor') {
+      return array(
+        'noinlinestyles' => array(
+          #'url' => 'https://www.usa.gov',
+          'path' => drupal_get_path('module', 'cmp_misc') . '/plugins/noinlinestyles',
+          'file' => 'plugin.js',
+          'extensions' => array(
+            'noinlinestyles' => t('No Inline Styles'),
+          ),
+          'load' => TRUE,
+        ),
+      );
+    }
+}
 
 if ( !function_exists('_bloggov_urlFriendlyString') )
 {
