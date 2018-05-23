@@ -32,6 +32,18 @@ function cmp_api_menu(){
         'access arguments' => TRUE,
         'type' => MENU_NORMAL_ITEM,
     );
+    $items['usaapi/redirects'] = array(
+        'title' => 'USAGov Platform API Interactive Documentation',
+        'page callback' => '_cmp_api_get_all_redirects',
+        'access arguments' => TRUE,
+        'type' => MENU_NORMAL_ITEM,
+    );
+    $items['usaapi/entities'] = array(
+        'title' => 'USAGov Platform API Interactive Documentation',
+        'page callback' => '_cmp_api_get_all_entities',
+        'access arguments' => TRUE,
+        'type' => MENU_NORMAL_ITEM,
+    );
     return $items;
 }
 /**
@@ -70,6 +82,15 @@ function api_landing_page(){
         '#links' => $links,
     );
 }
+
+function _cmp_api_get_all_redirects(){
+
+}
+
+function _cmp_api_get_all_entities(){
+
+}
+
 function _cmp_api_get_text_asset_by_id(){
     $nid=arg(2);
     if(isset($nid)) {
