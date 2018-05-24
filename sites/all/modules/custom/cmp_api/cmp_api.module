@@ -84,7 +84,20 @@ function api_landing_page(){
 }
 
 function _cmp_api_get_all_redirects(){
+    $ret = array();
+    $res = db_query("SELECT * FROM match_redirect");
+    foreach($res as $r){
+        $red_obj = match_redirect_load($r->rid);
+        $redist = explode(PHP_EOL, $red_obj->source_pattern);
+        foreach($redist as $path) {
+            $ret[] = array("rid" => $red_obj->rid, "source_path" => str_replace("\r",'',$path), "target" => $red_obj->target, "status_code" => $red_obj->status_code);
+        }
+    }
+    if (count($ret) == 0){
+        drupal_json_output(array("metadata"=>array("exists"=>false)));
+    }
 
+    drupal_json_output(array("metadata" => array("exists" => true), "result" => $ret));
 }
 
 function _cmp_api_get_all_entities(){
