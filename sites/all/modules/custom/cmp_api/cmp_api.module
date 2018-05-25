@@ -101,7 +101,34 @@ function _cmp_api_get_all_redirects(){
 }
 
 function _cmp_api_get_all_entities(){
+    $page =0;
+    $page_size=10;
 
+    $ret = array();
+    if (isset($_REQUEST["since"])){
+
+    }
+    $sql_count = "SELECT COUNT(*) FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n
+    UNION
+    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t INNER JOIN taxonomy_dates td ON td.tid = t.tid) temp";
+    $count = db_query($sql_count)->fetchField(0);
+
+    $pages = round(($count/$page_size), 0, PHP_ROUND_HALF_UP);
+
+    $sql = "SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n
+    UNION
+    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t INNER JOIN taxonomy_dates td ON td.tid = t.tid ORDER BY changed ASC LIMIT ".$page_size .' OFFSET '.$page ;
+    $res = db_query($sql);
+    foreach($res as $r){
+        if ($r->type == 'node'){
+            $ret[] = node_load($r->en_id);
+        }
+        else{
+            $ret[] = taxonomy_term_load($r->en_id);
+        }
+    }
+
+    drupal_json_output(array("metadata" => array("count"=>$count, "page"=>$page, "page_size"=>($page_size > $count? $count:$page_size), "pages"=>$pages),"result" => $ret));
 }
 
 function _cmp_api_get_text_asset_by_id(){
