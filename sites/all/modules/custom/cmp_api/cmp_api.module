@@ -122,7 +122,8 @@ function _cmp_api_get_all_entities(){
 
     $pages = ceil($count/$page_size);
     if(isset($_REQUEST["page"]) && is_numeric($_REQUEST["page"])){
-        $page = $_REQUEST["page"] * $page_size;
+        $page = $_REQUEST["page
+        "] * $page_size;
     }
 
     $sql = "SELECT * FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n
@@ -138,7 +139,7 @@ function _cmp_api_get_all_entities(){
         }
     }
 
-    drupal_json_output(array("metadata" => array("count"=>$count, "page"=>$page, "page_size"=>($page_size > $count? $count:$page_size), "pages"=>$pages),"result" => $ret));
+    drupal_json_output(array("metadata" => array("count"=>$count, "offset"=>$page, "page_size"=>($page_size > $count? $count:$page_size), "pages"=>$pages),"result" => $ret));
 }
 
 function _cmp_api_get_text_asset_by_id(){
