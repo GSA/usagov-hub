@@ -59,23 +59,8 @@ function cmp_api_theme() {
 }
 
 function api_landing_page(){
-    // HIde the header areas
-    drupal_add_css(
-        '
-                #admin-menu {
-                    display: none !important;
-                }
-                #branding {
-                    display: none !important;
-                }
-                .slicknav_menu{
-                    display: none !important;
-                }
-            ',
-        'inline'
-    );
     drupal_add_css(drupal_get_path('module', 'cmp_api') . "/css/custom-swagger.css");
-    drupal_add_css(drupal_get_path('module', 'cmp_api') . "/js/custom-swagger.js");
+    drupal_add_js(drupal_get_path('module', 'cmp_api') . "/js/custom-swagger.js");
     $links = array();
     return array(
         '#theme' => 'api-landing',
@@ -726,7 +711,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
     if (!empty($query)){
         $join[] = ' INNER JOIN field_data_body fdb ON fdb.entity_id = n.nid ';
         $add_where[] = ' (n.title LIKE :str OR fdb.body_value LIKE :str )';
-        $where_param[":str"] = '%'.db_like($query).'%';
+        $where_param[":str"] = '%'.db_like(strtolower($query)).'%';
     }
 
 

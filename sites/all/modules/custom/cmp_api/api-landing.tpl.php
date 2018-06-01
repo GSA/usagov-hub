@@ -2,13 +2,6 @@
 <div class="swagger-section">
 <div id="header">
     <div class="swagger-ui-wrap">
-        <form id="api_selector" class="navbar-form navbar-left" role="search">
-            <div class="form-group">
-                <div class="input"><input placeholder="http://example.com/api" id="input_baseUrl" name="baseUrl" type="text"></div>
-                <div class="input"><input placeholder="api_key" id="input_apiKey" name="apiKey" type="text"></div>
-                <div class="input"><a id="explore" href="#">Explore</a></div>
-            </div>
-        </form>
     </div>
 </div>
 <div id="message-bar" class="swagger-ui-wrap message-success"></div>
@@ -19,7 +12,8 @@
 </div>
 <div class="container" id="resources_container">
 <ul id="resources">
-<li id="resource_text_assets" class="resource active"><div class="heading">
+<li id="resource_text_assets" class="resource active">
+<div class="heading">
     <h2>
         <a href="#!/text_assets" class="toggleEndpointList" data-id="text_assets">text_assets</a>  : Narrative Content
     </h2>
@@ -42,8 +36,7 @@
         </li>
     </ul>
 </div>
-<ul class="endpoints" id="text_assets_endpoint_list" style="display: block;">
-
+<ul class="endpoints" id="text_assets_endpoint_list" style="display: none">
 <li class="endpoint">
     <ul class="operations">
         <li class="get operation" id="text_assets_Api_V1_TextAssets_index">
@@ -53,7 +46,7 @@
           <a href="#!/text_assets/Api_V1_TextAssets_index" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/text_assets/Api_V1_TextAssets_index" class="toggleOperation">api/v1/usagov/narratives.json</a>
+          <a href="#!/text_assets/Api_V1_TextAssets_index" class="toggleOperation">usaapi/narratives.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -62,7 +55,7 @@
                     </li>
                 </ul>
             </div>
-            <div class="content" id="text_assets_Api_V1_TextAssets_index_content" style="">
+            <div class="content" id="text_assets_Api_V1_TextAssets_index_content" style="display: none">
                   <form accept-charset="UTF-8" class="sandbox">
                     <div style="margin:0;padding:0;display:inline"></div>
 
@@ -81,7 +74,7 @@
 
                         <tr><td class="code">query</td>
                             <td>
-                                <input class="parameter" minlength="0" name="query" placeholder="" type="text" value="">
+                                <input class="parameter" minlength="0" id="query1" placeholder="" type="text" value="">
                             </td>
                             <td>Search content based on a string parameter</td>
                             <td>query</td>
@@ -90,7 +83,7 @@
                             </td>
                         </tr><tr><td class="code">date_filter</td>
                             <td>
-                               <input class="parameter" minlength="0" name="date_filter" placeholder="" type="text" value="">
+                               <input class="parameter" minlength="0" id="date_filter1" placeholder="" type="text" value="">
                             </td>
                             <td>Supports all content updated since a date, or between two dates seperated by a comma</td>
                             <td>query</td>
@@ -99,7 +92,7 @@
                             </td>
                         </tr><tr><td class="code">terms_filter</td>
                             <td>
-                                <input class="parameter" minlength="0" name="terms_filter" placeholder="" type="text" value="">
+                                <input class="parameter" minlength="0" id="terms_filter1" placeholder="" type="text" value="">
                             </td>
                             <td>Supports filtering for exact value of fields using key:value pairs seperated by '::', where values can be commas seperated</td>
                             <td>query</td>
@@ -108,7 +101,7 @@
                             </td>
                         </tr><tr><td class="code">result_filter</td>
                             <td>
-                                <input class="parameter" minlength="0" name="result_filter" placeholder="" type="text" value="">
+                                <input class="parameter" minlength="0" id="result_filter1" placeholder="" type="text" value="">
                             </td>
                             <td>Filter result fields to provided list, defaults to returning all fields</td>
                             <td>query</td>
@@ -117,7 +110,7 @@
                             </td>
                         </tr><tr><td class="code">page_size</td>
                             <td>
-                                <input class="parameter" minlength="0" name="page_size" placeholder="" type="text" value="">
+                                <input class="parameter" minlength="0" id="page_size1" placeholder="" type="text" value="">
                             </td>
                             <td>Number of results per page</td>
                             <td>query</td>
@@ -126,7 +119,7 @@
                             </td>
                         </tr><tr><td class="code">page</td>
                             <td>
-                                <input class="parameter" minlength="0" name="page" placeholder="" type="text" value="">
+                                <input class="parameter" minlength="0" id="page1" placeholder="" type="text" value="">
                             </td>
                             <td>Page number</td>
                             <td>query</td>
@@ -160,13 +153,13 @@
 
 
                     <div class="sandbox_header">
-                        <input class="submit" name="commit" type="button" value="Try it out!">
+                        <input id="text_asset_all_submit" class="submit" name="commit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
                     </div>
 
                 </form>
-                <div class="response" style="display:none">
+                <div class="response text_asset_all_submit" style="display:none">
                     <h4>Request URL</h4>
                     <div class="block request_url"></div>
                     <h4>Response Body</h4>
@@ -188,7 +181,7 @@
           <a href="#!/text_assets/Api_V1_TextAssets_show" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/text_assets/Api_V1_TextAssets_show" class="toggleOperation">api/v1/usagov/narratives/{id}.json</a>
+          <a href="#!/text_assets/Api_V1_TextAssets_show" class="toggleOperation">usaapi/narratives/{id}.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -199,7 +192,7 @@
             </div>
             <div class="content" id="text_assets_Api_V1_TextAssets_show_content" style="display:none">
 
-                <form accept-charset="UTF-8" class="sandbox">
+                <form accept-charset="UTF-8" class="sandbox" >
                     <div style="margin:0;padding:0;display:inline"></div>
 
                     <h4>Parameters</h4>
@@ -217,7 +210,7 @@
 
                         <tr><td class="code required">id</td>
                             <td>
-                                <input class="parameter required" minlength="1" name="id" placeholder="(required)" type="text" value="">
+                                <input class="parameter required" minlength="1" id="text_asset_id" placeholder="(required)" type="text" value="">
                             </td>
                             <td>
                                 <strong>Return specified text asset</strong>
@@ -250,13 +243,13 @@
                     </table>
 
                     <div class="sandbox_header">
-                        <input class="submit" name="commit" type="button" value="Try it out!">
+                        <input id="text_asset_submit" class="submit " name="commit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
                     </div>
 
                 </form>
-                <div class="response" style="display:none">
+                <div class="response text_asset_submit_response" style="display:none">
                     <h4>Request URL</h4>
                     <div class="block request_url"></div>
                     <h4>Response Body</h4>
