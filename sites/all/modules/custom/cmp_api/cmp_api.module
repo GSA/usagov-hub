@@ -107,8 +107,7 @@ function _cmp_api_get_all_entities(){
 
     $pages = ceil($count/$page_size);
     if(isset($_REQUEST["page"]) && is_numeric($_REQUEST["page"])){
-        $page = $_REQUEST["page
-        "] * $page_size;
+        $page = $_REQUEST["page"] * $page_size;
     }
 
     $sql = "SELECT * FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n
