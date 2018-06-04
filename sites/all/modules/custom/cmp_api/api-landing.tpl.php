@@ -152,7 +152,7 @@
                     </table>
 
 
-                    <div class="sandbox_header">
+                    <div class="sandbox_header dir1_submit">
                         <input class="submit" name="commit" id="dir1_submit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
@@ -245,7 +245,7 @@
                     </table>
 
 
-                    <div class="sandbox_header">
+                    <div class="sandbox_header directory_record_submit">
                         <input class="submit" name="commit" id="directory_record_submit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
@@ -352,7 +352,7 @@
                             <td>Requested Range Not Satisfiable</td>
                             <td width="50%"><span class="model-signature"></span></td></tr></tbody>
                     </table>
-                    <div class="sandbox_header">
+                    <div class="sandbox_header dir_type_auto">
                         <input class="submit" name="commit" id="dir_type_auto" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
@@ -488,7 +488,7 @@
                     </table>
 
 
-                    <div class="sandbox_header">
+                    <div class="sandbox_header bbb_submit">
                         <input class="submit" id="bbb_submit" name="commit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
@@ -624,7 +624,7 @@
                             <td width="50%"><span class="model-signature"></span></td></tr></tbody>
                     </table>
 
-                    <div class="sandbox_header">
+                    <div class="sandbox_header ca_submit">
                         <input class="submit" id="ca_submit" name="commit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
@@ -759,7 +759,7 @@
                     </table>
 
 
-                    <div class="sandbox_header">
+                    <div class="sandbox_header fed_submit">
                         <input class="submit" id="fed_submit" name="commit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
@@ -904,7 +904,7 @@
         </table>
 
 
-        <div class="sandbox_header">
+        <div class="sandbox_header state_submit">
             <input class="submit" id="state_submit" name="commit" type="button" value="Try it out!">
             <a href="#" class="response_hider" style="display:none">Hide Response</a>
             <span class="response_throbber" style="display:none"></span>
@@ -1066,7 +1066,7 @@
                     </table>
 
 
-                    <div class="sandbox_header">
+                    <div class="sandbox_header text_asset_all_submit">
                         <input id="text_asset_all_submit" class="submit" name="commit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
@@ -1156,12 +1156,11 @@
                             <td width="50%"><span class="model-signature"></span></td></tr></tbody>
                     </table>
 
-                    <div class="sandbox_header">
+                    <div class="sandbox_header text_asset_submit_response">
                         <input id="text_asset_submit" class="submit " name="commit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
                     </div>
-
                 </form>
                 <div class="response text_asset_submit_response" style="display:none">
                     <h4>Request URL</h4>
