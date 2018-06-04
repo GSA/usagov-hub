@@ -1150,14 +1150,14 @@ function cmp_api_get_directory_record($n,$cols){
             "city" => $n->field_city['und'][0]['value'],
             "state" => $n->field_state['und'][0]['value'],
             "zip" => $n->field_zip['und'][0]['value'],
-            "summary" => $n->field_description['und'][0]['value'],
+            "summary" => htmlspecialchars($n->field_description['und'][0]['value']),
             "directory_type" => $n->field_directory_type['und'][0]['value'],
             "donated_money" => $n->field_donated_money['und'][0]['value'],
             "government_branch" => $n->field_government_branch['und'][0]['value'],
             "phone_number" => $n->field_phone_number['und'][0]['value'],
             "acronym" => $n->field_acronym['und'][0]['value'],
-            "contact_links" => $n->field_contact_links['und'][0]['value'],
-            "website_links" => $n->field_website_links['und'][0]['value'],
+            "contact_links" => htmlspecialchars($n->field_contact_links['und'][0]['value']),
+            "website_links" => htmlspecialchars($n->field_website_links['und'][0]['value']),
             "created_at" => date("Y-m-dTG:i:s", $n->created),
             "updated_at" => date("Y-m-dTG:i:s", $n->changed),
             "changed_at" => date("Y-m-dTG:i:s", $n->changed),
@@ -1202,7 +1202,7 @@ function cmp_api_get_directory_record($n,$cols){
             $ret['zip'] = $n->field_zip['und'][0]['value'];
         }
         if (in_array('summary',$cols)){
-            $ret['summary'] = $n->field_description['und'][0]['value'];
+            $ret['summary'] = htmlspecialchars($n->field_description['und'][0]['value']);
         }
         if (in_array('directory_type',$cols)){
             $ret['directory_type'] = $n->field_directory_type['und'][0]['value'];
@@ -1220,10 +1220,10 @@ function cmp_api_get_directory_record($n,$cols){
             $ret['acronym'] = $n->field_acronym['und'][0]['value'];
         }
         if (in_array('contact_links',$cols)){
-            $ret['contact_links'] = $n->field_contact_links['und'][0]['value'];
+            $ret['contact_links'] = htmlspecialchars($n->field_contact_links['und'][0]['value']);
         }
         if (in_array('website_links',$cols)){
-            $ret['website_links'] = $n->field_website_links['und'][0]['value'];
+            $ret['website_links'] = htmlspecialchars($n->field_website_links['und'][0]['value']);
         }
         if (in_array('created_at',$cols)){
             $ret['created_at'] = date("Y-m-dTG:i:s", $n->created);
@@ -1301,10 +1301,10 @@ function cmp_api_get_text_asset($n, $cols=null){
         if (empty($cols)) {
             $ret = array("id" => $n->nid,
                 "title" => $n->title,
-                "summary" => $n->field_description['und'][0]['value'],
+                "summary" => htmlspecialchars($n->field_description['und'][0]['value']),
                 "language" => $n->field_language['und'][0]['value'],
-                "html" => $n->body['und'][0]['value'],
-                "contact_center_only" => $n->field_contact_center_info['und'][0]['value'],
+                "html" => htmlspecialchars($n->body['und'][0]['value']),
+                "contact_center_only" => htmlspecialchars($n->field_contact_center_info['und'][0]['value']),
                 "status" => ($n->status ? "Published" : "Draft"),
                 "location" => $location,
                 "for_use_by" => $useby,
@@ -1323,16 +1323,16 @@ function cmp_api_get_text_asset($n, $cols=null){
                 $ret['title'] = $n->title;
             }
             if (in_array('summary', $cols)){
-                $ret['summary'] = $n->field_description['und'][0]['value'];
+                $ret['summary'] = htmlspecialchars($n->field_description['und'][0]['value']);
             }
             if (in_array('language', $cols)){
                 $ret['language'] =$n->field_language['und'][0]['value'];
             }
             if (in_array('html', $cols)){
-                $ret['html'] = $n->body['und'][0]['value'];
+                $ret['html'] = htmlspecialchars($n->body['und'][0]['value']);
             }
             if (in_array('contact_center_only', $cols)){
-                $ret['contact_center_only'] = $n->field_contact_center_info['und'][0]['value'];
+                $ret['contact_center_only'] = htmlspecialchars($n->field_contact_center_info['und'][0]['value']);
             }
             if (in_array('status', $cols)){
                 $ret['status'] = ($n->status ? "Published" : "Draft");
