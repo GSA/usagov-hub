@@ -54,6 +54,7 @@
 
 
         $('#dir_type_auto').click(function(){
+
             if($('#dir_type_auto').val().length == 0){
                 $('#dir_type_auto').addClass('error');
             }
@@ -75,6 +76,7 @@
                 if(param.length > 0){
                     param_str = '?'+param.join("&");
                 }
+
                 //load all results
                 jQuery.ajax({
                     url: "/usaapi/directory_records/autocomplete"+param_str,
@@ -95,6 +97,199 @@
                     }
                 });
             }
+        });
+
+        $('#state_submit').click(function(){
+            if($('#state_state').val().length == 0){
+                $('#state_state').addClass('error');
+            }
+            else{
+                if($('#state_state').hasClass('error')) {
+                    $('#state_state').removeClass('error');
+                }
+                var param = [];
+                if($('#state_query').val().length > 0){
+                    param.push('query='+$('#state_query').val());
+                }
+                if($('#state_date_filter').val().length > 0){
+                    param.push('date_filter='+$('#state_date_filter').val());
+                }
+                if($('#state_terms_filter').val().length > 0){
+                    param.push('terms_filter='+$('#state_terms_filter').val());
+                }
+                if($('#state_result_filter').val().length > 0){
+                    param.push('result_filter='+$('#state_result_filter').val());
+                }
+                if($('#state_page_size').val().length > 0){
+                    param.push('page_size='+$('#state_page_size').val());
+                }
+                if($('#state_page').val().length > 0){
+                    param.push('page='+$('#state_page').val());
+                }
+                var param_str = '';
+
+                if(param.length > 0){
+                    param_str = '?'+param.join("&");
+                }
+
+                jQuery.ajax({
+                    url: "/usaapi/directory_records/state/"+$('#state_state').val()+param_str,
+                    dataType: 'json',
+                    type: 'GET',
+                    success: function (data,status) {
+                        $('.state_submit').show();
+                        $('.state_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/state/"+$('#state_state').val()+param_str+'</pre>');
+                        $('.state_submit').find('.response_code').html('<pre>'+200+'</pre>');
+                        $('.state_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
+                    },
+                    complete: function(xhr, status){
+                    },
+                    error: function () {
+                        $('.state_submit').show();
+                        $('.state_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/state/"+$('#state_state').val()+param_str+'</pre>');
+                        $('.state_submit').find('.response_code').html('<pre>'+500+'</pre>');
+                    }
+                });
+            }
+        });
+
+        $('#bbb_submit').click(function(){
+            var param = [];
+            if($('#bbb_query').val().length > 0){
+                param.push('query='+$('#bbb_query').val());
+            }
+            if($('#bbb_date_filter').val().length > 0){
+                param.push('date_filter='+$('#bbb_date_filter').val());
+            }
+            if($('#bbb_terms_filter').val().length > 0){
+                param.push('terms_filter='+$('#bbb_terms_filter').val());
+            }
+            if($('#bbb_result_filter').val().length > 0){
+                param.push('result_filter='+$('#bbb_result_filter').val());
+            }
+            if($('#bbb_page_size').val().length > 0){
+                param.push('page_size='+$('#bbb_page_size').val());
+            }
+            if($('#bbb_page').val().length > 0){
+                param.push('page='+$('#bbb_page').val());
+            }
+            var param_str = '';
+
+            if(param.length > 0){
+                param_str = '?'+param.join("&");
+            }
+
+            jQuery.ajax({
+                url: "/usaapi/directory_records/bbb"+param_str,
+                dataType: 'json',
+                type: 'GET',
+                success: function (data,status) {
+                    $('.bbb_submit').show();
+                    $('.bbb_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/bbb"+param_str+'</pre>');
+                    $('.bbb_submit').find('.response_code').html('<pre>'+200+'</pre>');
+                    $('.bbb_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
+                },
+                complete: function(xhr, status){
+                },
+                error: function () {
+                    $('.bbb_submit').show();
+                    $('.bbb_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/bbb"+param_str+'</pre>');
+                    $('.bbb_submit').find('.response_code').html('<pre>'+500+'</pre>');
+                }
+            });
+        });
+
+        $('#ca_submit').click(function(){
+
+            var param = [];
+            if($('#ca_query').val().length > 0){
+                param.push('query='+$('#ca_query').val());
+            }
+            if($('#ca_date_filter').val().length > 0){
+                param.push('date_filter='+$('#ca_date_filter').val());
+            }
+            if($('#ca_terms_filter').val().length > 0){
+                param.push('terms_filter='+$('#ca_terms_filter').val());
+            }
+            if($('#ca_result_filter').val().length > 0){
+                param.push('result_filter='+$('#ca_result_filter').val());
+            }
+            if($('#ca_page_size').val().length > 0){
+                param.push('page_size='+$('#ca_page_size').val());
+            }
+            if($('#ca_page').val().length > 0){
+                param.push('page='+$('#ca_page').val());
+            }
+            var param_str = '';
+
+            if(param.length > 0){
+                param_str = '?'+param.join("&");
+            }
+
+            jQuery.ajax({
+                url: "/usaapi/directory_records/consumer_agencies"+param_str,
+                dataType: 'json',
+                type: 'GET',
+                success: function (data,status) {
+                    $('.ca_submit').show();
+                    $('.ca_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/consumer_agencies"+param_str+'</pre>');
+                    $('.ca_submit').find('.response_code').html('<pre>'+200+'</pre>');
+                    $('.ca_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
+                },
+                complete: function(xhr, status){
+                },
+                error: function () {
+                    $('.ca_submit').show();
+                    $('.ca_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/consumer_agencies"+param_str+'</pre>');
+                    $('.ca_submit').find('.response_code').html('<pre>'+500+'</pre>');
+                }
+            });
+        });
+
+        $('#fed_submit').click(function(){
+            var param = [];
+            if($('#fed_query').val().length > 0){
+                param.push('query='+$('#fed_query').val());
+            }
+            if($('#fed_date_filter').val().length > 0){
+                param.push('date_filter='+$('#fed_date_filter').val());
+            }
+            if($('#fed_terms_filter').val().length > 0){
+                param.push('terms_filter='+$('#fed_terms_filter').val());
+            }
+            if($('#fed_result_filter').val().length > 0){
+                param.push('result_filter='+$('#fed_result_filter').val());
+            }
+            if($('#fed_page_size').val().length > 0){
+                param.push('page_size='+$('#fed_page_size').val());
+            }
+            if($('#fed_page').val().length > 0){
+                param.push('page='+$('#fed_page').val());
+            }
+            var param_str = '';
+
+            if(param.length > 0){
+                param_str = '?'+param.join("&");
+            }
+
+            jQuery.ajax({
+                url: "/usaapi/directory_records/federal"+param_str,
+                dataType: 'json',
+                type: 'GET',
+                success: function (data,status) {
+                    $('.fed_submit').show();
+                    $('.fed_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/federal"+param_str+'</pre>');
+                    $('.fed_submit').find('.response_code').html('<pre>'+200+'</pre>');
+                    $('.fed_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
+                },
+                complete: function(xhr, status){
+                },
+                error: function () {
+                    $('.fed_submit').show();
+                    $('.fed_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/federal"+param_str+'</pre>');
+                    $('.fed_submit').find('.response_code').html('<pre>'+500+'</pre>');
+                }
+            });
         });
 
         $('#directory_record_submit').click(function(){
@@ -162,7 +357,6 @@
                     $('.text_asset_all_submit').find('.request_url').html('<pre>'+"/usaapi/narratives.json"+param_str+'</pre>');
                     $('.text_asset_all_submit').find('.response_code').html('<pre>'+200+'</pre>');
                     $('.text_asset_all_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
-                    console.log(data);
                 },
                 complete: function(xhr, status){
                 },
@@ -209,7 +403,6 @@
                     $('.dir1_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records.json"+param_str+'</pre>');
                     $('.dir1_submit').find('.response_code').html('<pre>'+200+'</pre>');
                     $('.dir1_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
-                    console.log(data);
                 },
                 complete: function(xhr, status){
                 },

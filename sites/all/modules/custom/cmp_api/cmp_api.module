@@ -737,6 +737,7 @@ function _cmp_api_get_directory_records_router(){
     $args = arg();
 
     if (isset($args[2])){
+
         if ($args[2] =='bbb'){
             $extra_where[]=' fdt.field_directory_type_value LIKE \'Better Business Bureaus\' ';
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
@@ -752,10 +753,10 @@ function _cmp_api_get_directory_records_router(){
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
         }
-        elseif ($args[2] =='state' && isset($arg[3])){
-            $extra_where[]=' fs.field_state_value LIKE :state';
+        elseif ($args[2] =='state' && isset($args[3])){
+            $extra_where[]=' LOWER(fs.field_state_value) LIKE :state';
             $extra_join[] =' INNER JOIN field_data_field_state fs ON fs.entity_id = n.nid ';
-            $where_param[":state"] = '%'.db_like($arg[3]).'%';
+            $where_param[":state"] = '%'.db_like(strtolower($args[3])).'%';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join, $where_param );
         }
         elseif(is_numeric($args[2])){
@@ -780,7 +781,7 @@ function _cmp_api_get_directory_records_router(){
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null, $extra_where, $extra_join, $where_param, array('id', 'title', 'source_url'), true );
         }
         else{
-            drupal_json_output(array("metadata"=>array("exists"=>false)));
+            drupal_json_output(array("metadata"=>array("exists"=>"kkk")));
         }
     }
     elseif(isset($args[1]) && $args[1] == 'directory_records.json'){
@@ -989,8 +990,7 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
     }
     if (!empty($query)){
         $join[] = ' INNER JOIN field_data_field_alpha_order_name aon ON aon.entity_id = n.nid ';
-        $add_where[] = ' (n.title LIKE :str)';
-        $add_where[] = ' (aon.field_alpha_order_name_value LIKE :str)';
+        $add_where[] = ' (n.title LIKE :str OR aon.field_alpha_order_name_value LIKE :str)';
         $where_param[":str"] = '%'.db_like($query).'%';
     }
 

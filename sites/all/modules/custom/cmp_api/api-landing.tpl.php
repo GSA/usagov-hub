@@ -352,8 +352,6 @@
                             <td>Requested Range Not Satisfiable</td>
                             <td width="50%"><span class="model-signature"></span></td></tr></tbody>
                     </table>
-
-
                     <div class="sandbox_header">
                         <input class="submit" name="commit" id="dir_type_auto" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
@@ -412,15 +410,7 @@
 
                         <tr><td class="code">query</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="query" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="bbb_query" name="query" placeholder="" type="text" value="">
                             </td>
                             <td>Search content based on a string parameter</td>
                             <td>query</td>
@@ -429,15 +419,7 @@
                             </td>
                         </tr><tr><td class="code">date_filter</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="date_filter" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="bbb_date_filter" name="date_filter" placeholder="" type="text" value="">
                             </td>
                             <td>Supports all content updated since a date, or between two dates seperated by a comma</td>
                             <td>query</td>
@@ -446,15 +428,7 @@
                             </td>
                         </tr><tr><td class="code">terms_filter</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="terms_filter" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="bbb_terms_filter" name="terms_filter" placeholder="" type="text" value="">
                             </td>
                             <td>Supports filtering for value of fields using key:value pairs seperated by '::', where values can be commas seperated</td>
                             <td>query</td>
@@ -463,16 +437,8 @@
                             </td>
                         </tr><tr><td class="code">result_filter</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="result_filter" placeholder="" type="text" value="">
-
-
-
-
-                            </td>
+                              <input class="parameter" minlength="0" id="bbb_result_filter" name="result_filter" placeholder="" type="text" value="">
+                           </td>
                             <td>Filter result fields to provided list, defaults to returning all fields</td>
                             <td>query</td>
                             <td>
@@ -480,15 +446,7 @@
                             </td>
                         </tr><tr><td class="code">page_size</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="page_size" placeholder="" type="text" value="">
-
-
-
-
+                               <input class="parameter" minlength="0" id="bbb_page_size" name="page_size" placeholder="" type="text" value="">
                             </td>
                             <td>Number of results per page</td>
                             <td>query</td>
@@ -497,15 +455,7 @@
                             </td>
                         </tr><tr><td class="code">page</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="page" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="bbb_page" name="page" placeholder="" type="text" value="">
                             </td>
                             <td>Page number</td>
                             <td>query</td>
@@ -514,8 +464,6 @@
                             </td>
                         </tr></tbody>
                     </table>
-
-
                     <div style="margin:0;padding:0;display:inline"></div>
                     <h4>Response Messages</h4>
                     <table class="fullwidth">
@@ -541,13 +489,13 @@
 
 
                     <div class="sandbox_header">
-                        <input class="submit" name="commit" type="button" value="Try it out!">
+                        <input class="submit" id="bbb_submit" name="commit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
                     </div>
 
                 </form>
-                <div class="response" style="display:none">
+                <div class="response bbb_submit" style="display:none">
                     <h4>Request URL</h4>
                     <div class="block request_url"></div>
                     <h4>Response Body</h4>
@@ -579,12 +527,6 @@
                 </ul>
             </div>
             <div class="content" id="directory_records_Api_V1_DirectoryRecords_consumer_agencies_content" style="display:none">
-
-
-
-
-
-
                 <form accept-charset="UTF-8" class="sandbox">
                     <div style="margin:0;padding:0;display:inline"></div>
 
@@ -603,15 +545,7 @@
 
                         <tr><td class="code">query</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="query" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="ca_query" name="query" placeholder="" type="text" value="">
                             </td>
                             <td>Search content based on a string parameter</td>
                             <td>query</td>
@@ -620,15 +554,7 @@
                             </td>
                         </tr><tr><td class="code">date_filter</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="date_filter" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="ca_date_filter" name="date_filter" placeholder="" type="text" value="">
                             </td>
                             <td>Supports all content updated since a date, or between two dates seperated by a comma</td>
                             <td>query</td>
@@ -637,15 +563,7 @@
                             </td>
                         </tr><tr><td class="code">terms_filter</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="terms_filter" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="ca_terms_filter" name="terms_filter" placeholder="" type="text" value="">
                             </td>
                             <td>Supports filtering for value of fields using key:value pairs seperated by '::', where values can be commas seperated</td>
                             <td>query</td>
@@ -654,15 +572,7 @@
                             </td>
                         </tr><tr><td class="code">result_filter</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="result_filter" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="ca_result_filter" name="result_filter" placeholder="" type="text" value="">
                             </td>
                             <td>Filter result fields to provided list, defaults to returning all fields</td>
                             <td>query</td>
@@ -671,15 +581,7 @@
                             </td>
                         </tr><tr><td class="code">page_size</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="page_size" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="ca_page_size" name="page_size" placeholder="" type="text" value="">
                             </td>
                             <td>Number of results per page</td>
                             <td>query</td>
@@ -688,15 +590,7 @@
                             </td>
                         </tr><tr><td class="code">page</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="page" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="ca_page" name="page" placeholder="" type="text" value="">
                             </td>
                             <td>Page number</td>
                             <td>query</td>
@@ -730,15 +624,14 @@
                             <td width="50%"><span class="model-signature"></span></td></tr></tbody>
                     </table>
 
-
                     <div class="sandbox_header">
-                        <input class="submit" name="commit" type="button" value="Try it out!">
+                        <input class="submit" id="ca_submit" name="commit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
                     </div>
 
                 </form>
-                <div class="response" style="display:none">
+                <div class="response ca_submit" style="display:none">
                     <h4>Request URL</h4>
                     <div class="block request_url"></div>
                     <h4>Response Body</h4>
@@ -770,12 +663,6 @@
                 </ul>
             </div>
             <div class="content" id="directory_records_Api_V1_DirectoryRecords_federal_content" style="display:none">
-
-
-
-
-
-
                 <form accept-charset="UTF-8" class="sandbox">
                     <div style="margin:0;padding:0;display:inline"></div>
 
@@ -794,15 +681,7 @@
 
                         <tr><td class="code">query</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="query" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="fed_query" name="query" placeholder="" type="text" value="">
                             </td>
                             <td>Search content based on a string parameter</td>
                             <td>query</td>
@@ -811,15 +690,7 @@
                             </td>
                         </tr><tr><td class="code">date_filter</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="date_filter" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="fed_date_filter" name="date_filter" placeholder="" type="text" value="">
                             </td>
                             <td>Supports all content updated since a date, or between two dates seperated by a comma</td>
                             <td>query</td>
@@ -828,15 +699,7 @@
                             </td>
                         </tr><tr><td class="code">terms_filter</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="terms_filter" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="fed_terms_filter" name="terms_filter" placeholder="" type="text" value="">
                             </td>
                             <td>Supports filtering for value of fields using key:value pairs seperated by '::', where values can be commas seperated</td>
                             <td>query</td>
@@ -845,15 +708,7 @@
                             </td>
                         </tr><tr><td class="code">result_filter</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="result_filter" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="fed_result_filter" name="result_filter" placeholder="" type="text" value="">
                             </td>
                             <td>Filter result fields to provided list, defaults to returning all fields</td>
                             <td>query</td>
@@ -862,15 +717,7 @@
                             </td>
                         </tr><tr><td class="code">page_size</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="page_size" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="fed_page_size" name="page_size" placeholder="" type="text" value="">
                             </td>
                             <td>Number of results per page</td>
                             <td>query</td>
@@ -879,15 +726,7 @@
                             </td>
                         </tr><tr><td class="code">page</td>
                             <td>
-
-
-
-
-                                <input class="parameter" minlength="0" name="page" placeholder="" type="text" value="">
-
-
-
-
+                                <input class="parameter" minlength="0" id="fed_page" name="page" placeholder="" type="text" value="">
                             </td>
                             <td>Page number</td>
                             <td>query</td>
@@ -896,8 +735,6 @@
                             </td>
                         </tr></tbody>
                     </table>
-
-
                     <div style="margin:0;padding:0;display:inline"></div>
                     <h4>Response Messages</h4>
                     <table class="fullwidth">
@@ -923,13 +760,13 @@
 
 
                     <div class="sandbox_header">
-                        <input class="submit" name="commit" type="button" value="Try it out!">
+                        <input class="submit" id="fed_submit" name="commit" type="button" value="Try it out!">
                         <a href="#" class="response_hider" style="display:none">Hide Response</a>
                         <span class="response_throbber" style="display:none"></span>
                     </div>
 
                 </form>
-                <div class="response" style="display:none">
+                <div class="response fed_submit" style="display:none">
                     <h4>Request URL</h4>
                     <div class="block request_url"></div>
                     <h4>Response Body</h4>
@@ -961,12 +798,6 @@
     </ul>
 </div>
 <div class="content" id="directory_records_Api_V1_DirectoryRecords_state_content" style="display:none">
-
-
-
-
-
-
     <form accept-charset="UTF-8" class="sandbox">
         <div style="margin:0;padding:0;display:inline"></div>
 
@@ -985,13 +816,7 @@
 
             <tr><td class="code required">state</td>
                 <td>
-
-
-
-                    <input class="parameter required" minlength="1" name="state" placeholder="(required)" type="text" value="">
-
-
-
+                    <input class="parameter required" minlength="1" id="state_state" name="state" placeholder="(required)" type="text" value="">
                 </td>
                 <td>
                     <strong>Return directory records based on state</strong>
@@ -1000,15 +825,7 @@
                 <td><span class="model-signature">string</span></td>
             </tr><tr><td class="code">query</td>
                 <td>
-
-
-
-
-                    <input class="parameter" minlength="0" name="query" placeholder="" type="text" value="">
-
-
-
-
+                    <input class="parameter" minlength="0" id="state_query" name="query" placeholder="" type="text" value="">
                 </td>
                 <td>Search content based on a string parameter</td>
                 <td>query</td>
@@ -1017,15 +834,7 @@
                 </td>
             </tr><tr><td class="code">date_filter</td>
                 <td>
-
-
-
-
-                    <input class="parameter" minlength="0" name="date_filter" placeholder="" type="text" value="">
-
-
-
-
+                    <input class="parameter" minlength="0" id="state_date_filter" name="date_filter" placeholder="" type="text" value="">
                 </td>
                 <td>Supports all content updated since a date, or between two dates seperated by a comma</td>
                 <td>query</td>
@@ -1034,15 +843,7 @@
                 </td>
             </tr><tr><td class="code">terms_filter</td>
                 <td>
-
-
-
-
-                    <input class="parameter" minlength="0" name="terms_filter" placeholder="" type="text" value="">
-
-
-
-
+                    <input class="parameter" minlength="0" id="state_terms_filter" name="terms_filter" placeholder="" type="text" value="">
                 </td>
                 <td>Supports filtering for value of fields using key:value pairs seperated by '::', where values can be commas seperated</td>
                 <td>query</td>
@@ -1051,15 +852,7 @@
                 </td>
             </tr><tr><td class="code">result_filter</td>
                 <td>
-
-
-
-
-                    <input class="parameter" minlength="0" name="result_filter" placeholder="" type="text" value="">
-
-
-
-
+                    <input class="parameter" minlength="0" id="state_result_filter" name="result_filter" placeholder="" type="text" value="">
                 </td>
                 <td>Filter result fields to provided list, defaults to returning all fields</td>
                 <td>query</td>
@@ -1068,15 +861,7 @@
                 </td>
             </tr><tr><td class="code">page_size</td>
                 <td>
-
-
-
-
-                    <input class="parameter" minlength="0" name="page_size" placeholder="" type="text" value="">
-
-
-
-
+                    <input class="parameter" minlength="0" id="state_page_size" name="page_size" placeholder="" type="text" value="">
                 </td>
                 <td>Number of results per page</td>
                 <td>query</td>
@@ -1085,15 +870,7 @@
                 </td>
             </tr><tr><td class="code">page</td>
                 <td>
-
-
-
-
-                    <input class="parameter" minlength="0" name="page" placeholder="" type="text" value="">
-
-
-
-
+                    <input class="parameter" minlength="0" id="state_page" name="page" placeholder="" type="text" value="">
                 </td>
                 <td>Page number</td>
                 <td>query</td>
@@ -1102,7 +879,6 @@
                 </td>
             </tr></tbody>
         </table>
-
 
         <div style="margin:0;padding:0;display:inline"></div>
         <h4>Response Messages</h4>
@@ -1129,13 +905,13 @@
 
 
         <div class="sandbox_header">
-            <input class="submit" name="commit" type="button" value="Try it out!">
+            <input class="submit" id="state_submit" name="commit" type="button" value="Try it out!">
             <a href="#" class="response_hider" style="display:none">Hide Response</a>
             <span class="response_throbber" style="display:none"></span>
         </div>
 
     </form>
-    <div class="response" style="display:none">
+    <div class="response state_submit" style="display:none">
         <h4>Request URL</h4>
         <div class="block request_url"></div>
         <h4>Response Body</h4>
