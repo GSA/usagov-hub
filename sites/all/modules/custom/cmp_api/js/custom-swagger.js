@@ -441,9 +441,13 @@
             });
         });
 
-        function formatData(obj){
-            formattedHTML = '';
-            return JSON.stringify(obj, null, "	").replace(/\n/g, "<br>");
+        function formatData(data){
+/*            var tempstr=(JSON.stringify(data, null, "	").replace(/\n/g, "<br>"));
+            var res = tempstr.split("<br>");
+            console.log(res);*/
+
+            return '<code>'+JSON.stringify(data, null, "	").replace(/\n/g, "<br>")+'</code>';
         }
+
     });
 })(jQuery);
