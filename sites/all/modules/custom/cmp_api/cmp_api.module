@@ -718,7 +718,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
     $sql = "SELECT * FROM node n ".join(' ',$join)." WHERE  ".join(' AND ', $add_where)." LIMIT ".$page_size .' OFFSET '.$page ;
 
     $count = db_query($sql_count, $where_param)->fetchField(0);
-    $pages = round(($count/$page_size), 0, PHP_ROUND_HALF_UP);
+    $pages = ceil($count/$page_size);
 
     $res = db_query($sql, $where_param);
     foreach($res as $r) {
@@ -999,7 +999,7 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
     //print_r($where_param);
     //exit;
     $count = db_query($sql_count, $where_param)->fetchField(0);
-    $pages = round(($count/$page_size), 0, PHP_ROUND_HALF_UP);
+    $pages = ceil($count/$page_size);
 
     $res = db_query($sql, $where_param);
     foreach($res as $r) {
