@@ -40,6 +40,9 @@ hooks_reaction_add(
             unset($form['field_show_social_media_icon']);
             unset($form['field_term_owner']);
             unset($form['field_help_desk']);
+            unset($form['group_asset_carousel_tab']);
+            unset($form['field_asset_inherit_carousel']);
+            unset($form['field_asset_order_carousel']);
            /* dsm($form);
             unset($form['field_test']);*/
         }
