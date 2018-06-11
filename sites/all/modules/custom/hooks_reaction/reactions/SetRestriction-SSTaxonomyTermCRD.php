@@ -33,6 +33,17 @@ hooks_reaction_add(
                 unset($form['toolbar']['export_show']);
             }
         }
+
+        if (isset($form['#vocabulary']->machine_name ) && $form['#vocabulary']->machine_name == 'site_strucutre_taxonomy'){
+            unset($form['field_govdelivery_id']);
+            unset($form['field_usefulness_survey']);
+            unset($form['field_show_social_media_icon']);
+            unset($form['field_term_owner']);
+            unset($form['field_help_desk']);
+           /* dsm($form);
+            unset($form['field_test']);*/
+        }
+
     }
 );
 
