@@ -46,6 +46,9 @@ hooks_reaction_add(
            /* dsm($form);
             unset($form['field_test']);*/
         }
+        $form['relations']['#weight'] = 12;
+        dsm($form['field_usa_gov_toggle_url']);
+        dsm($form['relations']);
 
     }
 );
