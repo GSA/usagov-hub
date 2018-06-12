@@ -619,7 +619,6 @@ function _cmp_misc_email_SSAssets_report_with_attachment(){
 
     // Write the CSV headers
     $h .= '"counter","Site","Page Title","Parent Title","Owner","Hierarchy Level","Page Type","Topic Desk Replacement","Friendly URL","CMP Edit Link","Assets on Page",';
-    $h .="\n";
     for ( $T = 1 ; $T < intval(variable_get('tssr_lastmaxcolcount', 3)); $T++ ) {
         if ( $T > 1 ) {
             $h .= ',';

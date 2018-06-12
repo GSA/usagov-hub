@@ -46,7 +46,7 @@ hooks_reaction_add(
             $form['relations']['#weight'] = 12;
             $form['relations']['weight']['#descriptions']='This field impacts the order of nodes in the taxonomy. Read up on how it works before using.';
             $form['relations']['#description'] = 'Select the parent node for this page.';
-            
+
         }
     }
 );
