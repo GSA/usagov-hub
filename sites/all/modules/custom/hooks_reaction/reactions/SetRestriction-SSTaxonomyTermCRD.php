@@ -43,13 +43,11 @@ hooks_reaction_add(
             unset($form['group_asset_carousel_tab']);
             unset($form['field_asset_inherit_carousel']);
             unset($form['field_asset_order_carousel']);
-           /* dsm($form);
-            unset($form['field_test']);*/
+            $form['relations']['#weight'] = 12;
+            $form['relations']['weight']['#descriptions']='This field impacts the order of nodes in the taxonomy. Read up on how it works before using.';
+            $form['relations']['#description'] = 'Select the parent node for this page.';
+            
         }
-        $form['relations']['#weight'] = 12;
-        dsm($form['field_usa_gov_toggle_url']);
-        dsm($form['relations']);
-
     }
 );
 
