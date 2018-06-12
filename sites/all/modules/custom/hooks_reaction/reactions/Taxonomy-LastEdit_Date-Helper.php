@@ -23,6 +23,6 @@ hooks_reaction_add(array("hook_form_taxonomy_form_term_alter","hook_form_taxonom
               '#markup' => $convert_to_date,
               '#weight' => -80,
             );*/
-            $form['name']['#prefix'] .= '<div class="form-item form-type-textfield form-item-name"><label for="edit-name">' . t("Last changed on: ") .'</label>'. $convert_to_date . '</div>';
+            $form['name']['#prefix'] .= '<div class="form-item form-type-textfield form-item-name"><label for="edit-name">' . t("Last Changed Timestamp: ") .'</label>'. $convert_to_date . '</div>';
         }
 });
