@@ -619,7 +619,6 @@ function _cmp_misc_email_SSAssets_report_with_attachment(){
 
     // Write the CSV headers
     $h .= '"counter","Site","Page Title","Parent Title","Owner","Hierarchy Level","Page Type","Topic Desk Replacement","Friendly URL","CMP Edit Link","Assets on Page",';
-    $h .="\n";
     for ( $T = 1 ; $T < intval(variable_get('tssr_lastmaxcolcount', 3)); $T++ ) {
         if ( $T > 1 ) {
             $h .= ',';
@@ -689,7 +688,6 @@ function _cmp_misc_email_asTT_report_with_attachment(){
 
     // Write the CSV headers
     $h .= '"counter","Title","Parent Title","Hierarchy Level","Type","CMP Edit Link","Assets-Nodes Associated (cumulative)","For Use By","Owner","Status",';
-    $h .="\n";
     for ( $T = 1 ; $T < intval(variable_get('tatr_lastmaxcolcount', 3)); $T++ ) {
         if ( $T > 1 ) {
             $h .= ',';

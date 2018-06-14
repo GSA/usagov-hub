@@ -234,6 +234,18 @@ function adminimal_css_alter(&$css) {
   if (isset($css['misc/ui/jquery.ui.theme.css'])) {
     $css['misc/ui/jquery.ui.theme.css']['data'] = drupal_get_path('theme', 'adminimal') . '/css/jquery.ui.theme.css';
   }
+  $args = arg();
+    if (isset($args[0]) && $args[0] == 'usaapi'){
+        foreach($css as $k=>$v){
+            if($k !='sites/all/modules/custom/cmp_api/css/custom-swagger.css'){
+                unset($css[$k]);
+            }
+        }
+       /* print"<pre>";
+        print_r($css);
+        print"</pre>";
+        exit;*/
+    }
 }
 
 /**

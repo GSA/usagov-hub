@@ -59,23 +59,8 @@ function cmp_api_theme() {
 }
 
 function api_landing_page(){
-    // HIde the header areas
-    drupal_add_css(
-        '
-                #admin-menu {
-                    display: none !important;
-                }
-                #branding {
-                    display: none !important;
-                }
-                .slicknav_menu{
-                    display: none !important;
-                }
-            ',
-        'inline'
-    );
     drupal_add_css(drupal_get_path('module', 'cmp_api') . "/css/custom-swagger.css");
-    drupal_add_css(drupal_get_path('module', 'cmp_api') . "/js/custom-swagger.js");
+    drupal_add_js(drupal_get_path('module', 'cmp_api') . "/js/custom-swagger.js");
     $links = array();
     return array(
         '#theme' => 'api-landing',
@@ -725,7 +710,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
     if (!empty($query)){
         $join[] = ' INNER JOIN field_data_body fdb ON fdb.entity_id = n.nid ';
         $add_where[] = ' (n.title LIKE :str OR fdb.body_value LIKE :str )';
-        $where_param[":str"] = '%'.db_like($query).'%';
+        $where_param[":str"] = '%'.db_like(strtolower($query)).'%';
     }
 
 
@@ -733,7 +718,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
     $sql = "SELECT * FROM node n ".join(' ',$join)." WHERE  ".join(' AND ', $add_where)." LIMIT ".$page_size .' OFFSET '.$page ;
 
     $count = db_query($sql_count, $where_param)->fetchField(0);
-    $pages = round(($count/$page_size), 0, PHP_ROUND_HALF_UP);
+    $pages = ceil($count/$page_size);
 
     $res = db_query($sql, $where_param);
     foreach($res as $r) {
@@ -752,6 +737,7 @@ function _cmp_api_get_directory_records_router(){
     $args = arg();
 
     if (isset($args[2])){
+
         if ($args[2] =='bbb'){
             $extra_where[]=' fdt.field_directory_type_value LIKE \'Better Business Bureaus\' ';
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
@@ -767,10 +753,10 @@ function _cmp_api_get_directory_records_router(){
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
         }
-        elseif ($args[2] =='state' && isset($arg[3])){
-            $extra_where[]=' fs.field_state_value LIKE :state';
+        elseif ($args[2] =='state' && isset($args[3])){
+            $extra_where[]=' LOWER(fs.field_state_value) LIKE :state';
             $extra_join[] =' INNER JOIN field_data_field_state fs ON fs.entity_id = n.nid ';
-            $where_param[":state"] = '%'.db_like($arg[3]).'%';
+            $where_param[":state"] = '%'.db_like(strtolower($args[3])).'%';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join, $where_param );
         }
         elseif(is_numeric($args[2])){
@@ -795,7 +781,7 @@ function _cmp_api_get_directory_records_router(){
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null, $extra_where, $extra_join, $where_param, array('id', 'title', 'source_url'), true );
         }
         else{
-            drupal_json_output(array("metadata"=>array("exists"=>false)));
+            drupal_json_output(array("metadata"=>array("exists"=>"kkk")));
         }
     }
     elseif(isset($args[1]) && $args[1] == 'directory_records.json'){
@@ -1004,8 +990,7 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
     }
     if (!empty($query)){
         $join[] = ' INNER JOIN field_data_field_alpha_order_name aon ON aon.entity_id = n.nid ';
-        $add_where[] = ' (n.title LIKE :str)';
-        $add_where[] = ' (aon.field_alpha_order_name_value LIKE :str)';
+        $add_where[] = ' (n.title LIKE :str OR aon.field_alpha_order_name_value LIKE :str)';
         $where_param[":str"] = '%'.db_like($query).'%';
     }
 
@@ -1014,7 +999,7 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
     //print_r($where_param);
     //exit;
     $count = db_query($sql_count, $where_param)->fetchField(0);
-    $pages = round(($count/$page_size), 0, PHP_ROUND_HALF_UP);
+    $pages = ceil($count/$page_size);
 
     $res = db_query($sql, $where_param);
     foreach($res as $r) {
@@ -1165,14 +1150,14 @@ function cmp_api_get_directory_record($n,$cols){
             "city" => $n->field_city['und'][0]['value'],
             "state" => $n->field_state['und'][0]['value'],
             "zip" => $n->field_zip['und'][0]['value'],
-            "summary" => $n->field_description['und'][0]['value'],
+            "summary" => htmlspecialchars($n->field_description['und'][0]['value']),
             "directory_type" => $n->field_directory_type['und'][0]['value'],
             "donated_money" => $n->field_donated_money['und'][0]['value'],
             "government_branch" => $n->field_government_branch['und'][0]['value'],
             "phone_number" => $n->field_phone_number['und'][0]['value'],
             "acronym" => $n->field_acronym['und'][0]['value'],
-            "contact_links" => $n->field_contact_links['und'][0]['value'],
-            "website_links" => $n->field_website_links['und'][0]['value'],
+            "contact_links" => htmlspecialchars($n->field_contact_links['und'][0]['value']),
+            "website_links" => htmlspecialchars($n->field_website_links['und'][0]['value']),
             "created_at" => date("Y-m-dTG:i:s", $n->created),
             "updated_at" => date("Y-m-dTG:i:s", $n->changed),
             "changed_at" => date("Y-m-dTG:i:s", $n->changed),
@@ -1217,7 +1202,7 @@ function cmp_api_get_directory_record($n,$cols){
             $ret['zip'] = $n->field_zip['und'][0]['value'];
         }
         if (in_array('summary',$cols)){
-            $ret['summary'] = $n->field_description['und'][0]['value'];
+            $ret['summary'] = htmlspecialchars($n->field_description['und'][0]['value']);
         }
         if (in_array('directory_type',$cols)){
             $ret['directory_type'] = $n->field_directory_type['und'][0]['value'];
@@ -1235,10 +1220,10 @@ function cmp_api_get_directory_record($n,$cols){
             $ret['acronym'] = $n->field_acronym['und'][0]['value'];
         }
         if (in_array('contact_links',$cols)){
-            $ret['contact_links'] = $n->field_contact_links['und'][0]['value'];
+            $ret['contact_links'] = htmlspecialchars($n->field_contact_links['und'][0]['value']);
         }
         if (in_array('website_links',$cols)){
-            $ret['website_links'] = $n->field_website_links['und'][0]['value'];
+            $ret['website_links'] = htmlspecialchars($n->field_website_links['und'][0]['value']);
         }
         if (in_array('created_at',$cols)){
             $ret['created_at'] = date("Y-m-dTG:i:s", $n->created);
@@ -1316,10 +1301,10 @@ function cmp_api_get_text_asset($n, $cols=null){
         if (empty($cols)) {
             $ret = array("id" => $n->nid,
                 "title" => $n->title,
-                "summary" => $n->field_description['und'][0]['value'],
+                "summary" => htmlspecialchars($n->field_description['und'][0]['value']),
                 "language" => $n->field_language['und'][0]['value'],
-                "html" => $n->body['und'][0]['value'],
-                "contact_center_only" => $n->field_contact_center_info['und'][0]['value'],
+                "html" => htmlspecialchars($n->body['und'][0]['value']),
+                "contact_center_only" => htmlspecialchars($n->field_contact_center_info['und'][0]['value']),
                 "status" => ($n->status ? "Published" : "Draft"),
                 "location" => $location,
                 "for_use_by" => $useby,
@@ -1338,16 +1323,16 @@ function cmp_api_get_text_asset($n, $cols=null){
                 $ret['title'] = $n->title;
             }
             if (in_array('summary', $cols)){
-                $ret['summary'] = $n->field_description['und'][0]['value'];
+                $ret['summary'] = htmlspecialchars($n->field_description['und'][0]['value']);
             }
             if (in_array('language', $cols)){
                 $ret['language'] =$n->field_language['und'][0]['value'];
             }
             if (in_array('html', $cols)){
-                $ret['html'] = $n->body['und'][0]['value'];
+                $ret['html'] = htmlspecialchars($n->body['und'][0]['value']);
             }
             if (in_array('contact_center_only', $cols)){
-                $ret['contact_center_only'] = $n->field_contact_center_info['und'][0]['value'];
+                $ret['contact_center_only'] = htmlspecialchars($n->field_contact_center_info['und'][0]['value']);
             }
             if (in_array('status', $cols)){
                 $ret['status'] = ($n->status ? "Published" : "Draft");
@@ -1387,7 +1372,7 @@ function _sanitzie_path($str) {
         'à'=>'a', 'á'=>'a', 'â'=>'a', 'ã'=>'a', 'ä'=>'a', 'å'=>'a', 'æ'=>'a', 'ç'=>'c', 'è'=>'e', 'é'=>'e',
         'ê'=>'e', 'ë'=>'e', 'ì'=>'i', 'í'=>'i', 'î'=>'i', 'ï'=>'i', 'ð'=>'o', 'ñ'=>'n', 'ò'=>'o', 'ó'=>'o',
         'ô'=>'o', 'õ'=>'o', 'ö'=>'o', 'ø'=>'o', 'ù'=>'u', 'ú'=>'u', 'û'=>'u', 'ý'=>'y', 'ý'=>'y', 'þ'=>'b',
-        'ÿ'=>'y', 'R'=>'R', 'r'=>'r', "'"=>'-', '"'=>'-', '.'=>'-', ','=>'-'
+        'ÿ'=>'y', 'R'=>'R', 'r'=>'r', "'"=>'-', '"'=>'-', '.'=>'-', ','=>'-', '('=>'-', ')'=>'-'
     );
 
     $sanitized = strtr($str, $table);
