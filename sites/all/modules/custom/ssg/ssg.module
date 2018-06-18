@@ -1,0 +1,35 @@
+<?php
+
+/*
+ * Implements HOOK_menu()
+ */
+function ssg_menu() {
+
+    $items = array();
+
+    // Configuration page URL handler
+    $items['admin/ssg/ui'] = array(
+        'title' => 'Static Site Generator Settings',
+        'description' => 'Setup and manage a Static Site Generator',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('_ssg_form'),
+        'access callback' => 'ssg_isAdmin',
+        'type' => MENU_NORMAL_ITEM
+    );
+
+
+    return $items;
+}
+
+function ssg_isAdmin() {
+    global $user;
+    if ( empty($user->uid) ) {
+        return false;
+    } else {
+        return ( intval($user->uid) === 1 ? true : false );
+    }
+}
+
+function _ssg_form (){
+
+}
