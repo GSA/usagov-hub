@@ -44,7 +44,7 @@ hooks_reaction_add(
             unset($form['field_asset_inherit_carousel']);
             unset($form['field_asset_order_carousel']);
             $form['relations']['#weight'] = 12;
-            $form['relations']['weight']['#descriptions']='This field impacts the order of nodes in the taxonomy. Read up on how it works before using. Terms are displayed in ascending order by weight.';
+            $form['relations']['weight']['#description']='This field impacts the order of nodes in the taxonomy. Do not touch without training. Terms are displayed in ascending order by weight.';
             $form['relations']['#description'] = 'Select the parent node for this page.';
             $form['name']['#description']='Page Title as listed on Nav Pages, Menus, etc.';
             $form['description']['#description']= 'This description of the page will appear on Nav Pages and must be Short. This field also supplies the Page Intro on Top Level Nav pages. Character limit: 170';
