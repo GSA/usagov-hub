@@ -234,7 +234,7 @@ function _compileSuperAssetReportToCSV(){
 
         $last_reviewed = get_node_lastReviewedDate(array($node->nid));
         $first_published = db_query("SELECT MIN(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND from_state='scheduled_for_publication' AND state = 'published'")->fetchField(0);
-        $last_published = db_query("SELECT MAX(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND from_state='scheduled_for_publication' AND state = 'published'")->fetchField(0);
+        $last_published = db_query("SELECT MAX(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND state = 'published'")->fetchField(0);
         $node_deleted = db_query("SELECT deletion_timestamp FROM node_deleted WHERE deletion_state = 'soft' AND nid = ".$node->nid )->fetchField(0);
 
         // Prepare to add new row to the report - for this node under this Asset Topic
