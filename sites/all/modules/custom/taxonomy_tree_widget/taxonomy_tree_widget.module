@@ -312,7 +312,7 @@ function _draw_taxo_tree()
                     <div id="tree"></div>
                     <div id="data">
                         <div class="content message" style="text-align:center;"></div>
-                        <div class="content default" style="text-align:center;"><iframe class="data_iframe" id="frame" src="" onload="jQuery(\'#data\').show()" width="100%"></iframe></div>
+                        <div class="content default" style="text-align:center;"><iframe class="data_iframe" id="frame" src="" onload="jQuery(\'#data\').show();tweakIframeCSS();" width="100%"></iframe></div>
                     </div>
                     <div id="loadImage"></div>
                 </div>'

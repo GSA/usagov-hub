@@ -1,22 +1,25 @@
 #treeWrap{
     position: relative;
+    display: flex;
 }
 
 #tree{
-    position: absolute;
-    left: 0;
+    -position: absolute;
+    -left: 0;
     width: 450px;
     overflow: scroll;
     z-index: 1;
     background-color: #fff;
+
 }
 
 #data{
-    display: block;
-    margin-left: 450px;
-    display: none;
+    flex: 1;
     z-index:1;
-    position:relative;
+    -display: block;
+    -margin-left: 450px;
+    -display: none;
+    -position:relative;
 }
 #data .content{
     padding:0px 40px;
