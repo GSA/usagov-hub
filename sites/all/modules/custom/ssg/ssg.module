@@ -97,11 +97,11 @@ function _ssg_run($is_cron=true)
 
     $siteName = (isset($_REQUEST['site']))? $_REQUEST['site'] : 'USA.gov';
 
-    $site = new StaticSiteGenerator($siteName);
+    $site = new \ctac\ssg\StaticSiteGenerator($siteName);
 
     $useCache = false;
 
-   /* if ( $useCache ) {
+    if ( $useCache ) {
         $site->loadDataFromCache();
     } else {
         $site->source->getEntities();
@@ -116,7 +116,7 @@ function _ssg_run($is_cron=true)
     $size=memory_get_peak_usage(true);
     $unit=['b','kb','mb','gb','tb','pb'];
     $tunit=['sec','min','hour'];
-    $time=round($executionEndTime - $executionStartTime, 4);*/
+    $time=round($executionEndTime - $executionStartTime, 4);
 
     if (!$is_cron) {
         drupal_json_output([
