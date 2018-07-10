@@ -93,7 +93,7 @@ function _cmp_api_get_all_entities(){
     $ret = array();
     if (isset($_REQUEST["since"])){
         $where = " WHERE temp.changed > :since ";
-        $where_param = array(":since", $_REQUEST["since"]);
+        $where_param = array(":since"=> $_REQUEST["since"]);
     }
 
     if(isset($_REQUEST["page_size"]) && is_numeric($_REQUEST["page_size"])){
