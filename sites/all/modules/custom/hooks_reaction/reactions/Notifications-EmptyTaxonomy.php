@@ -89,9 +89,6 @@ hooks_reaction_add("HOOK_taxonomy_term_delete",
             $assetsBefore = getAssetsInSiteStructTerm($ssTerm, false, false);
             $assetsAfter = getAssetsInSiteStructTerm($ssTerm, false, false, array($term->tid));
 
-            dsm($assetsBefore);
-            dsm($assetsAfter);
-
             // If this page was empty before, or it still has assets with this action...
             if ( count($assetsBefore) == 0 || count($assetsAfter) > 0 ) {
                 // ...then we dont care about this page
@@ -126,7 +123,7 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
         }
 
         // We only want to send a notifications out when a node become published
-        if ( $new_state !== 'scheduled_for_publication' ) {
+        if ( $new_state !== 'published' ) {
             return;
         }
 

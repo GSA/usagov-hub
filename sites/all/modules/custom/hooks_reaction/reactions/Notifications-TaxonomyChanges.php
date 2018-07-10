@@ -209,7 +209,6 @@ hooks_reaction_add(
         $allAssetsOld = ( is_null($allAssetsOld) ? array() : $allAssetsOld );
         // Check if the assets are being changed
         if (implode(',', $allAssetsNew) !== implode(',', $allAssetsOld)) {
-            //dsm('calling');
             informPmTeamOfPageChange(
                 SS_CHANGE_ASSET,
                 $termNew,
@@ -236,7 +235,7 @@ hooks_reaction_add(
         }
 
         // We only want to send a notifications out when a node become published
-        if ($new_state !== 'scheduled_for_publication') {
+        if ($new_state !== 'published') {
             return;
         }
 
@@ -284,7 +283,6 @@ hooks_reaction_add(
         // Get the topic(s) that just lost, and gained, this asset
         $loosingTopics = array_diff($nodeOldTopics, $nodeNewTopics);
         $gainingTopics = array_diff($nodeNewTopics, $nodeOldTopics);
-
         // Debug reporting
         foreach ($loosingTopics as $loosingTopicId) {
             error_log("Asset-topic {$loosingTopicId} has just lost the association of node {$node->nid}");
@@ -339,7 +337,6 @@ hooks_reaction_add(
 if (!function_exists('getAssetsInSiteStructTerm')) {
     function getAssetsInSiteStructTerm($term, $loadAssets = false, $maintainSections = false, $ignoreTopicIds = array())
     {
-
         $ret = array();
 
         // Get the top-level-term name for this $term
@@ -583,6 +580,15 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
         $msg .= "<ul>";
         foreach ($pageLossTids as $pageLossTid) {
             $ssTerm = taxonomy_term_load($pageLossTid);
+            $ii = 0;
+            foreach($ssTerm->field_asset_order_content['und'] as $nodeId){
+
+                if($nodeId['target_id'] == $node->nid){
+                    unset($ssTerm->field_asset_order_content['und'][$ii]);
+                }
+                $ii++;
+            }
+            taxonomy_term_save($ssTerm);
             $termHref = "https://".$_SERVER['HTTP_HOST']."/taxonomy/term/".$ssTerm->tid."/edit";
             $msg .= "<li>".l($ssTerm->name, $termHref)."</li>";
         }
@@ -609,10 +615,6 @@ function informPmTeamAssetLoss($node, $topicLossTids, $topicGainTids, $pageLossT
     $from = variable_get('site_mail', '');
     $params['from'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . $from . '>');
     $params['headers']['Reply-To'] = trim(mime_header_encode(variable_get('site_name', "CMP USA.gov")) . ' <' . variable_get('site_mail', '') . '>');
-
-    // We check and prevent developer's locals from sending emails here
-    // $prodStageDomains = variable_get('udm_prod_domains', array());
-    // if ( in_array($_SERVER['HTTP_HOST'], $prodStageDomains) ) {
 
         /* Based on the first parameter to drupal_mail(), notifyTaxonomyEmpty_mail() will
         be called and used to determine the email-message to send. */

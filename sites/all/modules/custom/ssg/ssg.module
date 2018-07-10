@@ -1,0 +1,129 @@
+<?php
+
+require_once dirname(__FILE__) . '/usagov-ssg/vendor/autoload.php';
+require_once dirname(__FILE__) . '/usagov-ssg/lib/autoload.php';
+
+/*
+ * Implements HOOK_menu()
+ */
+function ssg_menu() {
+
+    $items = array();
+
+    // Configuration page URL handler
+    $items['admin/ssg/ui'] = array(
+        'title' => 'Static Site Generator Settings',
+        'description' => 'Setup and manage a Static Site Generator',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('_ssg_form'),
+        'access callback' => 'ssg_isAdmin',
+        'type' => MENU_NORMAL_ITEM
+    );
+    $items['ssg/run'] = array(
+        'title'           => 'Run Static Site Generator',
+        'description'     => 'Run Static Site Generator',
+        'page callback'   => '_ssg_run',
+        'page arguments' => array(false),
+        'access callback' => 'ssg_isAdmin',
+        'type'            => MENU_CALLBACK,
+    );
+
+
+    return $items;
+}
+
+function ssg_cronapi(){
+
+    $items['ssg_generate_static_files'] = array(
+        'description' => 'Auto Generating Static files',
+        'rule' => '*/3 * * * *', // Every 3 minutes to give us time to hit 15min target
+        'callback' => '_ssg_run',
+    );
+    return $items;
+}
+function ssg_isAdmin() {
+    global $user;
+    if ( empty($user->uid) ) {
+        return false;
+    } else {
+        return ( intval($user->uid) === 1 ? true : false );
+    }
+}
+
+function _ssg_form (){
+    $form['ssg_site_name'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Site Name',
+        '#default_value' => 'USA.gov',
+        '#description' => 'Site you to generate. EX: USA.gov'
+    );
+
+    $form['ssg_ajax_run_ssg'] = array(
+        '#type' => 'item',
+        '#title' => 'Run Static Site Generator',
+        '#markup' => '
+    <script>
+      function ajax_run_ssg()
+      {
+        jQuery("#ssg_ajax_run_ssg_response").html("loading");
+        jQuery.ajax({
+          url: "/ssg/run?site="+jQuery("#edit-ssg-site-name").value,
+          success:function(data) {
+          console.log(data);
+            status  = " Found Entities:"+ (data.FoundEntities.length >0 ?"<span style=\"color:green\">"+data.FoundEntities+"</span>":"<span style=\"color:red\">bad</span>");
+            status += " Max Memory:"+ (data.MaxMemory.length > 0 ?"<span style=\"color:green\">"+data.MaxMemory+"</span>":"<span style=\"color:red\">bad</span>");
+            status += " Execution Time:"+ (data.ExecutionTime.length >0 ?"<span style=\"color:green\">"+data.ExecutionTime+"</span>":"<span style=\"color:red\">bad</span>");
+            jQuery("#ssg_ajax_run_ssg_response").html(status);
+          },
+          error:function(data) {
+            status  = " server:<span style=\"color:orange\">unknown</span>";
+            jQuery("#ssg_ajax_run_ssg_response").html(status);
+          }
+        });
+      }
+    </script><div class="form-item form-type-button form-item-ssg-ajax-run">
+    <input type="button" onclick="ajax_run_ssg();" value="Run Static Site Generator" class="form-submit"/>
+    <div id="ssg_ajax_run_ssg_response" style="display:inline;"></div></div>'
+    );
+
+    return system_settings_form($form);
+}
+
+
+function _ssg_run($is_cron=true)
+{
+
+    $executionStartTime = microtime(true);
+
+    $siteName = (isset($_REQUEST['site']))? $_REQUEST['site'] : 'USA.gov';
+
+    $site = new \ctac\ssg\StaticSiteGenerator($siteName);
+
+    $useCache = false;
+
+    if ( $useCache ) {
+        $site->loadDataFromCache();
+    } else {
+        $site->source->getEntities();
+        $site->storeDataInCache();
+    }
+
+    $site->buildSiteTreeFromEntities();
+
+    $site->renderer->renderPage($site->homePage);
+    $executionEndTime = microtime(true);
+
+    $size=memory_get_peak_usage(true);
+    $unit=['b','kb','mb','gb','tb','pb'];
+    $tunit=['sec','min','hour'];
+    $time=round($executionEndTime - $executionStartTime, 4);
+
+    if (!$is_cron) {
+        drupal_json_output([
+            'called' => __FUNCTION__,
+            'FoundEntities' => count($site->source->entities),
+            'MaxMemory' => (($size > 1) ? @round($size / pow(1024, ($i = floor(log($size, 1024)))), 2) . ' ' . @$unit[$i] : $size . ' ' . $unit[0]),
+            'ExecutionTime' => (($time > 1) ? @round($time / pow(60, ($i = floor(log($time, 60)))), 2) . ' ' . @$tunit[$i] : $time . ' ' . $tunit[0])
+        ]);
+    }
+}

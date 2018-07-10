@@ -175,7 +175,7 @@ function _prepare_super_att_report() {
         exit('error');
     }
     // Write the CSV headers
-    fwrite($h, '"counter","Title","Parent Title", "Hierarchy Level", "Type", "CMP Edit Link", "Assets-Nodes Associated (cumulative)", "For Use By", "Owner", "Asset Node Id", "Status", "Date Last Reviewed","Language", "Type of Asset",  "Assigned to taxonomy", "Created Date", "Published Date from Ready from publication",  "Most Recent Published Date", "Soft Deleted Date", "# of Asset Topic Taxonomy Appearances","# of pages found","Page URL appears on", "Page URL with Anchor Link", "Site Structure Taxonomy Node ID#", "ATT Title Level 8", "ATT Title Level 7", "ATT Title Level 6", "ATT Title Level 5", "ATT Title Level 4","ATT Title Level 3", "ATT Title Level 2", "ATT Title Level 1", "ATT ID# Level 8", "ATT ID# Level 7", "ATT ID# Level 6", "ATT ID# Level 5", "ATT ID# Level 4", "ATT ID# Level 3", "ATT ID# Level 2", "ATT ID# Level 1"');
+    fwrite($h, '"counter","Title","Parent Title", "Hierarchy Level", "Type", "CMP Edit Link", "Assets-Nodes Associated (cumulative)", "For Use By", "Owner", "Asset Node Id", "Status", "Date Last Reviewed","Language", "Type of Asset",  "Assigned to taxonomy", "Created Date", "Most Recent Published Date", "Soft Deleted Date", "# of Asset Topic Taxonomy Appearances","# of pages found","Page URL appears on", "Page URL with Anchor Link", "Site Structure Taxonomy Node ID#", "ATT Title Level 8", "ATT Title Level 7", "ATT Title Level 6", "ATT Title Level 5", "ATT Title Level 4","ATT Title Level 3", "ATT Title Level 2", "ATT Title Level 1", "ATT ID# Level 8", "ATT ID# Level 7", "ATT ID# Level 6", "ATT ID# Level 5", "ATT ID# Level 4", "ATT ID# Level 3", "ATT ID# Level 2", "ATT ID# Level 1"');
     fwrite($h, "\n");
 
     // Write the CSV content
@@ -234,7 +234,7 @@ function _compileSuperAssetReportToCSV(){
 
         $last_reviewed = get_node_lastReviewedDate(array($node->nid));
         $first_published = db_query("SELECT MIN(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND from_state='scheduled_for_publication' AND state = 'published'")->fetchField(0);
-        $last_published = db_query("SELECT MAX(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND from_state='scheduled_for_publication' AND state = 'published'")->fetchField(0);
+        $last_published = db_query("SELECT MAX(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND state = 'published'")->fetchField(0);
         $node_deleted = db_query("SELECT deletion_timestamp FROM node_deleted WHERE deletion_state = 'soft' AND nid = ".$node->nid )->fetchField(0);
 
         // Prepare to add new row to the report - for this node under this Asset Topic
@@ -350,7 +350,7 @@ function _compileSuperAssetReportToCSV(){
                     'Type of Asset' => tssr_sanitzie(node_type_get_name($node)),
                     'Assigned to taxonomy' => (isset($node->field_asset_topic_taxonomy['und'][0]['tid']) && is_numeric($node->field_asset_topic_taxonomy['und'][0]['tid'])) ? "Yes" : "No",
                     'Created Date' => date("F d, Y", $node->created),
-                    'Published Date from Ready from publication' => (isset($first_published)) ? date("F d, Y", $first_published) : 'NOT SET IN CMP',
+                    //'Published Date from Ready from publication' => (isset($first_published)) ? date("F d, Y", $first_published) : 'NOT SET IN CMP',
                     'Most Recent Published Date' => (isset($last_published)) ? date("F d, Y", $last_published) : 'NOT SET IN CMP',
                     'Soft Deleted Date' => (isset($node_deleted) && !empty($node_deleted)) ? date("F d, Y", $node_deleted) : 'NOT SET IN CMP',
                     '# of Asset Topic Taxonomy Appearances' => count($node->field_asset_topic_taxonomy['und']),
@@ -405,7 +405,7 @@ function _compileSuperAssetReportToCSV(){
                         'Type of Asset' => 'N/A',
                         'Assigned to taxonomy' => 'N/A',
                         'Created Date' => 'N/A',
-                        'Published Date from Ready from publication' => 'N/A',
+                        //'Published Date from Ready from publication' => 'N/A',
                         'Most Recent Published Date' => 'N/A',
                         'Soft Deleted Date' => 'N/A',
                         '# of Asset Topic Taxonomy Appearances' => '',
@@ -626,7 +626,7 @@ function _prepare_att_report() {
         exit('error');
     }
     // Write the CSV headers
-    fwrite($h, '"counter","Asset Node ID number","Title","CMP Edit Link","For Use By","Owner","Status","Date Last Reviewed", "Language", "Type of Asset", "# of pages found", "Assigned to taxonomy", "Created Date", "Published Date from Ready from publication", "Most Recent Published Date", "Soft Deleted Date"');
+    fwrite($h, '"counter","Asset Node ID number","Title","CMP Edit Link","For Use By","Owner","Status","Date Last Reviewed", "Language", "Type of Asset", "# of pages found", "Assigned to taxonomy", "Created Date", "Most Recent Published Date", "Soft Deleted Date"');
     fwrite($h, "\n");
 
     // Write the CSV content
@@ -679,8 +679,8 @@ function _compileAssetTopicTaxonomyReportToCSV() {
         $forUseBy = implode(', ', $forUseBy);
 
         $last_reviewed = get_node_lastReviewedDate(array($node->nid));
-        $first_published = db_query("SELECT MIN(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND from_state='scheduled_for_publication' AND state = 'published'")->fetchField(0);
-        $last_published = db_query("SELECT MAX(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND from_state='scheduled_for_publication' AND state = 'published'")->fetchField(0);
+       // $first_published = db_query("SELECT MIN(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND from_state='scheduled_for_publication' AND state = 'published'")->fetchField(0);
+        $last_published = db_query("SELECT MAX(stamp) FROM workbench_moderation_node_history WHERE nid = ".$node->nid . " AND state = 'published'")->fetchField(0);
         $node_deleted = db_query("SELECT deletion_timestamp FROM node_deleted WHERE deletion_state = 'soft' AND nid = ".$node->nid )->fetchField(0);
 
         $sstids = count_findSiteStructTermsThatReferenceAsset($node->nid);
@@ -700,7 +700,7 @@ function _compileAssetTopicTaxonomyReportToCSV() {
             '# of pages found'=> count($sstids),
             'Assigned to taxonomy'=>(isset($node->field_asset_topic_taxonomy['und'][0]['tid']) && is_numeric($node->field_asset_topic_taxonomy['und'][0]['tid']))? "Yes":"No",
             'Created Date'=>date("F d, Y",$node->created),
-            'Published Date from Ready from publication'=> (isset($first_published))? date("F d, Y", $first_published):'NOT SET IN CMP',
+            //'Published Date from Ready from publication'=> (isset($first_published))? date("F d, Y", $first_published):'NOT SET IN CMP',
             'Most Recent Published Date'=>(isset($last_published))? date("F d, Y", $last_published):'NOT SET IN CMP',
             'Soft Deleted Date'=>(isset($node_deleted) && !empty($node_deleted))? date("F d, Y", $node_deleted):'NOT SET IN CMP',
         );

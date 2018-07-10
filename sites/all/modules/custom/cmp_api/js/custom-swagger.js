@@ -441,6 +441,42 @@
             });
         });
 
+        $('#entities_submit').click(function(){
+            var param = [];
+
+            if($('#entities_page_size').val().length > 0){
+                param.push('page_size='+$('#entities_page_size').val());
+            }
+
+            var param_str = '';
+
+            if(param.length > 0){
+                param_str = '?'+param.join("&");
+            }
+
+            jQuery.ajax({
+                url: "/usaapi/entities"+param_str,
+                dataType: 'json',
+                type: 'GET',
+                success: function (data,status) {
+                    $('.entities_submit').find('.response_throbber').hide();
+                    $('.entities_submit').show();
+                    $('.entities_submit').find('.request_url').html('<pre>'+"/usaapi/entities"+param_str+'</pre>');
+                    $('.entities_submit').find('.response_code').html('<pre>'+200+'</pre>');
+                    $('.entities_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
+                },
+                beforeSend: function ( xhr ) {
+                    $('.entities_submit').find('.response_throbber').show();
+                },
+                error: function () {
+                    $('.entities_submit').find('.response_throbber').hide();
+                    $('.entities_submit').show();
+                    $('.entities_submit').find('.request_url').html('<pre>'+"/usaapi/entities"+param_str+'</pre>');
+                    $('.entities_submit').find('.response_code').html('<pre>'+500+'</pre>');
+                }
+            });
+        });
+
         function formatData(data){
 /*            var tempstr=(JSON.stringify(data, null, "	").replace(/\n/g, "<br>"));
             var res = tempstr.split("<br>");

@@ -81,3 +81,29 @@ jQuery(document).ready(function (){
 
 });
 
+function tweakIframeCSS()
+{
+    var iframe = document.getElementById('frame');
+    var style = document.createElement('style');
+    style.textContent = '\
+        .form-actions {\
+            position: fixed;\
+            bottom: 0;\
+            left: 0;\
+            width: 100%;\
+            background-color: white;\
+            margin: 0px;\
+            padding: 0px;\
+        }\
+        .form-actions input#edit-submit[type="submit"]  {\
+            margin: 14px 0px 0px 14px;\
+        }\
+        .form-actions input#edit-delete[type="submit"],\
+        .form-actions a#edit-cancel {\
+            display: block;\
+            float: right;\
+            margin: 14px 14px 0px 0px;\
+        }\
+    ';
+    iframe.contentDocument.head.appendChild(style);
+}
