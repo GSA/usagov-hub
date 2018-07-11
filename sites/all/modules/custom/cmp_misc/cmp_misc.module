@@ -464,6 +464,7 @@ function cmp_misc_mail_alter(&$message) {
 
     // Telling email recipient which environment the email is coming from if not from Prod
     if(!empty(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')) && getenv('CMP_DRUPAL_ENVIRONMENT_NAME') != 'Prod'){
+        $message['send'] = FALSE;
         $message['subject'] = '[FROM:' . getenv('CMP_DRUPAL_ENVIRONMENT_NAME') . '] ' . $message['subject'];
     }
 
