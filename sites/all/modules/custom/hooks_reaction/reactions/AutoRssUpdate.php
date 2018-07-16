@@ -23,12 +23,16 @@ hooks_reaction_add(
             }
 
             if (in_array('Feature',$ubys)) {
+                $is_USA = false;
+                if (in_array('USA.gov',$ubys)){
+                    $is_USA = true;
+                }
 
                 // to check if feed item is already exist or not
                 $res = db_query("SELECT nid FROM node WHERE title like :title AND type='cmp_feed_item'", array(':title'=>$node->title))->fetchField();
                 if (empty($res)) {
                     // generate cmp feed item and update cmp feed
-                    $feed_item = _generate_cmp_feed_item($node);
+                    $feed_item = _generate_cmp_feed_item($node, $is_USA);
                     _update_cmp_feed($feed_item);
                 }
                 else{
@@ -67,7 +71,7 @@ hooks_reaction_add(
     }
 );
 
-function _generate_cmp_feed_item($text_asset_node){
+function _generate_cmp_feed_item($text_asset_node, $is_USA){
 
     $cmp_feed_item_node = new StdClass();
     $cmp_feed_item_node->type = 'cmp_feed_item';
@@ -79,7 +83,7 @@ function _generate_cmp_feed_item($text_asset_node){
     node_object_prepare($cmp_feed_item_node);
     $cmp_feed_item_node->title = $text_asset_node->title;
     $cmp_feed_item_node->field_for_use_by_text = $text_asset_node->field_for_use_by_text;
-    $cmp_feed_item_node->field_feed_item_link['und'][0]['value'] = 'URLURLURL';
+    $cmp_feed_item_node->field_feed_item_link['und'][0]['value'] = ($is_USA)?'https://www.usa.gov/features/':'https://gobierno.usa.gov/novedades/'._aliasPathHelper_urlFriendlyString($text_asset_node->title);
     $cmp_feed_item_node->field_feed_item_pubdate['und'][0] = array('value'=> date('Y-m-d H:i:s',time()),
         'timezone'=>'America/New_York',
         'timezone_db'=>'UTC',
