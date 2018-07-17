@@ -22,7 +22,7 @@ function cmp_api_menu(){
     );
     $items['usaapi/directory_records.json'] = array(
         'title' => 'USAGov Platform API Interactive Documentation',
-        'page callback' => '_cmp_api_get_directory_records_router',
+        'page callback' => 'da',
         'access callback' => TRUE,
         'type' => MENU_NORMAL_ITEM,
     );
@@ -729,10 +729,24 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
 
     drupal_json_output(array("metadata"=>array("count"=>$count, "page"=>$page, "page_size"=>($page_size > $count? $count:$page_size), "pages"=>$pages),"results"=>$ret));
 }
-function validateDate($date, $format = 'Y-m-d')
+function validateDate($date, $format = 'Y-n-j')
 {
     $d = DateTime::createFromFormat($format, $date);
-    return $d && $d->format($format) == $date;
+    $res = $d && $d->format($format) == $date;
+    if (!$res){
+        $format1 = 'Y-m-d';
+        $d = DateTime::createFromFormat($format1, $date);
+        $res = $d && $d->format($format1) == $date;
+
+        $date = str_replace('T', '', $date);
+        $date = str_replace('.000Z','', $date);
+        if (!$res){
+            $format2 = 'Y-m-dH:i:s';
+            $d = DateTime::createFromFormat($format2, $date);
+            $res = $d && $d->format($format2) == $date;
+        }
+    }
+    return $res;
 }
 function _cmp_api_get_directory_records_router(){
     $args = arg();
