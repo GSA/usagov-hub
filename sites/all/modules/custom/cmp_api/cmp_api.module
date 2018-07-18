@@ -1176,9 +1176,9 @@ function cmp_api_get_directory_record($n,$cols){
             "acronym" => $n->field_acronym['und'][0]['value'],
             "contact_links" => htmlspecialchars($n->field_contact_links['und'][0]['value']),
             "website_links" => htmlspecialchars($n->field_website_links['und'][0]['value']),
-            "created_at" => date("Y-m-dTG:i:s", $n->created),
-            "updated_at" => date("Y-m-dTG:i:s", $n->changed),
-            "changed_at" => date("Y-m-dTG:i:s", $n->changed),
+            "created_at" => date("Y-m-d G:i:s", $n->created),
+            "updated_at" => date("Y-m-d G:i:s", $n->changed),
+            "changed_at" => date("Y-m-d G:i:s", $n->changed),
             "parent" => $parent,
             "children" => $children
         );
@@ -1217,7 +1217,7 @@ function cmp_api_get_directory_record($n,$cols){
             $ret['state'] = $n->field_state['und'][0]['value'];
         }
         if (in_array('zip',$cols)){
-            $ret['zip'] = $n->field_zip['und'][0]['value'];
+            $ret['zip'] = (int)$n->field_zip['und'][0]['value'];
         }
         if (in_array('summary',$cols)){
             $ret['summary'] = htmlspecialchars($n->field_description['und'][0]['value']);
@@ -1244,13 +1244,13 @@ function cmp_api_get_directory_record($n,$cols){
             $ret['website_links'] = htmlspecialchars($n->field_website_links['und'][0]['value']);
         }
         if (in_array('created_at',$cols)){
-            $ret['created_at'] = date("Y-m-dTG:i:s", $n->created);
+            $ret['created_at'] = date("Y-m-d G:i:s", $n->created);
         }
         if (in_array('updated_at',$cols)){
-            $ret['updated_at'] = date("Y-m-dTG:i:s", $n->changed);
+            $ret['updated_at'] = date("Y-m-d G:i:s", $n->changed);
         }
         if (in_array('changed_at',$cols)){
-            $ret['changed_at'] = date("Y-m-dTG:i:s", $n->changed);
+            $ret['changed_at'] = date("Y-m-d G:i:s", $n->changed);
         }
         if (in_array('parent',$cols)){
             $ret['parent'] = $parent;
@@ -1328,9 +1328,9 @@ function cmp_api_get_text_asset($n, $cols=null){
                 "for_use_by" => $useby,
                 "tags" => $tags,
                 "topics" => $topics,
-                "created_at" => date("Y-m-dTG:i:s", $n->created),
-                "updated_at" => date("Y-m-dTG:i:s", $n->changed),
-                "changed_at" => date("Y-m-dTG:i:s", $n->changed)
+                "created_at" => date("Y-m-d G:i:s", $n->created),
+                "updated_at" => date("Y-m-d G:i:s", $n->changed),
+                "changed_at" => date("Y-m-d G:i:s", $n->changed)
             );
         }
         else{
@@ -1368,13 +1368,13 @@ function cmp_api_get_text_asset($n, $cols=null){
                 $ret['topics'] = $topics;
             }
             if (in_array('created_at', $cols)){
-                $ret['created_at'] = date("Y-m-dTG:i:s", $n->created);
+                $ret['created_at'] = date("Y-m-d G:i:s", $n->created);
             }
             if (in_array('updated_at', $cols)){
-                $ret['updated_at'] = date("Y-m-dTG:i:s", $n->changed);
+                $ret['updated_at'] = date("Y-m-d G:i:s", $n->changed);
             }
             if (in_array('changed_at', $cols)){
-                $ret['changed_at'] = date("Y-m-dTG:i:s", $n->changed);
+                $ret['changed_at'] = date("Y-m-d G:i:s", $n->changed);
             }
         }
 
