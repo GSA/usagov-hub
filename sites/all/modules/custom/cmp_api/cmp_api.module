@@ -727,7 +727,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
         $ret[] =cmp_api_get_text_asset($n, $cols);
     }
 
-    drupal_json_output(array("metadata"=>array("count"=>$count, "page"=>$page, "page_size"=>($page_size > $count? $count:$page_size), "pages"=>$pages),"results"=>$ret));
+    drupal_json_output(array("metadata"=>array("count"=>(int)$count, "page"=>$page, "page_size"=>($page_size > $count? $count:$page_size), "pages"=>$pages),"results"=>$ret));
 }
 function validateDate($date, $format = 'Y-n-j')
 {
@@ -1034,7 +1034,7 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
         drupal_json_output(array("metadata" => array("exists" => true), "result" => $ret));
     }
     elseif (!$all_result) {
-        drupal_json_output(array("metadata" => array("count" => $count, "page" => $page, "page_size" => ($page_size > $count? $count:$page_size), "pages" => $pages), "results" => $ret));
+        drupal_json_output(array("metadata" => array("count" => (int)$count, "page" => $page, "page_size" => ($page_size > $count? $count:$page_size), "pages" => $pages), "results" => $ret));
     }
 
     else {
@@ -1157,7 +1157,7 @@ function cmp_api_get_directory_record($n,$cols){
 
 
     if (empty($cols)) {
-        $ret = array("id" => $n->nid,
+        $ret = array("id" =>(int) $n->nid,
             "title" => $n->title,
             "source_url" => $site . $source_url,
             "language" => $n->field_language['und'][0]['value'],
@@ -1187,7 +1187,7 @@ function cmp_api_get_directory_record($n,$cols){
 
         $ret = [];
         if (in_array('id',$cols)){
-            $ret['id'] = $n->nid;
+            $ret['id'] = (int)$n->nid;
         }
         if (in_array('title',$cols)){
             $ret['title'] = $n->title;
@@ -1317,7 +1317,7 @@ function cmp_api_get_text_asset($n, $cols=null){
         }
 
         if (empty($cols)) {
-            $ret = array("id" => $n->nid,
+            $ret = array("id" => (int)$n->nid,
                 "title" => $n->title,
                 "summary" => htmlspecialchars($n->field_description['und'][0]['value']),
                 "language" => $n->field_language['und'][0]['value'],
@@ -1335,7 +1335,7 @@ function cmp_api_get_text_asset($n, $cols=null){
         }
         else{
             if (in_array('id', $cols)){
-                $ret['id'] = $n->nid;
+                $ret['id'] = (int) $n->nid;
             }
             if (in_array('title', $cols)){
                 $ret['title'] = $n->title;
