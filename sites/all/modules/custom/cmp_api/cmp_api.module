@@ -429,8 +429,9 @@ function _cmp_api_add_s3_urls( &$node )
     }
 }
 function _cmp_api_get_text_asset_by_id(){
-    $nid=arg(2);
-    if(isset($nid)) {
+    $nidjson=arg(2);
+    if(isset($nidjson)) {
+        $nid = str_replace(".json","",$nidjson);
         $n = node_load($nid);
         if (!empty($n)) {
             $ret = cmp_api_get_text_asset($n);
