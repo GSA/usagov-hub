@@ -161,7 +161,7 @@ function _cmp_api_get_all_entities(){
         }
     }
 
-    drupal_json_output(array("metadata" => array("count"=>$count, "offset"=>$page, "page_size"=>($page_size > $count? $count:$page_size), "pages"=>$pages),"result" => $ret));
+    drupal_json_output(array("metadata" => array("count"=>$count, "offset"=>$page, "page_size"=>(int)($page_size > $count? $count:$page_size), "pages"=>$pages),"result" => $ret));
 }
 function _cmp_api_add_for_use_by( &$term )
 {
@@ -727,7 +727,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
         $ret[] =cmp_api_get_text_asset($n, $cols);
     }
 
-    drupal_json_output(array("metadata"=>array("count"=>(int)$count, "page"=>$page, "page_size"=>($page_size > $count? $count:$page_size), "pages"=>$pages),"results"=>$ret));
+    drupal_json_output(array("metadata"=>array("count"=>(int)$count, "page"=>$page, "page_size"=>(int)($page_size > $count? $count:$page_size), "pages"=>$pages),"results"=>$ret));
 }
 function validateDate($date, $format = 'Y-n-j')
 {
@@ -1034,7 +1034,7 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
         drupal_json_output(array("metadata" => array("exists" => true), "result" => $ret));
     }
     elseif (!$all_result) {
-        drupal_json_output(array("metadata" => array("count" => (int)$count, "page" => $page, "page_size" => ($page_size > $count? $count:$page_size), "pages" => $pages), "results" => $ret));
+        drupal_json_output(array("metadata" => array("count" => (int)$count, "page" => $page, "page_size" => (int)($page_size > $count? $count:$page_size), "pages" => $pages), "results" => $ret));
     }
 
     else {
@@ -1047,7 +1047,7 @@ function cmp_api_get_directory_record($n,$cols){
     $cached_terms=array();
     $useby = array();
     foreach($n->field_for_use_by_text['und'] as $uby){
-        $useby[] = $uby;
+        $useby[] = $uby['value'];
     }
 
     if ($n->field_language['und'][0]['value'] == 'Spanish'){
@@ -1270,7 +1270,7 @@ function cmp_api_get_text_asset($n, $cols=null){
         $topics = array();
         $location = array();
         foreach($n->field_for_use_by_text['und'] as $uby){
-            $useby[] = $uby;
+            $useby[] = $uby['value'];
         }
 
         foreach($n->field_asset_topic_taxonomy['und'] as $att){
