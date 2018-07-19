@@ -1262,8 +1262,14 @@ function cmp_api_get_directory_record($n,$cols){
 
     return $ret;
 }
+
+function _get_term_parents(){
+
+}
+
 function cmp_api_get_text_asset($n, $cols=null){
     $ret = array();
+
     $cached_terms=array();
         $useby = array();
         $tags = array();
@@ -1274,15 +1280,9 @@ function cmp_api_get_text_asset($n, $cols=null){
         }
 
         foreach($n->field_asset_topic_taxonomy['und'] as $att){
-            if (array_key_exists($att['tid'],$cached_terms)) {
-                $topics[] = $cached_terms[$att['tid']];
-            }
-            else {
-                $r = db_query("SELECT name FROM taxonomy_term_data WHERE tid =:tid", array(":tid" => $att['tid']));
-                foreach ($r as $term) {
-                    $topics[] = $term->name;
-                    $cached_terms[$att['tid']] =$term->name;
-                }
+            $term_parents = taxonomy_get_parents_all($att['tid']);
+            foreach($term_parents as $ttt){
+                $topics[] = $ttt->name;
             }
         }
 
