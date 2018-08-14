@@ -88,11 +88,11 @@ function _cmp_api_get_all_redirects(){
 function _cmp_api_get_all_entities(){
     $page =0;
     $page_size=10;
-    $where = '';
+    $where ='';
     $where_param = array();
     $ret = array();
     if (isset($_REQUEST["since"])){
-        $where = " WHERE temp.changed > :since ";
+        $where = "WHERE temp.changed > :since ";
         $where_param = array(":since"=> $_REQUEST["since"]);
     }
 
@@ -100,7 +100,7 @@ function _cmp_api_get_all_entities(){
         $page_size = $_REQUEST["page_size"];
     }
 
-    $sql_count = "SELECT COUNT(*) FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n
+    $sql_count = "SELECT COUNT(*) FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n WHERE n.status=1
     UNION
     SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t INNER JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'');
     $count = db_query($sql_count, $where_param)->fetchField(0);
@@ -110,7 +110,7 @@ function _cmp_api_get_all_entities(){
         $page = $_REQUEST["page"] * $page_size;
     }
 
-    $sql = "SELECT * FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n
+    $sql = "SELECT * FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n WHERE n.status=1
     UNION
     SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t INNER JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC LIMIT ".$page_size .' OFFSET '.$page ;
     $res = db_query($sql, $where_param);
