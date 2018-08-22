@@ -22,7 +22,7 @@ function cmp_api_menu(){
     );
     $items['usaapi/directory_records.json'] = array(
         'title' => 'USAGov Platform API Interactive Documentation',
-        'page callback' => '_cmp_api_get_directory_records_router',
+        'page callback' => 'da',
         'access callback' => TRUE,
         'type' => MENU_NORMAL_ITEM,
     );
@@ -88,19 +88,19 @@ function _cmp_api_get_all_redirects(){
 function _cmp_api_get_all_entities(){
     $page =0;
     $page_size=10;
-    $where = '';
+    $where ='';
     $where_param = array();
     $ret = array();
     if (isset($_REQUEST["since"])){
-        $where = " WHERE temp.changed > :since ";
-        $where_param = array(":since", $_REQUEST["since"]);
+        $where = "WHERE temp.changed > :since ";
+        $where_param = array(":since"=> $_REQUEST["since"]);
     }
 
     if(isset($_REQUEST["page_size"]) && is_numeric($_REQUEST["page_size"])){
         $page_size = $_REQUEST["page_size"];
     }
 
-    $sql_count = "SELECT COUNT(*) FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n
+    $sql_count = "SELECT COUNT(*) FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n WHERE n.status=1 AND n.nid NOT IN (SELECT nid FROM node_deleted)
     UNION
     SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t INNER JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'');
     $count = db_query($sql_count, $where_param)->fetchField(0);
@@ -110,7 +110,7 @@ function _cmp_api_get_all_entities(){
         $page = $_REQUEST["page"] * $page_size;
     }
 
-    $sql = "SELECT * FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n
+    $sql = "SELECT * FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n WHERE n.status=1 AND n.nid NOT IN (SELECT nid FROM node_deleted)
     UNION
     SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t INNER JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC LIMIT ".$page_size .' OFFSET '.$page ;
     $res = db_query($sql, $where_param);
@@ -161,7 +161,7 @@ function _cmp_api_get_all_entities(){
         }
     }
 
-    drupal_json_output(array("metadata" => array("count"=>$count, "offset"=>$page, "page_size"=>($page_size > $count? $count:$page_size), "pages"=>$pages),"result" => $ret));
+    drupal_json_output(array("metadata" => array("count"=>$count, "offset"=>$page, "page_size"=>(int)($page_size > $count? $count:$page_size), "pages"=>$pages),"result" => $ret));
 }
 function _cmp_api_add_for_use_by( &$term )
 {
@@ -429,8 +429,9 @@ function _cmp_api_add_s3_urls( &$node )
     }
 }
 function _cmp_api_get_text_asset_by_id(){
-    $nid=arg(2);
-    if(isset($nid)) {
+    $nidjson=arg(2);
+    if(isset($nidjson)) {
+        $nid = str_replace(".json","",$nidjson);
         $n = node_load($nid);
         if (!empty($n)) {
             $ret = cmp_api_get_text_asset($n);
@@ -667,8 +668,9 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
             }
         }
     }
-
+    $add_where[] = ' n.nid NOT IN (SELECT nid FROM node_deleted) ';
     $add_where[] = "n.type = 'text_content_type'";
+    $add_where[] = "n.status = 1";
     if (!empty($extra_where)){
         $add_where = array_merge($add_where, $extra_where);
     }
@@ -715,7 +717,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
 
 
     $sql_count = "SELECT count(*) FROM node n ".join(' ',$join)." WHERE ".join(' AND ', $add_where);
-    $sql = "SELECT * FROM node n ".join(' ',$join)." WHERE  ".join(' AND ', $add_where)." LIMIT ".$page_size .' OFFSET '.$page ;
+    $sql = "SELECT * FROM node n ".join(' ',$join)." WHERE ".join(' AND ', $add_where)." LIMIT ".$page_size .' OFFSET '.$page ;
 
     $count = db_query($sql_count, $where_param)->fetchField(0);
     $pages = ceil($count/$page_size);
@@ -726,12 +728,26 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
         $ret[] =cmp_api_get_text_asset($n, $cols);
     }
 
-    drupal_json_output(array("metadata"=>array("count"=>$count, "page"=>$page, "page_size"=>($page_size > $count? $count:$page_size), "pages"=>$pages),"results"=>$ret));
+    drupal_json_output(array("metadata"=>array("count"=>(int)$count, "page"=>$page, "page_size"=>(int)($page_size > $count? $count:$page_size), "pages"=>$pages),"results"=>$ret));
 }
-function validateDate($date, $format = 'Y-m-d')
+function validateDate($date, $format = 'Y-n-j')
 {
     $d = DateTime::createFromFormat($format, $date);
-    return $d && $d->format($format) == $date;
+    $res = $d && $d->format($format) == $date;
+    if (!$res){
+        $format1 = 'Y-m-d';
+        $d = DateTime::createFromFormat($format1, $date);
+        $res = $d && $d->format($format1) == $date;
+
+        $date = str_replace('T', '', $date);
+        $date = str_replace('.000Z','', $date);
+        if (!$res){
+            $format2 = 'Y-m-dH:i:s';
+            $d = DateTime::createFromFormat($format2, $date);
+            $res = $d && $d->format($format2) == $date;
+        }
+    }
+    return $res;
 }
 function _cmp_api_get_directory_records_router(){
     $args = arg();
@@ -950,6 +966,9 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
     }
 
     $add_where[] = "n.type = 'directory_record_content_type'";
+    $add_where[] = "n.status = 1";
+    $add_where[] = "n.nid NOT IN (SELECT nid FROM node_deleted)";
+
     if (!empty($extra_where)){
         $add_where = array_merge($add_where, $extra_where);
     }
@@ -1016,7 +1035,7 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
         drupal_json_output(array("metadata" => array("exists" => true), "result" => $ret));
     }
     elseif (!$all_result) {
-        drupal_json_output(array("metadata" => array("count" => $count, "page" => $page, "page_size" => ($page_size > $count? $count:$page_size), "pages" => $pages), "results" => $ret));
+        drupal_json_output(array("metadata" => array("count" => (int)$count, "page" => $page, "page_size" => (int)($page_size > $count? $count:$page_size), "pages" => $pages), "results" => $ret));
     }
 
     else {
@@ -1029,7 +1048,7 @@ function cmp_api_get_directory_record($n,$cols){
     $cached_terms=array();
     $useby = array();
     foreach($n->field_for_use_by_text['und'] as $uby){
-        $useby[] = $uby;
+        $useby[] = $uby['value'];
     }
 
     if ($n->field_language['und'][0]['value'] == 'Spanish'){
@@ -1139,7 +1158,7 @@ function cmp_api_get_directory_record($n,$cols){
 
 
     if (empty($cols)) {
-        $ret = array("id" => $n->nid,
+        $ret = array("id" =>(int) $n->nid,
             "title" => $n->title,
             "source_url" => $site . $source_url,
             "language" => $n->field_language['und'][0]['value'],
@@ -1158,9 +1177,9 @@ function cmp_api_get_directory_record($n,$cols){
             "acronym" => $n->field_acronym['und'][0]['value'],
             "contact_links" => htmlspecialchars($n->field_contact_links['und'][0]['value']),
             "website_links" => htmlspecialchars($n->field_website_links['und'][0]['value']),
-            "created_at" => date("Y-m-dTG:i:s", $n->created),
-            "updated_at" => date("Y-m-dTG:i:s", $n->changed),
-            "changed_at" => date("Y-m-dTG:i:s", $n->changed),
+            "created_at" => date("Y-m-d", $n->created).'T'.date("G:i:s.000",$n->created)."Z",
+            "updated_at" => date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z",
+            "changed_at" => date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z",
             "parent" => $parent,
             "children" => $children
         );
@@ -1169,7 +1188,7 @@ function cmp_api_get_directory_record($n,$cols){
 
         $ret = [];
         if (in_array('id',$cols)){
-            $ret['id'] = $n->nid;
+            $ret['id'] = (int)$n->nid;
         }
         if (in_array('title',$cols)){
             $ret['title'] = $n->title;
@@ -1199,7 +1218,7 @@ function cmp_api_get_directory_record($n,$cols){
             $ret['state'] = $n->field_state['und'][0]['value'];
         }
         if (in_array('zip',$cols)){
-            $ret['zip'] = $n->field_zip['und'][0]['value'];
+            $ret['zip'] = (int)$n->field_zip['und'][0]['value'];
         }
         if (in_array('summary',$cols)){
             $ret['summary'] = htmlspecialchars($n->field_description['und'][0]['value']);
@@ -1226,13 +1245,13 @@ function cmp_api_get_directory_record($n,$cols){
             $ret['website_links'] = htmlspecialchars($n->field_website_links['und'][0]['value']);
         }
         if (in_array('created_at',$cols)){
-            $ret['created_at'] = date("Y-m-dTG:i:s", $n->created);
+            $ret['created_at'] = date("Y-m-d", $n->created).'T'.date("G:i:s.000",$n->created)."Z";
         }
         if (in_array('updated_at',$cols)){
-            $ret['updated_at'] = date("Y-m-dTG:i:s", $n->changed);
+            $ret['updated_at'] =date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z";
         }
         if (in_array('changed_at',$cols)){
-            $ret['changed_at'] = date("Y-m-dTG:i:s", $n->changed);
+            $ret['changed_at'] = date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z";
         }
         if (in_array('parent',$cols)){
             $ret['parent'] = $parent;
@@ -1244,27 +1263,27 @@ function cmp_api_get_directory_record($n,$cols){
 
     return $ret;
 }
+
+function _get_term_parents(){
+
+}
+
 function cmp_api_get_text_asset($n, $cols=null){
     $ret = array();
+
     $cached_terms=array();
         $useby = array();
         $tags = array();
         $topics = array();
         $location = array();
         foreach($n->field_for_use_by_text['und'] as $uby){
-            $useby[] = $uby;
+            $useby[] = $uby['value'];
         }
 
         foreach($n->field_asset_topic_taxonomy['und'] as $att){
-            if (array_key_exists($att['tid'],$cached_terms)) {
-                $topics[] = $cached_terms[$att['tid']];
-            }
-            else {
-                $r = db_query("SELECT name FROM taxonomy_term_data WHERE tid =:tid", array(":tid" => $att['tid']));
-                foreach ($r as $term) {
-                    $topics[] = $term->name;
-                    $cached_terms[$att['tid']] =$term->name;
-                }
+            $term_parents = taxonomy_get_parents_all($att['tid']);
+            foreach($term_parents as $ttt){
+                $topics[] = $ttt->name;
             }
         }
 
@@ -1299,7 +1318,7 @@ function cmp_api_get_text_asset($n, $cols=null){
         }
 
         if (empty($cols)) {
-            $ret = array("id" => $n->nid,
+            $ret = array("id" => (int)$n->nid,
                 "title" => $n->title,
                 "summary" => htmlspecialchars($n->field_description['und'][0]['value']),
                 "language" => $n->field_language['und'][0]['value'],
@@ -1310,14 +1329,14 @@ function cmp_api_get_text_asset($n, $cols=null){
                 "for_use_by" => $useby,
                 "tags" => $tags,
                 "topics" => $topics,
-                "created_at" => date("Y-m-dTG:i:s", $n->created),
-                "updated_at" => date("Y-m-dTG:i:s", $n->changed),
-                "changed_at" => date("Y-m-dTG:i:s", $n->changed)
+                "created_at" => date("Y-m-d", $n->created).'T'.date("G:i:s.000",$n->created)."Z",
+                "updated_at" => date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z",
+                "changed_at" => date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z"
             );
         }
         else{
             if (in_array('id', $cols)){
-                $ret['id'] = $n->nid;
+                $ret['id'] = (int) $n->nid;
             }
             if (in_array('title', $cols)){
                 $ret['title'] = $n->title;
@@ -1350,13 +1369,13 @@ function cmp_api_get_text_asset($n, $cols=null){
                 $ret['topics'] = $topics;
             }
             if (in_array('created_at', $cols)){
-                $ret['created_at'] = date("Y-m-dTG:i:s", $n->created);
+                $ret['created_at'] = date("Y-m-d", $n->created).'T'.date("G:i:s.000",$n->created)."Z";
             }
             if (in_array('updated_at', $cols)){
-                $ret['updated_at'] = date("Y-m-dTG:i:s", $n->changed);
+                $ret['updated_at'] = date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z";
             }
             if (in_array('changed_at', $cols)){
-                $ret['changed_at'] = date("Y-m-dTG:i:s", $n->changed);
+                $ret['changed_at'] = date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z";
             }
         }
 
