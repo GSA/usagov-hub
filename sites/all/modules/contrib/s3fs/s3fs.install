@@ -347,23 +347,35 @@ function s3fs_update_7202() {
  * Replace the s3fs_use_instance_profile variable with s3fs_awssdk2_use_instance_profile.
  */
 function s3fs_update_7203() {
-  $old_var = variable_get('s3fs_use_instance_profile', 'unset');
-  if ($old_var !== 'unset') {
+  $old_var = variable_get('s3fs_use_instance_profile', '');
+  if ($old_var !== '') {
     variable_del('s3fs_use_instance_profile');
   }
   variable_set('s3fs_awssdk2_use_instance_profile', $old_var);
 }
 
 /**
- * Fix the bug in the previous update hook.
+ * Fix the bug in the previous update.
  */
 function s3fs_update_7204() {
-  # The previous hook blindly set the s3fs_awssdk2_use_instance_profile variable to 'unset' if
+  # s3fs_update_7204() previously set the s3fs_awssdk2_use_instance_profile variable to 'unset' if
   # the previous version of the variable wasn't set. This is disastrous, as 'unset' equates to boolean true.
+  # The problem has been fixed in the hook, but for anyone who updated s3fs before this new hook was written
+  # will have gotten the wrong value stored into their s3fs_awssdk2_use_instance_profile variable.
   $var = variable_get('s3fs_awssdk2_use_instance_profile');
   if ($var == 'unset') {
     variable_del('s3fs_awssdk2_use_instance_profile');
   }
+}
+
+/**
+* Adds the option to enable/disable querying of Versioned files
+* during the _s3fs_reset_media_cache() Action
+*/
+function s3fs_update_7205() {
+  # Sets the boolean flag of use_versioning to the default value of TRUE
+  # This will ensure that Versioning is set to default on module installation and enabling
+  variable_set('s3fs_use_versioning', TRUE);
 }
 
 

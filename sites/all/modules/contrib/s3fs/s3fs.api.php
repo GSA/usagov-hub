@@ -25,12 +25,12 @@
  *     - 'presigned_url': (boolean) Triggers use of an authenticated URL.
  *     - 'timeout': (int) Time in seconds before a pre-signed URL times out.
  *     - 'api_args': array of additional arguments to the getObject() function:
- *       http://docs.aws.amazon.com/aws-sdk-php/latest/class-Aws.S3.S3Client.html#_getObject
+ *       http://docs.aws.amazon.com/aws-sdk-php/v2/class-Aws.S3.S3Client.html#_getObject
  *     - 'custom_GET_args': (array) Implementing this hook allows you to add
  *       your own set of custom GET arguments to the S3 URLs of your files.
  *       If your custom args' keys start with "x-", S3 will ignore them, but
  *       still log them:
- *       http://docs.aws.amazon.com/AmazonS3/latest/dev/LogFormat.html#LogFormatCustom
+ *       http://docs.aws.amazon.com/AmazonS3/v2/dev/LogFormat.html#LogFormatCustom
  *
  * @param string $s3_file_path
  *   The path to the file within your S3 bucket. This includes the prefixes
@@ -57,9 +57,10 @@ function hook_s3fs_url_settings_alter(&$url_settings, $s3_file_path) {
  *
  * @param array $upload_params
  *   Associative array of upload settings
- * @see http://docs.aws.amazon.com/aws-sdk-php/latest/class-Aws.S3.S3Client.html#_putObject
+ * @see http://docs.aws.amazon.com/aws-sdk-php/v2/class-Aws.S3.S3Client.html#_putObject
 */
 function hook_s3fs_upload_params_alter(&$upload_params) {
+  // An example of what you might want to do with this hook.
   if (strpos($upload_params['Key'], 'private/') !== FALSE) {
     $upload_params['ACL'] = 'private';
   }
