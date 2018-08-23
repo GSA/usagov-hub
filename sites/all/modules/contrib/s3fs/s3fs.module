@@ -300,9 +300,15 @@ function _s3fs_validate_config($config) {
 
   // Test the connection to S3, and the bucket name.
   try {
+    $list_obj_args = array('Bucket' => $config['bucket'], 'MaxKeys' => 1);
+    if (!empty($config['root_folder'])) {
+      // If the root_folder option has been set, retrieve from S3 only those files
+      // which reside in the root folder.
+      $list_obj_args['Prefix'] = "{$config['root_folder']}/";
+    }
     // listObjects() will trigger descriptive exceptions if the credentials,
     // bucket name, or region are invalid/mismatched.
-    $s3->listObjects(array('Bucket' => $config['bucket'], 'MaxKeys' => 1));
+    $s3->listObjects($list_obj_args);
   }
   catch (Aws\S3\Exception\InvalidAccessKeyIdException $e) {
     form_set_error('s3fs_awssdk2_access_key', t('The Access Key in your AWS credentials is invalid.'));
@@ -361,7 +367,15 @@ function _s3fs_refresh_cache($config) {
     // which reside in the root folder.
     $iterator_args['Prefix'] = "{$config['root_folder']}/";
   }
-  $iterator = $s3->getListObjectVersionsIterator($iterator_args);
+
+  // Determine if object versions should be included/excluded
+  // as part of the ListObjects query
+  if (_s3fs_get_setting('use_versioning')) {
+    $iterator = $s3->getIterator('ListObjectVersions', $iterator_args);
+  } else {
+    $iterator = $s3->getIterator('ListObjects', $iterator_args);
+  }
+  
   // NOTE: Setting the maximum page size lower than 1000 will have no effect,
   // as stated by the API docs.
   $iterator->setPageSize(1000);
@@ -495,9 +509,8 @@ function _s3fs_refresh_cache($config) {
   _s3fs_write_metadata($file_metadata_list, $folders);
 
   // Write folders.
-  $query = db_select('s3fs_folder_temp');
-  $query->fields('s3fs_folder_temp')
-    ->groupBy('uri');
+  $query = db_select('s3fs_folder_temp')->distinct();
+  $query->fields('s3fs_folder_temp');
   $folder_counter = 0;
 
   $result = $query->execute();
@@ -650,7 +663,7 @@ function _s3fs_convert_metadata($uri, $s3_metadata) {
       $metadata['timestamp'] = date('U', strtotime($s3_metadata['LastModified']));
     }
 
-    if (isset($s3_metadata['VersionId'])) {
+    if (isset($s3_metadata['VersionId']) && $s3_metadata['VersionId'] != 'null') {
       $metadata['version'] = $s3_metadata['VersionId'];
     }
   }
@@ -865,7 +878,6 @@ function _s3fs_load_awssdk2_library() {
  */
 function _s3fs_copy_file_system_to_s3($scheme) {
   $config = _s3fs_get_config();
-  $s3 = _s3fs_get_amazons3_client($config);
 
   if ($scheme == 'public') {
     $source_folder = realpath(variable_get('file_public_path', conf_path() . '/files'));
