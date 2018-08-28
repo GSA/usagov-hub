@@ -57,7 +57,7 @@ function s3fs_settings() {
   );
 
   $form['aws_credentials']['s3fs_awssdk2_secret_key'] = array(
-    '#type'          => 'textfield',
+    '#type'          => 'password',
     '#title'         => t('Amazon Web Services Secret Key'),
     '#default_value' => _s3fs_get_setting('awssdk2_secret_key'),
   );
@@ -76,7 +76,7 @@ function s3fs_settings() {
     '#type'          => 'textfield',
     '#title'         => t('Default Cache Location'),
     '#default_value' => _s3fs_get_setting('awssdk2_default_cache_config'),
-    '#description'   => t('The default location to which your EC2 Instance Profile Credentials should be cached.
+    '#description'   => t('The default folder in which your EC2 Instance Profile Credentials should be cached.
       This must be a path to a folder in which the webserver can read and write.'),
     '#states'        => array(
       'visible' => array(
@@ -146,6 +146,17 @@ function s3fs_settings() {
         "You will need to configure a DNS CNAME that maps from this domain to your bucket's URL."
       ),
     ),
+    's3fs_domain_s3_private' => array(
+      '#type'          => 'checkbox',
+      '#title'         => t('Remove access to files via S3 URL'),
+      '#default_value' => _s3fs_get_setting('domain_s3_private'),
+      '#description'   => t("If using a domain name to serve files, there is usually no need to provide " .
+        "access to the URLs shown on S3 objects. This can also be a cost concern, since accessing files from S3 " .
+        "is more expensive than edge services such as Cloudfront. Select this checkbox to remove access to files " .
+        "using the S3 URL. Users attempting to reach the S3 URL will receive an \"Access Denied\" message. Note: " .
+        "This option has no impact on previously uploaded files."
+      ),
+    ),
   );
 
   $form['advanced']['s3fs_use_customhost'] = array(
@@ -185,6 +196,16 @@ function s3fs_settings() {
       This may be undersirable for sites which use a CDN, so this checkbox was added to make S3FS upload
       the derivative to the client, instead. Doing so is less performant, but it allows the CDN to cache
       the file itself, instead of caching the redirect.'
+    ),
+  );
+
+  $form['advanced']['s3fs_use_versioning'] = array(
+    '#type'             => 'checkbox',
+    '#title'            =>  t('Use Bucket Versioning'),
+    '#default_value'    => _s3fs_get_setting('use_versioning'),
+    '#description'      => t(
+        'If your Bucket has Versioning enabled and you would like to store the version metadata 
+        in the s3fs_file table'
     ),
   );
 

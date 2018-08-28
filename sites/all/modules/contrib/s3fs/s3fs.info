@@ -17,9 +17,8 @@ files[] = tests/s3fs.test
 ; If you decide to run the tests, you'll need this patch for simpletest_clone:
 ; https://drupal.org/node/1877956
 
-; Information added by Drupal.org packaging script on 2017-03-10
-version = "7.x-2.10"
+; Information added by Drupal.org packaging script on 2018-06-11
+version = "7.x-2.11"
 core = "7.x"
 project = "s3fs"
-datestamp = "1489184594"
-
+datestamp = "1528742598"

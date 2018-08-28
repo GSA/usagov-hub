@@ -188,6 +188,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
       foreach (explode("\n", $this->config['presigned_urls']) as $line) {
         $blob = trim($line);
         if ($blob) {
+          $matches = array();
           if (preg_match('/(.*)\|(.*)/', $blob, $matches)) {
             $blob = $matches[2];
             $timeout = $matches[1];
@@ -250,7 +251,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     }
 
     $extension = '';
-    $file_parts = explode('.', basename($uri));
+    $file_parts = explode('.', drupal_basename($uri));
 
     // Remove the first part: a full filename should not match an extension.
     array_shift($file_parts);
@@ -382,7 +383,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // Forced Save As.
     foreach ($this->saveas as $blob) {
       if (preg_match("^$blob^", $s3_key)) {
-        $filename = basename($s3_key);
+        $filename = drupal_basename($s3_key);
         $url_settings['api_args']['ResponseContentDisposition'] = "attachment; filename=\"$filename\"";
         $url_settings['forced_saveas'] = TRUE;
         break;
@@ -426,7 +427,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // If this file is versioned, append the version number as a GET arg to
     // ensure that browser caches will be bypassed upon version changes.
     $meta = $this->_read_cache($this->uri);
-    if (!empty($meta['version'])) {
+    if (!empty($meta['version']) && $this->config['s3fs_use_versioning']) {
       $external_url = $this->_append_get_arg($external_url, $meta['version']);
     }
 
@@ -766,9 +767,14 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     $upload_params = $this->params;
     $upload_params['Body'] = $this->body;
     $upload_params['ContentType'] = S3fsStreamWrapper::getMimeType($this->uri);
-    if (file_uri_scheme($this->uri) != 'private') {
-      // All non-private files uploaded to S3 must be set to public-read, or users' browsers
-      // will get PermissionDenied errors, and torrent URLs won't work.
+    // All non-private files uploaded to S3 must be set to public-read, or users' browsers
+    // will get PermissionDenied errors, and torrent URLs won't work. The one exception to
+    // this is when all content is being routed through an edge service and access via S3
+    // should be blocked.
+    if (!empty($this->config['use_cname']) && !empty($this->config['domain']) && !empty($this->config['domain_s3_private'])) {
+      $upload_params['ACL'] = 'private';
+    }
+    elseif (file_uri_scheme($this->uri) != 'private') {
       $upload_params['ACL'] = 'public-read';
     }
     // Set the Cache-Control header, if the user specified one.
@@ -819,13 +825,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function stream_stat() {
     $this->_debug("stream_stat() called for {$this->uri}.");
 
-    $stat = fstat($this->body->getStream());
-    // Add the size of the underlying stream if it is known.
-    if ($this->access_mode == 'r' && $this->body->getSize()) {
-      $stat[7] = $stat['size'] = $this->body->getSize();
-    }
-
-    return $stat;
+    return $this->_stat($this->uri);
   }
 
   /**
@@ -1092,7 +1092,7 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
 
     $this->dir = array();
     foreach ($child_uris as $child_uri) {
-      $this->dir[] = basename($child_uri);
+      $this->dir[] = drupal_basename($child_uri);
     }
     return TRUE;
   }
