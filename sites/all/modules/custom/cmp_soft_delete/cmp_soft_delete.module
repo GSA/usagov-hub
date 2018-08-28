@@ -243,6 +243,15 @@ function cmp_soft_delete_form_alter(&$form, &$form_state, $form_id)
                 );
             }
         }
+        else{
+            $form['permanent'] = array(
+                '#id' => 'permenantCheckbox',
+                '#type' => 'checkbox',
+                '#title' => t("Permanently delete this content (cannot be undone)."),
+                '#default_value' => 0,
+                '#attributes' => array()
+            );
+        }
         /// if !everPublished : just hard delete aka pass
         /// else { }
     }
