@@ -91,10 +91,24 @@ function _cmp_api_get_all_entities(){
     $where ='';
     $where_param = array();
     $ret = array();
+
+    $exclude_entities = array();
+
+    $res_ex = db_query("SELECT nid FROM node WHERE status=0");
+    foreach($res_ex as $r_ex){
+        $exclude_entities[] = $r_ex->nid;
+    }
+
+    $res_del = db_query("SELECT nid FROM node_deleted");
+    foreach($res_del as $r_del){
+        $exclude_entities[] = $r_del->nid;
+    }
+
     if (isset($_REQUEST["since"])){
         $where = "WHERE temp.changed > :since ";
         $where_param = array(":since"=> $_REQUEST["since"]);
     }
+   // $where = "WHERE  temp.en_id=10740 ";
 
     if(isset($_REQUEST["page_size"]) && is_numeric($_REQUEST["page_size"])){
         $page_size = $_REQUEST["page_size"];
@@ -136,7 +150,7 @@ function _cmp_api_get_all_entities(){
                 $node->field_for_use_by = $node->field_for_use_by_text;
             }
             _cmp_api_add_s3_urls($node);
-            _cmp_api_add_reference_info($node);
+            _cmp_api_add_reference_info($node, $exclude_entities);
             /// we may not want to force this here
             /// after a form submit and node_save we were wrongly seeing all status as 0
             /// but during a full-sync there were correct seeing all status as 1
@@ -156,7 +170,7 @@ function _cmp_api_get_all_entities(){
             _cmp_api_add_term_parent($term);
             _cmp_api_add_term_children($term);
             _cmp_api_add_for_use_by($term);
-            _cmp_api_add_reference_info($term);
+            _cmp_api_add_reference_info($term, $exclude_entities);
             $ret[]=$term;
         }
     }
@@ -193,11 +207,12 @@ function _cmp_api_add_for_use_by( &$term )
         }
     }
 }
-function _cmp_api_add_reference_info( &$entity )
+function _cmp_api_add_reference_info( &$entity, &$ex_entities )
 {
     if ( empty($entity) ) { return false; }
     try
     {
+        $reindex_field = array();
         $uuid_info =& _cmp_api_uuid_info();
         $entity_type   = null;
         $entity_bundle = null;
@@ -270,33 +285,36 @@ function _cmp_api_add_reference_info( &$entity )
                     $entity->{$field}['und'][$i]['bundle'] = $uuid_info[$ref_uuid]['bundle'];
                     $entity->{$field}['und'][$i]['tid']    = $uuid_info[$ref_uuid]['id'];
                 } else if ( isset($ref['target_id']) ) {
-                    if ( isset($ref['uuid']) )
-                    {
-                        $ref_uuid = $ref['uuid'];
-                    } else if ( is_string($ref['target_id']) && strlen($ref['target_id'])==36 ) {
-                        $ref_uuid = $ref['target_id'];
-                    } else {
-                        $ref_uuid = entity_get_uuid_by_id('taxonomy_term', array($ref['target_id']));
-                        if ( empty($ref_uuid) )
-                        {
-                            $ref_uuid = entity_get_uuid_by_id('node', array($ref['target_id']));
+                    if (!in_array($ref['target_id'], $ex_entities)) {
+
+                        if (isset($ref['uuid'])) {
+                            $ref_uuid = $ref['uuid'];
+                        } else if (is_string($ref['target_id']) && strlen($ref['target_id']) == 36) {
+                            $ref_uuid = $ref['target_id'];
+                        } else {
+                            $ref_uuid = entity_get_uuid_by_id('taxonomy_term', array($ref['target_id']));
+                            if (empty($ref_uuid)) {
+                                $ref_uuid = entity_get_uuid_by_id('node', array($ref['target_id']));
+                            }
+                            if (empty($ref_uuid)) {
+                                $ref_uuid = entity_get_uuid_by_id('relation', array($ref['target_id']));
+                            }
+                            $ref_uuid = reset($ref_uuid);
                         }
-                        if ( empty($ref_uuid) )
-                        {
-                            $ref_uuid = entity_get_uuid_by_id('relation', array($ref['target_id']));
+                        if (empty($ref_uuid) || empty($uuid_info[$ref_uuid])) {
+                            $entity->{$field} = array();
+                            _cdss_log('Warn: CDSS ' . __FUNCTION__ . ' uuid:' . $entity->uuid . ' field:' . $field . ' is missing a reference so the field is being removed');
+                            continue;
                         }
-                        $ref_uuid = reset($ref_uuid);
+                        $entity->{$field}['und'][$i]['uuid'] = $ref_uuid;
+                        $entity->{$field}['und'][$i]['type'] = $uuid_info[$ref_uuid]['type'];
+                        $entity->{$field}['und'][$i]['bundle'] = $uuid_info[$ref_uuid]['bundle'];
+                        $entity->{$field}['und'][$i]['target_id'] = $uuid_info[$ref_uuid]['id'];
                     }
-                    if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
-                    {
-                        $entity->{$field} = array();
-                        _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
-                        continue;
+                    else{
+                        unset($entity->{$field}['und'][$i]);
+                        $reindex_field[] = $field;
                     }
-                    $entity->{$field}['und'][$i]['uuid']      = $ref_uuid;
-                    $entity->{$field}['und'][$i]['type']      = $uuid_info[$ref_uuid]['type'];
-                    $entity->{$field}['und'][$i]['bundle']    = $uuid_info[$ref_uuid]['bundle'];
-                    $entity->{$field}['und'][$i]['target_id'] = $uuid_info[$ref_uuid]['id'];
                 } else if ( isset($ref['endpoints']) && !empty($ref['endpoints']['und']) ) {
                     foreach ( $ref['endpoints']['und'] as $j=>$ep )
                     {
@@ -324,6 +342,9 @@ function _cmp_api_add_reference_info( &$entity )
                     }
                 }
             }
+        }
+        foreach($reindex_field as $field){
+            $entity->{$field}['und'] = array_values($entity->{$field}['und']);
         }
         return true;
     } catch( Exception $e ) {
