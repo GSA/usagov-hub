@@ -38,7 +38,7 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
         }
 
         // We only react here when a text-asset is being published
-        if ( $new_state !== 'scheduled_for_publication' && $new_state !== 'published' ) {
+        if ( $new_state !== 'published' ) {
             return;
         }
 
@@ -53,7 +53,6 @@ hooks_reaction_add("HOOK_workbench_moderation_transition",
 
         /* It should be fine to do this for ALL text-assets, since this field is is only 
         looked at by the Blog site. The other child-sites wont even bither looking at it*/
-
         $nowTime = time();
 
         // Update the "Blog Publish Date" field for this node
