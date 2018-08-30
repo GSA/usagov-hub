@@ -126,7 +126,7 @@ function _cmp_api_get_all_entities(){
 
     $sql = "SELECT * FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n WHERE n.status=1 AND n.nid NOT IN (SELECT nid FROM node_deleted)
     UNION
-    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t INNER JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC LIMIT ".$page_size .' OFFSET '.$page ;
+    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t LEFT JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC LIMIT ".$page_size .' OFFSET '.$page ;
     $res = db_query($sql, $where_param);
     foreach($res as $r){
         if ($r->type == 'node'){
