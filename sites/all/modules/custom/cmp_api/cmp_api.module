@@ -103,10 +103,11 @@ function _cmp_api_get_all_entities(){
     foreach($res_del as $r_del){
         $exclude_entities[] = $r_del->nid;
     }
-
+    $term_date_join = 'LEFT';
     if (isset($_REQUEST["since"])){
         $where = "WHERE temp.changed > :since ";
         $where_param = array(":since"=> $_REQUEST["since"]);
+        $term_date_join = 'INNER';
     }
    // $where = "WHERE  temp.en_id=10740 ";
 
@@ -116,7 +117,7 @@ function _cmp_api_get_all_entities(){
 
     $sql_count = "SELECT COUNT(*) FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n WHERE n.status=1 AND n.nid NOT IN (SELECT nid FROM node_deleted)
     UNION
-    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t LEFT JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'');
+    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t ".$term_date_join." JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'');
     $count = db_query($sql_count, $where_param)->fetchField(0);
 
     $pages = ceil($count/$page_size);
@@ -126,7 +127,7 @@ function _cmp_api_get_all_entities(){
 
     $sql = "SELECT * FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n WHERE n.status=1 AND n.nid NOT IN (SELECT nid FROM node_deleted)
     UNION
-    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t LEFT JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC LIMIT ".$page_size .' OFFSET '.$page ;
+    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t ".$term_date_join." JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC LIMIT ".$page_size .' OFFSET '.$page ;
     $res = db_query($sql, $where_param);
     foreach($res as $r){
         if ($r->type == 'node'){
