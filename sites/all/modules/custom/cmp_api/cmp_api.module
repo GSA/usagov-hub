@@ -363,6 +363,35 @@ function _do_es_search($from, $size, $params){
         return false;
     }
 }
+function _get_array_of_obj($obj){
+    $r = array();
+
+    foreach($obj as $o){
+        $r[] = array(
+            'type'=> ( isset($o->_source->type) ) ? $o->_source->type : null,
+            'agency'=> ( isset($o->_source->agency) ) ?  $o->_source->agency : null,
+            'office'=> ( isset($o->_source->office) ) ?  $o->_source->office : null,
+            'location'=> ( isset($o->_source->location) ) ?  $o->_source->location : null,
+            'classcod'=> ( isset($o->_source->classcod) ) ?  $o->_source->classcod : null,
+            'naics'=> ( isset($o->_source->naics) ) ?  $o->_source->naics : null,
+            'subject'=> ( isset($o->_source->subject) ) ?  $o->_source->subject : null,
+            'solnbr'=> ( isset($o->_source->solnbr) ) ?  $o->_source->solnbr : null,
+            'desc'=> ( isset($o->_source->desc) ) ?  $o->_source->desc : null,
+            'setaside'=> ( isset($o->_source->setaside) ) ?  $o->_source->setaside : null,
+            'popcountry'=> ( isset($o->_source->popcountry) ) ?  $o->_source->popcountry : null,
+            'popzip'=> ( isset($o->_source->popzip) ) ?  $o->_source->popzip : null,
+            'link'=> ( isset($o->_source->link) ) ?  $o->_source->link : null,
+            'source'=> ( isset($o->_source->source) ) ?  $o->_source->source : null,
+            'contact'=> ( isset($o->_source->contact) ) ?  $o->_source->contact : null,
+            'postdate'=> ( isset($o->_source->postdate) ) ?  $o->_source->postdate : null,
+            'closedate'=> ( isset($o->_source->closedate) ) ?  $o->_source->closedate : null,
+            'state'=> ($o->_source->state =='AE' || $o->_source->state=='AP' || empty($o->_source->state))? 'Outside U.S.':$o->_source->state,
+            'zip'=> ( isset($o->_source->zip) ) ?  $o->_source->zip : null,
+        );
+    }
+
+    return $r;
+}
 function _fbo_elasticsearch_request($path='/',$options=[])
 {
     // print_r($options);
