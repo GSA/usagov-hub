@@ -122,7 +122,7 @@ function _returnFBODataResult(){
         $from = $_REQUEST['from']; // pagination
     }
     if (isset($_REQUEST['postdate']) && $_REQUEST['postdate'] != '--') {
-        $params['postdate'] = $_POST['postdate'];
+        $params['postdate'] = $_REQUEST['postdate'];
     }
     if (isset($_REQUEST['state']) && $_REQUEST['state'] !='') {
         if ($_REQUEST['state'] == "GU") {
@@ -132,11 +132,11 @@ function _returnFBODataResult(){
             $params['state'] = array("AP", "AE",NULL);
         }
         else {
-            $params['state'] =array($_POST['state']);
+            $params['state'] =array($_REQUEST['state']);
         }
     }
     if (isset($_REQUEST['setaside'])) {
-        $params['setaside'] = $_REQUEST['setaside'];
+        $params['setaside'] =explode(',',$_REQUEST['setaside']);
     }
     $ret = _do_es_search($from, $size, $params);
     if (isset($_REQUEST['do_index']) && $_REQUEST['do_index'] ==="1" ) {
@@ -176,7 +176,6 @@ function _returnFBODataResult(){
 function _do_es_search($from, $size, $params){
 
     // $elasticsearch_server = 'http://' . variable_get('elasticsearch_server', 'elasticsearch_server'). ':' . variable_get('elasticsearch_port', 9200);
-
     $kp = '';
     if (isset($params['keyword'])) {
 
