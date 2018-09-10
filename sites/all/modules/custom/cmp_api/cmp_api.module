@@ -173,6 +173,40 @@ function _returnFBODataResult(){
         's'=>isset($_REQUEST['setaside'])?$_REQUEST['setaside']:''
     ]);
 }
+function _index_userinfo($p){
+    // $elasticsearch_server = 'http://' . variable_get('elasticsearch_server', 'elasticsearch_server'). ':' . variable_get('elasticsearch_port', 9200);
+    // $resource = curl_init();
+    // curl_setopt($resource, CURLOPT_URL, $elasticsearch_server.'/opportunityuserinputs/userinput/'.time());
+    // curl_setopt($resource, CURLOPT_RETURNTRANSFER, 1);
+    // curl_setopt($resource, CURLOPT_POST, 1);
+    // curl_setopt($resource, CURLOPT_POSTFIELDS, json_encode($p));
+    // curl_setopt($resource, CURLOPT_HTTPHEADER, ['CONTENT-TYPE: application/json; charset=utf-8']);
+    // $result = curl_exec($resource);
+    // curl_close($resource);
+
+    // if ($result) {
+    //     $r = json_decode($result);
+    $response = _fbo_elasticsearch_request('/opportunityuserinputs/userinput/'.time(),['method'=>'PUT','data'=>json_encode($p)]);
+    if ($response->code == 200) {
+        $r = json_decode($response->data);
+        if (!empty($r->errors)) {
+            $errors = [];
+            foreach ($r->items as $i) {
+                if (isset($i->index)  && $i->index->status  != 200 && $i->index->status  != 201) {
+                    $errors[] = $i->index->status .' '. $i->index->error->reason;
+                }
+                if (isset($i->update) && $i->update->status != 200 && $i->update->status != 201) {
+                    $errors[] = $i->update->status .' '. $i->update->error->reason;
+                }
+            }
+            $r->errors = $errors;
+        }
+        if (isset($r->items)) {
+            $r->items = count($r->items);
+        }
+        return $r;
+    }
+}
 function _do_es_search($from, $size, $params){
 
     // $elasticsearch_server = 'http://' . variable_get('elasticsearch_server', 'elasticsearch_server'). ':' . variable_get('elasticsearch_port', 9200);
