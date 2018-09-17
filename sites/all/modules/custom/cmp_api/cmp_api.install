@@ -1,0 +1,64 @@
+<?php
+
+function cmp_api_install()
+{
+}
+
+function cmp_api_uninstall(){
+}
+
+function cmp_api_schema()
+{
+  $schema['cmp_api_deleted_entities'] = array(
+    'description' => 'Stores deleted entities.',
+    'fields' => array(
+      'uuid' => array(
+        'description' => 'Entity UUID.',
+        'type' => 'char',
+        'length' => 36,
+        'not null' => TRUE
+      ),
+      'entity_id' => array(
+        'description' => 'Entity ID.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'vid' => array(
+        'description' => 'Vocab ID.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'name' => array(
+        'description' => 'Entity Name.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'entity_type' => array(
+        'description' => 'Term or Node',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'changed' => array(
+        'description' => 'Time of deletion.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+    ),
+    'indexes' => array(
+      'cmp_api_entity_changed' => array('changed')
+    ),
+    'unique keys' => array(
+      'cmp_api_entity_id_type' => array('entity_id', 'entity_type')
+    ),
+    'primary key' => array('uuid')
+  );
+
+    return $schema;
+}

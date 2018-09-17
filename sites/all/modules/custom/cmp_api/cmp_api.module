@@ -1991,3 +1991,32 @@ function _cmp_api_get_narratives($fn='all') {
 function _cmp_api_perm(){
     return TRUE;
 }
+
+function cmp_api_taxonomy_term_delete( $term )
+{
+    db_query(
+        "REPLACE INTO {cmp_api_deleted_entities} (uuid,entity_id,vid,name,entity_type,changed)
+         VALUES (:uuid,:tid,:vid,:name,:entity_type,UNIX_TIMESTAMP(NOW()))",
+        array(
+            ':uuid'  => $term->uuid,
+            ':tid'   => $term->tid,
+            ':vid'   => $term->vid,
+            ':name'  => substr($term->name,0,255),
+            ':entity_type' =>'term'
+        )
+    );
+}
+function cmp_api_node_delete( $node )
+{
+    db_query(
+        "REPLACE INTO {cmp_api_deleted_entities} (uuid,entity_id,vid,name,entity_type,changed)
+         VALUES (:uuid,:nid,:vid,:name,:entity_type,UNIX_TIMESTAMP(NOW()))",
+        array(
+            ':uuid'  => $node->uuid,
+            ':nid'   => $node->nid,
+            ':vid'   => 0,
+            ':name'  => substr($node->name,0,255),
+            ':entity_type' =>'node'
+        )
+    );
+}
