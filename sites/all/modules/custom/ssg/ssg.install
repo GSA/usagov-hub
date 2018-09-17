@@ -15,7 +15,6 @@ function ssg_schema()
         'description' => 'State',
         'type' => 'text',
         'not null' => FALSE,
-        'default' => '',
       ),
       'log' => array(
         'description' => 'Log',
