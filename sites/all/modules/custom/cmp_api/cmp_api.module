@@ -607,14 +607,20 @@ function _cmp_api_get_all_entities(){
         $where_param = array(":since"=> $_REQUEST["since"]);
         $term_date_join = 'INNER';
         // include deleted contents
-        $res_del_count = db_query("SELECT COUNT(*) FROM cmp_api_deleted_entities WHERE changed > :since", $where_param)->fetchField(0);
-        $res_del = db_query("SELECT * FROM cmp_api_deleted_entities WHERE changed > :since", $where_param);
+        $res_del_count = db_query("SELECT COUNT(*) FROM (SELECT de.entity_id FROM cmp_api_deleted_entities de WHERE de.changed > :since UNION SELECT nd.nid FROM node_deleted nd WHERE deletion_timestamp > :since) temp", $where_param)->fetchField(0);
+        $res_del = db_query("SELECT de.entity_type, de.name, de.entity_id, de.uuid FROM cmp_api_deleted_entities de WHERE de.changed > :since UNION SELECT 'soft' AS entity_type, 'title' AS name, nd.nid as entity_id, 0 AS 'uuid' FROM node_deleted nd WHERE nd.deletion_timestamp > :since", $where_param);
         foreach($res_del as $rd){
+            if($rd->entity_type == 'soft'){
+                $rd->entity_type = 'node';
+                $n = node_load($rd->entity_id);
+                $rd->uuid = $n->uuid;
+                $rd->name = $n->title;
+            }
             $ret[] = array('status'=>'deleted',
                             'uuid'=>$rd->uuid,
                             'entity_id'=>$rd->entity_id,
                             'name'=>$rd->name,
-                            'type'=>$rd->type);
+                            'type'=>$rd->entity_type);
         }
     }
    // $where = "WHERE  temp.en_id=10740 ";
