@@ -9,6 +9,8 @@ class DataSource
 	public $entitiesById;
 	public $redirects;
 	public $freshData;
+    public $updateData;
+    public $dataPullTime;
 
 	public function __construct( &$ssg )
 	{
@@ -17,6 +19,7 @@ class DataSource
    		$this->entitiesById = [ 'tid'=>[], 'nid'=>[] ];
 		$this->redirects    = [];
 		$this->freshData    = false;
+		$this->updateData   = true;
 	}
 
 	public function pull( $since=0 )
@@ -39,7 +42,6 @@ class DataSource
 
     public function loadData()
     {
-        $sourceFail = false;
         if ( $this->freshData )
         {
             /// if we want data from source - we might only need to update
@@ -47,27 +49,44 @@ class DataSource
             $this->ssg->log("Data: loading fresh from source ... ");
             if ( $this->loadDataFromSource() ) 
             {
-                return true; 
-            } else {
-                $sourceFail = true;
+                $this->ssg->log("done\n");
             }
         }
+
         $this->ssg->log("Data: loading from cache ... ");
-        if ( ! $this->loadDataFromCache()  ) 
+        if ( $this->loadDataFromCache()  ) 
         { 
+            $this->ssg->log("done\n");
+        } else {
             $this->ssg->log("not found\n");
             if ( !$sourceFail )
             {   
                 $this->ssg->log("Data: loading from source ... ");
                 if ( $this->loadDataFromSource() ) 
                 {
-                    return true; 
+                    $this->ssg->log("done\n");
+                } else {
+                    $this->ssg->log("fail\n");
                 }
             }
         }
-        $this->ssg->log("done\n");
 
+        if ( $this->updateData )
+        {
+            $this->ssg->log("Data: updating\n");
+            if ( $this->updateDataFromSource() ) 
+            {
+                $this->ssg->log("Data: updating ... done\n");
+            } else {
+                $this->ssg->log("Data: updating ... fail\n");
+            }
+        }
         return false;
+    }
+    public function updateDataFromSource()
+    {
+        $this->pull($this->dataPullTime);
+        return $this->storeDataInCache();
     }
     public function loadDataFromSource()
     {
@@ -89,6 +108,7 @@ class DataSource
             || !array_key_exists('entities',     $cache)
             || !array_key_exists('entitiesById', $cache)
         ) { return false; }
+        $this->dataPullTime = !empty($cache['time']) ? $cache['time'] : 0;
         $this->entities     = $cache['entities'];
         $this->entitiesById = $cache['entitiesById'];
         if ( array_key_exists('redirects', $cache) )
@@ -109,7 +129,8 @@ class DataSource
         { 
             chmod($cacheFile,0644);
         }
-        $cache = serialize([ 
+        $cache = serialize([
+            'time'         => $this->dataPullTime,
             'entities'     => $this->entities, 
             'entitiesById' => $this->entitiesById,
             'redirects'    => $this->redirects

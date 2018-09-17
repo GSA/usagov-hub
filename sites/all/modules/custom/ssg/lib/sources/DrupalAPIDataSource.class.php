@@ -31,12 +31,12 @@ class DrupalAPIDataSource extends DataSource
     $processedCount = 0;
     $acceptedCount  = 0;
 
+    $this->dataPullTime = time();
     while ( $sanity-- )
     {
       $loadStartTime = microtime(true);
       try
       {
-        $this->ssg->log("\nLOADING batch($currentPage/$totalPages) ");
 
         $client   = new \GuzzleHttp\Client(['base_uri' => $server, 'verify' => false]);
         $query = [
@@ -44,9 +44,12 @@ class DrupalAPIDataSource extends DataSource
           'page'=>$currentPage
         ];
         if ( !empty(intval($since)) ) {
+          $this->ssg->log("\nLOADING since(".date('Y/m/d H:i:s',$since).")\n");
           $query['since'] = intval($since);
         }
-        $response = $client->post( $url, [ 'query'=> $query ] );
+
+        $this->ssg->log("\nLOADING batch($currentPage/$totalPages) ");
+        $response = $client->post( $url, [ 'form_params'=> $query ] );
         $body = $response->getBody();
         if ( empty($body) )
         {
@@ -62,7 +65,6 @@ class DrupalAPIDataSource extends DataSource
       $loadEndTime = microtime(true);
       $loadTime = round($loadEndTime - $loadStartTime,4);
       $loadTime = ( $loadTime >= 1 ) ? @round($loadTime/pow(60,   ($i=floor(log($loadTime, 60)))),   2).' '.$tunit[$i] : "$loadTime sec";
-
       if ( $totalPages == null && $currentPage == 0
           && array_key_exists('metadata',$responseData) )
       {

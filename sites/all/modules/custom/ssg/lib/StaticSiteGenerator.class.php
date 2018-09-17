@@ -4,7 +4,7 @@ namespace ctac\ssg;
 
 class StaticSiteGenerator
 {
-    public $logLevel;
+    public $uuid;
     public $logMessage;
 
     public $time;
@@ -25,14 +25,14 @@ class StaticSiteGenerator
 
     public $renderer;
     public $config;
+    public $s3;
 
     public $loadDatafromSource;
 
     public function __construct( $siteName )
     {
-        $this->logLevel  = 'debug';
+        $this->uuid = sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X', mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(16384, 20479), mt_rand(32768, 49151), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535));
 
-        $this->time = microtime();
         $this->siteName  = $siteName;
 
         /// setup page references
@@ -61,7 +61,20 @@ class StaticSiteGenerator
         ];
 
         /// get helper objects
-        $this->config      = ConfigLoader::loadConfig( $this->siteName );
+        $this->config      = ConfigLoader::loadDrupal();
+
+        $config = _s3fs_get_config();
+        $config['bucket'] = 'usagovdemo';
+        try {
+            $this->s3 = _s3fs_get_amazons3_client($config);
+        } catch (S3fsException $e) {
+            $this->log("S3Client error : ".$e->getMessage());
+        }
+
+        // $sdk = new \Aws\Sdk($this->config['aws']);
+        // $this->s3 = $sdk->createS3();
+        // $this->s3->registerStreamWrapper();
+
         $this->prepareDirs();
 
         $this->templates   = new TemplateSource( $this ); 
@@ -70,34 +83,44 @@ class StaticSiteGenerator
         $this->renderer    = new PageRenderer( $this );
 
         $this->getDatafromSource = false;
-
     }
 
-    public function log($msg)
+    public function log($msg,$debugOnly=true)
     {
         $this->logMessage .= $msg;
-        if ( $this->logLevel == 'debug' )
+
+        $t = time();
+        $result = db_query("
+            UPDATE {ssg_builds} 
+            SET 
+                log=concat(ifnull(log,''), :log), 
+                updated=UNIX_TIMESTAMP() 
+            WHERE 
+                uuid=:uuid
+        ",[
+            ':uuid'=>$this->uuid,
+            ':log'=>$msg
+        ]);
+
+        if ( $debugOnly )
         {
-            echo $msg;
-        } 
+            return;
+        }
+        error_log("SiteBuild:{$this->uuid} {$msg}");
     }
 
     public function prepareDirs()
     {
         $this->prepareDir($this->config['tempDir']);
+        $this->prepareDir($this->config['permDir']);
         
-        $this->cacheDir = realpath($this->config['permDir']).'/cache';
+        //$this->cacheDir = realpath($this->config['permDir']).'/cache';
+        $this->cacheDir = $this->config['permDir'].'/cache';
         $this->prepareDir($this->cacheDir);
 
-        $this->siteDir = realpath($this->config['tempDir']).'/sites/'.trim(strtolower($this->siteName),'/ ');
+        // $this->siteDir = realpath($this->config['tempDir']).'/sites/'.trim(strtolower($this->siteName),'/ ');
+        $this->siteDir = $this->config['tempDir'].'/sites/'.trim(strtolower($this->siteName),'/ ');
         $this->prepareDir($this->siteDir);
-
-        $this->prepareDir($this->config['permDir']);
-    }
-
-    public function pushToDestination()
-    {
-        return $this->destination->push();
     }
 
     public function syncTemplates()
@@ -113,7 +136,7 @@ class StaticSiteGenerator
 
     public function buildSiteTreeFromEntities()
     {
-        $this->log("Site Tree: building from entities ... ");
+        $this->log("Site Tree building from entities ... \n");
         $treeStartTime = microtime(true);
 
         $this->pages        = [];
@@ -589,12 +612,7 @@ class StaticSiteGenerator
             $this->topicsPage = $this->source->entities[$this->topicsPage['uuid']];
         }
 
-        // $treeEndTime = microtime(true);
-        // $tunit=['sec','min','hour'];
-        // $treeTime = round($treeEndTime - $treeStartTime,4);
-        // $treeTime = ( $treeTime >= 1 ) ? @round($treeTime/pow(60,   ($i=floor(log($treeTime, 60)))),   2).' '.$tunit[$i] : "$treeTime sec";
-        // // $this->log("\n BuildTree time($treeTime)");
-        $this->log("done\n");
+        $this->log("Site Tree building from entities ... done\n");
     }
 
 
@@ -1136,12 +1154,19 @@ class StaticSiteGenerator
         return ($requiredPages <= $renderedPages);
     }
 
+    public function deploySite()
+    {
+        return $this->destination->sync();
+    }
+
     public function renderSite( $renderPageOnFailure=false )
     {
         if ( empty($this->sitePage) )
         {
-            $this->log("Render: site ... not found\n");
+            $this->log("Render Site: no site found\n");
             return false;
+        } else {
+            $this->log("Render Site\n");
         }
         /// render content pages
         $this->log("Render: pages\n");
@@ -1180,9 +1205,9 @@ class StaticSiteGenerator
         $this->copy_recurse($sourceStaticDir,$destStaticDir);        
 
         if ( empty($treeResult) ||  empty($redirectResult) ) {
-            $this->log("Render: site ... failed\n");
+            $this->log("Render Site: failed\n");
         } else {
-            $this->log("Render: site ... done\n");
+            $this->log("Render Site: done\n");
         }
         return $treeResult && $redirectResult;
     }
@@ -1302,20 +1327,22 @@ class StaticSiteGenerator
 
     public function prepareDir( &$path )
     {
-        //$this->log("preparing dir: $path\n");
+        // error_log("preparing dir: $path\n");
         if ( empty($path) )
         {
             return false;
         }
         if ( !is_dir($path) )
         {
+            // error_log("mkdir($path, 0744, true)\n");
             mkdir($path, 0744, true);
         }
         if ( !is_writable($path) )
         {
             chmod($path, 0744 );
         }
-        $real_path = realpath($path);
+        // $real_path = realpath($path);
+        $real_path = $path;
         if ( empty($real_path) )
         {
             return false;

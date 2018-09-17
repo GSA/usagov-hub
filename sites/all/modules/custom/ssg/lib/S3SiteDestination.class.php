@@ -26,14 +26,10 @@ class S3SiteDestination
         $this->s3Pull = "aws s3 sync {$this->dest} {$this->source} --delete";
 
         $this->bads = [ 'command not found', 'usage', 'error' ];
-
-        $sdk = new \Aws\Sdk($this->ssg->config['aws']);
-        $this->s3 = $sdk->createS3();
-        $this->s3->registerStreamWrapper();
     }
 
     public function sync()
-    {
+    {   
         $this->ssg->log("Syncing to destination bucket\n");
         $filesSynced = $this->syncFilesCli();
         // $filesSynced = $this->syncFilesSdk();
@@ -78,8 +74,8 @@ class S3SiteDestination
             unset($file['path']);
         }
         file_put_contents($this->source.'/manifest.json',json_encode($sourceFiles));
-        $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null ];
-        $this->s3->putObject([
+        $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null, 'created'=>time() ];
+        $this->ssg->s3->putObject([
             'Bucket' => $this->ssg->config['aws']['bucket'],
             'Key'    => 'manifest.json',
             'Body'   => json_encode($sourceFiles),
@@ -160,7 +156,7 @@ class S3SiteDestination
         $this->ssg->log("Sync: removing old files (".count($removeFromDest).")\n");
         if ( !empty($removeFromDest) )
         {
-            $this->s3->deleteObjects([
+            $this->ssg->s3->deleteObjects([
                 'Bucket'  => $this->ssg->config['aws']['bucket'],
                 'Delete' => [
                     'Objects' => array_map(function ($key) {
@@ -221,7 +217,7 @@ class S3SiteDestination
                     if ( $isRedirect )
                     {
                         // $this->ssg->log("Sync: Redirect $key => $redirectTo\n");
-                        $this->s3->putObject([
+                        $this->ssg->s3->putObject([
                             'Bucket' => $this->ssg->config['aws']['bucket'],
                             'Key'    => $key,
                             'WebsiteRedirectLocation' => $redirectTo,
@@ -231,7 +227,7 @@ class S3SiteDestination
                         if ( preg_match('/index.html$/',$key) && !preg_match('/^index.html/',$key) )
                         {
                             $cleanKey = dirname($key);
-                            $this->s3->putObject([
+                            $this->ssg->s3->putObject([
                                 'Bucket' => $this->ssg->config['aws']['bucket'],
                                 'Key'    => $key,
                                 'WebsiteRedirectLocation' => '/'.$cleanKey,
@@ -241,7 +237,7 @@ class S3SiteDestination
                             $key = $cleanKey;
                         }
                         // $this->ssg->log("Sync: Create $key \n");
-                        $this->s3->putObject([
+                        $this->ssg->s3->putObject([
                             'Bucket' => $this->ssg->config['aws']['bucket'],
                             'Key'    => $key,
                             'Body'   => fopen($sourceFile['path'], 'r'),
@@ -260,7 +256,7 @@ class S3SiteDestination
                         if ( $isRedirect )
                         {
                             // $this->ssg->log("Sync: Update Redirect $key => $redirectTo\n");
-                            $this->s3->putObject([
+                            $this->ssg->s3->putObject([
                                 'Bucket' => $this->ssg->config['aws']['bucket'],
                                 'Key'    => $key,
                                 'WebsiteRedirectLocation' => $redirectTo,
@@ -268,7 +264,7 @@ class S3SiteDestination
                             ]);
                         } else {
                             // $this->ssg->log("Sync: Update $key\n");
-                            $this->s3->putObject([
+                            $this->ssg->s3->putObject([
                                 'Bucket' => $this->ssg->config['aws']['bucket'],
                                 'Key'    => $key,
                                 'Body'   => fopen($sourceFile['path'], 'r'),
@@ -285,13 +281,13 @@ class S3SiteDestination
             //$sourceFiles[$_key]['path'] = str_replace($this->source,$sourceFile['path'],'/');
             unset($sourceFiles[$key]['path']);
         }
-        $this->ssg->log("\n");
+        // $this->ssg->log("\n");
 
 
         $this->ssg->log("Sync: uploading site manifest.\n");
         file_put_contents($this->source.'/manifest.json',json_encode($sourceFiles));
-        $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null ];
-        $this->s3->putObject([
+        $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null, 'created'=>time() ];
+        $this->ssg->s3->putObject([
             'Bucket' => $this->ssg->config['aws']['bucket'],
             'Key'    => 'manifest.json',
             'Body'   => json_encode($sourceFiles),
@@ -359,14 +355,14 @@ class S3SiteDestination
 
         // $this->ssg->log("Sync ACL to PublicRead for all files ... done\n");
 
-        $iterator = $this->s3->getIterator('ListObjects', array('Bucket' => $this->ssg->config['aws']['bucket']));
+        $iterator = $this->ssg->s3->getIterator('ListObjects', array('Bucket' => $this->ssg->config['aws']['bucket']));
         $destFiles = [];
 
         foreach ($iterator as $object) 
         {
             try {
                 echo " {$object['Key']}\n ";
-                $this->s3->putObjectAcl([
+                $this->ssg->s3->putObjectAcl([
                     'Bucket' => $this->ssg->config['aws']['bucket'],
                     'Key'    => $object['Key'],
                     'ACL'    => 'public-read'
@@ -457,7 +453,7 @@ class S3SiteDestination
         // $rr = 0;
         foreach ( $this->ssg->source->redirects as $redirect )
         {
-            $this->s3->putObject([
+            $this->ssg->s3->putObject([
                 'Bucket' => $this->ssg->config['aws']['bucket'],
                 'Key'    => ltrim($redirect['source_path'],'/ '),
                 'WebsiteRedirectLocation' => $redirect['target']

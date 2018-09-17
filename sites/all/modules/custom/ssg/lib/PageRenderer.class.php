@@ -24,8 +24,8 @@ class PageRenderer
         $repoTemplateDir = $this->ssg->config['templateSync']['repo_template_dir'];
         $repoTemplateDir = preg_replace('(^[\.\/]|[\.\/]$)','',$repoTemplateDir);
 
-        $this->templateDir      = realpath($this->ssg->config['permDir']).'/templates/twig/'.$repoTemplateDir;
-        $this->templateDirCache = realpath($this->ssg->config['permDir']).'/templates/compiled';
+        $this->templateDir      = $this->ssg->config['permDir'].'/templates/twig/'.$repoTemplateDir;
+        $this->templateDirCache = $this->ssg->config['permDir'].'/templates/compiled';
 
         $this->ssg->prepareDir($this->templateDir);
         $this->ssg->prepareDir($this->templateDirCache);
@@ -433,6 +433,10 @@ class PageRenderer
             if ($file->isDir()) { continue; }
             $path = $file->getPathname();
             $name = basename($path,'.twig');
+            if ( 'yml' == pathinfo($path, PATHINFO_EXTENSION) )
+            { 
+                continue;
+            }
             try {
                 $this->templates[$this->ssg->siteName]['twig'][$name] = $this->templateRenderer->load($name.'.twig');
             } catch (Exception $e) { 

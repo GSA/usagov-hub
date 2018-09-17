@@ -24,17 +24,18 @@ class TemplateSource
         $repoTemplateDir = $this->ssg->config['templateSync']['repo_template_dir'];
         $repoTemplateDir = preg_replace('(^[\.\/]|[\.\/]$)','',$repoTemplateDir);
 
-        $this->sourceDir         = realpath($this->ssg->config['tempDir']).'/webtemplates';
+        $this->sourceDir         = $this->ssg->config['tempDir'].'/webtemplates';
         $this->sourceTemplateDir = $this->sourceDir.'/'.$repoTemplateDir;
         $this->sourceAssetDir    = $this->sourceDir.'/assets';
         $this->sourceStaticDir   = $this->sourceDir.'/staticroot';
 
-        $this->destDir           = realpath($this->ssg->config['permDir']);
+        $this->destDir           = $this->ssg->config['permDir'];
         $this->destTemplateDir   = $this->destDir.'/templates/twig/'.$repoTemplateDir;
         $this->destAssetDir      = $this->destDir.'/templates/assets/';
         $this->destStaticDir     = $this->destDir.'/templates/staticroot/';
 
         $this->freshTemplates     = false;
+
     }
 
     public function sync()
@@ -42,9 +43,9 @@ class TemplateSource
         $this->ssg->log("Templates: preparing directories ... ");
 
         $this->ssg->prepareDir($this->sourceDir);
-        $this->ssg->prepareDir($this->sourceTemplateDir);
-        $this->ssg->prepareDir($this->sourceAssetDir);
-        $this->ssg->prepareDir($this->sourceStaticDir);
+        // $this->ssg->prepareDir($this->sourceTemplateDir);
+        // $this->ssg->prepareDir($this->sourceAssetDir);
+        // $this->ssg->prepareDir($this->sourceStaticDir);
 
         $this->ssg->prepareDir($this->destDir);
         $this->ssg->prepareDir($this->destTemplateDir);
@@ -55,14 +56,14 @@ class TemplateSource
 
         /// if we already have compiled templates
         /// and cached assets+docroot, the we are done
-        if ( $this->verifyDestination() && !$this->freshTemplates )
-        {
-            /// if we have not been told to refresh anything
-            /// we are ready to go
-            $this->ssg->log("Templates: using existing templates\n");
-            $this->mergeSourceIntoDestination();
-            return true;
-        }
+        // if ( $this->verifySource() && $this->verifyDestination() && !$this->freshTemplates )
+        // {
+        //     /// if we have not been told to refresh anything
+        //     /// we are ready to go
+        //     $this->ssg->log("Templates: using existing templates\n");
+        //     $this->mergeSourceIntoDestination();
+        //     return true;
+        // }
 
         if ( !$this->sourceRepoExists() )
         { 
@@ -71,6 +72,8 @@ class TemplateSource
         } else if ( $this->freshTemplates ) {
 
             $this->pullSourceRepo();
+        } else {
+            $this->checkoutBranch();
         }
 
         if ( !$this->verifySource() )
@@ -122,22 +125,27 @@ class TemplateSource
         return true;
     }
 
-    public function pullSourceRepo()
+    public function checkoutBranch()
     {
         $this->ssg->log("Templates: switch source repo branch ... \n");
-        $branch_cmd = "cd {$this->sourceDir} && git checkout {$this->ssg->config['templateSync']['repo_branch']}";
-        $rslt = `{$branch_cmd} 2>&1`;
+        $branch_cmd = "cd {$this->sourceDir}"
+                     ." && git checkout {$this->ssg->config['templateSync']['repo_branch']}";
+        $rslt = `{$branch_cmd} 2>&1 >/dev/null`;
         if ( strpos($rslt, 'error') === 0 ) {
             $this->ssg->log("Error - Could not switch to branch \"{$this->ssg->config['templateSync']['repo_branch']}\" in source-repo.\n");
             return false;
         }
+    }
+
+    public function pullSourceRepo()
+    {
         $this->ssg->log("Templates: refreshing current templates ... \n");
         $update_cmd = "cd {$this->sourceDir}"
-                     ." && git checkout {$this->ssg->config['templateSync']['repo_branch']} 2>&1 >/dev/null"
+                     ." && git checkout {$this->ssg->config['templateSync']['repo_branch']}" // 2>&1 >/dev/null
                      ." && git pull";
-        $rslt = `{$update_cmd} 2>&1`;
+        $rslt = `{$update_cmd} 2>&1 >/dev/null`;
         if ( strpos($rslt, 'error') === 0 ) {
-            $this->ssg->log("Error - Could pull \"{$this->ssg->config['templateSync']['repo_branch']}\" from source-repo.\n");
+            $this->ssg->log("Error - Could not pull \"{$this->ssg->config['templateSync']['repo_branch']}\" from source-repo.\n");
             return false;
         }
 
@@ -148,19 +156,19 @@ class TemplateSource
     {
         if ( is_dir($this->sourceTemplateDir) )
         {
-            $this->ssg->prepareDir($destTemplateDir);
-            if ( !is_writable($destTemplateDir) )
+            $this->ssg->prepareDir($this->destTemplateDir);
+            if ( !is_writable($this->destTemplateDir) )
             {
-                $this->ssg->chmod_recurse($destTemplateDir,0744);
+                $this->ssg->chmod_recurse($this->destTemplateDir,0744);
             }
             $this->ssg->copy_recurse( $this->sourceTemplateDir, $this->destTemplateDir );
         }
         if ( is_dir($this->sourceStaticDir) )
         {
-            $this->ssg->prepareDir($destStaticDir);
-            if ( !is_writable($destStaticDir) )
+            $this->ssg->prepareDir($this->destStaticDir);
+            if ( !is_writable($this->destStaticDir) )
             {
-                $this->ssg->chmod_recurse($destStaticDir,0744);
+                $this->ssg->chmod_recurse($this->destStaticDir,0744);
             }
             $this->ssg->copy_recurse( $this->sourceStaticDir,   $this->destStaticDir   );
         }
@@ -242,10 +250,10 @@ class TemplateSource
         foreach ( $this->ssg->pageTypes as $type )
         {
             $template_file = "{$this->destTemplateDir}/{$type}.twig";
-            // $this->ssg->log("verifying $template_file ... \n");
+            $this->ssg->log("verifying $template_file ... \n");
             if ( !file_exists($template_file) )
             {
-                // $this->ssg->log("Template Sync: verify local: can't find template for $type: $template_file");
+                $this->ssg->log("Template Sync: verify local: can't find template for $type: $template_file");
                 return false;
             }
         }

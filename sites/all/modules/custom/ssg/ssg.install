@@ -1,0 +1,41 @@
+<?php
+
+function ssg_schema()
+{
+  $schema['ssg_builds'] = array(
+    'description' => 'Stores state of running build processes.',
+    'fields' => array(
+      'uuid' => array(
+        'description' => 'Build UUID',
+        'type' => 'char',
+        'length' => 36,
+        'not null' => TRUE
+      ),
+      'state' => array(
+        'description' => 'State',
+        'type' => 'text',
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'log' => array(
+        'description' => 'Log',
+        'type' => 'text',
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'created' => array(
+        'description' => 'Time of execution start',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'updated' => array(
+        'description' => 'Time of last update',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('uuid')
+  );
+
+  return $schema;
+}

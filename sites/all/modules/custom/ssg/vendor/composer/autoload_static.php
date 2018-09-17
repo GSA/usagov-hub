@@ -4,15 +4,14 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit5a51a9be5ee93b56210893519c38740a
+class ComposerStaticInit364059f2a8c4026476c92569ab6ffeb3
 {
     public static $files = array (
         'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
         'a0edc8309cc5e1d60e3047b5df6b7052' => __DIR__ . '/..' . '/guzzlehttp/psr7/src/functions_include.php',
-        '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
-        'b067bc7112e384b61c701452d53a14a8' => __DIR__ . '/..' . '/mtdowling/jmespath.php/src/JmesPath.php',
+        '320cde22f66dd4f5d3fd621d3e88b98f' => __DIR__ . '/..' . '/symfony/polyfill-ctype/bootstrap.php',
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
-        '8a9dc1de0ca7e01f3e08231539562f61' => __DIR__ . '/..' . '/aws/aws-sdk-php/src/functions.php',
+        '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
     );
 
     public static $prefixLengthsPsr4 = array (
@@ -23,24 +22,17 @@ class ComposerStaticInit5a51a9be5ee93b56210893519c38740a
         'S' => 
         array (
             'Symfony\\Polyfill\\Mbstring\\' => 26,
+            'Symfony\\Polyfill\\Ctype\\' => 23,
         ),
         'P' => 
         array (
             'Psr\\Http\\Message\\' => 17,
-        ),
-        'J' => 
-        array (
-            'JmesPath\\' => 9,
         ),
         'G' => 
         array (
             'GuzzleHttp\\Psr7\\' => 16,
             'GuzzleHttp\\Promise\\' => 19,
             'GuzzleHttp\\' => 11,
-        ),
-        'A' => 
-        array (
-            'Aws\\' => 4,
         ),
     );
 
@@ -53,13 +45,13 @@ class ComposerStaticInit5a51a9be5ee93b56210893519c38740a
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
         ),
+        'Symfony\\Polyfill\\Ctype\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/polyfill-ctype',
+        ),
         'Psr\\Http\\Message\\' => 
         array (
             0 => __DIR__ . '/..' . '/psr/http-message/src',
-        ),
-        'JmesPath\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/mtdowling/jmespath.php/src',
         ),
         'GuzzleHttp\\Psr7\\' => 
         array (
@@ -72,10 +64,6 @@ class ComposerStaticInit5a51a9be5ee93b56210893519c38740a
         'GuzzleHttp\\' => 
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/guzzle/src',
-        ),
-        'Aws\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/aws/aws-sdk-php/src',
         ),
     );
 
@@ -92,9 +80,9 @@ class ComposerStaticInit5a51a9be5ee93b56210893519c38740a
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit5a51a9be5ee93b56210893519c38740a::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit5a51a9be5ee93b56210893519c38740a::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit5a51a9be5ee93b56210893519c38740a::$prefixesPsr0;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit364059f2a8c4026476c92569ab6ffeb3::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit364059f2a8c4026476c92569ab6ffeb3::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit364059f2a8c4026476c92569ab6ffeb3::$prefixesPsr0;
 
         }, null, ClassLoader::class);
     }
