@@ -600,11 +600,22 @@ function _cmp_api_get_all_entities(){
     foreach($res_del as $r_del){
         $exclude_entities[] = $r_del->nid;
     }
+    $res_del_count = 0;
     $term_date_join = 'LEFT';
     if (isset($_REQUEST["since"])){
         $where = "WHERE temp.changed > :since ";
         $where_param = array(":since"=> $_REQUEST["since"]);
         $term_date_join = 'INNER';
+        // include deleted contents
+        $res_del_count = db_query("SELECT COUNT(*) FROM cmp_api_deleted_entities WHERE changed > :since", $where_param)->fetchField(0);
+        $res_del = db_query("SELECT * FROM cmp_api_deleted_entities WHERE changed > :since", $where_param);
+        foreach($res_del as $rd){
+            $ret[] = array('status'=>'deleted',
+                            'uuid'=>$rd->uuid,
+                            'entity_id'=>$rd->entity_id,
+                            'name'=>$rd->name,
+                            'type'=>$rd->type);
+        }
     }
    // $where = "WHERE  temp.en_id=10740 ";
 
@@ -624,7 +635,7 @@ function _cmp_api_get_all_entities(){
 
     $sql = "SELECT * FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n WHERE n.status=1 AND n.nid NOT IN (SELECT nid FROM node_deleted)
     UNION
-    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t ".$term_date_join." JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC LIMIT ".$page_size .' OFFSET '.$page ;
+    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t ".$term_date_join." JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC " . (isset($_REQUEST["since"])? "":("LIMIT ".$page_size .' OFFSET '.$page)) ;
     $res = db_query($sql, $where_param);
     foreach($res as $r){
         if ($r->type == 'node'){
@@ -673,7 +684,7 @@ function _cmp_api_get_all_entities(){
         }
     }
 
-    drupal_json_output(array("metadata" => array("count"=>$count, "offset"=>$page, "page_size"=>(int)($page_size > $count? $count:$page_size), "pages"=>$pages),"result" => $ret));
+    drupal_json_output(array("metadata" => array("count"=>($count+$res_del_count), "offset"=>$page, "page_size"=>(($page_size > $count || isset($_REQUEST["since"]))? ($count+$res_del_count):(int)$page_size), "pages"=>(isset($_REQUEST["since"])? 1:$pages)),"result" => $ret));
 }
 function _cmp_api_add_for_use_by( &$term )
 {
