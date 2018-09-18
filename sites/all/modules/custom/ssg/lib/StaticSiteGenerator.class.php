@@ -64,7 +64,7 @@ class StaticSiteGenerator
         $this->config      = ConfigLoader::loadDrupal();
 
         $config = _s3fs_get_config();
-        $config['bucket'] = 'usagovdemo';
+        $config['bucket'] = $this->config['aws']['bucket'];
         try {
             $this->s3 = _s3fs_get_amazons3_client($config);
         } catch (S3fsException $e) {
