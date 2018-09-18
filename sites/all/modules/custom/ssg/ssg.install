@@ -13,14 +13,11 @@ function ssg_schema()
       ),
       'state' => array(
         'description' => 'State',
-        'type' => 'text',
-        'not null' => FALSE,
+        'type' => 'text'
       ),
       'log' => array(
         'description' => 'Log',
-        'type' => 'text',
-        'not null' => FALSE,
-        'default' => '',
+        'type' => 'text'
       ),
       'created' => array(
         'description' => 'Time of execution start',
