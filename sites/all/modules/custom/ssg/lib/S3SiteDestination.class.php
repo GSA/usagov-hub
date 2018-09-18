@@ -68,20 +68,24 @@ class S3SiteDestination
         }
 
         $this->ssg->log("Sync: uploading site manifest.\n");
-        $sourceFiles = $this->getFilesInDir($this->source,true);
-        foreach ( $sourceFiles as &$file )
-        {
-            unset($file['path']);
-        }
-        file_put_contents($this->source.'/manifest.json',json_encode($sourceFiles));
-        $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null, 'created'=>time() ];
-        $this->ssg->s3->putObject([
-            'Bucket' => $this->ssg->config['aws']['bucket'],
-            'Key'    => 'manifest.json',
-            'Body'   => json_encode($sourceFiles),
-            'ContentType' => 'application/json',
-            'ACL'    => 'public-read',
-        ]);
+        try {    
+            $sourceFiles = $this->getFilesInDir($this->source,true);
+            foreach ( $sourceFiles as &$file )
+            {
+                unset($file['path']);
+            }
+            file_put_contents($this->source.'/manifest.json',json_encode($sourceFiles));
+            $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null, 'created'=>time() ];
+            $this->ssg->s3->putObject([
+                'Bucket' => $this->ssg->config['aws']['bucket'],
+                'Key'    => 'manifest.json',
+                'Body'   => json_encode($sourceFiles),
+                'ContentType' => 'application/json',
+                'ACL'    => 'public-read',
+            ]);
+        } catch (\Aws\S3\Exception\S3Exception $e) {
+            $this->ssg->log("Sync: There was an error uploading Manifest file. ". $e->getMessage()."\n");
+        } 
 
         return $looksGood;
     }
@@ -283,17 +287,20 @@ class S3SiteDestination
         }
         // $this->ssg->log("\n");
 
-
         $this->ssg->log("Sync: uploading site manifest.\n");
-        file_put_contents($this->source.'/manifest.json',json_encode($sourceFiles));
-        $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null, 'created'=>time() ];
-        $this->ssg->s3->putObject([
-            'Bucket' => $this->ssg->config['aws']['bucket'],
-            'Key'    => 'manifest.json',
-            'Body'   => json_encode($sourceFiles),
-            'ContentType' => 'application/json',
-            'ACL'    => 'public-read',
-        ]);
+        try {
+            file_put_contents($this->source.'/manifest.json',json_encode($sourceFiles));
+            $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null, 'created'=>time() ];
+            $this->ssg->s3->putObject([
+                'Bucket' => $this->ssg->config['aws']['bucket'],
+                'Key'    => 'manifest.json',
+                'Body'   => json_encode($sourceFiles),
+                'ContentType' => 'application/json',
+                'ACL'    => 'public-read',
+            ]);
+        } catch (\Aws\S3\Exception\S3Exception $e) {
+            $this->ssg->log("Sync: There was an error uploading Manifest file. ". $e->getMessage()."\n");
+        } 
         return true;
     }
 
