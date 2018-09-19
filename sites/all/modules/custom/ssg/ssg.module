@@ -22,17 +22,31 @@ function ssg_menu() {
 
     $items['ssg/run'] = array(
         'page callback' => '_ssg_run_ajax',
-        'type' => MENU_CALLBACK,
-        'access arguments' => array(true)
+        'access callback' => array(true),
+        'type' => MENU_CALLBACK
     );
 
     $items['ssg/status'] = array(
         'page callback' => '_ssg_status_ajax',
-        'type' => MENU_CALLBACK,
-        'access arguments' => array(true)
+        'access callback' => array(true),
+        'type' => MENU_CALLBACK
     );
 
     return $items;
+}
+
+function ssg_permission()
+{
+    return array(
+        'configure ssg' => array(
+            'title' => t('Configure Static Site Generator'),
+            'description' => t('Perform administration tasks for my module.'),
+        ),
+        'run ssg' => array(
+            'title' => t('Configure Static Site Generator'),
+            'description' => t('Perform administration tasks for my module.'),
+        ),
+    );
 }
 
 function ssg_actions_form_validate($form, &$form_state) {
@@ -58,6 +72,7 @@ function ssg_actions_form ()
         '#title' => 'Run Static Site Generator',
         '#markup' => '
             <script>
+                var buildDeployTimer = null;
                 function ajax_run_ssg()
                 {
                     jQuery("#ssg_ajax_run_ssg_response").html("loading");
@@ -70,6 +85,11 @@ function ssg_actions_form ()
                         error:function(data) {
                             status = " build:<span style=\"color:orange\">failure</span>";
                             jQuery("#ssg_ajax_run_ssg_response").html(status);
+                        },
+                        complete:function(data) {
+                            buildDeployTimer = setTimeout(function(){
+                                jQuery("#ssg_ajax_run_ssg_response").fadeOut();
+                            },2000);
                         }
                     });
                 }

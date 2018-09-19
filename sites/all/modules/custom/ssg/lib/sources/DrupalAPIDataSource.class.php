@@ -98,6 +98,15 @@ class DrupalAPIDataSource extends DataSource
         try
         {
           $processedCount++;    
+
+          if ( array_key_exists('deleted',$result) && intval($result['deleted'])==1 )
+          {
+            if ( isset( $this->entities[$result['uuid']] ) )
+            {
+              unset($this->entities[$result['uuid']]);
+            }
+          }
+
           $entity = $this->cleanResult($result);
           if ( !$this->belongsToSite($siteName,$entity) )
           {
