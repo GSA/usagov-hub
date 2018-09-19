@@ -198,8 +198,12 @@ function compileAssetTopicTaxonomyReportToCSV(&$counter, &$lvlSemaphore, &$rows,
 
         // Get the 'For Use By' text for this node
         $forUseBy = array();
-        foreach ( $node->field_for_use_by_text['und'] as $valCont ) {
-            $forUseBy[] = $valCont['value'];
+        if ( property_exists('field_for_use_by_text',$node) &&
+             array_has_key('und',$node->field_for_use_by_text) )
+        {
+            foreach ( $node->field_for_use_by_text['und'] as $valCont ) {
+                $forUseBy[] = $valCont['value'];
+            }
         }
         $forUseBy = implode(', ', $forUseBy);
 
