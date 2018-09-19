@@ -44,7 +44,31 @@ function cmp_api_menu(){
         'access callback' => TRUE,
         'type' => MENU_NORMAL_ITEM,
     );
+    $items['usaapi/opportunities'] = array(
+        'title' => 'USAGov Platform API Interactive Documentation',
+        'page callback' => '_returnFBODataResult',
+        'access callback' => TRUE,
+        'type' => MENU_NORMAL_ITEM,
+    );
     return $items;
+}
+function cmp_api_init()
+{
+    global $conf;
+    $conf['fbo_elasticsearch_server'] = _fbo_elasticsearch_server();
+}
+function _fbo_elasticsearch_server()
+{
+    $host = variable_get('elasticsearch_server');
+    $port = variable_get('elasticsearch_port');
+    $ssl  = variable_get('elasticsearch_ssl', false);
+    if ( boolval($ssl)===false || ( is_string($ssl) && strlen($ssl)>0 && in_array(strtolower($ssl{0}),['n','f']) ) ) {
+        $ssl = false;
+    } else {
+        $ssl = true;
+    }
+    $scheme = ( stripos($port,'443')!==false || $ssl ) ? 'https' : 'http';
+    return $scheme .'://'. $host . ':'. $port;
 }
 /**
  * Implements hook_theme().
@@ -85,6 +109,446 @@ function _cmp_api_get_all_redirects(){
     drupal_json_output(array("metadata" => array("exists" => true), "result" => $ret));
 }
 
+function _returnFBODataResult(){
+    include(drupal_get_path('module', 'cmp_api').'/mappings.php');
+    $params = array();
+    $size = 5;
+    $from = 0;
+
+    if (isset($_REQUEST['keyword']) && $_REQUEST['keyword'] !=''){
+        $params['keyword'] = $_REQUEST['keyword'];
+    }
+    if (isset($_REQUEST['from']) && $_REQUEST['from'] != 0 ) {
+        $from = $_REQUEST['from']; // pagination
+    }
+    if (isset($_REQUEST['postdate']) && $_REQUEST['postdate'] != '--') {
+        $params['postdate'] = $_POST['postdate'];
+    }
+    if (isset($_REQUEST['state']) && $_REQUEST['state'] !='') {
+        if ($_REQUEST['state'] == "GU") {
+            $params['state'] = array("GU", 2);
+        }
+        elseif ($_REQUEST['state'] == "OU") {
+            $params['state'] = array("AP", "AE",NULL);
+        }
+        else {
+            $params['state'] =array($_POST['state']);
+        }
+    }
+    if (isset($_REQUEST['setaside'])) {
+        $params['setaside'] = $_REQUEST['setaside'];
+    }
+    $ret = _do_es_search($from, $size, $params);
+    if (isset($_REQUEST['do_index']) && $_REQUEST['do_index'] ==="1" ) {
+
+        // need to user data
+        $s = _setupES();
+        if ($s) {
+            if (isset($_REQUEST['setaside'])) {
+                $sa = $params['setaside'];
+                $sa = array_diff($sa, array('N/A'));
+            } else {
+                $sa = array();
+            }
+
+            $p = array('keyword' => $_REQUEST['keyword'],
+                'postdate' => ($_REQUEST['postdate'] != '--' ? $_REQUEST['postdate'] : null),
+                'submitteddate' => time(),
+                'location' => (isset($_REQUEST['state']) && $_REQUEST['state'] != '') ? join(',',$params['state']) : '',
+                'setaside' => join(',', $sa),
+                'show_na_setaside' => (isset($_REQUEST['setaside']) && in_array('N/A', $_REQUEST['setaside'])) ? 1 : 0);
+
+            _index_userinfo($p);
+        }
+    }
+
+    drupal_json_output([
+        'opps'=>$ret['opps'],
+        'total'=>$ret['total'],
+        'size'=>$size,
+        'paramm'=>$ret['paramm'],
+        'elasticsearch'=>$ret['elasticsearch'],
+        'param'=>$params,
+        'do'=>isset($params['setaside'])?$params['setaside']:'',
+        's'=>isset($_REQUEST['setaside'])?$_REQUEST['setaside']:''
+    ]);
+}
+function _do_es_search($from, $size, $params){
+
+    // $elasticsearch_server = 'http://' . variable_get('elasticsearch_server', 'elasticsearch_server'). ':' . variable_get('elasticsearch_port', 9200);
+
+    $kp = '';
+    if (isset($params['keyword'])) {
+
+        $params['keyword'] = strtolower($params['keyword']);
+
+        if (strpos($params['keyword'], '"')  === false && strpos($params['keyword'], ' ')  !== false) {
+            // or
+            $kwords = explode(" ", $params['keyword']);
+
+            $kpts = array();
+            foreach($kwords as $ww){
+                $kpts["solnbr"][] = '{"wildcard" : {"solnbr": "*'.$ww.'*"}}';
+                $kpts["naicscode"][] = '{"wildcard" : {"naicscode": "*'.$ww.'*"}}';
+                $kpts["naicsvalue"][] = '{"wildcard" : {"naicsvalue": "*'.$ww.'*"}}';
+                $kpts["naics"][] = '{"wildcard" : {"naics": "*'.$ww.'*"}}';
+                $kpts["classvalue"][] = '{"wildcard" : {"classvalue": "*'.$ww.'*"}}';
+                $kpts["classcode"][] = '{"wildcard" : {"classcode": "*'.$ww.'*"}}';
+                $kpts["zip"][] = '{"wildcard" : {"zip": "*'.$ww.'*"}}';
+                $kpts["subject"][] = '{"wildcard" : {"subject": "*'.$ww.'*"}}';
+                $kpts["desc"][] = '{"wildcard" : {"desc": "*'.$ww.'*"}}';
+                $kpts["agency"][] = '{"wildcard" : {"agency": "*'.$ww.'*"}}';
+                $kpts["office"][] = '{"wildcard" : {"office": "*'.$ww.'*"}}';
+                $kpts["state"][] = '{"wildcard" : {"state": "*'.$ww.'*"}}';
+                $kpts["setaside"][] = '{"wildcard" : {"setaside": "*'.$ww.'*"}}';
+            }
+
+            foreach($kpts as $k=>$v){
+                $kpkp[]= '{"bool":{"must" : [' . join(',',$v) . ']}}';
+            }
+            $kp = '"should" : [' . join(',', $kpkp) . ']';
+        }
+        else {
+            $params['keyword'] = str_replace('"', '', $params['keyword']);
+            // and
+            $kpt[] = '{"match_phrase": {"subject": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"match_phrase": {"desc": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"match_phrase": {"agency": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"match_phrase": {"office": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"match_phrase": {"zip": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"match_phrase": {"state": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"match_phrase": {"solnbr ": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"match_phrase": {"classcode": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"match_phrase": {"classvalue": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"match_phrase": {"naicscode": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"match_phrase": {"naicsvalue": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"match_phrase": {"naics": "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"term" : {"setaside" : "' . $params['keyword'] . '"}}';
+            $kpt[] = '{"wildcard" : {"solnbr": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"naicscode": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"naicsvalue": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"naics": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"classvalue": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"classcode": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"zip": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"subject": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"desc": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"agency": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"office": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"state": "*'.$params['keyword'].'*"}}';
+            $kpt[] = '{"wildcard" : {"setaside": "*'.$params['keyword'].'*"}}';
+        }
+
+        if (count($kpt) > 0) {
+            $kp = '"should" : [' . join(',', $kpt) . ']';
+        }
+    }
+    $st = '';
+    // if there is setaside is selected
+    if (isset($params['setaside'])){
+        foreach($params['setaside'] as $s) {
+            $st_tmp[] = '{"term" : {"setaside.raw" : "'.$s.'"}}';
+        }
+        if (count($st_tmp) > 0){
+            $st = '"should" : ['.join(',',$st_tmp).']';
+        }
+    }
+
+    $cd = '';
+    // if there is closing date range
+    if (isset($params['postdate'])){
+        $cd = '"range": {"postdate": {"gte": "'.$params['postdate'].'"}}';
+    }
+
+    $sta = '';
+    if (isset($params['state'])){
+        $sta_tmp = array();
+        foreach($params['state'] as $pst) {
+            $sta_tmp[] = '{"term" : {"state" : "' . strtolower($pst) . '"}}';
+        }
+        if (count($sta_tmp) > 0){
+            $sta = '"should" : ['.join(',',$sta_tmp).']';
+        }
+    }
+
+    try{
+        $sort =  '"sort" : ['
+            .'  {"closedate" : {"order" : "asc",  "missing" : "_last", "unmapped_type": "date"}},'
+            .'  {"postdate"  : {"order" : "desc", "missing" : "_last", "unmapped_type": "date"}},'
+            .'  {"subject"   : {"order" : "asc",  "missing" : "_last", "unmapped_type": "keyword"}}'
+            .']';
+        $param = '{
+            "query": {';
+        if($kp=='' && $st == '' && $cd=='' && $sta!=''){ // state only
+            $param .= '"constant_score" : {';
+            $param .= '"filter" : { "bool" : { ' . $sta . ' }}';
+            $param .= '}';
+        }
+        elseif($kp=='' && $st == '' && $cd!='' && $sta=='') { // postadate only
+            $param .= '"constant_score" : {"filter" : { '.$cd.' }}';
+        }
+        elseif($kp=='' && $st != '' && $cd=='' && $sta==''){ // setaside only
+            $param .= '"constant_score" : {';
+            $param .= '"filter" : { "bool" : { ' . $st . ' }}';
+            $param .= '}';
+        }
+        elseif($kp!='' && $st == '' && $cd=='' && $sta==''){ // keyword only
+            $param .= ' "bool" : { ' . $kp . ' }';
+        }
+        else{
+
+            $tmp_param = array();
+            if ($st != ''){
+                $tmp_param[] = '{"bool": { ' . $st . ' }}';
+            }
+            if ($kp != ''){
+                $tmp_param[] = '{"bool": { ' . $kp . ' }}';
+
+            }
+            if ($cd != ''){
+                $tmp_param[] = '{'.$cd.'}';
+            }
+            foreach($params['state'] as $pst) {
+                $tmp_param[] = '{"bool": { ' . $sta . ' }}';
+            }
+            if (count($tmp_param) > 0){
+                $param .= '"bool" : { "must" :';
+                $param .= '['.join(',',$tmp_param).']';
+                $param .= '}';
+            }
+            else {
+                // or default
+            }
+
+        }
+        $param .='}, '.$sort.'}';
+        //$param .='}}';
+
+        // $header = array(
+        //     "CONTENT-TYPE: application/json; charset=utf-8"
+        // );
+
+        // $curl = curl_init();
+        // curl_setopt($curl, CURLOPT_URL, $elasticsearch_server."/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty");
+        // curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
+        // curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+        // curl_setopt($curl, CURLOPT_POSTFIELDS, $param);
+        // //dsm($param);
+
+        // $res = curl_exec($curl);
+        // curl_close($curl);
+        // $r = json_decode($res);
+
+        $response = _fbo_elasticsearch_request("/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty",['data'=>$param]);
+        $r = json_decode($response->data);
+// print_r(["/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty",$param]);flush();die;
+        if(isset($r->hits->hits)){
+            $sols = _get_array_of_obj($r->hits->hits);
+            $ret['opps'] = $sols;
+            $ret['total'] = $r->hits->total;
+            $ret['paramm']= $param;
+            $ret['elasticsearch'] =variable_get('fbo_elasticsearch_server')."/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty";
+            return $ret;
+        }
+        else {
+            $ret['opps'] = array();
+            $ret['total'] = isset($r->hits->total) ? $r->hits->total : 0;
+            $ret['paramm']= $param;
+            $ret['elasticsearch'] =variable_get('fbo_elasticsearch_server')."/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty";
+            return $ret;
+        }
+
+    } catch(Exception $e){
+        drupal_set_message("Error", "Elastic search issue");
+        return false;
+    }
+}
+function _get_array_of_obj($obj){
+    $r = array();
+
+    foreach($obj as $o){
+        $r[] = array(
+            'type'=> ( isset($o->_source->type) ) ? $o->_source->type : null,
+            'agency'=> ( isset($o->_source->agency) ) ?  $o->_source->agency : null,
+            'office'=> ( isset($o->_source->office) ) ?  $o->_source->office : null,
+            'location'=> ( isset($o->_source->location) ) ?  $o->_source->location : null,
+            'classcod'=> ( isset($o->_source->classcod) ) ?  $o->_source->classcod : null,
+            'naics'=> ( isset($o->_source->naics) ) ?  $o->_source->naics : null,
+            'subject'=> ( isset($o->_source->subject) ) ?  $o->_source->subject : null,
+            'solnbr'=> ( isset($o->_source->solnbr) ) ?  $o->_source->solnbr : null,
+            'desc'=> ( isset($o->_source->desc) ) ?  $o->_source->desc : null,
+            'setaside'=> ( isset($o->_source->setaside) ) ?  $o->_source->setaside : null,
+            'popcountry'=> ( isset($o->_source->popcountry) ) ?  $o->_source->popcountry : null,
+            'popzip'=> ( isset($o->_source->popzip) ) ?  $o->_source->popzip : null,
+            'link'=> ( isset($o->_source->link) ) ?  $o->_source->link : null,
+            'source'=> ( isset($o->_source->source) ) ?  $o->_source->source : null,
+            'contact'=> ( isset($o->_source->contact) ) ?  $o->_source->contact : null,
+            'postdate'=> ( isset($o->_source->postdate) ) ?  $o->_source->postdate : null,
+            'closedate'=> ( isset($o->_source->closedate) ) ?  $o->_source->closedate : null,
+            'state'=> ($o->_source->state =='AE' || $o->_source->state=='AP' || empty($o->_source->state))? 'Outside U.S.':$o->_source->state,
+            'zip'=> ( isset($o->_source->zip) ) ?  $o->_source->zip : null,
+        );
+    }
+
+    return $r;
+}
+function _fbo_elasticsearch_request($path='/',$options=[])
+{
+    // print_r($options);
+    $uri = variable_get('fbo_elasticsearch_server').$path;
+    $response = new stdClass();
+    $response->code = null;
+    $response->data = '';
+    try {
+        $method  = !empty($options['method'])  ? $options['method'] : 'GET';
+        $data    = !empty($options['data'])    ? $options['data']   : '';
+        $timeout = !empty($options['timeout']) ? intval($options['timeout']) : null;
+
+        $curl = curl_init();
+        curl_setopt($curl, CURLOPT_URL, $uri);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
+        if ( $method=='HEAD') {
+            curl_setopt($curl, CURLOPT_HEADER, true);
+            curl_setopt($curl, CURLOPT_NOBODY, true);
+        }
+
+        // if ( is_int($timeout) ) {
+        //     curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
+        // }
+        curl_setopt($curl, CURLOPT_HTTPHEADER,
+            ['CONTENT-TYPE: application/json; charset=utf-8']);
+
+        if ( !empty($data) ) {
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+        }
+
+        // curl_setopt($curl, CURLOPT_VERBOSE, 1);
+        // curl_setopt($curl, CURLOPT_FAILONERROR, TRUE);
+
+        // if ( local AND ssl )
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, 0);
+
+        $response->data = curl_exec($curl);
+        $response->code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+
+        curl_close($curl);
+        return $response;
+    } catch (Exception $e) {
+        /// pass
+    }
+    return $response;
+}
+function _setupES(){
+    // $elasticsearch_server = 'http://' . variable_get('elasticsearch_server', 'elasticsearch_server'). ':' . variable_get('elasticsearch_port', 9200);
+
+    // $resource = curl_init();
+    // curl_setopt($resource, CURLOPT_URL, $elasticsearch_server.'/opportunityuserinputs');
+    // curl_setopt($resource, CURLOPT_RETURNTRANSFER, 1);
+    // curl_setopt($resource, CURLOPT_CUSTOMREQUEST, "HEAD");
+    // curl_setopt($resource, CURLOPT_HEADER, true);
+    // curl_setopt($resource, CURLOPT_NOBODY, true);
+    // curl_setopt($resource, CURLOPT_HTTPHEADER, ['CONTENT-TYPE: application/json; charset=utf-8']);
+    // $httpcode = curl_getinfo($resource, CURLINFO_HTTP_CODE);
+    // curl_close($resource);
+    // if ($httpcode == '200') {
+    //     echo "Index already exist\n";
+    //     return true;
+    // }
+
+    $response = _fbo_elasticsearch_request('/opportunityuserinputs/',['method'=>'HEAD']);
+    if ($response->code == 200) {
+        return true;
+    }
+
+    $data = '{
+          "settings" : {
+               "index" : {
+                   "number_of_shards" : 1,
+                   "number_of_replicas" : 0
+               }
+          },
+          "mappings": {
+            "userinput": {
+              "properties": {
+
+                "setaside" : {
+                  "type": "keyword",
+                  "fields": {
+                    "raw" : {
+                      "type": "keyword",
+                      "index": "not_analyzed"
+                    }
+                  }
+                },
+                "keyword" : {
+                  "type": "keyword",
+                  "fields": {
+                    "raw" : {
+                      "type": "keyword",
+                      "index": "not_analyzed"
+                    }
+                  }
+                },
+                "location" : {
+                  "type": "keyword",
+                  "fields": {
+                    "raw" : {
+                      "type": "keyword",
+                      "index": "not_analyzed"
+                    }
+                  }
+                },
+                "submitteddate" : {
+                  "type": "integer"
+                },
+                "postdate" : {
+                  "type": "date",
+                  "format": "yyyy-MM-dd"
+                },
+                "show_na_setaside" : {
+                  "type": "keyword",
+                  "fields": {
+                    "raw" : {
+                      "type": "keyword",
+                      "index": "not_analyzed"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }';
+
+    // $resource = curl_init();
+    // curl_setopt($resource, CURLOPT_URL, $elasticsearch_server.'/opportunityuserinputs');
+    // curl_setopt($resource, CURLOPT_RETURNTRANSFER, 1);
+    // curl_setopt($resource, CURLOPT_CUSTOMREQUEST, "PUT");
+    // curl_setopt($resource, CURLOPT_POSTFIELDS, $data);
+    // curl_setopt($resource, CURLOPT_HTTPHEADER, ['CONTENT-TYPE: application/json; charset=utf-8']);
+    // $result = curl_exec($resource);
+    // curl_close($resource);
+    // if ($result) {
+    //     if ( !empty($result->error) ) {
+    //         return false;
+    //     } else {
+    //         return true;
+    //     }
+    // }
+
+    $response = _fbo_elasticsearch_request('/opportunityuserinputs/',['method'=>'PUT','data'=>$data]);
+    if ($response) {
+        if ( !empty($response->data->error) ) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 function _cmp_api_get_all_entities(){
     $page =0;
     $page_size=10;
@@ -103,10 +567,11 @@ function _cmp_api_get_all_entities(){
     foreach($res_del as $r_del){
         $exclude_entities[] = $r_del->nid;
     }
-
+    $term_date_join = 'LEFT';
     if (isset($_REQUEST["since"])){
         $where = "WHERE temp.changed > :since ";
         $where_param = array(":since"=> $_REQUEST["since"]);
+        $term_date_join = 'INNER';
     }
    // $where = "WHERE  temp.en_id=10740 ";
 
@@ -116,7 +581,7 @@ function _cmp_api_get_all_entities(){
 
     $sql_count = "SELECT COUNT(*) FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n WHERE n.status=1 AND n.nid NOT IN (SELECT nid FROM node_deleted)
     UNION
-    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t LEFT JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'');
+    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t ".$term_date_join." JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'');
     $count = db_query($sql_count, $where_param)->fetchField(0);
 
     $pages = ceil($count/$page_size);
@@ -126,7 +591,7 @@ function _cmp_api_get_all_entities(){
 
     $sql = "SELECT * FROM (SELECT n.nid as en_id, 'node' as type, n.changed as changed FROM node n WHERE n.status=1 AND n.nid NOT IN (SELECT nid FROM node_deleted)
     UNION
-    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t LEFT JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC LIMIT ".$page_size .' OFFSET '.$page ;
+    SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t ".$term_date_join." JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC LIMIT ".$page_size .' OFFSET '.$page ;
     $res = db_query($sql, $where_param);
     foreach($res as $r){
         if ($r->type == 'node'){
