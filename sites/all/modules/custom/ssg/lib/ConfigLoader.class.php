@@ -12,6 +12,7 @@ class ConfigLoader
         {
             return self::loadFile($configFile);
         } else {
+            error_log('LOAD DRUPAL');
             return self::loadDrupal();
         }
     }
@@ -23,18 +24,18 @@ class ConfigLoader
             require($fileName);
             if ( !empty($config) )
             {
-                if ( !empty($config['aws']['aws_access_key_id']) )
-                {
-                    putenv('AWS_ACCESS_KEY_ID='.$config['aws']['aws_access_key_id']);
-                }
-                if ( !empty($config['aws']['aws_secret_access_key']) )
-                {
-                    putenv('AWS_SECRET_ACCESS_KEY='.$config['aws']['aws_secret_access_key']);
-                }
-                if ( !empty($config['aws']['aws_session_token']) )
-                {
-                    putenv('AWS_SESSION_TOKEN='.$config['aws']['aws_session_token']);
-                }
+                // if ( !empty($config['aws']['aws_access_key_id']) )
+                // {
+                //     putenv('AWS_ACCESS_KEY_ID='.$config['aws']['aws_access_key_id']);
+                // }
+                // if ( !empty($config['aws']['aws_secret_access_key']) )
+                // {
+                //     putenv('AWS_SECRET_ACCESS_KEY='.$config['aws']['aws_secret_access_key']);
+                // }
+                // if ( !empty($config['aws']['aws_session_token']) )
+                // {
+                //     putenv('AWS_SESSION_TOKEN='.$config['aws']['aws_session_token']);
+                // }
                 return $config;
             } else {
                 error_log('Cannot find config within file '.$fileName);
@@ -55,22 +56,24 @@ class ConfigLoader
         /// prod env should already have these
         /// but docker may not, so we try and set them here
         /// with proper config this should not be necessary
-        $envAccessKey = getenv('AWS_ACCESS_KEY_ID');
-        $accessKey    = getenv('CMP_AWS_ACCESS_KEY');
-        if ( empty($envAccessKey) && !empty($accessKey) )
-        {
-            putenv('AWS_ACCESS_KEY_ID='.$accessKey);
-        }
-        $envSecretKey = getenv('AWS_SECRET_ACCESS_KEY');
-        $secretKey    = getenv('CMP_AWS_SECRET_KEY');
-        if ( empty($envSecretKey) && !empty($secretKey) )
-        {
-            putenv('AWS_SECRET_ACCESS_KEY='.$secretKey);
-        }
+        // $envAccessKey = getenv('AWS_ACCESS_KEY_ID');
+        // $accessKey    = getenv('CMP_AWS_ACCESS_KEY');
+        // if ( empty($envAccessKey) && !empty($accessKey) )
+        // {
+        //     error_log('PUT ENV AWS_ACCESS_KEY_ID='.$accessKey);
+        //     putenv('AWS_ACCESS_KEY_ID='.$accessKey);
+        // }
+        // $envSecretKey = getenv('AWS_SECRET_ACCESS_KEY');
+        // $secretKey    = getenv('CMP_AWS_SECRET_KEY');
+        // if ( empty($envSecretKey) && !empty($secretKey) )
+        // {
+        //     error_log('PUT ENV AWS_SECRET_ACCESS_KEY='.$secretKey);
+        //     putenv('AWS_SECRET_ACCESS_KEY='.$secretKey);
+        // }
 
         return [
             'siteName' => 'USA.gov',
-            'siteUrl'  => variable_get('s3fs_bucket').'.s3-website-us-east-1.amazonaws.com',
+            'siteUrl'  => variable_get('CMP_AWS_S3_BUCKET_2').'.s3-website-us-east-1.amazonaws.com',
             'permDir' => variable_get('ssg_permDir'),
             'tempDir' => variable_get('ssg_tempDir'),
             'featuresPageBatchSize' => variable_get('ssg_featuresPageBatchSize'),

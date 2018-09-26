@@ -42,6 +42,7 @@ class DataSource
 
     public function loadData()
     {
+        $sourceFail = false;
         if ( $this->freshData )
         {
             /// if we want data from source - we might only need to update
@@ -50,6 +51,8 @@ class DataSource
             if ( $this->loadDataFromSource() ) 
             {
                 $this->ssg->log("done\n");
+            } else {
+                $sourceFail = true;
             }
         }
 
@@ -77,20 +80,31 @@ class DataSource
             if ( $this->updateDataFromSource() ) 
             {
                 $this->ssg->log("Data: updating ... done\n");
+                return true;
             } else {
                 $this->ssg->log("Data: updating ... fail\n");
+                return false;
             }
         }
-        return false;
+        
+        return true;
     }
     public function updateDataFromSource()
     {
-        $this->pull($this->dataPullTime);
+        $pulled = $this->pull($this->dataPullTime);
+        if ( !$pulled )
+        {
+            return false;
+        }
         return $this->storeDataInCache();
     }
     public function loadDataFromSource()
     {
-        $this->pull();
+        $pulled = $this->pull();
+        if ( !$pulled )
+        {
+            return false;
+        }
         return $this->storeDataInCache();
     }
     public function loadDataFromCache()

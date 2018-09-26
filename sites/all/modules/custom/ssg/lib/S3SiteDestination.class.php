@@ -22,6 +22,23 @@ class S3SiteDestination
         $this->dest   = 's3://'.trim($this->ssg->config['aws']['bucket']);
         // if ( !empty($this->ssg->config['aws']['siteRoot']) )
 
+        // $inlineEnv = '';
+        // if ( !empty($this->ssg->config['aws']['aws_access_key_id']) )
+        // {
+        //     $inlineEnv .= 'export AWS_ACCESS_KEY_ID='. $this->ssg->config['aws']['aws_access_key_id'] .'; ';
+        // }
+        // if ( !empty($this->ssg->config['aws']['aws_secret_access_key']) )
+        // {
+        //     $inlineEnv .= 'export AWS_SECRET_ACCESS_KEY='. $this->ssg->config['aws']['aws_secret_access_key'] .'; ';
+        // }
+        // if ( !empty($this->ssg->config['aws']['aws_session_token']) )
+        // {
+        //     $inlineEnv .= 'export AWS_SESSION_TOKEN='. $this->ssg->config['aws']['aws_session_token'] .'; ';
+        // }
+
+        // $this->s3Sync = "{$inlineEnv} aws s3 sync {$this->source} {$this->dest} --delete";
+        // $this->s3Pull = "{$inlineEnv} aws s3 sync {$this->dest} {$this->source} --delete";
+
         $this->s3Sync = "aws s3 sync {$this->source} {$this->dest} --delete";
         $this->s3Pull = "aws s3 sync {$this->dest} {$this->source} --delete";
 
@@ -29,7 +46,7 @@ class S3SiteDestination
     }
 
     public function sync()
-    {   
+    {
         $this->ssg->log("Syncing to destination bucket\n");
         $filesSynced = $this->syncFilesCli();
         // $filesSynced = $this->syncFilesSdk();

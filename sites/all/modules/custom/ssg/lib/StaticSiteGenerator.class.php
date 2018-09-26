@@ -6,6 +6,7 @@ class StaticSiteGenerator
 {
     public $uuid;
     public $logMessage;
+    public $runtimeEnvironment;
 
     public $time;
     public $siteName;
@@ -60,20 +61,39 @@ class StaticSiteGenerator
             'wy'=>"Wyoming", 'as'=>"American Samoa", 'vi'=>"U S Virgin Islands", 'mp'=>"Northern Mariana Islands", 'pr'=>"Puerto Rico", 'gu'=>"Guam"
         ];
 
-        /// get helper objects
-        $this->config      = ConfigLoader::loadDrupal();
+        $this->runtimeEnvironment = 'standalone';
+        $this->determineRuntimeEnvironment();
 
-        $config = _s3fs_get_config();
-        $config['bucket'] = $this->config['aws']['bucket'];
-        try {
-            $this->s3 = _s3fs_get_amazons3_client($config);
-        } catch (S3fsException $e) {
-            $this->log("S3Client error : ".$e->getMessage());
+        $this->config = ConfigLoader::loadConfig($this->siteName);
+
+        if ( $this->runtimeEnvironment == 'drupal' )
+        {
+            if ( function_exists('_s3fs_get_config') )
+            {
+                $config = _s3fs_get_config();
+                $config['bucket']  = $this->config['aws']['bucket'];
+                $config['version'] = 'latest';
+                try {
+                    $this->s3 = _s3fs_get_amazons3_client($config);
+                } catch (S3fsException $e) {
+                    $this->log("S3Client error : ".$e->getMessage());
+                }
+            } else {
+                $this->log("SSG error : requires S3FS Module",false);
+                return;
+            }
+        } else if ( $this->runtimeEnvironment == 'standalone' ) {
+            if ( class_exists('\Aws\S3\S3Client') )
+            {
+                $this->s3 = \Aws\S3\S3Client::factory($this->config['aws']);
+                // $sdk = new \Aws\Sdk($this->config['aws']);
+                // $this->s3 = $sdk->createS3();
+                $this->s3->registerStreamWrapper();
+            } else {
+                $this->log("SSG error : requires AWS SDK Library",false);
+                return;
+            }
         }
-
-        // $sdk = new \Aws\Sdk($this->config['aws']);
-        // $this->s3 = $sdk->createS3();
-        // $this->s3->registerStreamWrapper();
 
         $this->prepareDirs();
 
@@ -85,28 +105,43 @@ class StaticSiteGenerator
         $this->getDatafromSource = false;
     }
 
+    public function determineRuntimeEnvironment()
+    {
+        if ( function_exists('variable_get') )
+        {
+            $this->runtimeEnvironment = 'drupal';
+        } else if ( class_exists('\Aws\Sdk') ) {
+            $this->runtimeEnvironment = 'standalone';
+        } else {
+            $this->runtimeEnvironment = 'standalone';
+        }
+    }
+
     public function log($msg,$debugOnly=true)
     {
         $this->logMessage .= $msg;
 
-        $t = time();
-        $result = db_query("
-            UPDATE {ssg_builds} 
-            SET 
-                log=concat(ifnull(log,''), :log), 
-                updated=UNIX_TIMESTAMP() 
-            WHERE 
-                uuid=:uuid
-        ",[
-            ':uuid'=>$this->uuid,
-            ':log'=>$msg
-        ]);
+        if ( $this->runtimeEnvironment == 'drupal' )
+        {
+            $result = db_query("
+                UPDATE {ssg_builds} 
+                SET 
+                    log=concat(ifnull(log,''), :log), 
+                    updated=UNIX_TIMESTAMP() 
+                WHERE 
+                    uuid=:uuid
+            ",[
+                ':uuid'=>$this->uuid,
+                ':log'=>$msg
+            ]);
+            $msg = "SiteBuild:{$this->uuid} {$msg}";
+        }
 
         if ( $debugOnly )
         {
             return;
         }
-        error_log("SiteBuild:{$this->uuid} {$msg}");
+        error_log($msg);
     }
 
     public function prepareDirs()
@@ -125,8 +160,18 @@ class StaticSiteGenerator
 
     public function syncTemplates()
     {
-        $this->templates->sync();
-        $this->renderer->loadTwigTemplates();
+        $synced = $this->templates->sync();
+        if ( !$synced ) {
+            $this->log("syncTemplates: syncing from source failed\n");
+            return false; 
+        }
+        $loaded = $this->renderer->loadTwigTemplates();
+        if ( !$loaded ) { 
+            $this->log("syncTemplates: loading templates failed\n");
+            return false; 
+        }
+
+        return true;
     }
 
     public function loadData()
@@ -1029,25 +1074,40 @@ class StaticSiteGenerator
     public function validatePage( $filename, $checkHtml = true )
     {
         $fileExists = file_exists($filename);
-        if ( !$fileExists ) { return false; }
+        if ( !$fileExists ) { 
+            $this->log("Validate Page: no file at $filename\n");
+            return false; 
+        }
         $fileFilled = ( filesize($filename) > 0 );
-
-        $fileValid  = ( $fileExists && $fileFilled );
-        $fileIsHtml = false;
-        
-        if ( $checkHtml ) 
+        if ( !$fileFilled )
         {
-            $fileHandle = fopen($filename, 'r');
-            if ( $fileHandle )
-            {
-                $fileHeader = fread($fileHandle, 100);
-                fclose($fileHandle);
-                $fileHeader = trim($fileHeader);
-                $fileIsHtml = ( $fileHeader{0} == '<');
-            }
+            $this->log("Validate Page: empty file at $filename\n");
+            return false;
         }
 
-        return ( $fileExists && $fileFilled && $fileIsHtml );
+        if ( !$checkHtml ) 
+        {
+            return true;
+        }
+
+        $fileHandle = fopen($filename, 'r');
+        if ( !$fileHandle )
+        {
+            $this->log("Validate Page: unreadable file at $filename\n");
+            return false;
+        }
+
+        $fileHeader = fread($fileHandle, 100);
+        fclose($fileHandle);
+        $fileHeader = trim($fileHeader);
+        $fileIsHtml = ( $fileHeader{0} == '<');
+        if ( !$fileIsHtml )
+        {
+            $this->log("Validate Page: non-html file at $filename: $fileHeader\n");
+            return false;
+        }
+
+        return true;
     }
     public function validateSite()
     {
@@ -1217,7 +1277,10 @@ class StaticSiteGenerator
         {
             return false;
         }
-        $this->renderer->renderPage($page,$renderPageOnFailure);
+        if ( !empty($page['generate_page']) && $page['generate_page']!='no' )
+        {
+            $this->renderer->renderPage($page,$renderPageOnFailure);
+        }
         foreach ( $page['children'] as $childPage )
         {
             if ( !empty($childPage['uuid']) )

@@ -72,15 +72,21 @@ class TemplateSource
         } else if ( $this->freshTemplates ) {
 
             $this->pullSourceRepo();
-        } else {
-            $this->checkoutBranch();
+        // } else {
+        //     $this->checkoutBranch();
         }
 
-        if ( !$this->verifySource() )
-        {
-            return false;
-        }
+        /// even if source is bad, we might have a local copy  of templates to use
+        // if ( !$this->verifySource() )
+        // {
+        //     return false;
+        // }
 
+        /// should template object operate straight outa source
+        /// or be merged into a diff location before compilation
+        /// theoretically, a version of the templates from git
+        /// could be checked into the ssg repo in case there was 
+        /// no git access
         $this->mergeSourceIntoDestination();
 
         return $this->verifyDestination();
@@ -245,12 +251,13 @@ class TemplateSource
 
         if ( !is_dir($this->destStaticDir) ) {
             $this->ssg->log("Template Sync: can't find template static dir: {$this->destStaticDir}");
+            /// not worth dying for
             // return false;
         }
         foreach ( $this->ssg->pageTypes as $type )
         {
             $template_file = "{$this->destTemplateDir}/{$type}.twig";
-            $this->ssg->log("verifying $template_file ... \n");
+            $this->ssg->log("Verifying Template: {$type}.twig\n");
             if ( !file_exists($template_file) )
             {
                 $this->ssg->log("Template Sync: verify local: can't find template for $type: $template_file");

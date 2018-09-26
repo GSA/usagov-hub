@@ -23,6 +23,7 @@ class ComposerStaticInit364059f2a8c4026476c92569ab6ffeb3
         array (
             'Symfony\\Polyfill\\Mbstring\\' => 26,
             'Symfony\\Polyfill\\Ctype\\' => 23,
+            'Symfony\\Component\\EventDispatcher\\' => 34,
         ),
         'P' => 
         array (
@@ -49,6 +50,10 @@ class ComposerStaticInit364059f2a8c4026476c92569ab6ffeb3
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-ctype',
         ),
+        'Symfony\\Component\\EventDispatcher\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/symfony/event-dispatcher',
+        ),
         'Psr\\Http\\Message\\' => 
         array (
             0 => __DIR__ . '/..' . '/psr/http-message/src',
@@ -73,6 +78,24 @@ class ComposerStaticInit364059f2a8c4026476c92569ab6ffeb3
             'Twig_' => 
             array (
                 0 => __DIR__ . '/..' . '/twig/twig/lib',
+            ),
+        ),
+        'G' => 
+        array (
+            'Guzzle\\Tests' => 
+            array (
+                0 => __DIR__ . '/..' . '/guzzle/guzzle/tests',
+            ),
+            'Guzzle' => 
+            array (
+                0 => __DIR__ . '/..' . '/guzzle/guzzle/src',
+            ),
+        ),
+        'A' => 
+        array (
+            'Aws' => 
+            array (
+                0 => __DIR__ . '/..' . '/aws/aws-sdk-php/src',
             ),
         ),
     );
