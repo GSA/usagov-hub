@@ -153,6 +153,18 @@ function ssg_actions_form ()
         '#collapsible' => TRUE,
         '#collapsed'   => TRUE,
     );
+
+    $form['runtime']['ssg_siteName'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Site Name / ForUseBy',
+        '#default_value' => variable_get('ssg_siteName'),
+    );
+    $form['runtime']['ssg_subSiteName'] = array(
+        '#type' => 'textfield',
+        '#title' => 'SubSite Name / ForUseBy',
+        '#default_value' => variable_get('ssg_subSiteName'),
+    );
+
     $form['runtime']['ssg_permDir'] = array(
         '#type' => 'textfield',
         '#title' => 'Permanent Storage Directory',
