@@ -24,24 +24,31 @@ class DataSource
 
 	public function pull( $since=0 )
 	{
-		$this->getEntities($since);
-		$this->getRedirects();
+        if ( !$this->getEntities($since) )
+        {
+            return false;
+        }
+        $this->getRedirects();
+        return true;
 	}
 
 	public function getEntities( $since=0 )
 	{
-		$this->entities     = [];
-		$this->entitiesById = [ 'tid'=>[], 'nid'=>[] ];
+        $this->entities     = [];
+        $this->entitiesById = [ 'tid'=>[], 'nid'=>[] ];
+        return true;
 	}
 
 	public function getRedirects()
 	{
-		$this->redirects    = [];
+        $this->redirects    = [];
+        return true;
 	}
 
 
     public function loadData()
     {
+        $success    = false;
         $sourceFail = false;
         if ( $this->freshData )
         {
@@ -60,6 +67,7 @@ class DataSource
         if ( $this->loadDataFromCache()  ) 
         { 
             $this->ssg->log("done\n");
+            $success = true;
         } else {
             $this->ssg->log("not found\n");
             if ( !$sourceFail )

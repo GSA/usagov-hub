@@ -302,7 +302,11 @@ function _ssg_build_and_deploy_site( &$site )
     /// existing templates should be freshened here
     /// if there are no templates, they should be pulled
     _ssgUpdateBuildStatus($site->uuid,'1 syncTemplates');
-    $site->syncTemplates();
+    if ( !$site->syncTemplates() ) 
+    {
+        $site->log("No Templates found",false);
+        _ssgUpdateBuildStatus($site->uuid,'6 failed');
+    }
 
     _ssgUpdateBuildStatus($site->uuid,'2 buildSiteTree');
     $site->buildSiteTreeFromEntities();
