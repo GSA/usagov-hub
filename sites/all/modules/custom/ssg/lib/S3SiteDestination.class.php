@@ -62,6 +62,19 @@ class S3SiteDestination
     {
         $looksGood = true;
 
+        $envAccessKey = getenv('AWS_ACCESS_KEY_ID');
+        $accessKey    = getenv('CMP_AWS_ACCESS_KEY');
+        if ( empty($envAccessKey) && !empty($accessKey) )
+        {
+            putenv('AWS_ACCESS_KEY_ID='.$accessKey);
+        }
+        $envSecretKey = getenv('AWS_SECRET_ACCESS_KEY');
+        $secretKey    = getenv('CMP_AWS_SECRET_KEY');
+        if ( empty($envSecretKey) && !empty($secretKey) )
+        {
+            putenv('AWS_SECRET_ACCESS_KEY='.$secretKey);
+        }
+
         $this->ssg->log($this->s3Sync." --dryrun\n");
         $result = `{$this->s3Sync} --dryrun`;
         foreach ( $this->bads as $bad )
