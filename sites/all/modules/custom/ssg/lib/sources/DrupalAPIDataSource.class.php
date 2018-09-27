@@ -142,7 +142,7 @@ class DrupalAPIDataSource extends DataSource
       }
 
     }
-    return ( $processedCount > 0 );
+    return ( !empty($since) || ($processedCount > 0) );
   }
 
   public function cleanResult( $_source )

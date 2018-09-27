@@ -122,7 +122,7 @@ class PageRenderer
           if ( empty($url) )
           {
               /// not renderable
-              $this->ssg->log("UnRenderable: no url for {$page['name']}\n");
+              $this->ssg->log("UnRenderable: no url for {$page['name']} {$page['friendly_url']}\n");
               return null;
           }
           if ( empty($page['pageType']) )
@@ -186,7 +186,6 @@ class PageRenderer
           /// some special pages generate further sub-pages
           if ( $page['pageType'] == 'AZPage' )
           {
-
             foreach ( $this->ssg->siteIndexAZ as $letter => $list )
             {
                 $pageData['currentAZLetter'] = $letter;
@@ -413,7 +412,7 @@ class PageRenderer
 
     public function loadTwigTemplates()
     {
-        if ( empty($this->ssg->siteName) ) { return; }
+        if ( empty($this->ssg->siteName) ) { return false; }
 
         if ( empty($this->templates[$this->ssg->siteName]) )
         {
@@ -443,6 +442,8 @@ class PageRenderer
                 $this->templates[$this->ssg->siteName]['twig'][$name] = null;
             }
         }
+
+        return true;
     }
 
     public function getTwigPageRenderer( $page )
@@ -470,6 +471,11 @@ class PageRenderer
       $params['siteUrl']  = $this->ssg->config['siteUrl'];
 
       $params['entities'] = $this->ssg->source->entities;
+
+      // if ( child of gobiernoTopLevelTerm )
+      // $params['sitePage'] = $this->ssg->source->entites[uuid_of_govierno_top_level_term];
+      // $params['homePage'] = $this->ssg->source->entites[uuid_of_govierno_home_page_term];
+      // else
       $params['sitePage'] = $this->ssg->sitePage;
       $params['homePage'] = $this->ssg->homePage;
   
