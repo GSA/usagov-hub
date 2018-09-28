@@ -629,14 +629,16 @@ function _cmp_api_get_all_entities(){
             $ret[] = $node;
         }
         else{
-            $term = taxonomy_term_load($r->en_id);
-            $term->type = 'taxonomy_term';
-            $term->deleted = 0;
-            _cmp_api_add_term_parent($term);
-            _cmp_api_add_term_children($term);
-            _cmp_api_add_for_use_by($term);
-            _cmp_api_add_reference_info($term, $exclude_entities);
-            $ret[]=$term;
+
+                $term = taxonomy_term_load($r->en_id);
+                $term->type = 'taxonomy_term';
+                $term->deleted = 0;
+                _cmp_api_add_term_parent($term);
+                _cmp_api_add_term_children($term);
+                _cmp_api_add_for_use_by($term);
+                _cmp_api_add_reference_info($term, $exclude_entities);
+                $ret[] = $term;
+
         }
     }
 
