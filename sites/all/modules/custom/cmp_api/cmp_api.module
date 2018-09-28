@@ -656,16 +656,11 @@ function _cmp_api_add_for_use_by( &$term )
             if ( !empty($all_parents) )
             {
                 $top_parent = array_pop($all_parents);
+                $top_parent = taxonomy_term_load($top_parent->tid);
                 if ( !empty($top_parent) && !empty($top_parent->name) )
                 {
-                    $term->field_for_use_by = array("und"=>array(array(
-                        "value" => $top_parent->name
-                    )));
+                    $term->field_for_use_by = $top_parent->field_for_use_by;
                 }
-            } else {
-                $term->field_for_use_by = array("und"=>array(array(
-                    "value" => $term->name
-                )));
             }
         } else {
             $term->field_for_use_by = null;
