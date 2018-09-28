@@ -645,27 +645,25 @@ function _cmp_api_get_all_entities(){
 function _cmp_api_add_for_use_by( &$term )
 {
     if ( empty($term) ) { return; }
-    /// all terms should have a field_for_use_by
-    if ( !isset($term->field_for_use_by) )
+
+    if ( isset($term->field_for_use_by_text) )
     {
-        if ( isset($term->field_for_use_by_text) )
+        $term->field_for_use_by = $term->field_for_use_by_text;
+    } else if ( $term->vocabulary_machine_name == 'site_strucutre_taxonomy' ) {
+        $all_parents = taxonomy_get_parents_all($term->tid);
+        if ( !empty($all_parents) )
         {
-            $term->field_for_use_by = $term->field_for_use_by_text;
-        } else if ( $term->vocabulary_machine_name == 'site_strucutre_taxonomy' ) {
-            $all_parents = taxonomy_get_parents_all($term->tid);
-            if ( !empty($all_parents) )
+            $top_parent = array_pop($all_parents);
+            $top_parent = taxonomy_term_load($top_parent->tid);
+            if ( !empty($top_parent) && !empty($top_parent->name) )
             {
-                $top_parent = array_pop($all_parents);
-                $top_parent = taxonomy_term_load($top_parent->tid);
-                if ( !empty($top_parent) && !empty($top_parent->name) )
-                {
-                    $term->field_for_use_by = $top_parent->field_for_use_by;
-                }
+                $term->field_for_use_by = $top_parent->field_for_use_by;
             }
-        } else {
-            $term->field_for_use_by = null;
         }
+    } else {
+        $term->field_for_use_by = null;
     }
+
 }
 function _cmp_api_add_reference_info( &$entity, &$ex_entities )
 {
