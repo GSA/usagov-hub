@@ -332,8 +332,13 @@ function _ssg_build_and_deploy_site( &$site )
         _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
         $site->deploySite();
     } else {
-        _ssgUpdateBuildStatus($site->uuid,'6 failed');
+        /// TEMP - DEPLOY ANYWAY ON FAILURE
+        // _ssgUpdateBuildStatus($site->uuid,'6 failed');
+        _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
+        $site->deploySite();
     }
+
+
     _ssgUpdateBuildStatus($site->uuid,'6 complete');
     $site->log("Done building site",false);
 

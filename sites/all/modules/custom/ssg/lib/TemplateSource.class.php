@@ -76,6 +76,9 @@ class TemplateSource
         //     $this->checkoutBranch();
         }
 
+        /// always freshen templates for TESTING - remove for PROD
+        $this->pullSourceRepo();
+
         /// even if source is bad, we might have a local copy  of templates to use
         // if ( !$this->verifySource() )
         // {
