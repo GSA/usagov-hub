@@ -811,10 +811,33 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
         return false;
     }
 }
+
+function &_cmp_api_uuid_info( $refresh=false )
+{
+    $uuid_info = &drupal_static(__FUNCTION__);
+    if ( $uuid_info===null || $refresh )
+    {
+        $uuid_info = db_query("
+            ( SELECT uuid,
+                     'taxonomy_term' as 'type',
+                     machine_name    as 'bundle',
+                     tid             as 'id'
+              FROM   taxonomy_term_data  d
+                JOIN taxonomy_vocabulary v
+                        ON d.vid=v.vid )
+            UNION
+            ( SELECT uuid, 'node', type, nid FROM node )
+            UNION
+            ( SELECT uuid, 'relation', relation_type, rid FROM relation )
+        ")->fetchAllAssoc('uuid',PDO::FETCH_ASSOC);
+    }
+    return $uuid_info;
+}
+
 function _cmp_api_add_term_parent( &$term )
 {
     if ( empty($term) ) { return; }
-    $uuid_info =& _cdss_uuid_info();
+    $uuid_info =& _cmp_api_uuid_info();
     $ref_uuid = null;
     if ( empty($term->parent) )
     {
