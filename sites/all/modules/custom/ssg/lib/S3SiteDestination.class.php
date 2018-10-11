@@ -20,6 +20,9 @@ class S3SiteDestination
         
         $this->source = $this->ssg->siteDir;
         $this->dest   = 's3://'.trim($this->ssg->config['aws']['bucket']);
+        
+        $this->allowDeploy = true;
+
         // if ( !empty($this->ssg->config['aws']['siteRoot']) )
 
         // $inlineEnv = '';
@@ -47,6 +50,11 @@ class S3SiteDestination
 
     public function sync()
     {
+        if ( !$this->allowDeploy )
+        {
+            $this->ssg->log("Syncing to destination disabled\n");
+            return true;
+        }
         $this->ssg->log("Syncing to destination bucket\n");
         $filesSynced = $this->syncFilesCli();
         // $filesSynced = $this->syncFilesSdk();
@@ -75,17 +83,17 @@ class S3SiteDestination
             putenv('AWS_SECRET_ACCESS_KEY='.$secretKey);
         }
 
-        $this->ssg->log($this->s3Sync." --dryrun\n");
-        $result = `{$this->s3Sync} --dryrun`;
-        foreach ( $this->bads as $bad )
-        {
-            if ( stristr($bad,$result) )
-            {
-                $looksGood = false;
-            }
-        }
-        if ( $looksGood )
-        {
+        // $this->ssg->log($this->s3Sync." --dryrun\n");
+        // $result = `{$this->s3Sync} --dryrun`;
+        // foreach ( $this->bads as $bad )
+        // {
+        //     if ( stristr($bad,$result) )
+        //     {
+        //         $looksGood = false;
+        //     }
+        // }
+        // if ( $looksGood )
+        // {
             $this->ssg->log($this->s3Sync."\n");
             $result = `{$this->s3Sync}`;
             foreach ( $this->bads as $bad )
@@ -95,7 +103,7 @@ class S3SiteDestination
                     $looksGood = false;
                 }
             }
-        }
+        // }
 
         $this->ssg->log("Sync: uploading site manifest.\n");
         try {    

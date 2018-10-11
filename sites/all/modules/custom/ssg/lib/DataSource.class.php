@@ -6,7 +6,6 @@ class DataSource
 {
 	public $ssg;
 	public $entities;
-	public $entitiesById;
 	public $redirects;
 	public $freshData;
     public $updateData;
@@ -16,7 +15,6 @@ class DataSource
 	{
 		$this->ssg          = $ssg;
 		$this->entities     = [];
-   		$this->entitiesById = [ 'tid'=>[], 'nid'=>[] ];
 		$this->redirects    = [];
 		$this->freshData    = false;
 		$this->updateData   = true;
@@ -34,8 +32,7 @@ class DataSource
 
 	public function getEntities( $since=0 )
 	{
-        $this->entities     = [];
-        $this->entitiesById = [ 'tid'=>[], 'nid'=>[] ];
+		$this->entities     = [];
         return true;
 	}
 
@@ -117,7 +114,7 @@ class DataSource
     }
     public function loadDataFromCache()
     {
-        $cacheFile = $this->ssg->cacheDir.'/'.$this->ssg->siteName.'.cache';
+        $cacheFile = $this->ssg->cacheDir.'/'.$this->ssg->config['siteName'].'.cache';
         if ( !file_exists($cacheFile) || !is_readable($cacheFile) ) { return false; }
 
         $lock = fopen($cacheFile, 'rb');
@@ -126,13 +123,9 @@ class DataSource
         @flock($lock, LOCK_UN);
         fclose($lock);
 
-        if ( empty($cache)
-            || !array_key_exists('entities',     $cache)
-            || !array_key_exists('entitiesById', $cache)
-        ) { return false; }
+        if ( empty($cache) || !array_key_exists('entities',$cache) ) { return false; }
         $this->dataPullTime = !empty($cache['time']) ? $cache['time'] : 0;
         $this->entities     = $cache['entities'];
-        $this->entitiesById = $cache['entitiesById'];
         if ( array_key_exists('redirects', $cache) )
         {
             $this->redirects     = $cache['redirects'];
@@ -142,7 +135,7 @@ class DataSource
 	
 	public function storeDataInCache()
     {
-        $cacheFile = $this->ssg->cacheDir.'/'.$this->ssg->siteName.'.cache';
+        $cacheFile = $this->ssg->cacheDir.'/'.$this->ssg->config['siteName'].'.cache';
         if ( !file_exists($cacheFile) )
         {
             touch($cacheFile);
@@ -154,7 +147,6 @@ class DataSource
         $cache = serialize([
             'time'         => $this->dataPullTime,
             'entities'     => $this->entities, 
-            'entitiesById' => $this->entitiesById,
             'redirects'    => $this->redirects
         ]);
         $bytes = file_put_contents($cacheFile, $cache, LOCK_EX);

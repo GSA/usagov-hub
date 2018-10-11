@@ -6,7 +6,8 @@ require_once dirname(__FILE__) . '/lib/autoload.php';
 /*
  * Implements HOOK_menu()
  */
-function ssg_menu() {
+function ssg_menu() 
+{
 
     $items = array();
 
@@ -63,7 +64,7 @@ function ssg_actions_form ()
       $form['ssg_immediate_build'] = array(
         '#type' => 'checkbox',
         '#title' => 'Immediate Build and Deploy',
-        '#description' => 'Site is build immediately after data-update',
+        '#description' => 'New build is triggered immediately after data-update',
         '#default_value' => variable_get('ssg_immediate_build',false)
       );
 
@@ -75,9 +76,21 @@ function ssg_actions_form ()
                 var buildDeployTimer = null;
                 function ajax_run_ssg()
                 {
+                    var runData = {};
+                    var freshDataCheckbox = jQuery("#freshData"); 
+                    var freshTemplatesCheckbox = jQuery("#freshTemplates"); 
+                    if ( freshDataCheckbox && freshDataCheckbox.is(":checked") )
+                    {
+                        runData.freshData = 1;
+                    }
+                    if ( freshTemplatesCheckbox && freshTemplatesCheckbox.is(":checked") )
+                    {
+                        runData.freshTemplates= 1;
+                    }
                     jQuery("#ssg_ajax_run_ssg_response").html("loading");
                     jQuery.ajax({
                         url: "/ssg/run",
+                        data: runData,
                         success:function(data) {
                             status = " build:<span style=\"color:green\">running</span>";
                             jQuery("#ssg_ajax_run_ssg_response").html(status);
@@ -95,7 +108,10 @@ function ssg_actions_form ()
                 }
             </script><div class="form-item form-type-button form-item-ssg-ajax-run">
             <input type="button" onclick="ajax_run_ssg();" value="Build and Deploy" class="form-submit"/>
-            <div id="ssg_ajax_run_ssg_response" style="display:inline;"></div></div>
+            <div id="ssg_ajax_run_ssg_response" style="display:inline;"></div><br />
+            <input type="checkbox" id="freshData"/>With fresh data
+            <input type="checkbox" id="freshTemplates"/>With fresh templates
+            </div>
         '
     );
 
@@ -105,7 +121,6 @@ function ssg_actions_form ()
         '#collapsible' => TRUE,
         '#collapsed'   => TRUE,
     );
-
     $form['status']['updateRecent'] = array(
         '#type' => 'item',
         '#title' => 'Update Status',
@@ -153,18 +168,25 @@ function ssg_actions_form ()
         '#collapsible' => TRUE,
         '#collapsed'   => TRUE,
     );
-
+    /// should have a button here which validates directory info
     $form['runtime']['ssg_siteName'] = array(
         '#type' => 'textfield',
-        '#title' => 'Site Name / ForUseBy',
+        '#title' => 'Site Name',
         '#default_value' => variable_get('ssg_siteName'),
+        '#description' => 'used internally only, allowedForUseBy is used to filter data'
     );
-    $form['runtime']['ssg_subSiteName'] = array(
+    $form['runtime']['ssg_siteUrl'] = array(
         '#type' => 'textfield',
-        '#title' => 'SubSite Name / ForUseBy',
-        '#default_value' => variable_get('ssg_subSiteName'),
+        '#title' => 'Site Url',
+        '#default_value' => variable_get('ssg_siteUrl'),
+        '#description' => 'hostname used to render canoncial urls in pages'
     );
-
+    $form['runtime']['ssg_allowedForUseBy'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Allowed ForUseBy',
+        '#default_value' => variable_get('ssg_allowedForUseBy'),
+        '#description' => 'comma delimited list ex: USA.gov, GobiernoUSA.gov'
+    );
     $form['runtime']['ssg_permDir'] = array(
         '#type' => 'textfield',
         '#title' => 'Permanent Storage Directory',
@@ -190,6 +212,7 @@ function ssg_actions_form ()
         '#collapsible' => TRUE,
         '#collapsed'   => TRUE,
     );
+    /// should have a button here which validates this info
     $form['dataSource']['ssg_drupalAPI_server'] = array(
         '#type' => 'textfield',
         '#title' => 'Server',
@@ -218,6 +241,7 @@ function ssg_actions_form ()
         '#collapsible' => TRUE,
         '#collapsed'   => TRUE,
     );
+    /// should have a button here which validates this info
     $form['templateSource']['ssg_templateSync_repo_url'] = array(
         '#type' => 'textfield',
         '#title' => 'Git Url',
@@ -250,6 +274,7 @@ function ssg_actions_form ()
         '#collapsible' => TRUE,
         '#collapsed'   => TRUE,
     );
+    /// should have a button here which validates this info
     $form['siteDestination']['ssg_aws_bucket'] = array(
         '#type' => 'textfield',
         '#title' => 'Bucket Name',
@@ -274,7 +299,7 @@ function _ssg_status_ajax()
 
 function _ssg_run_ajax()
 {
-    $site = new \ctac\ssg\StaticSiteGenerator('USA.gov');
+    $site = new \ctac\ssg\StaticSiteGenerator();
 
     if ( empty(variable_get('ssg_enabled')) )
     {
@@ -282,16 +307,17 @@ function _ssg_run_ajax()
     } else {
         drupal_json_output(['status'=>'running','uuid'=>$site->uuid]);
     }
-
+    if ( !empty($_REQUEST['freshData']) ) 
+    {
+        $site->source->freshData = true;
+    }
+    if ( !empty($_REQUEST['freshTemplate']) ) 
+    {
+        $site->templates->freshTemplates = true;
+    }
     _ssg_build_and_deploy_site($site);
 }
 
-function _ssg_run()
-{
-    $site = new \ctac\ssg\StaticSiteGenerator('USA.gov');
-
-    _ssg_build_and_deploy_site($site);
-}
 function _ssg_build_and_deploy_site( &$site )
 {
     if ( empty($site) 
@@ -307,42 +333,41 @@ function _ssg_build_and_deploy_site( &$site )
     /// existing data should be freshened here
     /// if there is no data, it should be pulled
     _ssgUpdateBuildStatus($site->uuid,'0 loadData');
-    $site->log("Start building site",false);
+    $site->log("Start building site\n",false);
     $site->loadData();
 
     /// we should always use existing templates
     /// existing templates should be freshened here
     /// if there are no templates, they should be pulled
-    _ssgUpdateBuildStatus($site->uuid,'1 syncTemplates');
-    if ( !$site->syncTemplates() ) 
+    _ssgUpdateBuildStatus($site->uuid,'1 loadTemplates');
+    if ( !$site->loadTemplates() ) 
     {
-        $site->log("No Templates found",false);
+        $site->log("No Templates found\n",false);
         _ssgUpdateBuildStatus($site->uuid,'6 failed');
+        return;
     }
 
     _ssgUpdateBuildStatus($site->uuid,'2 buildSiteTree');
+    $site->log("Start organizing data\n",false);
     $site->buildSiteTreeFromEntities();
 
     _ssgUpdateBuildStatus($site->uuid,'3 renderSite');
     $site->renderSite();
 
+    /// TEMP - don't even bother running validation
     _ssgUpdateBuildStatus($site->uuid,'4 validateSite');
-    if ( $site->validateSite() )
-    {
+    // if ( $site->validateSite() )
+    // {
         _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
         $site->deploySite();
-    } else {
+    // } else {
         /// TEMP - DEPLOY ANYWAY ON FAILURE
         // _ssgUpdateBuildStatus($site->uuid,'6 failed');
-        _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
-        $site->deploySite();
-    }
-
-
+        // _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
+        // $site->deploySite();
+    // }
     _ssgUpdateBuildStatus($site->uuid,'6 complete');
-    $site->log("Done building site",false);
-
-    die;
+    $site->log("Done building site\n",false);
 }
 
 function _ssgGetBuildStatus($uuid)
@@ -360,14 +385,20 @@ function _ssgGetBuildStatus($uuid)
 }
 function _ssgGetCurrentBuildStatuses()
 {
+    // $records = db_query("
+    //     SELECT * FROM (
+    //         SELECT * FROM {ssg_builds}
+    //         ORDER BY created DESC
+    //         LIMIT 10
+    //     ) mostRecent
+    //     ORDER BY state ASC
+    // ")->fetchAll(PDO::FETCH_ASSOC);
     $records = db_query("
-        SELECT * FROM (
-            SELECT * FROM {ssg_builds}
-            ORDER BY created DESC
-            LIMIT 10
-        ) mostRecent
-        ORDER BY state ASC
+        SELECT * FROM {ssg_builds}
+        ORDER BY created DESC
+        LIMIT 10
     ")->fetchAll(PDO::FETCH_ASSOC);
+
     if ( !empty($records) )
     {
         return $records;
@@ -383,7 +414,7 @@ function _ssgGetCurrentBuildStatusesTable()
     foreach ( $current_builds as $curr ) 
     {
         $current_status .= "<tr id=\"build-{$curr['uuid']}\">";
-        $current_status .= "<td id=\"build-{$curr['uuid']}-state\">". preg_replace('/^\d+\s+/','',$curr['state']) ."</td>";
+        $current_status .= "<td id=\"build-{$curr['uuid']}-state\">".preg_replace('/^\d+\s+/','',$curr['state'])."</td>";
         if ( in_array( $curr['state'],  ['6 failed', '6 complete','6 shutdown'] ) ) {
             $time = $curr['updated'] - $curr['created'];
         } else {
@@ -393,7 +424,9 @@ function _ssgGetCurrentBuildStatusesTable()
         $current_status .= "<td id=\"build-{$curr['uuid']}-runtime\">". $runtime ."</td>";
         #$current_status .= "<td id=\"build-{$curr['uuid']}-uuid\">{$curr['uuid']}</td>";
         $current_status .= "<td id=\"build-{$curr['uuid']}-created\">". date('Y/m/d H:i:s',$curr['created']) ."</td>";
-        $current_status .= "<td id=\"build-{$curr['uuid']}-log\"><textarea>{$curr['log']}</textarea></td>";
+        $current_status .= "<td id=\"build-{$curr['uuid']}-log\">"
+            ."<span style=\"color:#696969;\">{$curr['uuid']}</span><br />"
+            ."<textarea>{$curr['log']}</textarea></td>";
         $current_status .= "</tr>";
     }
     $current_status .= '</tbody></table>';
@@ -441,7 +474,10 @@ function _ssg_finish_request()
   }
   if (session_id()) session_write_close();
   $GLOBALS['_ssg_request_finished'] = true;
-  fastcgi_finish_request();
+  if ( function_exists('fastcgi_finish_request') )
+  {
+    fastcgi_finish_request();
+  }
   set_time_limit($minutes_to_process*60);
   ini_set('max_execution_time',$minutes_to_process*60);
 }
@@ -453,10 +489,10 @@ function ssg_exit()
         && variable_get('ssg_immediate_build') )
     {
         $GLOBALS['_ssg_request_finished'] = true;
-        _ssg_run();
+        $site = new \ctac\ssg\StaticSiteGenerator();
+        _ssg_build_and_deploy_site($site);
     }
 }
-
 
 function ssg_taxonomy_term_delete( $term )
 {

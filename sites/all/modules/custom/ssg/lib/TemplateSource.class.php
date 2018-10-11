@@ -65,19 +65,11 @@ class TemplateSource
         //     return true;
         // }
 
-        if ( !$this->sourceRepoExists() )
+        if ( !$this->sourceRepoExists() || $this->freshTemplates )
         { 
             $this->cloneRepo();
             $this->pullSourceRepo();
-        } else if ( $this->freshTemplates ) {
-
-            $this->pullSourceRepo();
-        // } else {
-        //     $this->checkoutBranch();
         }
-
-        /// always freshen templates for TESTING - remove for PROD
-        $this->pullSourceRepo();
 
         /// even if source is bad, we might have a local copy  of templates to use
         // if ( !$this->verifySource() )
@@ -152,7 +144,8 @@ class TemplateSource
         $update_cmd = "cd {$this->sourceDir}"
                      ." && git checkout {$this->ssg->config['templateSync']['repo_branch']}" // 2>&1 >/dev/null
                      ." && git pull";
-        $rslt = `{$update_cmd} 2>&1 >/dev/null`;
+        // $this->ssg->log($update_cmd."\n");
+        $rslt = `{$update_cmd} 2>&1`; // >/dev/null
         if ( strpos($rslt, 'error') === 0 ) {
             $this->ssg->log("Error - Could not pull \"{$this->ssg->config['templateSync']['repo_branch']}\" from source-repo.\n");
             return false;
@@ -224,7 +217,7 @@ class TemplateSource
     public function verifySource()
     {
         if ( !is_dir($this->sourceAssetDir) ) {
-            $this->ssg->log("Template Sync: can't find template asset dir: {$this->sourceAssetDir}\n");
+            $this->ssg->log("Templates: can't find template asset dir: {$this->sourceAssetDir}\n");
             return false;
         }
 
@@ -238,7 +231,7 @@ class TemplateSource
             $template_file = "{$this->sourceTemplateDir}/{$type}.twig";
             if ( !file_exists($template_file) )
             {
-                // $this->ssg->log("Template Sync: verify local: can't find template for $type: $template_file");
+                $this->ssg->log("Template: verify local: can't find template for $type: $template_file");
                 return false;
             }
         }
@@ -248,25 +241,25 @@ class TemplateSource
     public function verifyDestination()
     {
         if ( !is_dir($this->destAssetDir) ) {
-            $this->ssg->log("Template Sync: can't find template asset dir: {$this->destAssetDir}");
+            $this->ssg->log("Templates: can't find template asset dir: {$this->destAssetDir}");
             return false;
         }
 
         if ( !is_dir($this->destStaticDir) ) {
-            $this->ssg->log("Template Sync: can't find template static dir: {$this->destStaticDir}");
-            /// not worth dying for
-            // return false;
+            $this->ssg->log("Templates: can't find template static dir: {$this->destStaticDir}");
         }
+
+        // $this->ssg->log("Templates: Verifying ".count($this->ssg->pageTypes)." Templates\n");
         foreach ( $this->ssg->pageTypes as $type )
         {
             $template_file = "{$this->destTemplateDir}/{$type}.twig";
-            $this->ssg->log("Verifying Template: {$type}.twig\n");
             if ( !file_exists($template_file) )
             {
-                $this->ssg->log("Template Sync: verify local: can't find template for $type: $template_file");
+                $this->ssg->log("Templates: verify local: can't find template for $type: $template_file");
                 return false;
             }
         }
+        $this->ssg->log("Templates: all templates verified\n");
         return true;
     }
 
