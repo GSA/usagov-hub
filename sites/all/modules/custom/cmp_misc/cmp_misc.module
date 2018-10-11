@@ -386,6 +386,15 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
         $form['field_term_owner']['und'][0]['target_id']['#default_value'] = $currentUserStr;
     }
 
+    /// hide field for non-top-level term edit forms
+    if ( $form_id=='taxonomy_form_term' && isset($form_state['term']->tid) )
+    {
+        if ( !empty($form['#term']['parent']) && !empty($form['field_for_use_by']) ) 
+        {
+            $form['field_for_use_by']['#access'] = FALSE;
+        }
+    }
+
     // If this is the edit form for any node under the 'Text Asset' content-type
     //if ( $form_id === 'text_content_type_node_form' ) {
     /*
