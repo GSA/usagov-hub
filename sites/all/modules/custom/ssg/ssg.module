@@ -17,19 +17,19 @@ function ssg_menu()
         'description' => 'Setup and manage a Static Site Generator',
         'page callback' => 'drupal_get_form',
         'page arguments' => array('ssg_actions_form'),
-        'access callback' => array(true),
+        'access arguments' => array('configure ssg'),
         'type' => MENU_NORMAL_ITEM
     );
 
     $items['ssg/run'] = array(
         'page callback' => '_ssg_run_ajax',
-        'access callback' => array(true),
+        'access arguments' => array('run ssg'),
         'type' => MENU_CALLBACK
     );
 
     $items['ssg/status'] = array(
         'page callback' => '_ssg_status_ajax',
-        'access callback' => array(true),
+        'access arguments' => array('run ssg'),
         'type' => MENU_CALLBACK
     );
 
@@ -41,11 +41,13 @@ function ssg_permission()
     return array(
         'configure ssg' => array(
             'title' => t('Configure Static Site Generator'),
-            'description' => t('Perform administration tasks for my module.'),
+            'description' => t('Confiure SSG Settings.'),
+            'restrict access' => TRUE,
         ),
         'run ssg' => array(
-            'title' => t('Configure Static Site Generator'),
-            'description' => t('Perform administration tasks for my module.'),
+            'title' => t('Run Static Site Generator'),
+            'description' => t('Perform SSG Builds.'),
+            'restrict access' => TRUE,
         ),
     );
 }
@@ -53,25 +55,27 @@ function ssg_permission()
 function ssg_actions_form_validate($form, &$form_state) {
 }
 
-function ssg_actions_form ()
+function ssg_actions_form()
 {
     $form['ssg_enabled'] = array(
         '#type' => 'checkbox',
         '#title' => 'Static Site Generation Enabled',
-        '#default_value' => variable_get('ssg_enabled',false)
+        '#default_value' => variable_get('ssg_enabled',false),
+        '#disabled' => !user_access('configure ssg')
       );
     
       $form['ssg_immediate_build'] = array(
         '#type' => 'checkbox',
         '#title' => 'Immediate Build and Deploy',
         '#description' => 'New build is triggered immediately after data-update',
-        '#default_value' => variable_get('ssg_immediate_build',false)
+        '#default_value' => variable_get('ssg_immediate_build',false),
+        '#disabled' => !user_access('configure ssg')
       );
 
     $form['ssg_ajax_run_ssg'] = array(
         '#type' => 'item',
         '#title' => 'Run Static Site Generator',
-        '#markup' => '
+        '#markup' => user_access('run ssg') ? '
             <script>
                 var buildDeployTimer = null;
                 function ajax_run_ssg()
@@ -87,7 +91,8 @@ function ssg_actions_form ()
                     {
                         runData.freshTemplates= 1;
                     }
-                    jQuery("#ssg_ajax_run_ssg_response").html("loading");
+                    jQuery("#ssg_ajax_run_ssg_response").html("loading").fadeIn();
+                    clearTimeout(buildDeployTimer);
                     jQuery.ajax({
                         url: "/ssg/run",
                         data: runData,
@@ -112,7 +117,7 @@ function ssg_actions_form ()
             <input type="checkbox" id="freshData"/>With fresh data
             <input type="checkbox" id="freshTemplates"/>With fresh templates
             </div>
-        '
+        ' : '<input type="button" value="Build and Deploy" class="form-submit"/>'
     );
 
     $form['status'] = array(
@@ -124,7 +129,7 @@ function ssg_actions_form ()
     $form['status']['updateRecent'] = array(
         '#type' => 'item',
         '#title' => 'Update Status',
-        '#markup' => '
+        '#markup' => user_access('run ssg') ? '
             <script>
                 var statusUpdateTimer = null;
                 function ajax_update_status()
@@ -155,12 +160,17 @@ function ssg_actions_form ()
             </script><div class="form-item form-type-button form-item-ssg-ajax-run">
             <input type="button" onclick="ajax_update_status();" value="Update Status" class="form-submit"/>
             <div id="ssg_ajax_update_status_response" style="display:inline;"></div></div>
-        '
+        ' : '<input type="button" value="Build and Deploy" class="form-submit"/>'
     );
     $form['status']['recent'] = array(
         '#markup' => '<div id="statusTableContainer"></div>',
         '#title' => 'Current Build Status'
     );
+
+    if ( !user_access('configure ssg') ) 
+    {
+        return system_settings_form($form);
+    }
 
     $form['runtime'] = array(
         '#type' => 'fieldset',
@@ -311,7 +321,7 @@ function _ssg_run_ajax()
     {
         $site->source->freshData = true;
     }
-    if ( !empty($_REQUEST['freshTemplate']) ) 
+    if ( !empty($_REQUEST['freshTemplates']) ) 
     {
         $site->templates->freshTemplates = true;
     }
@@ -461,22 +471,22 @@ function _ssgUpdateBuildStatus($uuid,$state)
     return true;
 }
 
-$GLOBALS['_ssg_request_finished'] = false;
+$GLOBALS['_ssg_request_buffer_flushed'] = false;
 function _ssg_finish_request()
 {
   $minutes_to_process = 30;
   ignore_user_abort(1);  
-  if ( !empty($GLOBALS['_ssg_request_finished']) )
+  if ( !empty($GLOBALS['_ssg_request_buffer_flushed']) )
   {
     while(@ob_get_level() > 0) { @ob_end_flush(); }
     @ob_flush();
     @flush();
   }
   if (session_id()) session_write_close();
-  $GLOBALS['_ssg_request_finished'] = true;
+  $GLOBALS['_ssg_request_buffer_flushed'] = true;
   if ( function_exists('fastcgi_finish_request') )
   {
-    fastcgi_finish_request();
+    @fastcgi_finish_request();
   }
   set_time_limit($minutes_to_process*60);
   ini_set('max_execution_time',$minutes_to_process*60);
@@ -488,9 +498,12 @@ function ssg_exit()
     if ( !empty($GLOBALS['ssg_run_needed'])
         && variable_get('ssg_immediate_build') )
     {
-        $GLOBALS['_ssg_request_finished'] = true;
+        error_log(__FUNCTION__.':'.__LINE__);
+
+        $GLOBALS['_ssg_request_buffer_flushed'] = true;
         $site = new \ctac\ssg\StaticSiteGenerator();
         _ssg_build_and_deploy_site($site);
+        die;
     }
 }
 
@@ -514,16 +527,20 @@ function ssg_workbench_moderation_transition($entity, $fromState, $toState)
 }
 function ssg_entity_insert( $entity, $type )
 {
+    error_log(__FUNCTION__.':'.__LINE__);
+
     /// trigger site rebuild
     $GLOBALS['ssg_run_needed'] = true;
 }
 function ssg_entity_update( $entity, $type )
 {
+    error_log(__FUNCTION__.':'.__LINE__);
     /// trigger site rebuild
     $GLOBALS['ssg_run_needed'] = true;
 }
 function ssg_node_delete( $entity )
 {
+    error_log(__FUNCTION__.':'.__LINE__);
     /// trigger site rebuild
     $GLOBALS['ssg_run_needed'] = true;
 }

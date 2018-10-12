@@ -127,12 +127,10 @@ class StaticSiteGenerator
             {
                 return;
             }
-            error_log($msg);
+            error_log(preg_replace("/[\n\r\t\s]+$/",'',$msg));
         } else {
             echo $msg;
         }
-
-        
     }
 
     public function prepareDirs()
@@ -1410,6 +1408,7 @@ class StaticSiteGenerator
         }
         if ( !is_writable($path) )
         {
+            // error_log("chmod($path, 0744 )");
             chmod($path, 0744 );
         }
         // $real_path = realpath($path);

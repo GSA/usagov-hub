@@ -17,7 +17,7 @@ function ssg_schema()
       ),
       'log' => array(
         'description' => 'Log',
-        'type' => 'text'
+        'type' => 'blob'
       ),
       'created' => array(
         'description' => 'Time of execution start',

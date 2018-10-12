@@ -135,7 +135,7 @@ class PageRenderer
               $this->ssg->log("UnRenderable: no type for $url ({$page['pageType']}) \"{$page['name']}\"\n");
               return null;
           }
-          if ( $this->runtimeEnvironment == 'commandline' )
+          if ( $this->ssg->runtimeEnvironment == 'commandline' )
           {
             $_url = str_pad( $url, (strlen($url)+( 25 - ( strlen($url) % 25 ) )) ); 
             $_type = str_pad( $page['pageType'], (strlen($page['pageType'])+( 25 - ( strlen($page['pageType']) % 25 ) )) ); 
@@ -212,7 +212,7 @@ class PageRenderer
                 $subPageParams['currentAZLetter'] = $letter;
 
                 $html  = $twig->render($subPageParams);
-                if ( $this->runtimeEnvironment == 'commandline' )
+                if ( $this->ssg->runtimeEnvironment == 'commandline' )
                 {
                     $_url = '/'.$path.'/'.strtolower($letter);
                     $_url = str_pad( $_url, (strlen($_url)+( 25 - ( strlen($_url) % 25 ) )) ); 

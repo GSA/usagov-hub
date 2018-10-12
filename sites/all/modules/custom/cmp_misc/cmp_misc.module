@@ -389,7 +389,9 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
     /// hide field for non-top-level term edit forms
     if ( $form_id=='taxonomy_form_term' && isset($form_state['term']->tid) )
     {
-        if ( !empty($form['#term']['parent']) && !empty($form['field_for_use_by']) ) 
+        if ( is_array($form['#term']) 
+          && !empty($form['#term']['parent']) 
+          && isset($form['field_for_use_by']) )
         {
             $form['field_for_use_by']['#access'] = FALSE;
         }

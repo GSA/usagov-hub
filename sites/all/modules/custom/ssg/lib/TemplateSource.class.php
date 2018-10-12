@@ -67,9 +67,10 @@ class TemplateSource
 
         if ( !$this->sourceRepoExists() || $this->freshTemplates )
         { 
+            $this->cleanRepo();
             $this->cloneRepo();
-            $this->pullSourceRepo();
         }
+        $this->pullSourceRepo();
 
         /// even if source is bad, we might have a local copy  of templates to use
         // if ( !$this->verifySource() )
@@ -87,25 +88,27 @@ class TemplateSource
         return $this->verifyDestination();
     }
 
-    public function cloneRepo()
+    public function cleanRepo()
     {
         $this->ssg->log("Templates: cleanup up environment ... \n");
         if ( !empty($this->sourceDir) && $this->sourceDir !== '/' )
         {
             $remove_cmd = "rm -rf {$this->sourceDir}";
-            // $this->ssg->log($remove_cmd."\n");
-            $rslt = `{$remove_cmd} 2>&1`;
+            // $this->ssg->log($remove_cmd."\n",false);
+            $rslt = `{$remove_cmd} 2>&1 > /dev/null`;
         }
+    }
 
-        $this->ssg->log("Templates: cloning source repo ... \n");
+    public function cloneRepo()
+    {
         /// grab data from source repo
         $git_repo = 'https://'.urlencode($this->ssg->config['templateSync']['repo_user'])
                 .':'.urlencode($this->ssg->config['templateSync']['repo_pass'])
                 .'@'.$this->ssg->config['templateSync']['repo_url'];
         
         $clone_cmd = "git clone '{$git_repo}' {$this->sourceDir}";
-        // $this->ssg->log($clone_cmd."\n");
-        $rslt = `{$clone_cmd} 2>&1`;
+        // $this->ssg->log($clone_cmd."\n",false);
+        $rslt = `{$clone_cmd} 2>&1`; 
         // $this->ssg->log($rslt."\n");
 
         if ( strpos($rslt, 'Authentication failed') !== false ) {
@@ -123,6 +126,10 @@ class TemplateSource
             return false;
         }
 
+        $chown_cmd = "chown -R www-data:www-data {$this->sourceDir}";
+        // $this->ssg->log($chmod_cmd."\n",false);
+        $rslt = `{$chmod_cmd} 2>&1`;
+
         return true;
     }
 
@@ -131,7 +138,8 @@ class TemplateSource
         $this->ssg->log("Templates: switch source repo branch ... \n");
         $branch_cmd = "cd {$this->sourceDir}"
                      ." && git checkout {$this->ssg->config['templateSync']['repo_branch']}";
-        $rslt = `{$branch_cmd} 2>&1 >/dev/null`;
+        // $this->ssg->log($branch_cmd."\n");
+        $rslt = `{$branch_cmd} 2>&1`;
         if ( strpos($rslt, 'error') === 0 ) {
             $this->ssg->log("Error - Could not switch to branch \"{$this->ssg->config['templateSync']['repo_branch']}\" in source-repo.\n");
             return false;
