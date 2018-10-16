@@ -31,11 +31,10 @@ class TemplateSource
 
         $this->destDir           = $this->ssg->config['permDir'];
         $this->destTemplateDir   = $this->destDir.'/templates/twig/'.$repoTemplateDir;
-        $this->destAssetDir      = $this->destDir.'/templates/assets/';
-        $this->destStaticDir     = $this->destDir.'/templates/staticroot/';
+        $this->destAssetDir      = $this->destDir.'/templates/assets';
+        $this->destStaticDir     = $this->destDir.'/templates/staticroot';
 
         $this->freshTemplates     = false;
-
     }
 
     public function sync()
@@ -166,21 +165,45 @@ class TemplateSource
     {
         if ( is_dir($this->sourceTemplateDir) )
         {
-            $this->ssg->prepareDir($this->destTemplateDir);
+            $mkdir_cmd = "mkdir -p {$this->destTemplateDir}";
+            $rslt = `{$mkdir_cmd} 2>&1`;
+            // $this->ssg->prepareDir($this->destTemplateDir);
+            if ( !is_readable($this->sourceTemplateDir) )
+            {
+                $chmod_cmd = "chmod -R 744 {$this->sourceTemplateDir}";
+                $rslt = `{$chmod_cmd} 2>&1`;
+                //$this->ssg->chmod_recurse($this->destTemplateDir,0744);
+            }
             if ( !is_writable($this->destTemplateDir) )
             {
-                $this->ssg->chmod_recurse($this->destTemplateDir,0744);
+                $chmod_cmd = "chmod -R 744 {$this->destTemplateDir}";
+                $rslt = `{$chmod_cmd} 2>&1`;
+                //$this->ssg->chmod_recurse($this->destTemplateDir,0744);
             }
-            $this->ssg->copy_recurse( $this->sourceTemplateDir, $this->destTemplateDir );
+            $cp_cmd = "cp -Rf {$this->sourceTemplateDir}/ {$this->destTemplateDir}/";
+            $rslt = `{$cp_cmd} 2>&1`;
+            // $this->ssg->copy_recurse( $this->sourceTemplateDir, $this->destTemplateDir );
         }
         if ( is_dir($this->sourceStaticDir) )
         {
-            $this->ssg->prepareDir($this->destStaticDir);
+            $mkdir_cmd = "mkdir -p {$this->destStaticDir}";
+            $rslt = `{$mkdir_cmd} 2>&1`;
+            // $this->ssg->prepareDir($this->destStaticDir);
+            if ( !is_readable($this->sourceStaticDir) )
+            {
+                $chmod_cmd = "chmod -R 744 {$this->sourceStaticDir}";
+                $rslt = `{$chmod_cmd} 2>&1`;
+                //$this->ssg->chmod_recurse($this->sourceStaticDir,0744);
+            }
             if ( !is_writable($this->destStaticDir) )
             {
-                $this->ssg->chmod_recurse($this->destStaticDir,0744);
+                $chmod_cmd = "chmod -R 744 {$this->destStaticDir}";
+                $rslt = `{$chmod_cmd} 2>&1`;
+                // $this->ssg->chmod_recurse($this->destStaticDir,0744);
             }
-            $this->ssg->copy_recurse( $this->sourceStaticDir,   $this->destStaticDir   );
+            $cp_cmd = "cp -Rf {$this->sourceStaticDir}/ {$this->destStaticDir}/";
+            $rslt = `{$cp_cmd} 2>&1`;
+            // $this->ssg->copy_recurse( $this->sourceStaticDir,   $this->destStaticDir   );
         }
 
         /// Asset Dirs
@@ -200,12 +223,28 @@ class TemplateSource
             }
             // $this->ssg->log("Template Merge: $sourceAssetDir >> $destAssetDir\n");
 
+            $mkdir_cmd = "mkdir -p {$destAssetDir}";
+            $rslt = `{$mkdir_cmd} 2>&1`;
             $this->ssg->prepareDir($destAssetDir);
             if ( !is_writable($destAssetDir) )
             {
                 $this->ssg->chmod_recurse($destAssetDir,0744);
             }
-            $this->ssg->copy_recurse($sourceAssetDir,$destAssetDir);
+            if ( !is_readable($sourceAssetDir) )
+            {
+                $chmod_cmd = "chmod -R 744 {$sourceAssetDir}";
+                $rslt = `{$chmod_cmd} 2>&1`;
+                //$this->ssg->chmod_recurse($sourceAssetDir,0744);
+            }
+            if ( !is_writable($destAssetDir) )
+            {
+                $chmod_cmd = "chmod -R 744 {$destAssetDir}";
+                $rslt = `{$chmod_cmd} 2>&1`;
+                // $this->ssg->chmod_recurse($destAssetDir,0744);
+            }
+            $cp_cmd = "cp -Rf {$sourceAssetDir}/ {$destAssetDir}/";
+            $rslt = `{$cp_cmd} 2>&1`;
+            // $this->ssg->copy_recurse($sourceAssetDir,$destAssetDir);
         }
     }
 

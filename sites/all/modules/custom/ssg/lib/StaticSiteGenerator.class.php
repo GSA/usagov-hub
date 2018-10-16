@@ -1425,4 +1425,32 @@ class StaticSiteGenerator
         return true;
     }
 
+    public function validateRuntime()
+    {
+        /// check that config params can be found
+        /// check /temp and /perm for read-write permission
+    }
+
+    public function validateDataSource()
+    {
+        /// resolve hostname
+        /// check endpoint exists
+        /// do a count to make sure data exist at endpoit
+    }
+
+    public function validateTemplateSource()
+    {
+        /// check for git
+        /// check repo exists
+        /// check git credentials
+        /// check /source has read-write
+    }
+
+    public function validateDestination()
+    {
+        /// check for aws credentials
+        /// check for bucket existance
+        /// check for bucket list-read-write
+        /// ? check cloudfront somehow
+    }
 }
