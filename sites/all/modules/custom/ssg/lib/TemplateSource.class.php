@@ -180,7 +180,7 @@ class TemplateSource
                 $rslt = `{$chmod_cmd} 2>&1`;
                 //$this->ssg->chmod_recurse($this->destTemplateDir,0744);
             }
-            $cp_cmd = "cp -Rf {$this->sourceTemplateDir}/ {$this->destTemplateDir}/";
+            $cp_cmd = "cp -Rf {$this->sourceTemplateDir}/*.* {$this->destTemplateDir}/";
             $rslt = `{$cp_cmd} 2>&1`;
             // $this->ssg->copy_recurse( $this->sourceTemplateDir, $this->destTemplateDir );
         }

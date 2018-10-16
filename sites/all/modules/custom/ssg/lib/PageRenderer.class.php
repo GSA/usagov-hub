@@ -436,28 +436,35 @@ class PageRenderer
 
     public function loadTwigTemplates()
     {
-        $iterator = new \RecursiveIteratorIterator(
-                    new \RecursiveDirectoryIterator(
+        error_log(__FUNCTION__.':'.__LINE__);
+        $iterator = new \RecursiveDirectoryIterator(
                         $this->templateDir
-                    ));
+                    );
         foreach ($iterator as $file) 
         {
+            error_log(__FUNCTION__.':'.__LINE__);
             if ($file->isDir()) { continue; }
+            error_log(__FUNCTION__.':'.__LINE__);
             $path = $file->getPathname();
             // echo "LOADING TEMPLATE : $path\n";
             $name = basename($path,'.twig');
             if ( 'yml' == pathinfo($path, PATHINFO_EXTENSION) )
             { 
+                error_log(__FUNCTION__.':'.__LINE__);
                 continue;
             }
             try {
+                error_log(__FUNCTION__.':'.__LINE__);
                 $this->templates[$name] = $this->templateRenderer->load($name.'.twig');
             } catch (Exception $e) { 
+                error_log(__FUNCTION__.':'.__LINE__);
                 $this->ssg->log("Templates: $name.twig failed to load\n");
                 $this->templates[$name] = null;
             }
+            error_log(__FUNCTION__.':'.__LINE__);
         }
 
+        error_log(__FUNCTION__.':'.__LINE__);
         return true;
     }
 
