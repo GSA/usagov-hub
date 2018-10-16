@@ -180,7 +180,7 @@ class TemplateSource
                 $rslt = `{$chmod_cmd} 2>&1`;
                 //$this->ssg->chmod_recurse($this->destTemplateDir,0744);
             }
-            $cp_cmd = "cp -Rf {$this->sourceTemplateDir}/*.* {$this->destTemplateDir}/";
+            $cp_cmd = "cp -Rf {$this->sourceTemplateDir}/* {$this->destTemplateDir}/";
             $rslt = `{$cp_cmd} 2>&1`;
             // $this->ssg->copy_recurse( $this->sourceTemplateDir, $this->destTemplateDir );
         }
@@ -201,7 +201,7 @@ class TemplateSource
                 $rslt = `{$chmod_cmd} 2>&1`;
                 // $this->ssg->chmod_recurse($this->destStaticDir,0744);
             }
-            $cp_cmd = "cp -Rf {$this->sourceStaticDir}/ {$this->destStaticDir}/";
+            $cp_cmd = "cp -Rf {$this->sourceStaticDir}/* {$this->destStaticDir}/";
             $rslt = `{$cp_cmd} 2>&1`;
             // $this->ssg->copy_recurse( $this->sourceStaticDir,   $this->destStaticDir   );
         }
@@ -228,7 +228,9 @@ class TemplateSource
             $this->ssg->prepareDir($destAssetDir);
             if ( !is_writable($destAssetDir) )
             {
-                $this->ssg->chmod_recurse($destAssetDir,0744);
+                $chmod_cmd = "chmod -R 744 {$destAssetDir}";
+                $rslt = `{$chmod_cmd} 2>&1`;
+                // $this->ssg->chmod_recurse($destAssetDir,0744);
             }
             if ( !is_readable($sourceAssetDir) )
             {
@@ -236,13 +238,7 @@ class TemplateSource
                 $rslt = `{$chmod_cmd} 2>&1`;
                 //$this->ssg->chmod_recurse($sourceAssetDir,0744);
             }
-            if ( !is_writable($destAssetDir) )
-            {
-                $chmod_cmd = "chmod -R 744 {$destAssetDir}";
-                $rslt = `{$chmod_cmd} 2>&1`;
-                // $this->ssg->chmod_recurse($destAssetDir,0744);
-            }
-            $cp_cmd = "cp -Rf {$sourceAssetDir}/ {$destAssetDir}/";
+            $cp_cmd = "cp -Rf {$sourceAssetDir}/* {$destAssetDir}/";
             $rslt = `{$cp_cmd} 2>&1`;
             // $this->ssg->copy_recurse($sourceAssetDir,$destAssetDir);
         }
