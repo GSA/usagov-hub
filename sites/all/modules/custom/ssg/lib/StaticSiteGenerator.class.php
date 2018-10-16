@@ -214,7 +214,8 @@ class StaticSiteGenerator
                 {
                     $this->pagesByUrl[$this->pages[$uuid]['friendly_url']] =& $this->source->entities[$uuid];
                 }
-                if ( !empty($entity['usa_gov_50_state_category']) ) {
+                if ( !empty($entity['usa_gov_50_state_category']) ) 
+                {
                     $this->source->entities[$uuid]['usa_gov_50_state_category'] = preg_replace('/^field_/','',$entity['usa_gov_50_state_category']);
                 }
                 $i=0;
@@ -232,7 +233,13 @@ class StaticSiteGenerator
                         $this->siteIndexAZ[$fub][$letter][] = [ 'uuid'=>$entity['uuid'], 'title'=>$entity['browser_title'] ];
                     }
                 }
-
+                
+                /// amber alert
+                if ( array_key_exists('children',$this->source->entities[$uuid]) )
+                {
+                    $this->source->entities[$uuid]['children'] = [];
+                }
+                
             /// IF THIS IS A CONTENT ITEM
             } else {
 
@@ -457,6 +464,22 @@ class StaticSiteGenerator
                         }
                     }
 
+                }
+            }
+        }
+
+        foreach( $this->pages as $uuid=>$entity )
+        {
+            /// add myself to my parent
+            if ( array_key_exists('parent_uuid',$this->source->entities[$uuid]) )
+            {
+                if ( array_key_exists($this->source->entities[$uuid]['parent_uuid'],
+                                      $this->source->entities) )
+                {
+                    $this->source->entities[$this->source->entities[$uuid]['parent_uuid']]['children'][] = [
+                        'uuid' => $uuid,
+                        'tid'  => $this->source->entities[$uuid]['tid'],
+                    ];    
                 }
             }
         }
