@@ -551,7 +551,7 @@ function ssg_cronapi ()
     $items['ssg_build_site'] = array(
         'description' => 'Auto Generating Static files',
         'rule' => '*/10 * * * *', // Every 10 minutes to give us time to hit 15min target
-        'callback' => '_ssg_run',
+        'callback' => '_ssg_run_ajax',
     );
     $items['ssg_cleanup_builds'] = array(
         'description' => 'Shutdown any over-time running processes',
@@ -569,7 +569,7 @@ function _ssg_cleanup ()
         WHERE 
             state NOT IN ( '6 failed', 6 complete', '6 shutdown' )
             AND 
-            UNIX_TIMESTAMP() - updated > 1800
+            ( UNIX_TIMESTAMP() - updated ) > 1800
     ");
     return true;
 }

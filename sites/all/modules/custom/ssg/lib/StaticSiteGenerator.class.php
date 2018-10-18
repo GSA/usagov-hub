@@ -482,6 +482,23 @@ class StaticSiteGenerator
                     ];    
                 }
             }
+            /// verify all my content items are legit
+            $content_regions = array('asset_order_carousel', 'asset_order_content', 'asset_order_sidebar', 'asset_order_bottom', 'field_asset_order_menu', 'field_home_alert_asset', 'field_home_howdoi_assets');
+            foreach ( $content_regions as $region_field )
+            {
+                if ( array_key_exists($region_field,$this->source->entities[$uuid]) )
+                {
+                    foreach ( $this->source->entities[$uuid][$region_field] as $c=>$content )
+                    {
+                        if ( ( array_key_exists('uuid',$content) &&
+                              !array_key_exists($content['uuid'],$this->source->entities) )
+                            || $this->source->entities[$content['uuid']]['deleted']==1 )
+                        {
+                            unset($this->source->entities[$uuid][$region_field][$c]);
+                        }
+                    }
+                }
+            }
         }
 
         foreach( $this->source->entities as $uuid=>$entity )
@@ -625,6 +642,7 @@ class StaticSiteGenerator
         $this->buildMenus();
 
         /// undo all references get copies instead of references
+        /// so we can save to cache
         foreach ( array_keys($this->pages) as $uuid )
         {
             $this->pages[$uuid] = $this->source->entities[$uuid];
@@ -980,8 +998,8 @@ class StaticSiteGenerator
     public function buildMainNavMenu($page) 
     {
         $menu = [];
-        $directChildren = $this->filteredDescendantPages($page,'children','generate_menu');
-        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page','generate_menu');
+        $directChildren = $this->filteredDescendantPages($page,'children',['generate_menu','generate_page']);
+        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page',['generate_menu','generate_page']);
 
         $menu = array_merge($directChildren, $alsoInclude);
         array_multisort(
@@ -1003,14 +1021,14 @@ class StaticSiteGenerator
     {
         $menu = [];
 
-        $directChildren = $this->filteredDescendantPages($page,'children','generate_menu');
+        $directChildren = $this->filteredDescendantPages($page,'children',['generate_menu','generate_page']);
         array_multisort(
             array_column($directChildren,'weight'),SORT_ASC,
             array_column($directChildren,'name'),  SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
             array_column($directChildren,'tid'),   SORT_ASC,
         $directChildren);
 
-        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page','generate_menu');
+        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page',['generate_menu','generate_page']);
         array_multisort(
             array_column($alsoInclude,'name'),SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
             array_column($alsoInclude,'tid'), SORT_ASC,
@@ -1023,8 +1041,8 @@ class StaticSiteGenerator
     {
         $menu = [];
 
-        $directChildren = $this->filteredDescendantPages($page,'children','generate_menu');
-        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page','generate_menu');
+        $directChildren = $this->filteredDescendantPages($page,'children',['generate_menu','generate_page']);
+        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page',['generate_menu','generate_page']);
 
         $menu = array_merge($directChildren, $alsoInclude);
 
@@ -1052,16 +1070,21 @@ class StaticSiteGenerator
         return $menu;
     }
 
-    public function filteredDescendantPages(&$page,$pageSourceKey='children',$generateCheckKey='generate_menu',$sortByKey=false,$sortByWeight=false)
+    public function filteredDescendantPages(&$page,$pageSourceKey='children',$generateCheckKeys=['generate_menu'],$sortByKey=false,$sortByWeight=false)
     {
         if ( empty($page[$pageSourceKey]) ) { return []; }
+        if ( !is_array($generateCheckKeys) ) { $generateCheckKeys = [$generateCheckKeys]; }
         $pageList = [];
         foreach($page[$pageSourceKey] as $i=>$item)
         {
             if ( !is_array($item) || !array_key_exists('uuid',$item) || empty($item['uuid']) || empty($this->source->entities[$item['uuid']]) ) { continue; }
             $child =& $this->source->entities[$item['uuid']];
-            if ( array_key_exists($generateCheckKey,$child) && $child[$generateCheckKey]=='no' ) { 
-                continue; 
+            foreach ( $generateCheckKeys as $generateCheckKey )
+            {
+                if ( array_key_exists($generateCheckKey,$child) && $child[$generateCheckKey]=='no' )
+                {
+                    continue; 
+                }
             }
             $listItem = [
                 'uuid'=>$child['uuid'],
@@ -1144,7 +1167,7 @@ class StaticSiteGenerator
             {
                 $renderedPages++;
             } else {
-                $this->log("Invalid: {$url} // {$page['uuid']}\n");
+                $this->log("Invalid: {$url} : {$page['uuid']}\n");
             }
 
             /// some special pages generate further sub-pages
@@ -1250,6 +1273,16 @@ class StaticSiteGenerator
             $this->log("Rendering Site: no sites found\n");
             return false;
         }
+
+        /// clean out the site page
+        $this->log("Rendering Site: cleanup up old site ... \n");
+        if ( !empty($this->siteDir) && $this->siteDir !== '/' )
+        {
+            $remove_cmd = "rm -rf {$this->siteDir}";
+            // $this->ssg->log($remove_cmd."\n",false);
+            $rslt = `{$remove_cmd} 2>&1 > /dev/null`;
+        }
+
         /// render content pages
         foreach ( $this->sitePage as $siteName => $sitePage ) 
         {
