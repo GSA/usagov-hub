@@ -278,6 +278,29 @@ function ssg_actions_form()
         '#default_value' => variable_get('ssg_templateSync_repo_template_dir'),
     );
 
+    $form['templateSource']['ssg_templateSync_repo_asset_base'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Asset Base',
+        '#default_value' => variable_get('ssg_templateSync_repo_asset_base'),
+    );
+    $form['templateSource']['ssg_templateSync_repo_asset_dirs'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Asset Dirs',
+        '#default_value' => variable_get('ssg_templateSync_repo_asset_dirs'),
+    );
+
+    $form['templateSource']['ssg_templateSync_repo_static_base'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Static Base',
+        '#default_value' => variable_get('ssg_templateSync_repo_static_base'),
+    );
+    $form['templateSource']['ssg_templateSync_repo_static_dirs'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Static Dirs',
+        '#default_value' => variable_get('ssg_templateSync_repo_static_dirs'),
+    );
+
+
     $form['siteDestination'] = array(
         '#type' => 'fieldset',
         '#title' => t('Site Destination'),

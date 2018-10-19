@@ -4,6 +4,8 @@ namespace ctac\ssg;
 
 class S3SiteDestination
 {
+    use LoggingTrait;
+
     public $ssg;
     public $s3;
     public $source;
@@ -52,15 +54,15 @@ class S3SiteDestination
     {
         if ( !$this->allowDeploy )
         {
-            $this->ssg->log("Syncing to destination disabled\n");
+            $this->log("Syncing to destination disabled\n");
             return true;
         }
-        $this->ssg->log("Syncing to destination bucket\n");
+        $this->log("Syncing to destination bucket\n");
         $filesSynced = $this->syncFilesCli();
         // $filesSynced = $this->syncFilesSdk();
         if (!$filesSynced)
         {
-            $this->ssg->log("Sync Files ... failed\n");
+            $this->log("Sync Files ... failed\n");
             return false; 
         }
         return true;
@@ -83,7 +85,7 @@ class S3SiteDestination
             putenv('AWS_SECRET_ACCESS_KEY='.$secretKey);
         }
 
-        // $this->ssg->log($this->s3Sync." --dryrun\n");
+        // $this->log($this->s3Sync." --dryrun\n");
         // $result = `{$this->s3Sync} --dryrun`;
         // foreach ( $this->bads as $bad )
         // {
@@ -94,7 +96,7 @@ class S3SiteDestination
         // }
         // if ( $looksGood )
         // {
-            $this->ssg->log($this->s3Sync."\n");
+            $this->log($this->s3Sync."\n");
             $result = `{$this->s3Sync}`;
             foreach ( $this->bads as $bad )
             {
@@ -105,7 +107,7 @@ class S3SiteDestination
             }
         // }
 
-        $this->ssg->log("Sync: uploading site manifest.\n");
+        $this->log("Sync: uploading site manifest.\n");
         try {    
             $sourceFiles = $this->getFilesInDir($this->source,true);
             foreach ( $sourceFiles as &$file )
@@ -122,7 +124,7 @@ class S3SiteDestination
                 'ACL'    => 'public-read',
             ]);
         } catch (\Aws\S3\Exception\S3Exception $e) {
-            $this->ssg->log("Sync: There was an error uploading Manifest file. ". $e->getMessage()."\n");
+            $this->log("Sync: There was an error uploading Manifest file. ". $e->getMessage()."\n");
         } 
 
         return $looksGood;
@@ -130,7 +132,7 @@ class S3SiteDestination
 
     public function getFilesInDir($targetDir,$md5=false)
     {
-        // $this->ssg->log("Getting files in dir: $targetDir\n");
+        // $this->log("Getting files in dir: $targetDir\n");
         $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($targetDir));
         $files    = [];
         foreach ($iterator as $file) 
@@ -138,7 +140,7 @@ class S3SiteDestination
             if (!$file->isDir())
             {
                 $path = $file->getPathname();
-                // $this->ssg->log("Getting File : $path\n");
+                // $this->log("Getting File : $path\n");
                 $key = str_replace($targetDir.'/','',$path);
                 // if ( preg_match('/index.html$/',$_key) && !preg_match('/^index.html/',$_key) )
                 // {
@@ -161,18 +163,18 @@ class S3SiteDestination
     {
         /// get local and remote file listings
         $removeFromDest = [];
-        $this->ssg->log("Sync: getting source file list.\n");
+        $this->log("Sync: getting source file list.\n");
         $sourceFiles = $this->getFilesInDir($this->source,true);
 
-        $this->ssg->log("Sync: getting destination file list.\n");
+        $this->log("Sync: getting destination file list.\n");
         /// get old manifest
         if ( file_exists('s3://'.$this->ssg->config['aws']['bucket'].'/manifest.json') )
         {
-            $this->ssg->log("Sync: downloading manifest from s3.\n");
+            $this->log("Sync: downloading manifest from s3.\n");
             $destFileManifest = file_get_contents('s3://'.$this->ssg->config['aws']['bucket'].'/manifest.json');
             $destFiles = json_decode($destFileManifest,true);
         } else {
-            $this->ssg->log("Sync: build manifest from s3 scrape.\n");
+            $this->log("Sync: build manifest from s3 scrape.\n");
             /// don't grap md5, it's too expensive on a scrape like this
             /// it is quicker to reupload everything than to calc md5 for everything
             $destFiles = $this->getFilesInDir($this->dest);
@@ -189,13 +191,13 @@ class S3SiteDestination
                 /// it may have the data file and a redirect location
                 foreach ( $destFile['keys'] as $dkey )
                 {
-                    //$this->ssg->log("Remove from destination : $dkey\n");
+                    //$this->log("Remove from destination : $dkey\n");
                     $removeFromDest[] = $dkey;
                 }
             }
         }
         /// delete all in one call
-        $this->ssg->log("Sync: removing old files (".count($removeFromDest).")\n");
+        $this->log("Sync: removing old files (".count($removeFromDest).")\n");
         if ( !empty($removeFromDest) )
         {
             $this->ssg->s3->deleteObjects([
@@ -208,7 +210,7 @@ class S3SiteDestination
             ]);
         }
 
-        $this->ssg->log("Sync: uploading files.\n");
+        $this->log("Sync: uploading files.\n");
 
         /// add/update any new/changed files
         foreach ( $sourceFiles as $key=>$sourceFile )
@@ -258,7 +260,7 @@ class S3SiteDestination
                 try {
                     if ( $isRedirect )
                     {
-                        // $this->ssg->log("Sync: Redirect $key => $redirectTo\n");
+                        // $this->log("Sync: Redirect $key => $redirectTo\n");
                         $this->ssg->s3->putObject([
                             'Bucket' => $this->ssg->config['aws']['bucket'],
                             'Key'    => $key,
@@ -278,7 +280,7 @@ class S3SiteDestination
                             $sourceFiles[$key]['keys'][] = $cleanKey;
                             $key = $cleanKey;
                         }
-                        // $this->ssg->log("Sync: Create $key \n");
+                        // $this->log("Sync: Create $key \n");
                         $this->ssg->s3->putObject([
                             'Bucket' => $this->ssg->config['aws']['bucket'],
                             'Key'    => $key,
@@ -287,7 +289,7 @@ class S3SiteDestination
                         ]);
                     }
                 } catch (\Aws\S3\Exception\S3Exception $e) {
-                    $this->ssg->log("Sync: There was an error creating the file $key.". $e->getMessage()."\n");
+                    $this->log("Sync: There was an error creating the file $key.". $e->getMessage()."\n");
                 }
             } else { /// this file exists on both places
                 $destFile = $destFiles[$key];
@@ -297,7 +299,7 @@ class S3SiteDestination
                     try {
                         if ( $isRedirect )
                         {
-                            // $this->ssg->log("Sync: Update Redirect $key => $redirectTo\n");
+                            // $this->log("Sync: Update Redirect $key => $redirectTo\n");
                             $this->ssg->s3->putObject([
                                 'Bucket' => $this->ssg->config['aws']['bucket'],
                                 'Key'    => $key,
@@ -305,7 +307,7 @@ class S3SiteDestination
                                 'ACL'    => 'public-read'
                             ]);
                         } else {
-                            // $this->ssg->log("Sync: Update $key\n");
+                            // $this->log("Sync: Update $key\n");
                             $this->ssg->s3->putObject([
                                 'Bucket' => $this->ssg->config['aws']['bucket'],
                                 'Key'    => $key,
@@ -314,18 +316,18 @@ class S3SiteDestination
                             ]);
                         }
                     } catch (\Aws\S3\Exception\S3Exception $e) {
-                        $this->ssg->log("Sync: There was an error updating the file $key.". $e->getMessage()."\n");
+                        $this->log("Sync: There was an error updating the file $key.". $e->getMessage()."\n");
                     }                    
                 } else {
-                    // $this->ssg->log("Sync: NoChange $key\n");
+                    // $this->log("Sync: NoChange $key\n");
                 }
             }
             //$sourceFiles[$_key]['path'] = str_replace($this->source,$sourceFile['path'],'/');
             unset($sourceFiles[$key]['path']);
         }
-        // $this->ssg->log("\n");
+        // $this->log("\n");
 
-        $this->ssg->log("Sync: uploading site manifest.\n");
+        $this->log("Sync: uploading site manifest.\n");
         try {
             file_put_contents($this->source.'/manifest.json',json_encode($sourceFiles));
             $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null, 'created'=>time() ];
@@ -337,14 +339,14 @@ class S3SiteDestination
                 'ACL'    => 'public-read',
             ]);
         } catch (\Aws\S3\Exception\S3Exception $e) {
-            $this->ssg->log("Sync: There was an error uploading Manifest file. ". $e->getMessage()."\n");
+            $this->log("Sync: There was an error uploading Manifest file. ". $e->getMessage()."\n");
         } 
         return true;
     }
 
     public function publicReadAllKeys()
     {
-        $this->ssg->log("Sync ACL to PublicRead for all files ... \n");
+        $this->log("Sync ACL to PublicRead for all files ... \n");
 
         // $sdk = new \Aws\Sdk($this->ssg->config['aws']);
         // $s3 = $sdk->createS3();
@@ -360,14 +362,14 @@ class S3SiteDestination
         //         // if ( !empty($object['Key']) ) { print_r($object);die; }
         //         continue;
         //         try {
-        //             $this->ssg->log("Sync: public ACL for key {$object['Key']}.\n");
+        //             $this->log("Sync: public ACL for key {$object['Key']}.\n");
         //             $s3->putObjectAcl([
         //                 'Bucket' => $this->ssg->config['aws']['bucket'],
         //                 'Key'    => $object['Key'],
         //                 'ACL'    => 'public-read'
         //             ]);
         //         } catch (\Aws\S3\Exception\S3Exception $e) {
-        //             $this->ssg->log("Sync: There was an error setting ACL for {$object['Key']}.\n");
+        //             $this->log("Sync: There was an error setting ACL for {$object['Key']}.\n");
         //         }
         //         $lastDir = $object['Key'];
         //         $currDir = basedir($dir);
@@ -382,7 +384,7 @@ class S3SiteDestination
         //     foreach ($dirs as $dir=>$public) 
         //     {
         //         try {
-        //             $this->ssg->log("Sync: public ACL for dir $dir.\n");
+        //             $this->log("Sync: public ACL for dir $dir.\n");
         //             $s3->putObjectAcl([
         //                 'Bucket' => $this->ssg->config['aws']['bucket'],
         //                 'Key'    => $dir,
@@ -390,15 +392,15 @@ class S3SiteDestination
         //             ]);
         //             $dirs[$dir] = true;
         //         } catch (\Aws\S3\Exception\S3Exception $e) {
-        //             $this->ssg->log("Sync: There was an error setting ACL for dir {$dir}.\n");
+        //             $this->log("Sync: There was an error setting ACL for dir {$dir}.\n");
         //         }
         //     }
         //     /** / 
         // } catch (\Aws\S3\Exception\S3Exception $e) {
-        //     $this->ssg->log("Sync: There was an error listing bucket objects.\n");
+        //     $this->log("Sync: There was an error listing bucket objects.\n");
         // }
 
-        // $this->ssg->log("Sync ACL to PublicRead for all files ... done\n");
+        // $this->log("Sync ACL to PublicRead for all files ... done\n");
 
         $iterator = $this->ssg->s3->getIterator('ListObjects', array('Bucket' => $this->ssg->config['aws']['bucket']));
         $destFiles = [];
@@ -413,7 +415,7 @@ class S3SiteDestination
                     'ACL'    => 'public-read'
                 ]);
             } catch (\Aws\S3\Exception\S3Exception $e) {
-                $this->ssg->log("Sync: There was an error setting ACL for $key.\n");
+                $this->log("Sync: There was an error setting ACL for $key.\n");
             }
 
             // $destFiles[$object['Key']] = false;
@@ -487,7 +489,7 @@ class S3SiteDestination
         //             ]);
         //             $dir = dirname($key);
         //         } catch (\Aws\S3\Exception\S3Exception $e) {
-        //             $this->ssg->log("Sync: There was an error setting ACL for $key.\n");
+        //             $this->log("Sync: There was an error setting ACL for $key.\n");
         //         }
         //    }
     }
@@ -519,10 +521,10 @@ class S3SiteDestination
         //     $dest = $m[1];
         //     if ( !preg_match('/^(http|\/)/',$dest) ) 
         //     { 
-        //         $this->ssg->log("Sync Redirect invalid: $key => $dest\n");
+        //         $this->log("Sync Redirect invalid: $key => $dest\n");
         //         continue; 
         //     }
-        //     $this->ssg->log("Sync Redirect: $key => {$dest}\n");
+        //     $this->log("Sync Redirect: $key => {$dest}\n");
         //     $s3->putObject([
         //         'Bucket' => $this->ssg->config['aws']['bucket'],
         //         'Key'    => $key,

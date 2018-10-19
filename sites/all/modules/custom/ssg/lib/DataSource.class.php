@@ -4,6 +4,8 @@ namespace ctac\ssg;
 
 class DataSource
 {
+    use LoggingTrait;
+
 	public $ssg;
 	public $entities;
 	public $redirects;
@@ -17,7 +19,7 @@ class DataSource
 		$this->entities     = [];
 		$this->redirects    = [];
 		$this->freshData    = false;
-		$this->updateData   = true;
+        $this->updateData   = true;
 	}
 
 	public function pull( $since=0 )
@@ -51,43 +53,43 @@ class DataSource
         {
             /// if we want data from source - we might only need to update
             /// how do we know if we want totally new data or just updated
-            $this->ssg->log("Data: loading fresh from source ... ");
+            $this->log("Data: loading fresh from source ... ");
             if ( $this->loadDataFromSource() ) 
             {
-                $this->ssg->log("done\n");
+                $this->log("done\n");
             } else {
                 $sourceFail = true;
             }
         }
 
-        $this->ssg->log("Data: loading from cache ... ");
+        $this->log("Data: loading from cache ... ");
         if ( $this->loadDataFromCache()  ) 
         { 
-            $this->ssg->log("done\n");
+            $this->log("done\n");
             $success = true;
         } else {
-            $this->ssg->log("not found\n");
+            $this->log("not found\n");
             if ( !$sourceFail )
             {   
-                $this->ssg->log("Data: loading from source ... ");
+                $this->log("Data: loading from source ... ");
                 if ( $this->loadDataFromSource() ) 
                 {
-                    $this->ssg->log("done\n");
+                    $this->log("done\n");
                 } else {
-                    $this->ssg->log("fail\n");
+                    $this->log("fail\n");
                 }
             }
         }
 
         if ( $this->updateData )
         {
-            $this->ssg->log("Data: updating\n");
+            $this->log("Data: updating\n");
             if ( $this->updateDataFromSource() ) 
             {
-                $this->ssg->log("Data: updating ... done\n");
+                $this->log("Data: updating ... done\n");
                 return true;
             } else {
-                $this->ssg->log("Data: updating ... fail\n");
+                $this->log("Data: updating ... fail\n");
                 return false;
             }
         }

@@ -4,6 +4,7 @@ namespace ctac\ssg;
 
 class DrupalAPIDataSource extends DataSource
 {
+  use LoggingTrait;
 
   public function getEntities( $since=0 )
   {
@@ -40,11 +41,11 @@ class DrupalAPIDataSource extends DataSource
           'page'=>$currentPage
         ];
         if ( !empty(intval($since)) ) {
-          $this->ssg->log("\nLOADING since(".date('Y/m/d H:i:s',$since).")\n");
+          $this->log("\nLOADING since(".date('Y/m/d H:i:s',$since).")");
           $query['since'] = intval($since);
         }
 
-        $this->ssg->log("\nLOADING batch($currentPage/$totalPages) ");
+        $this->log("\nLOADING batch($currentPage/$totalPages) ");
         $response = $client->post( $url, [ 'form_params'=> $query ] );
         $body = $response->getBody();
         if ( empty($body) )
@@ -76,16 +77,16 @@ class DrupalAPIDataSource extends DataSource
 
       if ( !array_key_exists('result',$responseData) )
       {
-        $this->ssg->log("\nDONE batch($currentPage/$totalPages) no results in response entities($acceptedCount/$processedCount/$totalCount)\n");
+        $this->log("\nDONE batch($currentPage/$totalPages) no results in response entities($acceptedCount/$processedCount/$totalCount)\n");
         break;
       }
       if ( count($responseData['result']) == 0 )
       {
-        $this->ssg->log("\nDONE batch($currentPage/$totalPages) count(". count($responseData['result']) .") entities($acceptedCount/$processedCount/$totalCount)\n");
+        $this->log("\nDONE batch($currentPage/$totalPages) count(". count($responseData['result']) .") entities($acceptedCount/$processedCount/$totalCount)\n");
         break;
       }
 
-      $this->ssg->log(" ... load($loadTime) results(". count($responseData['result']) .")");
+      $this->log(" ... load($loadTime) results(". count($responseData['result']) .")");
 
       
       $processStartTime = microtime(true);
@@ -130,7 +131,7 @@ class DrupalAPIDataSource extends DataSource
             } else if ( !empty($entity['type']) ) {
               $type = $entity['type'];
             }
-            $this->ssg->log("\nimporting {$type} title:{$title}");
+            $this->log("\nimporting {$type} title:{$title}");
           }
           $acceptedCount++;
         } catch (Exception $e) {
@@ -143,12 +144,12 @@ class DrupalAPIDataSource extends DataSource
 
       
       $n = ( !empty(intval($since)) ) ? "\n" : '';
-      $this->ssg->log("$n ... entities($acceptedCount/$processedCount/$totalCount) process($processTime)");
+      $this->log("$n ... entities($acceptedCount/$processedCount/$totalCount) process($processTime)");
 
       $currentPage++;
       if ( $totalPages !== null && $currentPage >= $totalPages )
       {
-        $this->ssg->log("\nDONE batch($currentPage/$totalPages) last page  entities($acceptedCount/$processedCount/$totalCount)\n");
+        $this->log("\nDONE batch($currentPage/$totalPages) last page  entities($acceptedCount/$processedCount/$totalCount)\n");
         break;
       }
 
@@ -319,13 +320,13 @@ class DrupalAPIDataSource extends DataSource
     $response = $client->post( $url );
     if ( $response->getStatusCode()!==200 )
     {
-      $this->ssg->log("Error retrieving Redirects");
+      $this->log("Error retrieving Redirects");
       return false;
     }
     $body = $response->getBody();
     if ( empty($body) )
     {
-      $this->ssg->log("No Redirects");
+      $this->log("No Redirects");
       return false;
     }
     $responseData = json_decode($body->getContents(),true);

@@ -6,6 +6,10 @@ use \Twig\Loader;
 
 class PageRenderer
 {
+    use LoggingTrait;
+    use SanitizeUrlTrait;
+    use DirectoryTrait;
+    
     public $ssg;
 
     public $templates;
@@ -21,14 +25,11 @@ class PageRenderer
     {
         $this->ssg = &$ssg;
 
-        $repoTemplateDir = $this->ssg->config['templateSync']['repo_template_dir'];
-        $repoTemplateDir = preg_replace('(^[\.\/]|[\.\/]$)','',$repoTemplateDir);
-
-        $this->templateDir      = $this->ssg->config['permDir'].'/templates/twig/'.$repoTemplateDir;
+        $this->templateDir      = $this->ssg->templates->sourceTemplateDir;
         $this->templateDirCache = $this->ssg->config['permDir'].'/templates/compiled';
 
-        $this->ssg->prepareDir($this->templateDir);
-        $this->ssg->prepareDir($this->templateDirCache);
+        $this->prepareDir($this->templateDir);
+        $this->prepareDir($this->templateDirCache);
 
         $this->templateLoader   = new \Twig_Loader_Filesystem($this->templateDir);
         $this->templateRenderer = new \Twig_Environment($this->templateLoader, array(
@@ -65,22 +66,15 @@ class PageRenderer
             $html = preg_replace("/<h4 /i",   "<h3 ",  $html);
             $html = preg_replace("/<\/h4>/i", "</h3>", $html);
 
-            // $html = str_ireplace("<h3>",  "<header><h2>",   $html);
-            // $html = str_ireplace("<h3 ",  "<header><h2 ",   $html);
-            // $html = str_ireplace("</h3>", "</h2></header>", $html);
-
-            // $html = str_ireplace("<h4>",  "<h3>",  $html);
-            // $html = str_ireplace("<h4 ",  "<h3 ",  $html);
-            // $html = str_ireplace("</h4>", "</h3>", $html);
             return $html;
         }));
         $this->templateRenderer->addFilter(new \Twig_Filter('friendly_url', function ($string) use ($ssg)
         {
-            return $ssg->sanitizeForUrl($string);
+            return $this->sanitizeForUrl($string);
         }));
         $this->templateRenderer->addFilter(new \Twig_Filter('sanitizeForUrl', function ($string) use ($ssg)
         {
-            return $ssg->sanitizeForUrl($string);
+            return $this->sanitizeForUrl($string);
         }));
         $this->templateRenderer->addFilter(new \Twig_Filter('onlyFeatures', function ($entities) use ($ssg)
         {
@@ -127,19 +121,19 @@ class PageRenderer
           if ( empty($url) )
           {
               /// not renderable
-              $this->ssg->log("UnRenderable: no url for {$page['name']} {$page['friendly_url']}\n");
+              $this->log("UnRenderable: no url for {$page['name']} {$page['friendly_url']}\n");
               return null;
           }
           if ( empty($page['pageType']) )
           {
-              $this->ssg->log("UnRenderable: no type for $url ({$page['pageType']}) \"{$page['name']}\"\n");
+              $this->log("UnRenderable: no type for $url ({$page['pageType']}) \"{$page['name']}\"\n");
               return null;
           }
-          if ( $this->ssg->runtimeEnvironment == 'standalone' )
+          if ( $this->runtimeEnvironment() == 'standalone' )
           {
             $_url = str_pad( $url, (strlen($url)+( 25 - ( strlen($url) % 25 ) )) ); 
             $_type = str_pad( $page['pageType'], (strlen($page['pageType'])+( 25 - ( strlen($page['pageType']) % 25 ) )) ); 
-            $this->ssg->log("Path: {$_type}  {$_url}\n",false);
+            $this->log("Path: {$_type}  {$_url}\n",false);
           }
           $path = trim($url,'/ ');
 
@@ -161,7 +155,7 @@ class PageRenderer
             {
                 file_put_contents( $file, $msg );
             }
-            $this->ssg->log(preg_replace('/(\<br \/\>|\n)/','',$msg)."\n");
+            $this->log(preg_replace('/(\<br \/\>|\n)/','',$msg)."\n");
             return null;
           }
           /// METADATA FOR RENDERING
@@ -170,7 +164,7 @@ class PageRenderer
 
           if ( empty($pageParams) )
           {
-            $this->ssg->log("UnRenderable: no params for $url ({$page['pageType']}) \"{$page['name']}\"\n");
+            $this->log("UnRenderable: no params for $url ({$page['pageType']}) \"{$page['name']}\"\n");
             return null;
           }
 
@@ -196,7 +190,7 @@ class PageRenderer
             {
                 file_put_contents( $file, $msg );
             }
-            $this->ssg->log(preg_replace('/(\<br \/\>|\n)/','',$msg)."\n");
+            $this->log(preg_replace('/(\<br \/\>|\n)/','',$msg)."\n");
           }
 
           /// some special pages generate further sub-pages
@@ -212,12 +206,12 @@ class PageRenderer
                 $subPageParams['currentAZLetter'] = $letter;
 
                 $html  = $twig->render($subPageParams);
-                if ( $this->ssg->runtimeEnvironment == 'standalone' )
+                if ( $this->runtimeEnvironment() == 'standalone' )
                 {
                     $_url = '/'.$path.'/'.strtolower($letter);
                     $_url = str_pad( $_url, (strlen($_url)+( 25 - ( strlen($_url) % 25 ) )) ); 
                     $_type = str_pad( $page['pageType'], (strlen($page['pageType'])+( 25 - ( strlen($page['pageType']) % 25 ) )) ); 
-                    $this->ssg->log("Page: {$_type}  {$_url}\n",false);
+                    $this->log("Path: {$_type}  {$_url}\n",false);
                 }
                 if ( !empty($html) )
                 {
@@ -237,7 +231,7 @@ class PageRenderer
                     {
                         file_put_contents( $file, $msg."<pre>".print_r($page,1)."</pre>" );
                     }
-                    $this->ssg->log(preg_replace('/(\<br \/\>|\n)/','',$msg)."\n");
+                    $this->log(preg_replace('/(\<br \/\>|\n)/','',$msg)."\n");
                 }
             }
             
@@ -257,7 +251,7 @@ class PageRenderer
                         $directoryRecordPage['pageType'] = 'federal-directory-record';
                         $directoryRecordPage['type_of_page_to_generate'] = 'federal-directory-record';
                         
-                        $urlSafeTitle = $this->ssg->sanitizeForUrl($agency['title']);
+                        $urlSafeTitle = $this->sanitizeForUrl($agency['title']);
                         $directoryRecordPage['friendly_url'] = '/'.$path.'/'.$urlSafeTitle;
                         $directoryRecordPage['asset_order_content'] = [
                             [
@@ -293,7 +287,7 @@ class PageRenderer
                         {
                             $baseUrl = $detailsPage['usa_gov_50_state_prefix'];
                         }
-                        $urlSafeName = $this->ssg->sanitizeForUrl($name);
+                        $urlSafeName = $this->sanitizeForUrl($name);
                         $detailsPage['friendly_url'] = $baseUrl.'/'.$urlSafeName;
                         $detailsPage['state'] = $acronym;
 
@@ -348,7 +342,7 @@ class PageRenderer
             // foreach ( $pageParams['features'] as $feature ) 
             foreach ( $this->ssg->features[$fub] as $feature ) 
             {
-                $urlSafeTitle = $this->ssg->sanitizeForUrl($feature['title']);
+                $urlSafeTitle = $this->sanitizeForUrl($feature['title']);
                 $featurePage['friendly_url'] = $url.'/'.$urlSafeTitle;
                 $featurePage['asset_order_content'] = [
                     [
@@ -388,7 +382,7 @@ class PageRenderer
             $redirect['target'] .= '/';
         }
 
-        //$this->ssg->log("Redirect: {$redirect['source_path']} => {$redirect['target']} \n");
+        //$this->log("Redirect: {$redirect['source_path']} => {$redirect['target']} \n");
 
         $html = "<DOCTYPE html>
             <html>
@@ -452,7 +446,7 @@ class PageRenderer
             try {
                 $this->templates[$name] = $this->templateRenderer->load($name.'.twig');
             } catch (Exception $e) { 
-                $this->ssg->log("Templates: {$name}.twig failed to load :".$e->getMessage()."\n",false);
+                $this->log("Templates: {$name}.twig failed to load :".$e->getMessage()."\n",false);
                 $this->templates[$name] = null;
             }
         }

@@ -4,19 +4,21 @@ namespace ctac\ssg;
 
 class ConfigLoader
 {
-    public static function loadConfig( $name )
+    use LoggingTrait;
+
+    public function loadConfig( $name )
     {
         /// if we are running on a commandline
         $configFile = realpath( getcwd().'/config' ) .'/'. trim(strtolower($name)).'.config.php';
         if ( file_exists($configFile) && is_readable($configFile) )
         {
-            return self::loadFile($configFile);
+            return $this->loadFile($configFile);
         } else {
-            return self::loadDrupal();
+            return $this->loadDrupal();
         }
     }
 
-  	public static function loadFile( $fileName=null )
+  	public function loadFile( $fileName=null )
   	{
         if ( file_exists($fileName) )
         {
@@ -37,10 +39,10 @@ class ConfigLoader
                 }
                 return $config;
             } else {
-                error_log('Cannot find config within file '.$fileName);
+                $this->log('Cannot find config within file '.$fileName);
             }
         } else {
-            error_log('Cannot find file '.$fileName);
+            $this->log('Cannot find file '.$fileName);
         }
         return [];
   	}
@@ -68,20 +70,30 @@ class ConfigLoader
             putenv('AWS_SECRET_ACCESS_KEY='.$secretKey);
         }
 
-        $allowedForUseBy = variable_get('ssg_allowedForUseBy');
-        if ( is_string($allowedForUseBy) )
+        /// these must all be turned into arrays
+        $arrayValues = [ 
+            'ssg_allowedForUseBy'=>[], 
+            'ssg_templateSync_repo_asset_dirs'=>[], 
+            'ssg_templateSync_repo_static_dirs'=>[] 
+        ];
+        foreach ( array_keys($arrayValues) as $key )
         {
-            $allowedForUseBy = preg_split("/\s*,\s*/",$allowedForUseBy);
-        }
-        if ( !is_array($allowedForUseBy) )
-        {
-            $allowedForUseBy = [variable_get('ssg_siteName')];
+            $arrayValues[$key] = variable_get($key);
+            if ( is_string($arrayValues[$key]) )
+            {
+                $arrayValues[$key] = preg_split("/\s*,\s*/",$arrayValues[$key]);
+            }
+            // failsafe default case
+            if ( !is_array($arrayValues[$key]) )
+            {
+                $arrayValues[$key] = [];
+            }
         }
 
         $config = [
             'siteName'    => variable_get('ssg_siteName'),
             'siteUrl'     => variable_get('ssg_siteUrl'),
-            'allowedForUseBy' => $allowedForUseBy,
+            'allowedForUseBy' => $arrayValues['ssg_allowedForUseBy'],
             'permDir'     => variable_get('ssg_permDir'),
             'tempDir'     => variable_get('ssg_tempDir'),
             'featuresPageBatchSize' => variable_get('ssg_featuresPageBatchSize'),
@@ -96,7 +108,11 @@ class ConfigLoader
               'repo_user'   => variable_get('ssg_templateSync_repo_user'),
               'repo_pass'   => variable_get('ssg_templateSync_repo_pass'),
               'repo_branch' => variable_get('ssg_templateSync_repo_branch'),
-              'repo_template_dir' => variable_get('ssg_templateSync_repo_template_dir')
+              'repo_template_dir' => variable_get('ssg_templateSync_repo_template_dir'),
+              'repo_asset_base'   => variable_get('ssg_templateSync_repo_asset_base'),
+              'repo_asset_dirs'   => $arrayValues['ssg_templateSync_repo_asset_dirs'],
+              'repo_static_base'  => variable_get('ssg_templateSync_repo_static_base'),
+              'repo_static_dirs'  => $arrayValues['ssg_templateSync_repo_static_dirs'],
             ],
             'aws' => [
                 'aws_access_key_id' => getenv('CMP_AWS_ACCESS_KEY'),
