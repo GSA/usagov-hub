@@ -550,20 +550,16 @@ function ssg_workbench_moderation_transition($entity, $fromState, $toState)
 }
 function ssg_entity_insert( $entity, $type )
 {
-    error_log(__FUNCTION__.':'.__LINE__);
-
     /// trigger site rebuild
     $GLOBALS['ssg_run_needed'] = true;
 }
 function ssg_entity_update( $entity, $type )
 {
-    error_log(__FUNCTION__.':'.__LINE__);
     /// trigger site rebuild
     $GLOBALS['ssg_run_needed'] = true;
 }
 function ssg_node_delete( $entity )
 {
-    error_log(__FUNCTION__.':'.__LINE__);
     /// trigger site rebuild
     $GLOBALS['ssg_run_needed'] = true;
 }
