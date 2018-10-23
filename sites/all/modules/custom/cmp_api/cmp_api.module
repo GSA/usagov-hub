@@ -606,7 +606,7 @@ function _cmp_api_get_all_entities(){
         $where_param = array(":since"=> $_REQUEST["since"]);
         $term_date_join = 'INNER';
     }
-    // $where = "WHERE  temp.en_id=10740 ";
+     //$where = "WHERE  temp.en_id=11019 ";
 
     if(isset($_REQUEST["page_size"]) && is_numeric($_REQUEST["page_size"])){
         $page_size = $_REQUEST["page_size"];
@@ -663,6 +663,7 @@ function _cmp_api_get_all_entities(){
         }
         else{
             $term = taxonomy_term_load($r->en_id);
+
             $term->type = 'taxonomy_term';
             $term->deleted = 0;
             _cmp_api_add_term_parent($term);
@@ -726,7 +727,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
     try
     {
         $reindex_field = array();
-        $uuid_info =& _cmp_api_uuid_info();
+        $uuid_info =&_cmp_api_uuid_info(true);
         $entity_type   = null;
         $entity_bundle = null;
         if ( isset($entity->tid) && isset($entity->vocabulary_machine_name) )
@@ -768,7 +769,8 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                     }
                     if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
                     {
-                        $entity->{$field} = array();
+                        unset($entity->{$field}['und'][$i]);
+                        $reindex_field[] = $field;
                         _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
                         continue;
                     }
@@ -777,7 +779,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                     $entity->{$field}['und'][$i]['bundle'] = $uuid_info[$ref_uuid]['bundle'];
                     $entity->{$field}['und'][$i]['nid']    = $ref['nid'];
 
-                } else if ( isset($ref['tid']) ) {
+                } elseif ( isset($ref['tid']) ) {
                     if ( isset($ref['uuid']) )
                     {
                         $ref_uuid = $ref['uuid'];
@@ -789,7 +791,8 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                     }
                     if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
                     {
-                        $entity->{$field} = array();
+                        unset($entity->{$field}['und'][$i]);
+                        $reindex_field[] = $field;
                         _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
                         continue;
                     }
@@ -798,7 +801,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                     $entity->{$field}['und'][$i]['bundle'] = $uuid_info[$ref_uuid]['bundle'];
                     $entity->{$field}['und'][$i]['tid']    = $uuid_info[$ref_uuid]['id'];
                 } else if ( isset($ref['target_id']) ) {
-                    if (!in_array($ref['target_id'], $ex_entities)) {
+                   if (!in_array($ref['target_id'], $ex_entities)) {
 
                         if (isset($ref['uuid'])) {
                             $ref_uuid = $ref['uuid'];
@@ -811,11 +814,16 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                             }
                             if (empty($ref_uuid)) {
                                 $ref_uuid = entity_get_uuid_by_id('relation', array($ref['target_id']));
+                                $ref_uuid = reset($ref_uuid);
                             }
-                            $ref_uuid = reset($ref_uuid);
+                            if (is_array($ref_uuid) && isset($ref_uuid[$ref['target_id']])){
+                                $ref_uuid = $ref_uuid[$ref['target_id']];
+                            }
                         }
+                       //print_r($uuid_info[$ref_uuid]);exit;
                         if (empty($ref_uuid) || empty($uuid_info[$ref_uuid])) {
-                            $entity->{$field} = array();
+                            unset($entity->{$field}['und'][$i]);
+                            $reindex_field[] = $field;
                             _cdss_log('Warn: CDSS ' . __FUNCTION__ . ' uuid:' . $entity->uuid . ' field:' . $field . ' is missing a reference so the field is being removed');
                             continue;
                         }
