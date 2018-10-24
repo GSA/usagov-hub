@@ -34,7 +34,7 @@ class PageRenderer
         $this->templateLoader   = new \Twig_Loader_Filesystem($this->templateDir);
         $this->templateRenderer = new \Twig_Environment($this->templateLoader, array(
             'cache' => $this->templateDirCache,
-            'auto_reload' => 0
+            'auto_reload' => 1
         ));
 
         $this->templates = [];
