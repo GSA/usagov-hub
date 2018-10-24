@@ -135,12 +135,12 @@ class PageRenderer
           $file = $fileDir.'/index.html';
           /// TEMPLATE
 
-        //   if ( $this->runtimeEnvironment() == 'standalone' )
-        //   {
-            // $_url = str_pad( $url, (strlen($url)+( 25 - ( strlen($url) % 25 ) )) ); 
+          if ( $this->runtimeEnvironment() == 'standalone' )
+          {
+            $_url = str_pad( $url, (strlen($url)+( 25 - ( strlen($url) % 25 ) )) ); 
             $_type = str_pad( $page['pageType'], (strlen($page['pageType'])+( 25 - ( strlen($page['pageType']) % 25 ) )) ); 
             $this->log("Path: {$_type}  {$file}\n",false);
-        //   }
+          }
 
           $twig = $this->getTwigPageRenderer($page);
           if ( empty($twig) )
