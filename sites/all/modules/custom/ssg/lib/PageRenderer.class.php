@@ -34,7 +34,7 @@ class PageRenderer
         $this->templateLoader   = new \Twig_Loader_Filesystem($this->templateDir);
         $this->templateRenderer = new \Twig_Environment($this->templateLoader, array(
             'cache' => $this->templateDirCache,
-            'auto_reload' => 0
+            'auto_reload' => 1
         ));
 
         $this->templates = [];
@@ -129,17 +129,18 @@ class PageRenderer
               $this->log("UnRenderable: no type for $url ({$page['pageType']}) \"{$page['name']}\"\n");
               return null;
           }
-          if ( $this->runtimeEnvironment() == 'standalone' )
-          {
-            $_url = str_pad( $url, (strlen($url)+( 25 - ( strlen($url) % 25 ) )) ); 
-            $_type = str_pad( $page['pageType'], (strlen($page['pageType'])+( 25 - ( strlen($page['pageType']) % 25 ) )) ); 
-            $this->log("Path: {$_type}  {$_url}\n",false);
-          }
           $path = trim($url,'/ ');
 
           $fileDir = $this->ssg->siteDir.'/'.$path;
           $file = $fileDir.'/index.html';
           /// TEMPLATE
+
+        //   if ( $this->runtimeEnvironment() == 'standalone' )
+        //   {
+            // $_url = str_pad( $url, (strlen($url)+( 25 - ( strlen($url) % 25 ) )) ); 
+            $_type = str_pad( $page['pageType'], (strlen($page['pageType'])+( 25 - ( strlen($page['pageType']) % 25 ) )) ); 
+            $this->log("Path: {$_type}  {$file}\n",false);
+        //   }
 
           $twig = $this->getTwigPageRenderer($page);
           if ( empty($twig) )
@@ -178,8 +179,12 @@ class PageRenderer
                   mkdir( $fileDir, 0755, true );
               }
               chmod( $fileDir, 0755 );
-              file_put_contents( $file, $html );
-            } else {
+              if ( empty(file_put_contents( $file, $html )) )
+              {
+                $msg = "Write Failed\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
+                $this->log($msg);
+            }
+          } else {
             if ( !file_exists($fileDir) )
             {
                 mkdir( $fileDir, 0755, true );
