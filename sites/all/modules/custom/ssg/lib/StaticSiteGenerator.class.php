@@ -339,12 +339,12 @@ class StaticSiteGenerator
                                 $this->directoryRecordGroups[$fub]['all']['Federal Agencies'][$group_by][]  = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
                                 $this->directoryRecordGroups[$fub][$state]['Federal Agencies'][$group_by][] = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
         
-                                if ( array_key_exists('show_on_az_index',$entity)
-                                    && trim(strtolower($entity['show_on_az_index'])) == 'yes' )
-                                {
+                              //  if ( array_key_exists('show_on_az_index',$entity)
+                                //    && trim(strtolower($entity['show_on_az_index'])) == 'yes' )
+                                //{
                                     $this->directoryRecordGroups[$fub]['all']['Federal Agencies'][$letter][]  = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
                                     $this->directoryRecordGroups[$fub][$state]['Federal Agencies'][$letter][] = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
-                                }
+                                //}
                             }
 
                             if ( !empty($entity['synonym']) )
@@ -374,12 +374,12 @@ class StaticSiteGenerator
                                         $this->directoryRecordGroups[$fub]['all']['Federal Agencies'][$group_by][]  = [ 'uuid'=>$uuid, 'title'=>$synonym['value'] ];
                                         $this->directoryRecordGroups[$fub][$state]['Federal Agencies'][$group_by][] = [ 'uuid'=>$uuid, 'title'=>$synonym['value'] ];
 
-                                        if ( array_key_exists('show_on_az_index',$entity)
-                                            && trim(strtolower($entity['show_on_az_index'])) == 'yes' )
-                                        {
+                                      //  if ( array_key_exists('show_on_az_index',$entity)
+                                        //    && trim(strtolower($entity['show_on_az_index'])) == 'yes' )
+                                       // {
                                             $this->directoryRecordGroups[$fub]['all']['Federal Agencies'][$letter][]  = [ 'uuid'=>$uuid, 'title'=>$synonym['value'] ];
                                             $this->directoryRecordGroups[$fub][$state]['Federal Agencies'][$letter][] = [ 'uuid'=>$uuid, 'title'=>$synonym['value'] ];
-                                        }
+                                        //}
                                     }
                                 }
                             }

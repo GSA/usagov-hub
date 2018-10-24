@@ -727,7 +727,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
     try
     {
         $reindex_field = array();
-        $uuid_info =&_cmp_api_uuid_info(true);
+        $uuid_info =& _cmp_api_uuid_info(true);
         $entity_type   = null;
         $entity_bundle = null;
         if ( isset($entity->tid) && isset($entity->vocabulary_machine_name) )
