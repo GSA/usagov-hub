@@ -592,10 +592,14 @@ class StaticSiteGenerator
             ksort($az);
             foreach ( $az as &$pages )
             {
+                foreach($pages as &$p) {
+                    $p['sortable_title'] = $this->remove_accents($p['title']);
+                }
+
                 array_multisort(
-                    array_column($pages,'title'), SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
+                    array_column($pages,'sortable_title'), SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
                     array_column($pages,'uuid'),  SORT_ASC,
-                $pages);
+                    $pages);
             }
         }
 
