@@ -2,7 +2,7 @@
 
 namespace ctac\ssg;
 
-$GLOBALS['logMessage'] = '';
+// $GLOBALS['logMessage'] = '';
 
 trait LoggingTrait
 {
@@ -19,7 +19,7 @@ trait LoggingTrait
 
     public function log($msg,$debugOnly=true)
     {
-        $GLOBALS['logMessage']  .= $msg;
+        // $GLOBALS['logMessage']  .= $msg;
 
         if ( $this->runtimeEnvironment() == 'drupal' )
         {

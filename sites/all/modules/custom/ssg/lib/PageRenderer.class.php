@@ -14,7 +14,7 @@ class PageRenderer
 
     public $templates;
     public $templateDir;
-    public $templateDirCache;
+    // public $templateDirCache;
 
     public $templateLoader;
     public $templateRenderer;
@@ -26,16 +26,18 @@ class PageRenderer
         $this->ssg = &$ssg;
 
         $this->templateDir      = $this->ssg->templates->sourceTemplateDir;
-        $this->templateDirCache = $this->ssg->config['permDir'].'/templates/compiled';
+        // $this->templateDirCache = $this->ssg->config['permDir'].'/templates/compiled';
 
         $this->prepareDir($this->templateDir);
-        $this->prepareDir($this->templateDirCache);
+        // $this->prepareDir($this->templateDirCache);
 
         $this->templateLoader   = new \Twig_Loader_Filesystem($this->templateDir);
         $this->templateRenderer = new \Twig_Environment($this->templateLoader, array(
-            'cache' => $this->templateDirCache,
+            #'cache' => $this->templateDirCache,
+            'cache' => false,
             'auto_reload' => 1
         ));
+        $this->templateRenderer->enableAutoReload();
 
         $this->templates = [];
         
@@ -43,7 +45,7 @@ class PageRenderer
 
         // $this->loadTwigTemplates();
 
-        $this->renderPageOnFailure = true;
+        $this->renderPageOnFailure = false;
     }
 
     public function addFilters()
@@ -135,12 +137,12 @@ class PageRenderer
           $file = $fileDir.'/index.html';
           /// TEMPLATE
 
-        //   if ( $this->runtimeEnvironment() == 'standalone' )
-        //   {
-            // $_url = str_pad( $url, (strlen($url)+( 25 - ( strlen($url) % 25 ) )) ); 
+          if ( $this->runtimeEnvironment() == 'standalone' )
+          {
+            $_url = str_pad( $url, (strlen($url)+( 25 - ( strlen($url) % 25 ) )) ); 
             $_type = str_pad( $page['pageType'], (strlen($page['pageType'])+( 25 - ( strlen($page['pageType']) % 25 ) )) ); 
             $this->log("Path: {$_type}  {$file}\n",false);
-        //   }
+          }
 
           $twig = $this->getTwigPageRenderer($page);
           if ( empty($twig) )
@@ -434,6 +436,7 @@ class PageRenderer
 
     public function loadTwigTemplates()
     {
+        $this->prepareDir($this->templateDir);
         $iterator = new \RecursiveIteratorIterator(
                     new \RecursiveDirectoryIterator(
                         $this->templateDir

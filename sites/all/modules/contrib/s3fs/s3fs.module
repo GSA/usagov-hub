@@ -478,6 +478,12 @@ function _s3fs_refresh_cache($config) {
       $uri = "s3://$key";
     }
 
+    $max_uri_length = $schema['s3fs_file']['fields']['uri']['length'];
+    if (strlen($uri) >= $max_uri_length) {
+      watchdog('s3fs', 'URI "@uri" is too long, ignoring', array('@uri' => $uri), WATCHDOG_WARNING);
+      continue;
+    }
+
     if ($uri[strlen($uri) - 1] == '/') {
       // Treat objects in S3 whose filenames end in a '/' as folders.
       // But don't store the '/' itself as part of the folder's uri.

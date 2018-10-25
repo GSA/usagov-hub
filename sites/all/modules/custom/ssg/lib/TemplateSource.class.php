@@ -19,6 +19,7 @@ class TemplateSource
     public $destStaticDir;
 
     public $freshTemplates;
+    public $updateTemplates;
 
     public function __construct( &$ssg )
     {
@@ -45,11 +46,12 @@ class TemplateSource
         // $this->destStaticDir     = $this->destDir.'/templates/staticroot';
 
         $this->freshTemplates     = false;
+        $this->updateTemplates    = false;
     }
 
     public function sync()
     {
-        $this->log("Templates: preparing directories ... ");
+        $this->log("Templates: preparing directories ... \n");
 
         $this->prepareDir($this->sourceDir);
         // $this->prepareDir($this->sourceTemplateDir);
@@ -61,7 +63,7 @@ class TemplateSource
         // $this->prepareDir($this->destAssetDir);
         // $this->prepareDir($this->destStaticDir);
 
-        $this->log("done\n");
+        // $this->log("done\n");
 
         /// if we already have compiled templates
         /// and cached assets+docroot, the we are done
@@ -78,8 +80,15 @@ class TemplateSource
         { 
             $this->cleanRepo();
             $this->cloneRepo();
+            $this->checkoutBranch();
+        } else {
+            $this->log("Templates: using existing repo ... \n");
         }
-        $this->pullSourceRepo();
+        if ( $this->updateTemplates )
+        {
+            $this->checkoutBranch();
+            $this->pullSourceRepo();
+        }
 
         /// even if source is bad, we might have a local copy  of templates to use
         if ( !$this->verifySource() )
@@ -94,18 +103,18 @@ class TemplateSource
         /// could be checked into the ssg repo in case there was 
         /// no git access
         // $this->mergeSourceIntoDestination();
-
         // return $this->verifyDestination();
     }
 
     public function cleanRepo()
     {
-        $this->log("Templates: cleanup up environment ... \n");
+        $this->log("Templates: cleanup repo ... \n");
         return $this->rmDir($this->sourceDir);
     }
 
     public function cloneRepo()
     {
+        $this->log("Templates: clone repo ... \n");
         /// grab data from source repo
         $git_repo = 'https://'.urlencode($this->ssg->config['templateSync']['repo_user'])
                 .':'.urlencode($this->ssg->config['templateSync']['repo_pass'])

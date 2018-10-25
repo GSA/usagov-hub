@@ -1108,8 +1108,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
   public function dir_readdir() {
     $this->_debug("dir_readdir() called.");
 
-    $entry = each($this->dir);
-    return $entry ? $entry['value'] : FALSE;
+    $current = current($this->dir);
+    if ($current) {
+      next($this->dir);
+    }
+    return $current;
   }
 
   /**
