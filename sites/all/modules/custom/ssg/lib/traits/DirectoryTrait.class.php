@@ -97,12 +97,12 @@ trait DirectoryTrait
             return false;
         }
         $real_path = realpath($path);    
-        if ( empty($real_path) || $realpath == '/' ) { 
+        if ( empty($real_path) || $real_path == '/' ) {
             return;
         }
         $remove_cmd = "rm -rf {$real_path}";
         // $this->log($remove_cmd."\n",false);
-        $rslt = `{$remove_cmd} 2>&1 > /dev/null`;
+        $rslt = `{$remove_cmd} 2>&1`; //  > /dev/null
         return true;
     }
 
@@ -212,21 +212,23 @@ trait DirectoryTrait
         $groupinfo = posix_getgrgid($groupid);
         $groupname = $groupinfo['name'];
 
+        $path = realpath($path);
+
         if ( empty($path) ) { 
             return;
         } else if (is_link($path)) {
             return;
         } elseif (is_dir($path)) {
-            chown($path,$username);
-            chgrp($path,$groupname);
+            @chown($path,$username);
+            @chgrp($path,$groupname);
             foreach (scandir($path) as $file) {
                 if ($file != '.' && $file != '..') {
                     $this->chownPhp("$path/$file");
                 }
             }
         } elseif (is_file($path)) {
-            chown($path,$username);
-            chgrp($path,$groupname);
+            @chown($path,$username);
+            @chgrp($path,$groupname);
         } else {
             $this->log("WARNING: Cannot apply ownership to $path (unknown file type)\n");
         }

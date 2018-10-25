@@ -121,7 +121,7 @@ function ssg_actions_form()
             <div id="ssg_ajax_run_ssg_response" style="display:inline;"></div><br />
             <input type="checkbox" id="freshData"/>With fresh data
             <input type="checkbox" id="freshTemplates"/>With fresh templates
-            <input type="checkbox" id="updatedTemplates"/>With updated templates
+            <input type="checkbox" id="updateTemplates"/>With updated templates
             </div>
         ' : '<input type="button" value="Build and Deploy" class="form-submit"/>'
     );

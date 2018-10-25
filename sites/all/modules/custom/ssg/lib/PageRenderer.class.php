@@ -44,7 +44,7 @@ class PageRenderer
 
         // $this->loadTwigTemplates();
 
-        $this->renderPageOnFailure = true;
+        $this->renderPageOnFailure = false;
     }
 
     public function addFilters()
@@ -435,6 +435,7 @@ class PageRenderer
 
     public function loadTwigTemplates()
     {
+        $this->prepareDir($this->templateDir);
         $iterator = new \RecursiveIteratorIterator(
                     new \RecursiveDirectoryIterator(
                         $this->templateDir
