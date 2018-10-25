@@ -14,7 +14,7 @@ class PageRenderer
 
     public $templates;
     public $templateDir;
-    public $templateDirCache;
+    // public $templateDirCache;
 
     public $templateLoader;
     public $templateRenderer;
@@ -26,10 +26,10 @@ class PageRenderer
         $this->ssg = &$ssg;
 
         $this->templateDir      = $this->ssg->templates->sourceTemplateDir;
-        $this->templateDirCache = $this->ssg->config['permDir'].'/templates/compiled';
+        // $this->templateDirCache = $this->ssg->config['permDir'].'/templates/compiled';
 
         $this->prepareDir($this->templateDir);
-        $this->prepareDir($this->templateDirCache);
+        // $this->prepareDir($this->templateDirCache);
 
         $this->templateLoader   = new \Twig_Loader_Filesystem($this->templateDir);
         $this->templateRenderer = new \Twig_Environment($this->templateLoader, array(
