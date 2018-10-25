@@ -19,6 +19,7 @@ class TemplateSource
     public $destStaticDir;
 
     public $freshTemplates;
+    public $updateTemplates;
 
     public function __construct( &$ssg )
     {
@@ -45,6 +46,7 @@ class TemplateSource
         // $this->destStaticDir     = $this->destDir.'/templates/staticroot';
 
         $this->freshTemplates     = false;
+        $this->updateTemplates    = false;
     }
 
     public function sync()
@@ -79,7 +81,10 @@ class TemplateSource
             $this->cleanRepo();
             $this->cloneRepo();
         }
-        $this->pullSourceRepo();
+        if ( $this->updateTemplates )
+        {
+            $this->pullSourceRepo();
+        }
 
         /// even if source is bad, we might have a local copy  of templates to use
         if ( !$this->verifySource() )

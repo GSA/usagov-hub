@@ -83,6 +83,7 @@ function ssg_actions_form()
                     var runData = {};
                     var freshDataCheckbox = jQuery("#freshData"); 
                     var freshTemplatesCheckbox = jQuery("#freshTemplates"); 
+                    var updateTemplatesCheckbox = jQuery("#updateTemplates"); 
                     if ( freshDataCheckbox && freshDataCheckbox.is(":checked") )
                     {
                         runData.freshData = 1;
@@ -90,6 +91,10 @@ function ssg_actions_form()
                     if ( freshTemplatesCheckbox && freshTemplatesCheckbox.is(":checked") )
                     {
                         runData.freshTemplates= 1;
+                    }
+                    if ( updateTemplatesCheckbox && updateTemplatesCheckbox.is(":checked") )
+                    {
+                        runData.updateTemplates= 1;
                     }
                     jQuery("#ssg_ajax_run_ssg_response").html("loading").fadeIn();
                     clearTimeout(buildDeployTimer);
@@ -116,6 +121,7 @@ function ssg_actions_form()
             <div id="ssg_ajax_run_ssg_response" style="display:inline;"></div><br />
             <input type="checkbox" id="freshData"/>With fresh data
             <input type="checkbox" id="freshTemplates"/>With fresh templates
+            <input type="checkbox" id="updatedTemplates"/>With updated templates
             </div>
         ' : '<input type="button" value="Build and Deploy" class="form-submit"/>'
     );
@@ -291,7 +297,7 @@ function ssg_actions_form()
 
     $form['templateSource']['ssg_templateSync_repo_static_base'] = array(
         '#type' => 'textfield',
-        '#title' => 'Static Base',
+        '#title' => 'Static Base', 
         '#default_value' => variable_get('ssg_templateSync_repo_static_base'),
     );
     $form['templateSource']['ssg_templateSync_repo_static_dirs'] = array(
@@ -347,6 +353,10 @@ function _ssg_run_ajax()
     if ( !empty($_REQUEST['freshTemplates']) ) 
     {
         $site->templates->freshTemplates = true;
+    }
+    if ( !empty($_REQUEST['updateTemplates']) ) 
+    {
+        $site->templates->updateTemplates = true;
     }
     _ssg_build_and_deploy_site($site);
 }
