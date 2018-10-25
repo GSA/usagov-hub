@@ -36,7 +36,7 @@ class PageRenderer
             'cache' => $this->templateDirCache,
             'auto_reload' => 1
         ));
-        $$this->templateRenderer->enableAutoReload();
+        $this->templateRenderer->enableAutoReload();
 
         $this->templates = [];
         
