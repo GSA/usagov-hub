@@ -16,7 +16,7 @@ function cmp_misc_user_login(&$edit, $account) {
   watchdog('audit','User login name:"%name" uid:%uid',[
         '%name' => $account->name,
         '%uid'  => $account->uid
-  ],WATCHDOG_ALERT);
+  ],WATCHDOG_WARNING);
   // if (isset($edit['redirect']) && !empty($edit['redirect'])) {
   //   drupal_goto($edit['redirect']);
   // }
@@ -25,7 +25,7 @@ function cmp_misc_user_logout($account) {
   watchdog('audit','User logout name:"%name" uid:%uid',[
         '%name' => $account->name,
         '%uid'  => $account->uid
-  ],WATCHDOG_ALERT);
+  ],WATCHDOG_WARNING);
 }
 function cmp_misc_user_presave(&$edit, $account, $category)
 {
