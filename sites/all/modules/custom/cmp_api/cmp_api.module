@@ -374,7 +374,7 @@ function _do_es_search($from, $size, $params){
 
         $response = _fbo_elasticsearch_request("/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty",['data'=>$param]);
         $r = json_decode($response->data);
-// print_r(["/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty",$param]);flush();die;
+        // print_r(["/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty",$param]);flush();die;
         if(isset($r->hits->hits)){
             $sols = _get_array_of_obj($r->hits->hits);
             $ret['opps'] = $sols;
@@ -587,7 +587,7 @@ function _cmp_api_get_all_entities(){
     $page_size=10;
     $where ='';
     $where_param = array();
-    $ret = array();
+    $entities = array();
 
     $exclude_entities = array();
 
@@ -626,6 +626,97 @@ function _cmp_api_get_all_entities(){
     UNION
     SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t ".$term_date_join." JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC LIMIT ".$page_size .' OFFSET '.$page ;
     $res = db_query($sql, $where_param);
+    _cmp_api_uuid_info(true);
+
+    /// organize nodes into buckets for _load_multiple calls
+    $buckets = [];
+    $bucket_size  = 100;
+    $n_bucket_num = 0;
+    $t_bucket_num = 0;
+    $n = 0;
+    $t = 0;
+    foreach($res as $r)
+    {
+        if ($r->type == 'node')
+        {
+            if ( ($n++)%$bucket_size == 0 ) 
+            { 
+                $n_bucket_num++;
+                if ( !isset($buckets[$n_bucket_num]['nodes']) ) 
+                {
+                    $buckets[$n_bucket_num]['nodes'] = [];  
+                }
+            }
+            $buckets[$n_bucket_num]['nodes'][] = $r->en_id;
+        } else {
+            if ( ($t++)%$bucket_size == 0 )
+            { 
+                $t_bucket_num++;
+                if ( !isset($buckets[$t_bucket_num]['terms']) ) 
+                {
+                    $buckets[$t_bucket_num]['terms'] = [];  
+                }
+            }
+            $buckets[$t_bucket_num]['terms'][] = $r->en_id;
+        }
+    }
+
+    foreach ( $buckets as $bucket_num=>$bucket )
+    { 
+        if ( !empty($bucket['nodes']) )
+        {
+            $nodes = node_load_multiple($bucket['nodes']);
+            foreach( $nodes as $node )
+            {
+                unset($node->uid);
+                unset($node->workbench_moderation);
+                unset($node->revision_timestamp);
+                unset($node->revision_uid);
+                unset($node->vid);
+                unset($node->path);
+                unset($node->picture);
+                unset($node->field_owner);
+                unset($node->cid);
+                unset($node->last_comment_timestamp);
+                unset($node->last_comment_name);
+                unset($node->last_comment_uid);
+                unset($node->comment_count);
+                if ( !isset($node->field_for_use_by) && isset($node->field_for_use_by_text) )
+                {
+                    $node->field_for_use_by = $node->field_for_use_by_text;
+                }
+                _cmp_api_add_s3_urls($node);
+                _cmp_api_add_reference_info($node, $exclude_entities);
+                /// we may not want to force this here
+                /// after a form submit and node_save we were wrongly seeing all status as 0
+                /// but during a full-sync there were correct seeing all status as 1
+                /// we are not taking into account the case where an item used to be published
+                /// but now is not published
+                $node->status = "1";
+                if ( !isset($node->deleted) )
+                {
+                    $node->deleted = 0;
+                }
+                $entities[] = $node;
+            }
+        }
+        if ( !empty($bucket['terms']) )
+        {
+            $terms = taxonomy_term_load_multiple($bucket['terms']);
+            foreach( $terms as $term )
+            {
+                $term->type = 'taxonomy_term';
+                $term->deleted = 0;
+                _cmp_api_add_term_parent($term);
+                _cmp_api_add_term_children($term);
+                _cmp_api_add_for_use_by($term);
+                _cmp_api_add_reference_info($term, $exclude_entities);
+                $entities[] = $term;
+            }
+        }
+    }
+
+    /*
     foreach($res as $r){
         if ($r->type == 'node'){
             $node = node_load($r->en_id);
@@ -673,6 +764,7 @@ function _cmp_api_get_all_entities(){
             $ret[]=$term;
         }
     }
+    */
     //need to include deleted
     if (isset($_REQUEST["since"])) {
         $res = db_query("SELECT * FROM cmp_api_deleted_entities WHERE changed > :since", array(':since'=>$_REQUEST['since']));
@@ -690,14 +782,14 @@ function _cmp_api_get_all_entities(){
                 $obj['title'] = $r->title;
                 $obj['nid'] = $r->entity_id;
             }
-            $ret[] = $obj;
+            $entities[] = $obj;
         }
-        $count= count($ret);
+        $count = count($entities);
         $pages = 1;
         $page_size = $count;
     }
 
-    drupal_json_output(array("metadata" => array("count"=>$count, "offset"=>$page, "page_size"=> (isset($_REQUEST["since"]))? $page_size :(int)($page_size > $count? $count:$page_size), "pages"=>$pages),"result" => $ret));
+    drupal_json_output(array("metadata" => array("count"=>$count, "offset"=>$page, "page_size"=> (isset($_REQUEST["since"]))? $page_size :(int)($page_size > $count? $count:$page_size), "pages"=>$pages),"result" => $entities));
 }
 function _cmp_api_add_for_use_by( &$term )
 {
@@ -727,7 +819,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
     try
     {
         $reindex_field = array();
-        $uuid_info =& _cmp_api_uuid_info(true);
+        $uuid_info =& _cmp_api_uuid_info();
         $entity_type   = null;
         $entity_bundle = null;
         if ( isset($entity->tid) && isset($entity->vocabulary_machine_name) )
@@ -793,7 +885,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                     {
                         unset($entity->{$field}['und'][$i]);
                         $reindex_field[] = $field;
-                        _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
+                        // _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
                         continue;
                     }
                     $entity->{$field}['und'][$i]['uuid']   = $ref_uuid;
@@ -824,7 +916,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                         if (empty($ref_uuid) || empty($uuid_info[$ref_uuid])) {
                             unset($entity->{$field}['und'][$i]);
                             $reindex_field[] = $field;
-                            _cdss_log('Warn: CDSS ' . __FUNCTION__ . ' uuid:' . $entity->uuid . ' field:' . $field . ' is missing a reference so the field is being removed');
+                            // _cdss_log('Warn: CDSS ' . __FUNCTION__ . ' uuid:' . $entity->uuid . ' field:' . $field . ' is missing a reference so the field is being removed');
                             continue;
                         }
                         $entity->{$field}['und'][$i]['uuid'] = $ref_uuid;
@@ -853,7 +945,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                         if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
                         {
                             $entity->{$field} = array();
-                            _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
+                            // _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
                             break;
                         }
                         $entity->{$field}['und'][$i]['endpoints']['und'][$j]['entity_uuid']   = $ref_uuid;
@@ -1098,9 +1190,9 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
                     $nids = array();
                     foreach($vals as $v){
                         $r = db_query("SELECT fu.field_friendly_url_value, t.name, field_asset_order_content_target_id as nid FROM field_data_field_asset_order_content aoc
-  INNER JOIN field_data_field_friendly_url fu ON fu.entity_id = aoc.entity_id
-  INNER JOIN taxonomy_term_data t ON t.tid=aoc.entity_id
-  WHERE fu.field_friendly_url_value LIKE :loc".$i." OR t.name LIKE :loc".$i." OR field_asset_order_content_target_id LIKE :loc".$i, array(":loc".$i=>'%'.db_like($v).'%'));
+                                        INNER JOIN field_data_field_friendly_url fu ON fu.entity_id = aoc.entity_id
+                                        INNER JOIN taxonomy_term_data t ON t.tid=aoc.entity_id
+                                        WHERE fu.field_friendly_url_value LIKE :loc".$i." OR t.name LIKE :loc".$i." OR field_asset_order_content_target_id LIKE :loc".$i, array(":loc".$i=>'%'.db_like($v).'%'));
 
                         foreach($r as $l){
                             $nids[] = $l->nid;
