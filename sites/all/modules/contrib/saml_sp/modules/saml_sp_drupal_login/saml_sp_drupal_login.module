@@ -160,6 +160,11 @@ function saml_sp_drupal_login__saml_authenticate($is_valid, OneLogin_Saml2_Respo
     else {
       $email = $saml_response->getNameId();
     }
+    if ( !empty($email) ) {
+        error_log("Login and SecureAuth authentication successful by {$email} ");
+        watchdog('saml_sp',"Login and SecureAuth authentication successful by {$email} ");
+    }
+
     if ($uid = saml_sp_drupal_login_get_uid($name_id, $idp->nameid_field, $email)) {
       // Existing user, try to login.
       $account = user_load($uid);
