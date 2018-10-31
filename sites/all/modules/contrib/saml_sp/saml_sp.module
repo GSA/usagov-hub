@@ -799,6 +799,15 @@ function saml_sp_cron() {
     ->condition('expires', REQUEST_TIME, '<')
     ->execute();
 }
+/**
+ * Implements hook_user_login
+ */
+function saml_sp_user_login(&$edit, $account) {
+    // Redirecting user to desired path
+    if (isset($edit['redirect']) && !empty($edit['redirect'])) {
+        drupal_goto($edit['redirect']);
+    }
+}
 
 /**
  * Implements hook_form_alter().
