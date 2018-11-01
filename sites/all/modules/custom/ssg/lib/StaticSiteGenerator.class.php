@@ -25,6 +25,7 @@ class StaticSiteGenerator
     public $directoryRecordGroups;
     public $stateDetails;
     public $stateAcronyms;
+    public $feeds;
 
     public $renderer;
     public $config;
@@ -49,6 +50,7 @@ class StaticSiteGenerator
         $this->pagesByUrl = [];
         $this->siteIndexAZ  = [];
         $this->stateAcronyms = [];
+        $this->feeds = [];
 
         $configLoader = new ConfigLoader();
         $this->config = $configLoader->loadConfig($configName);
@@ -143,6 +145,7 @@ class StaticSiteGenerator
         $this->features        = [];
         $this->featuresByTopic = [];
         $this->stateDetails    = [];
+        $this->feeds           = [];
 
         $this->siteIndexAZ = [
             'all' => ['A'=>[],'B'=>[],'C'=>[],'D'=>[],'E'=>[],'F'=>[],'G'=>[],'H'=>[],'I'=>[],'J'=>[],'K'=>[],'L'=>[],'M'=>[],'N'=>[],'O'=>[],'P'=>[],'Q'=>[],'R'=>[],'S'=>[],'T'=>[],'U'=>[],'V'=>[],'W'=>[],'X'=>[],'Y'=>[],'Z'=>[]]
@@ -422,6 +425,19 @@ class StaticSiteGenerator
                         }
                     }
 
+                }
+
+                /// if this is a feed
+                if ( $entity['type'] == 'cmp_feed' )
+                {
+                    foreach ( $fubs as $fub )
+                    {
+                        if ( !array_key_exists($fub,$this->feeds) )
+                        {
+                            $this->feeds[$fub] = [];
+                        }
+                        $this->feeds[$fub][$entity['uuid']] =& $this->source->entities[$entity['uuid']];
+                    }
                 }
             }
         }
@@ -1003,16 +1019,18 @@ class StaticSiteGenerator
             // $rslt = `{$remove_cmd} 2>&1 > /dev/null`;
         }
 
+        /// render redirects
+        $this->log("Rendering: redirects\n");
+        $redirectResult = $this->renderRedirects();
+
         /// render content pages
         foreach ( $this->sitePage as $siteName => $sitePage ) 
         {
             $this->log("Rendering: $siteName pages\n");
             $this->renderTree($sitePage);
+            $this->log("Rendering: $siteName feeds\n");
+            $this->renderFeeds($sitePage);
         }
-
-        /// render redirects
-        $this->log("Rendering: redirects\n");
-        $redirectResult = $this->renderRedirects();
 
         /// copy over static assets - to multiple locations
         // $this->log("Rendering: asset files\n");
@@ -1122,6 +1140,19 @@ class StaticSiteGenerator
         foreach ( $this->source->redirects as $redirect )
         {
             $this->renderer->renderRedirect($redirect);
+        }
+        return true;
+    }
+
+    public function renderFeeds( $sitePage )
+    {
+        foreach ( $sitePage['for_use_by'] as $fub )
+        {
+            if ( empty($this->feeds[$fub]) ) { continue; }
+            foreach ( $this->feeds[$fub] as $feed )
+            {
+                $this->renderer->renderFeed($feed);
+            }
         }
         return true;
     }
