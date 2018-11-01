@@ -132,9 +132,11 @@ function saml_sp_drupal_login__get_idp() {
  * SAML authentication callback.
  */
 function saml_sp_drupal_login__saml_authenticate($is_valid, OneLogin_Saml2_Response $saml_response) {
+    watchdog('saml_sp',"BEGINING saml_sp_drupal_login__saml_authenticate by ISVALID: {$is_valid}");
+    
   if ($is_valid) {
     $attributes = $saml_response->getAttributes();
-
+    watchdog('saml_sp',"QQQQ saml_sp_drupal_login__saml_authenticate by <pre> {$attributes} </pre> ");
     // Default language English
     $language = 'en';
     // If language attribute is set on IdP, then use that language
