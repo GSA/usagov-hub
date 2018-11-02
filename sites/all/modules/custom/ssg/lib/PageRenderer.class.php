@@ -507,6 +507,10 @@ class PageRenderer
                 $itemOutput = str_replace('[pubDate]', $dt->format($dateFormat), $itemOutput);
                 $itemOutput = str_replace('[link]', $node['feed_item_link'], $itemOutput);
                 $itemOutput = str_replace('[description]', $node['body'], $itemOutput);
+                if ( !empty($output) )
+                {
+                    $output .= ',';
+                }
                 $output .= $itemOutput;
             }
         }
@@ -525,6 +529,10 @@ class PageRenderer
                 $itemOutput = str_replace('[pubDate]', $dt, $itemOutput);
                 $itemOutput = str_replace('[link]', $url, $itemOutput);
                 $itemOutput = str_replace('[description]', $term['description'], $itemOutput);
+                if ( !empty($output) )
+                {
+                    $output .= ',';
+                }
                 $output .= $itemOutput;
             }
         }
