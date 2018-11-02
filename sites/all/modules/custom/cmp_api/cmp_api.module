@@ -997,7 +997,7 @@ function _cmp_api_add_term_children( &$term )
     if ( empty($term) ) { return; }
     if ( empty($term->children) )
     {
-        $hier =& _cdss_term_hier_info();
+        $hier =& _cmp_api_term_hier_info();
         if ( !empty($hier[$term->uuid]) && !empty($hier[$term->uuid]['children']) )
         {
             $term->children = $hier[$term->uuid]['children'];
@@ -1005,6 +1005,51 @@ function _cmp_api_add_term_children( &$term )
     }
     if ( empty($term->children) ) { $term->children = array(); }
 }
+function &_cmp_api_term_hier_info( $refresh=false )
+{
+    $term_hier_info = &drupal_static(__FUNCTION__);
+    if ( $term_hier_info===null || $refresh )
+    {
+        $hier = db_query("
+            SELECT
+                p.tid  as parent_tid,
+                p.uuid as parent_uuid,
+                c.tid  as child_tid,
+                c.uuid as child_uuid
+            FROM {taxonomy_term_hierarchy} h
+                  JOIN {taxonomy_term_data} c ON (h.tid    = c.tid)
+                  JOIN {taxonomy_term_data} p ON (h.parent = p.tid)
+        ");
+        $term_hier_info = array();
+        foreach ( $hier as $info )
+        {
+            if ( !isset($term_hier_info[$info->parent_uuid]) )
+            {
+                $term_hier_info[$info->parent_uuid] = array(
+                    "parent"   => "0",
+                    "children" => array()
+                );
+            }
+            if ( !isset($term_hier_info[$info->child_uuid]) )
+            {
+                $term_hier_info[$info->child_uuid] = array(
+                    "parent"   => "0",
+                    "children" => array()
+                );
+            }
+            $term_hier_info[$info->parent_uuid]['children'][] = array(
+                "uuid" => $info->child_uuid,
+                "tid"  => $info->child_tid
+            );
+            $term_hier_info[$info->child_uuid]['parent'] = array(
+                "uuid" => $info->parent_uuid,
+                "tid"  => $info->parent_tid
+            );
+        }
+    }
+    return $term_hier_info;
+}
+
 function _cmp_api_add_s3_urls( &$node )
 {
     if ( empty($node) ) { return; }
