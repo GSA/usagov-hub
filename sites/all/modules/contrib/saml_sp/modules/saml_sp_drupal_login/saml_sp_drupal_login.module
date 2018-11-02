@@ -132,8 +132,6 @@ function saml_sp_drupal_login__get_idp() {
  * SAML authentication callback.
  */
 function saml_sp_drupal_login__saml_authenticate($is_valid, OneLogin_Saml2_Response $saml_response) {
-    _auditlog_pushMessageToSplunk('Login and SecureAuth authentication successful ');
-    watchdog('saml_sp', __FUNCTION__.' QQQQQQ <pre>'.$saml_response.'</pre>'.$is_valid);
   if ($is_valid) {
     $attributes = $saml_response->getAttributes();
 
