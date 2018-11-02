@@ -86,6 +86,8 @@ function saml_sp__endpoint() {
         }
       }
 
+        watchdog('saml_sp',__FUNCTION__. ' DDDD watchdog>>>'.$request['callback'], WATCHDOG_ERROR);
+        error_log('saml_sp',__FUNCTION__. ' DDDD watchdog>>>'.$request['callback'], WATCHDOG_ERROR);
       // Invoke the callback function.
       $callback = $request['callback'];
       $result = $callback($is_valid, $saml_response);
