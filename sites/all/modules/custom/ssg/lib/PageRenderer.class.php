@@ -407,11 +407,11 @@ class PageRenderer
         switch ($feed['feed_type']) {
             case 'RSS Feed':
                 $output = $feed['feed_rss_markup'];
-                $contentTypeHeader = 'application/rss+xml; charset=utf-8';
+                $this->ssg->contentTypeOverride[$path] = 'application/rss+xml; charset=utf-8';
                 break;
             case 'JSON Feed':
                 $output = $feed['json_feed_markup'];
-                $contentTypeHeader = 'application/json; charset=utf-8';
+                $this->ssg->contentTypeOverride[$path] = 'application/json; charset=utf-8';
                 break;
             default:
                 return false;
@@ -502,12 +502,12 @@ class PageRenderer
                     new \DateTimeZone($node['feed_item_pubdate']['timezone'])
                 );
 
-                    $itemOutput = $itemMarkup;
-                    $itemOutput = str_replace('[title]', $node['title'], $itemOutput);
-                    $itemOutput = str_replace('[pubDate]', $dt->format($dateFormat), $itemOutput);
-                    $itemOutput = str_replace('[link]', $node['feed_item_link'], $itemOutput);
-                    $itemOutput = str_replace('[description]', $node['body'], $itemOutput);
-                    $output .= $itemOutput;
+                $itemOutput = $itemMarkup;
+                $itemOutput = str_replace('[title]', $node['title'], $itemOutput);
+                $itemOutput = str_replace('[pubDate]', $dt->format($dateFormat), $itemOutput);
+                $itemOutput = str_replace('[link]', $node['feed_item_link'], $itemOutput);
+                $itemOutput = str_replace('[description]', $node['body'], $itemOutput);
+                $output .= $itemOutput;
             }
         }
         if (!empty($feed['feed_items_terms'])) {

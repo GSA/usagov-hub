@@ -26,6 +26,7 @@ class StaticSiteGenerator
     public $stateDetails;
     public $stateAcronyms;
     public $feeds;
+    public $contentTypeOverride;
 
     public $renderer;
     public $config;
@@ -51,6 +52,7 @@ class StaticSiteGenerator
         $this->siteIndexAZ  = [];
         $this->stateAcronyms = [];
         $this->feeds = [];
+        $this->contentTypeOverride = [];
 
         $configLoader = new ConfigLoader();
         $this->config = $configLoader->loadConfig($configName);

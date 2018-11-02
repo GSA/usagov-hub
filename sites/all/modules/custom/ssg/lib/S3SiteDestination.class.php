@@ -112,8 +112,19 @@ class S3SiteDestination
             $sourceFiles = $this->getFilesInDir($this->source,true);
             foreach ( $sourceFiles as &$file )
             {
+                if ( !empty($file['ContentType']) )
+                {
+                    $this->log("Sync: adjusting content-type for {$file['origKey']}\n");
+                    $this->ssg->s3->putObject([
+                        'Bucket' => $this->ssg->config['aws']['bucket'],
+                        'Key'    => $file['origKey'],
+                        'SourceFile' => $file['path'],
+                        'ContentType' => $file['ContentType']
+                    ]);
+                }
                 unset($file['path']);
             }
+
             file_put_contents($this->source.'/manifest.json',json_encode($sourceFiles));
             $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null, 'created'=>time() ];
             $this->ssg->s3->putObject([
@@ -123,6 +134,7 @@ class S3SiteDestination
                 'ContentType' => 'application/json',
                 'ACL'    => 'public-read',
             ]);
+
         } catch (\Aws\S3\Exception\S3Exception $e) {
             $this->log("Sync: There was an error uploading Manifest file. ". $e->getMessage()."\n");
         } 
@@ -135,7 +147,10 @@ class S3SiteDestination
         // $this->log("Getting files in dir: $targetDir\n");
         $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($targetDir));
         $files    = [];
-        foreach ($iterator as $file) 
+
+        // $finfo = new \finfo(FILEINFO_MIME);
+
+        foreach ($iterator as $file)
         {
             if (!$file->isDir())
             {
@@ -151,8 +166,15 @@ class S3SiteDestination
                     'origKey'=>$key,
                     'keys'=>[$key],
                     'path'=>$path,
-                    'md5'=> $md5 ? md5_file($path) : null 
+                    // 'ContentType'=>$finfo->file($path),
+                    'md5'=> $md5 ? md5_file($path) : null
                 ];
+
+                /// if this is a json/rss file, then set it's mime type
+                if ( !empty($this->ssg->contentTypeOverride[$key]) )
+                {
+                    $files[$key]['ContentType'] = $this->ssg->contentTypeOverride[$key];
+                }
             }
         }
         ksort($files);
