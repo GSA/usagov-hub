@@ -14,7 +14,7 @@ $GLOBALS['DirRecordHelperParent_updateRefNid'] = null;
 $GLOBALS['DirRecordHelperParent_noPostProc'] = false;
 $GLOBALS['DirRecordHelperParent_ignoreNids'] = array();
 
-hooks_reaction_add('HOOK_node_presave',
+hooks_reaction_add('HOOK_node_postsave',
     function ($node) {
 
         // We only care about Text-Asset nodes here
