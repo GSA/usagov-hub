@@ -399,7 +399,8 @@ class PageRenderer
 
     public function renderFeed($feed)
     {
-        $path    = ltrim($this->sanitizeForUrl($feed['friendly_url']), '/');
+        //$path    = ltrim($this->sanitizeForUrl($feed['friendly_url']), '/');
+        $path    = ltrim($feed['friendly_url']);
         $file    = $this->ssg->siteDir.'/'.$path;
         $fileDir = dirname($file);
         $url    = 'https://'.$this->ssg->config['siteUrl'].'/'.$path;
