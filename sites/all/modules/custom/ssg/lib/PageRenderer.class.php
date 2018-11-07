@@ -360,13 +360,13 @@ class PageRenderer
         } else {
             $file = $fileDir.'/'.$base;
         }
-
+/*
         if (!( substr($redirect['target'], 0, 7)=='http://'
             || substr($redirect['target'], 0, 8)=='https://'
             || $redirect['target']{0} !== '/' ) ) {
             $redirect['target'] .= '/';
         }
-
+*/
         //$this->log("Redirect: {$redirect['source_path']} => {$redirect['target']} \n");
 
         $html = "<DOCTYPE html>
