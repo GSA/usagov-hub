@@ -354,10 +354,11 @@ function _ssg_run_ajax()
     {
         $site->templates->freshTemplates = true;
     }
-    // if ( !empty($_REQUEST['updateTemplates']) ) 
-    // {
-    //     $site->templates->updateTemplates = true;
-    // }
+    if ( !empty($_REQUEST['updateTemplates']) 
+         || in_array( getenv('CMP_DRUPAL_ENVIRONMENT_NAME'),['Test','Local']) ) 
+    {
+        $site->templates->updateTemplates = true;
+    }
     // $site->templates->updateTemplates = true;
 
     _ssg_build_and_deploy_site($site);
