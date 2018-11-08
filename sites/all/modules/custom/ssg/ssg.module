@@ -358,7 +358,7 @@ function _ssg_run_ajax()
     // {
     //     $site->templates->updateTemplates = true;
     // }
-    $site->templates->updateTemplates = true;
+    // $site->templates->updateTemplates = true;
 
     _ssg_build_and_deploy_site($site);
 }
