@@ -24,10 +24,11 @@ class DataSource
 
 	public function pull( $since=0 )
 	{
-        if ( !$this->getEntities($since) )
-        {
-            return false;
-        }
+        // if ( !$this->getEntities($since) )
+        // {
+        //     return false;
+        // }
+        $this->getEntities($since);
         $this->getRedirects();
         return true;
 	}
