@@ -536,7 +536,10 @@ function ssg_exit()
     {
         $GLOBALS['_ssg_request_buffer_flushed'] = true;
         $site = new \ctac\ssg\StaticSiteGenerator();
-        $site->templates->updateTemplates = true;
+        if ( in_array( getenv('CMP_DRUPAL_ENVIRONMENT_NAME'),['Test','Local']) ) 
+        {
+            $site->templates->updateTemplates = true;
+        }
         _ssg_build_and_deploy_site($site);
         die;
     }
