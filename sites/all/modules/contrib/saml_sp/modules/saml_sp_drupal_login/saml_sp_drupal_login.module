@@ -132,11 +132,9 @@ function saml_sp_drupal_login__get_idp() {
  * SAML authentication callback.
  */
 function saml_sp_drupal_login__saml_authenticate($is_valid, OneLogin_Saml2_Response $saml_response) {
-    error_log('saml_sp',"BEGINING saml_sp_drupal_login__saml_authenticate by ISVALID: {$is_valid}");
-
   if ($is_valid) {
     $attributes = $saml_response->getAttributes();
-      error_log('saml_sp',"QQQQ saml_sp_drupal_login__saml_authenticate by <pre> {$attributes} </pre> ");
+
     // Default language English
     $language = 'en';
     // If language attribute is set on IdP, then use that language
@@ -162,11 +160,6 @@ function saml_sp_drupal_login__saml_authenticate($is_valid, OneLogin_Saml2_Respo
     else {
       $email = $saml_response->getNameId();
     }
-    if ( !empty($email) ) {
-        error_log("Login and SecureAuth authentication successful by {$email} ");
-        watchdog('saml_sp',"Login and SecureAuth authentication successful by {$email} ");
-    }
-
     if ($uid = saml_sp_drupal_login_get_uid($name_id, $idp->nameid_field, $email)) {
       // Existing user, try to login.
       $account = user_load($uid);
@@ -251,7 +244,7 @@ function saml_sp_drupal_login__saml_authenticate($is_valid, OneLogin_Saml2_Respo
     $edit = array();
     // Adding redirect path to where user started the login from
     $edit['redirect'] = $_POST['RelayState'];
-      error_log('SAML', 'User %name logging in through SAML via %idp_name. with NameID %mail', array('%name' => $user->name, '%idp_name' => $idp->name, '%mail' => $email));
+    watchdog('SAML', 'User %name logging in through SAML via %idp_name. with NameID %mail', array('%name' => $user->name, '%idp_name' => $idp->name, '%mail' => $email));
 
     // Store the fact that the user logged in via the SAML SP module.
     $_SESSION['authenticated_via_saml_sp'] = TRUE;
@@ -388,9 +381,11 @@ function saml_sp_user_logout($account) {
   watchdog('saml_sp', 'Session closed for %name (%uid) and starting SAML SLO.', array('%name' => $account->name, '%uid' => $account->uid));
   // Force redirection in drupal_goto().
   unset($_GET['destination']);
-  if(!empty($saml_request)) {
-    // Destroy session before doing redirect.
-    session_destroy();
+  if (!empty($saml_request)) {
+    if (session_status() == PHP_SESSION_ACTIVE) {
+      // Destroy session before doing redirect.
+      session_destroy();
+    }
     drupal_goto($url);
   }
 }
