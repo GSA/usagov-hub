@@ -14,7 +14,7 @@ $GLOBALS['DirRecordHelperEnTogg_updateRefNid'] = null;
 $GLOBALS['DirRecordHelperEnTogg_noPostProc'] = false;
 $GLOBALS['DirRecordHelperEnTogg_ignoreNids'] = array();
 
-hooks_reaction_add('HOOK_node_presave',
+hooks_reaction_add('HOOK_node_postsave',
     function ($node) {
 
         // We only care about Text-Asset nodes here

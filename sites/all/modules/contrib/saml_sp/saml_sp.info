@@ -11,8 +11,8 @@ dependencies[] = libraries
 files[] = includes/saml_sp.Auth.inc
 files[] = includes/saml_sp.AuthnRequest.inc
 
-; Information added by Drupal.org packaging script on 2018-04-18
-version = "7.x-2.4+0-dev"
+; Information added by Drupal.org packaging script on 2018-10-12
+version = "7.x-2.6"
 core = "7.x"
 project = "saml_sp"
-datestamp = "1524056886"
+datestamp = "1539359585"

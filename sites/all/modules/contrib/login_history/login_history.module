@@ -65,7 +65,6 @@ function login_history_user_login(&$edit, $account) {
       'old_device_id' => $old_device_id,
     ))
     ->execute();
-    _auditlog_pushMessageToSplunk('Login and SecureAuth authentication successful ');
   // TODO: would be useful to load the prior login data here e.g. a change of IP address that is
   // still in the same geo location is less risky than a change of IP address across the world.
 

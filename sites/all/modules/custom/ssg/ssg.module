@@ -1,129 +1,609 @@
 <?php
 
-require_once dirname(__FILE__) . '/usagov-ssg/vendor/autoload.php';
-require_once dirname(__FILE__) . '/usagov-ssg/lib/autoload.php';
+require_once dirname(__FILE__) . '/vendor/autoload.php';
+require_once dirname(__FILE__) . '/lib/autoload.php';
 
 /*
  * Implements HOOK_menu()
  */
-function ssg_menu() {
+function ssg_menu() 
+{
 
     $items = array();
 
     // Configuration page URL handler
-    $items['admin/ssg/ui'] = array(
-        'title' => 'Static Site Generator Settings',
+    $items['admin/ssg'] = array(
+        'title' => 'Static Site Generator',
         'description' => 'Setup and manage a Static Site Generator',
         'page callback' => 'drupal_get_form',
-        'page arguments' => array('_ssg_form'),
-        'access callback' => 'ssg_isAdmin',
+        'page arguments' => array('ssg_actions_form'),
+        'access arguments' => array('configure ssg'),
         'type' => MENU_NORMAL_ITEM
     );
+
     $items['ssg/run'] = array(
-        'title'           => 'Run Static Site Generator',
-        'description'     => 'Run Static Site Generator',
-        'page callback'   => '_ssg_run',
-        'page arguments' => array(false),
-        'access callback' => 'ssg_isAdmin',
-        'type'            => MENU_CALLBACK,
+        'page callback' => '_ssg_run_ajax',
+        'access arguments' => array('run ssg'),
+        'type' => MENU_CALLBACK
     );
 
+    $items['ssg/status'] = array(
+        'page callback' => '_ssg_status_ajax',
+        'access arguments' => array('run ssg'),
+        'type' => MENU_CALLBACK
+    );
 
     return $items;
 }
 
-function ssg_cronapi(){
-
-    $items['ssg_generate_static_files'] = array(
-        'description' => 'Auto Generating Static files',
-        'rule' => '*/3 * * * *', // Every 3 minutes to give us time to hit 15min target
-        'callback' => '_ssg_run',
+function ssg_permission()
+{
+    return array(
+        'configure ssg' => array(
+            'title' => t('Configure Static Site Generator'),
+            'description' => t('Confiure SSG Settings.'),
+            'restrict access' => TRUE,
+        ),
+        'run ssg' => array(
+            'title' => t('Run Static Site Generator'),
+            'description' => t('Perform SSG Builds.'),
+            'restrict access' => TRUE,
+        ),
     );
-    return $items;
-}
-function ssg_isAdmin() {
-    global $user;
-    if ( empty($user->uid) ) {
-        return false;
-    } else {
-        return ( intval($user->uid) === 1 ? true : false );
-    }
 }
 
-function _ssg_form (){
-    $form['ssg_site_name'] = array(
-        '#type' => 'textfield',
-        '#title' => 'Site Name',
-        '#default_value' => 'USA.gov',
-        '#description' => 'Site you to generate. EX: USA.gov'
-    );
+function ssg_actions_form_validate($form, &$form_state) {
+}
+
+function ssg_actions_form()
+{
+    $form['ssg_enabled'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Static Site Generation Enabled',
+        '#default_value' => variable_get('ssg_enabled',false),
+        '#disabled' => !user_access('configure ssg')
+      );
+    
+      $form['ssg_immediate_build'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Immediate Build and Deploy',
+        '#description' => 'New build is triggered immediately after data-update',
+        '#default_value' => variable_get('ssg_immediate_build',false),
+        '#disabled' => !user_access('configure ssg')
+      );
 
     $form['ssg_ajax_run_ssg'] = array(
         '#type' => 'item',
         '#title' => 'Run Static Site Generator',
-        '#markup' => '
-    <script>
-      function ajax_run_ssg()
-      {
-        jQuery("#ssg_ajax_run_ssg_response").html("loading");
-        jQuery.ajax({
-          url: "/ssg/run?site="+jQuery("#edit-ssg-site-name").value,
-          success:function(data) {
-          console.log(data);
-            status  = " Found Entities:"+ (data.FoundEntities.length >0 ?"<span style=\"color:green\">"+data.FoundEntities+"</span>":"<span style=\"color:red\">bad</span>");
-            status += " Max Memory:"+ (data.MaxMemory.length > 0 ?"<span style=\"color:green\">"+data.MaxMemory+"</span>":"<span style=\"color:red\">bad</span>");
-            status += " Execution Time:"+ (data.ExecutionTime.length >0 ?"<span style=\"color:green\">"+data.ExecutionTime+"</span>":"<span style=\"color:red\">bad</span>");
-            jQuery("#ssg_ajax_run_ssg_response").html(status);
-          },
-          error:function(data) {
-            status  = " server:<span style=\"color:orange\">unknown</span>";
-            jQuery("#ssg_ajax_run_ssg_response").html(status);
-          }
-        });
-      }
-    </script><div class="form-item form-type-button form-item-ssg-ajax-run">
-    <input type="button" onclick="ajax_run_ssg();" value="Run Static Site Generator" class="form-submit"/>
-    <div id="ssg_ajax_run_ssg_response" style="display:inline;"></div></div>'
+        '#markup' => user_access('run ssg') ? '
+            <script>
+                var buildDeployTimer = null;
+                function ajax_run_ssg()
+                {
+                    var runData = {};
+                    var freshDataCheckbox = jQuery("#freshData"); 
+                    var freshTemplatesCheckbox = jQuery("#freshTemplates"); 
+                    //var updateTemplatesCheckbox = jQuery("#updateTemplates"); 
+                    if ( freshDataCheckbox && freshDataCheckbox.is(":checked") )
+                    {
+                        runData.freshData = 1;
+                    }
+                    if ( freshTemplatesCheckbox && freshTemplatesCheckbox.is(":checked") )
+                    {
+                        runData.freshTemplates= 1;
+                    }
+                    //if ( updateTemplatesCheckbox && updateTemplatesCheckbox.is(":checked") )
+                    //{
+                    //    runData.updateTemplates= 1;
+                    //}
+                    jQuery("#ssg_ajax_run_ssg_response").html("loading").fadeIn();
+                    clearTimeout(buildDeployTimer);
+                    jQuery.ajax({
+                        url: "/ssg/run",
+                        data: runData,
+                        success:function(data) {
+                            status = " build:<span style=\"color:green\">running</span>";
+                            jQuery("#ssg_ajax_run_ssg_response").html(status);
+                        },
+                        error:function(data) {
+                            status = " build:<span style=\"color:orange\">failure</span>";
+                            jQuery("#ssg_ajax_run_ssg_response").html(status);
+                        },
+                        complete:function(data) {
+                            buildDeployTimer = setTimeout(function(){
+                                jQuery("#ssg_ajax_run_ssg_response").fadeOut();
+                            },2000);
+                        }
+                    });
+                }
+            </script><div class="form-item form-type-button form-item-ssg-ajax-run">
+            <input type="button" onclick="ajax_run_ssg();" value="Build and Deploy" class="form-submit"/>
+            <div id="ssg_ajax_run_ssg_response" style="display:inline;"></div><br />
+            <input type="checkbox" id="freshData"/>With fresh data
+            <input type="checkbox" id="freshTemplates"/>With fresh templates
+            <!-- <input type="checkbox" id="updateTemplates"/>With updated templates -->
+            </div>
+        ' : '<input type="button" value="Build and Deploy" class="form-submit"/>'
+    );
+
+    $form['status'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Status'),
+        '#collapsible' => TRUE,
+        '#collapsed'   => TRUE,
+    );
+    $form['status']['updateRecent'] = array(
+        '#type' => 'item',
+        '#title' => 'Update Status',
+        '#markup' => user_access('run ssg') ? '
+            <script>
+                var statusUpdateTimer = null;
+                function ajax_update_status()
+                {
+                    clearTimeout(statusUpdateTimer);
+                    jQuery("#ssg_ajax_update_status_response").fadeIn();
+                    jQuery("#ssg_ajax_update_status_response").html("updating");
+                    jQuery.ajax({
+                        url: "/ssg/status",
+                        success:function(data) {
+                            jQuery("#ssg_ajax_update_status_response").html("updated");
+                            if ( data.html )
+                            {
+                                jQuery("#statusTableContainer").html(data.html);
+                            }
+                        },
+                        error:function(data) {
+                            status = " server:<span style=\"color:orange\">failure</span>";
+                            jQuery("#ssg_ajax_update_status_response").html(status);
+                        },
+                        complete:function(data) {
+                            statusUpdateTimer = setTimeout(function(){
+                                jQuery("#ssg_ajax_update_status_response").fadeOut();
+                            },2000);
+                        }
+                    });
+                }
+            </script><div class="form-item form-type-button form-item-ssg-ajax-run">
+            <input type="button" onclick="ajax_update_status();" value="Update Status" class="form-submit"/>
+            <div id="ssg_ajax_update_status_response" style="display:inline;"></div></div>
+        ' : '<input type="button" value="Build and Deploy" class="form-submit"/>'
+    );
+    $form['status']['recent'] = array(
+        '#markup' => '<div id="statusTableContainer"></div>',
+        '#title' => 'Current Build Status'
+    );
+
+    if ( !user_access('configure ssg') ) 
+    {
+        return system_settings_form($form);
+    }
+
+    $form['runtime'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Runtime'),
+        '#collapsible' => TRUE,
+        '#collapsed'   => TRUE,
+    );
+    /// should have a button here which validates directory info
+    $form['runtime']['ssg_siteName'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Site Name',
+        '#default_value' => variable_get('ssg_siteName'),
+        '#description' => 'used internally only, allowedForUseBy is used to filter data'
+    );
+    $form['runtime']['ssg_siteUrl'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Site Url',
+        '#default_value' => variable_get('ssg_siteUrl'),
+        '#description' => 'hostname used to render canoncial urls in pages'
+    );
+    $form['runtime']['ssg_allowedForUseBy'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Allowed ForUseBy',
+        '#default_value' => variable_get('ssg_allowedForUseBy'),
+        '#description' => 'comma delimited list ex: USA.gov, GobiernoUSA.gov'
+    );
+    $form['runtime']['ssg_permDir'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Permanent Storage Directory',
+        '#default_value' => variable_get('ssg_permDir'),
+    );
+    $form['runtime']['ssg_tempDir'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Temporary Storage Directory',
+        '#default_value' => variable_get('ssg_tempDir'),
+    );
+    $form['runtime']['ssg_featuresPageBatchSize'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Features Pagination Size',
+        '#default_value' => variable_get('ssg_featuresPageBatchSize'),
+        '#required' => true,
+        '#maxlength' => 2
+    );
+
+
+    $form['dataSource'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Data Source'),
+        '#collapsible' => TRUE,
+        '#collapsed'   => TRUE,
+    );
+    /// should have a button here which validates this info
+    $form['dataSource']['ssg_drupalAPI_server'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Server',
+        '#default_value' => variable_get('ssg_drupalAPI_server'),
+    );
+    $form['dataSource']['ssg_drupalAPI_entitiesUrl'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Entities Endpoint',
+        '#default_value' => variable_get('ssg_drupalAPI_entitiesUrl'),
+    );
+    $form['dataSource']['ssg_drupalAPI_redirectsUrl'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Redirects Endpoint',
+        '#default_value' => variable_get('ssg_drupalAPI_redirectsUrl'),
+    );
+    $form['dataSource']['ssg_drupalAPI_batchSize'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Batch Size',
+        '#default_value' => variable_get('ssg_drupalAPI_batchSize'),
+    );
+
+
+    $form['templateSource'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Template Source'),
+        '#collapsible' => TRUE,
+        '#collapsed'   => TRUE,
+    );
+    /// should have a button here which validates this info
+    $form['templateSource']['ssg_templateSync_repo_url'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Git Url',
+        '#default_value' => variable_get('ssg_templateSync_repo_url'),
+    );
+    $form['templateSource']['ssg_templateSync_repo_user'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Git User',
+        '#default_value' => variable_get('ssg_templateSync_repo_user'),
+    );
+    $form['templateSource']['ssg_templateSync_repo_pass'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Git Password',
+        '#default_value' => variable_get('ssg_templateSync_repo_pass'),
+    );
+    $form['templateSource']['ssg_templateSync_repo_branch'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Repo Branch',
+        '#default_value' => variable_get('ssg_templateSync_repo_branch'),
+    );
+    $form['templateSource']['ssg_templateSync_repo_template_dir'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Template Dir',
+        '#default_value' => variable_get('ssg_templateSync_repo_template_dir'),
+    );
+
+    $form['templateSource']['ssg_templateSync_repo_asset_base'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Asset Base',
+        '#default_value' => variable_get('ssg_templateSync_repo_asset_base'),
+    );
+    $form['templateSource']['ssg_templateSync_repo_asset_dirs'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Asset Dirs',
+        '#default_value' => variable_get('ssg_templateSync_repo_asset_dirs'),
+    );
+
+    $form['templateSource']['ssg_templateSync_repo_static_base'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Static Base', 
+        '#default_value' => variable_get('ssg_templateSync_repo_static_base'),
+    );
+    $form['templateSource']['ssg_templateSync_repo_static_dirs'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Static Dirs',
+        '#default_value' => variable_get('ssg_templateSync_repo_static_dirs'),
+    );
+
+
+    $form['siteDestination'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Site Destination'),
+        '#collapsible' => TRUE,
+        '#collapsed'   => TRUE,
+    );
+    /// should have a button here which validates this info
+    $form['siteDestination']['ssg_aws_bucket'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Bucket Name',
+        '#default_value' => variable_get('ssg_aws_bucket',getenv('CMP_AWS_S3_BUCKET_2')),
+    );
+    $form['siteDestination']['ssg_aws_region'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Bucket Region',
+        '#default_value' => variable_get('ssg_aws_region',getenv('CMP_AWS_S3_REGION')),
     );
 
     return system_settings_form($form);
 }
 
-
-function _ssg_run($is_cron=true)
+function _ssg_status_ajax()
 {
+    // return _ssgGetCurrentBuildStatusesTable();
+    drupal_json_output([
+        'html' => _ssgGetCurrentBuildStatusesTable()
+    ]);
+}
 
-    $executionStartTime = microtime(true);
+function _ssg_run_ajax()
+{
+    $site = new \ctac\ssg\StaticSiteGenerator();
 
-    $siteName = (isset($_REQUEST['site']))? $_REQUEST['site'] : 'USA.gov';
-
-    $site = new \ctac\ssg\StaticSiteGenerator($siteName);
-
-    $useCache = false;
-
-    if ( $useCache ) {
-        $site->loadDataFromCache();
+    if ( empty(variable_get('ssg_enabled')) )
+    {
+        drupal_json_output(['status'=>'disabled','uuid'=>$site->uuid]);
     } else {
-        $site->source->getEntities();
-        $site->storeDataInCache();
+        drupal_json_output(['status'=>'running','uuid'=>$site->uuid]);
+    }
+    if ( !empty($_REQUEST['freshData']) ) 
+    {
+        $site->source->freshData = true;
+    }
+    if ( !empty($_REQUEST['freshTemplates']) ) 
+    {
+        $site->templates->freshTemplates = true;
+    }
+    if ( !empty($_REQUEST['updateTemplates']) 
+         || in_array( getenv('CMP_DRUPAL_ENVIRONMENT_NAME'),['Test','Local']) ) 
+    {
+        $site->templates->updateTemplates = true;
+    }
+    // $site->templates->updateTemplates = true;
+
+    _ssg_build_and_deploy_site($site);
+}
+
+function _ssg_build_and_deploy_site( &$site )
+{
+    if ( empty($site) 
+      || empty($site->uuid) 
+      || empty(variable_get('ssg_enabled')) ) 
+    {
+        return;
+    }
+    _ssgCreateBuildStatus($site->uuid);
+    _ssg_finish_request();
+
+    /// we should always use existing data
+    /// existing data should be freshened here
+    /// if there is no data, it should be pulled
+    _ssgUpdateBuildStatus($site->uuid,'0 loadData');
+    $site->log("Start building site\n",false);
+    $site->loadData();
+
+    /// we should always use existing templates
+    /// existing templates should be freshened here
+    /// if there are no templates, they should be pulled
+    _ssgUpdateBuildStatus($site->uuid,'1 loadTemplates');
+    if ( !$site->loadTemplates() ) 
+    {
+        $site->log("No Templates found\n",false);
+        _ssgUpdateBuildStatus($site->uuid,'6 failed');
+        return;
     }
 
+    _ssgUpdateBuildStatus($site->uuid,'2 buildSiteTree');
+    $site->log("Start organizing data\n",false);
     $site->buildSiteTreeFromEntities();
 
-    $site->renderer->renderPage($site->homePage);
-    $executionEndTime = microtime(true);
+    _ssgUpdateBuildStatus($site->uuid,'3 renderSite');
+    $site->renderSite();
 
-    $size=memory_get_peak_usage(true);
-    $unit=['b','kb','mb','gb','tb','pb'];
-    $tunit=['sec','min','hour'];
-    $time=round($executionEndTime - $executionStartTime, 4);
+    /// TEMP - don't even bother running validation
+    _ssgUpdateBuildStatus($site->uuid,'4 validateSite');
+    // if ( $site->validateSite() )
+    // {
+        _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
+        $site->deploySite();
+    // } else {
+        /// TEMP - DEPLOY ANYWAY ON FAILURE
+        // _ssgUpdateBuildStatus($site->uuid,'6 failed');
+        // _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
+        // $site->deploySite();
+    // }
+    _ssgUpdateBuildStatus($site->uuid,'6 complete');
+    $site->log("Done building site\n",false);
+}
 
-    if (!$is_cron) {
-        drupal_json_output([
-            'called' => __FUNCTION__,
-            'FoundEntities' => count($site->source->entities),
-            'MaxMemory' => (($size > 1) ? @round($size / pow(1024, ($i = floor(log($size, 1024)))), 2) . ' ' . @$unit[$i] : $size . ' ' . $unit[0]),
-            'ExecutionTime' => (($time > 1) ? @round($time / pow(60, ($i = floor(log($time, 60)))), 2) . ' ' . @$tunit[$i] : $time . ' ' . $tunit[0])
-        ]);
+function _ssgGetBuildStatus($uuid)
+{
+    if ( !preg_match('/^\w{8}\-\w{4}\-\w{4}\-\w{4}\-\w{12}$/',$uuid) ) {
+        return false;
     }
+    $result = db_query("SELECT * FROM {ssg_builds} WHERE uuid=:uuid",[':uuid'=>$uuid]);
+    $record = $result->fetchAssoc();
+    if ( !empty($record) )
+    {
+        return $record;
+    }
+    return false;
+}
+function _ssgGetCurrentBuildStatuses()
+{
+    // $records = db_query("
+    //     SELECT * FROM (
+    //         SELECT * FROM {ssg_builds}
+    //         ORDER BY created DESC
+    //         LIMIT 10
+    //     ) mostRecent
+    //     ORDER BY state ASC
+    // ")->fetchAll(PDO::FETCH_ASSOC);
+    $records = db_query("
+        SELECT * FROM {ssg_builds}
+        ORDER BY created DESC
+        LIMIT 10
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    if ( !empty($records) )
+    {
+        return $records;
+    }
+    return [];
+}
+function _ssgGetCurrentBuildStatusesTable()
+{
+    $tunit=['sec','min','hour'];
+    $current_builds = _ssgGetCurrentBuildStatuses();
+    $current_status  = '<table><caption>Current Builds - '. date('Y/m/d H:i:s') .'</caption><tbody id="current-builds">';
+    $current_status .= '<tr><th>Status</th><th>Runtime</th><th>Start</th><th>Log</th></tr>';
+    foreach ( $current_builds as $curr ) 
+    {
+        $current_status .= "<tr id=\"build-{$curr['uuid']}\">";
+        $current_status .= "<td id=\"build-{$curr['uuid']}-state\">".preg_replace('/^\d+\s+/','',$curr['state'])."</td>";
+        if ( in_array( $curr['state'],  ['6 failed', '6 complete','6 shutdown'] ) ) {
+            $time = $curr['updated'] - $curr['created'];
+        } else {
+            $time = time() - $curr['created'];
+        }
+        $runtime = ( ( $time > 1 ) ? @round($time/pow(60, ($i=floor(log($time, 60)))), 2).' '.@$tunit[$i] : $time.' '.$tunit[0] );
+        $current_status .= "<td id=\"build-{$curr['uuid']}-runtime\">". $runtime ."</td>";
+        #$current_status .= "<td id=\"build-{$curr['uuid']}-uuid\">{$curr['uuid']}</td>";
+        $current_status .= "<td id=\"build-{$curr['uuid']}-created\">". date('Y/m/d H:i:s',$curr['created']) ."</td>";
+        $current_status .= "<td id=\"build-{$curr['uuid']}-log\">"
+            ."<span style=\"color:#696969;\">{$curr['uuid']}</span><br />"
+            ."<textarea>{$curr['log']}</textarea></td>";
+        $current_status .= "</tr>";
+    }
+    $current_status .= '</tbody></table>';
+    $current_status .= '</table>';
+    return $current_status;
+}
+
+function _ssgCreateBuildStatus($uuid)
+{
+    if ( !preg_match('/^\w{8}\-\w{4}\-\w{4}\-\w{4}\-\w{12}$/',$uuid) ) {
+        return false;
+    }
+    $t = time();
+    $result = db_query("INSERT INTO {ssg_builds} VALUES (:uuid,'starting','',:created,:updated)",[
+        ':uuid'=>$uuid,
+        ':created'=>$t,
+        ':updated'=>$t
+    ]);
+    return true;
+}
+function _ssgUpdateBuildStatus($uuid,$state)
+{
+    if ( !preg_match('/^\w{8}\-\w{4}\-\w{4}\-\w{4}\-\w{12}$/',$uuid) ) {
+        return false;
+    }
+    $t = time();
+    $result = db_query("UPDATE {ssg_builds} SET state=:state, updated=:updated WHERE uuid=:uuid",[
+        ':uuid'=>$uuid,
+        ':state'=>$state,
+        ':updated'=>$t
+    ]);
+    return true;
+}
+
+$GLOBALS['_ssg_request_buffer_flushed'] = false;
+function _ssg_finish_request()
+{
+  $minutes_to_process = 30;
+  ignore_user_abort(1);  
+  if ( !empty($GLOBALS['_ssg_request_buffer_flushed']) )
+  {
+    while(@ob_get_level() > 0) { @ob_end_flush(); }
+    @ob_flush();
+    @flush();
+  }
+  if (session_id()) session_write_close();
+  $GLOBALS['_ssg_request_buffer_flushed'] = true;
+  if ( function_exists('fastcgi_finish_request') )
+  {
+    @fastcgi_finish_request();
+  }
+  set_time_limit($minutes_to_process*60);
+  ini_set('max_execution_time',$minutes_to_process*60);
+}
+
+function ssg_exit()
+{
+    /// trigger an ssg build AFTER page has been returned
+    if ( !empty($GLOBALS['ssg_run_needed'])
+        && variable_get('ssg_immediate_build') )
+    {
+        $GLOBALS['_ssg_request_buffer_flushed'] = true;
+        $site = new \ctac\ssg\StaticSiteGenerator();
+        if ( in_array( getenv('CMP_DRUPAL_ENVIRONMENT_NAME'),['Test','Local']) ) 
+        {
+            $site->templates->updateTemplates = true;
+        }
+        _ssg_build_and_deploy_site($site);
+        die;
+    }
+}
+
+function ssg_taxonomy_term_delete( $term )
+{
+    /// trigger site rebuild
+    $GLOBALS['ssg_run_needed'] = true;
+}
+function ssg_workbench_moderation_transition($entity, $fromState, $toState)
+{
+    /// make sure we are acting on the proper revision - might need to load another version of the node or something
+
+    /* When a work-flow state [alone] is changed, in certain edge cases, the node's "changed" field is not updated,
+    which can cause a node to be missed by childsite update-pulls. We will fix this here.
+    We only care if the published version changes however */
+    if ( $fromState=='published' || $toState=='published' )
+    {
+        /// trigger site rebuild
+        $GLOBALS['ssg_run_needed'] = true;
+    }
+}
+function ssg_entity_insert( $entity, $type )
+{
+    /// trigger site rebuild
+    $GLOBALS['ssg_run_needed'] = true;
+}
+function ssg_entity_update( $entity, $type )
+{
+    /// trigger site rebuild
+    $GLOBALS['ssg_run_needed'] = true;
+}
+function ssg_node_delete( $entity )
+{
+    /// trigger site rebuild
+    $GLOBALS['ssg_run_needed'] = true;
+}
+
+
+function ssg_cronapi ()
+{
+    $items['ssg_build_site'] = array(
+        'description' => 'Auto Generating Static files',
+        'rule' => '*/10 * * * *', // Every 10 minutes to give us time to hit 15min target
+        'callback' => '_ssg_run_ajax',
+    );
+    $items['ssg_cleanup_builds'] = array(
+        'description' => 'Shutdown any over-time running processes',
+        'rule' => '*/30 * * * *',
+        'callback' => '_ssg_cleanup',
+    );
+    return $items;
+}
+
+function _ssg_cleanup ()
+{
+    $result = db_query("
+        UPDATE {ssg_builds} 
+        SET state='6 shutdown'
+        WHERE 
+            state NOT IN ( '6 failed', 6 complete', '6 shutdown' )
+            AND 
+            ( UNIX_TIMESTAMP() - updated ) > 1800
+    ");
+    return true;
 }

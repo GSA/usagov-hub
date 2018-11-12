@@ -19,16 +19,20 @@ function s3fs_settings() {
     'us-west-1' => t('US West - Northern California  (us-west-1)'),
     'us-west-2' => t('US West - Oregon (us-west-2)'),
     'us-gov-west-1' => t('USA GovCloud Standard (us-gov-west-1)'),
+    'ca-central-1' => t('Canada - Central (ca-central-1)'),
     'eu-west-1' => t('EU - Ireland  (eu-west-1)'),
     'eu-west-2' => t('EU - London (eu-west-2)'),
+    'eu-west-3' => t('EU - Paris (eu-west-3)'),
     'eu-central-1' => t('EU - Frankfurt (eu-central-1)'),
     'ap-southeast-1' => t('Asia Pacific - Singapore (ap-southeast-1)'),
     'ap-southeast-2' => t('Asia Pacific - Sydney (ap-southeast-2)'),
     'ap-northeast-1' => t('Asia Pacific - Tokyo (ap-northeast-1)'),
     'ap-northeast-2' => t('Asia Pacific - Seoul (ap-northeast-2)'),
+    'ap-northeast-3' => t('Asia Pacific - Osaka-Local (ap-northeast-3)'),
     'ap-south-1' => t('Asia Pacific - Mumbai (ap-south-1)'),
     'sa-east-1' => t('South America - Sao Paulo (sa-east-1)'),
     'cn-north-1' => t('China - Beijing (cn-north-1)'),
+    'cn-northwest-1' => t('China - Ningxia (cn-northwest-1)'),
   );
 
   /////////////////////////////////////
@@ -57,7 +61,7 @@ function s3fs_settings() {
   );
 
   $form['aws_credentials']['s3fs_awssdk2_secret_key'] = array(
-    '#type'          => 'password',
+    '#type'          => 'textfield',
     '#title'         => t('Amazon Web Services Secret Key'),
     '#default_value' => _s3fs_get_setting('awssdk2_secret_key'),
   );
@@ -204,7 +208,7 @@ function s3fs_settings() {
     '#title'            =>  t('Use Bucket Versioning'),
     '#default_value'    => _s3fs_get_setting('use_versioning'),
     '#description'      => t(
-        'If your Bucket has Versioning enabled and you would like to store the version metadata 
+        'If your Bucket has Versioning enabled and you would like to store the version metadata
         in the s3fs_file table'
     ),
   );

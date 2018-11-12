@@ -374,7 +374,7 @@ function _do_es_search($from, $size, $params){
 
         $response = _fbo_elasticsearch_request("/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty",['data'=>$param]);
         $r = json_decode($response->data);
-// print_r(["/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty",$param]);flush();die;
+        // print_r(["/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty",$param]);flush();die;
         if(isset($r->hits->hits)){
             $sols = _get_array_of_obj($r->hits->hits);
             $ret['opps'] = $sols;
@@ -587,7 +587,7 @@ function _cmp_api_get_all_entities(){
     $page_size=10;
     $where ='';
     $where_param = array();
-    $ret = array();
+    $entities = array();
 
     $exclude_entities = array();
 
@@ -623,7 +623,7 @@ function _cmp_api_get_all_entities(){
                             'type'=>$rd->entity_type);
         }
     }
-   // $where = "WHERE  temp.en_id=10740 ";
+     //$where = "WHERE  temp.en_id=11019 ";
 
     if(isset($_REQUEST["page_size"]) && is_numeric($_REQUEST["page_size"])){
         $page_size = $_REQUEST["page_size"];
@@ -643,6 +643,97 @@ function _cmp_api_get_all_entities(){
     UNION
     SELECT t.tid as en_id, 'term' as type, td.changed FROM taxonomy_term_data t ".$term_date_join." JOIN taxonomy_dates td ON td.tid = t.tid) temp ".(($where != '')? $where:'')." ORDER BY changed ASC " . (isset($_REQUEST["since"])? "":("LIMIT ".$page_size .' OFFSET '.$page)) ;
     $res = db_query($sql, $where_param);
+    _cmp_api_uuid_info(true);
+
+    /// organize nodes into buckets for _load_multiple calls
+    $buckets = [];
+    $bucket_size  = 100;
+    $n_bucket_num = 0;
+    $t_bucket_num = 0;
+    $n = 0;
+    $t = 0;
+    foreach($res as $r)
+    {
+        if ($r->type == 'node')
+        {
+            if ( ($n++)%$bucket_size == 0 ) 
+            { 
+                $n_bucket_num++;
+                if ( !isset($buckets[$n_bucket_num]['nodes']) ) 
+                {
+                    $buckets[$n_bucket_num]['nodes'] = [];  
+                }
+            }
+            $buckets[$n_bucket_num]['nodes'][] = $r->en_id;
+        } else {
+            if ( ($t++)%$bucket_size == 0 )
+            { 
+                $t_bucket_num++;
+                if ( !isset($buckets[$t_bucket_num]['terms']) ) 
+                {
+                    $buckets[$t_bucket_num]['terms'] = [];  
+                }
+            }
+            $buckets[$t_bucket_num]['terms'][] = $r->en_id;
+        }
+    }
+
+    foreach ( $buckets as $bucket_num=>$bucket )
+    { 
+        if ( !empty($bucket['nodes']) )
+        {
+            $nodes = node_load_multiple($bucket['nodes']);
+            foreach( $nodes as $node )
+            {
+                unset($node->uid);
+                unset($node->workbench_moderation);
+                unset($node->revision_timestamp);
+                unset($node->revision_uid);
+                unset($node->vid);
+                unset($node->path);
+                unset($node->picture);
+                unset($node->field_owner);
+                unset($node->cid);
+                unset($node->last_comment_timestamp);
+                unset($node->last_comment_name);
+                unset($node->last_comment_uid);
+                unset($node->comment_count);
+                if ( !isset($node->field_for_use_by) && isset($node->field_for_use_by_text) )
+                {
+                    $node->field_for_use_by = $node->field_for_use_by_text;
+                }
+                _cmp_api_add_s3_urls($node);
+                _cmp_api_add_reference_info($node, $exclude_entities);
+                /// we may not want to force this here
+                /// after a form submit and node_save we were wrongly seeing all status as 0
+                /// but during a full-sync there were correct seeing all status as 1
+                /// we are not taking into account the case where an item used to be published
+                /// but now is not published
+                $node->status = "1";
+                if ( !isset($node->deleted) )
+                {
+                    $node->deleted = 0;
+                }
+                $entities[] = $node;
+            }
+        }
+        if ( !empty($bucket['terms']) )
+        {
+            $terms = taxonomy_term_load_multiple($bucket['terms']);
+            foreach( $terms as $term )
+            {
+                $term->type = 'taxonomy_term';
+                $term->deleted = 0;
+                _cmp_api_add_term_parent($term);
+                _cmp_api_add_term_children($term);
+                _cmp_api_add_for_use_by($term);
+                _cmp_api_add_reference_info($term, $exclude_entities);
+                $entities[] = $term;
+            }
+        }
+    }
+
+    /*
     foreach($res as $r){
         if ($r->type == 'node'){
             $node = node_load($r->en_id);
@@ -680,6 +771,7 @@ function _cmp_api_get_all_entities(){
         }
         else{
             $term = taxonomy_term_load($r->en_id);
+
             $term->type = 'taxonomy_term';
             $term->deleted = 0;
             _cmp_api_add_term_parent($term);
@@ -689,37 +781,53 @@ function _cmp_api_get_all_entities(){
             $ret[]=$term;
         }
     }
+    */
+    //need to include deleted
+    if (isset($_REQUEST["since"])) {
+        $res = db_query("SELECT * FROM cmp_api_deleted_entities WHERE changed > :since", array(':since'=>$_REQUEST['since']));
+        foreach ($res as $r) {
+            $obj = [];
+            $obj['uuid'] = $r->uuid;
+            $obj['deleted'] = 1;
+            $obj['type'] = $r->entity_type;
+            if ($r->entity_type == 'term'){
+                $obj['name'] = $r->name;
+                $obj['vid'] = $r->vid;
+                $obj['tid'] = $r->entity_id;
+            }
+            else{
+                $obj['title'] = $r->title;
+                $obj['nid'] = $r->entity_id;
+            }
+            $entities[] = $obj;
+        }
+        $count = count($entities);
+        $pages = 1;
+        $page_size = $count;
+    }
 
-    drupal_json_output(array("metadata" => array("count"=>($count+$res_del_count), "offset"=>$page, "page_size"=>(($page_size > $count || isset($_REQUEST["since"]))? ($count+$res_del_count):(int)$page_size), "pages"=>(isset($_REQUEST["since"])? 1:$pages)),"result" => $ret));
+    drupal_json_output(array("metadata" => array("count"=>$count, "offset"=>$page, "page_size"=> (isset($_REQUEST["since"]))? $page_size :(int)($page_size > $count? $count:$page_size), "pages"=>$pages),"result" => $entities));
 }
 function _cmp_api_add_for_use_by( &$term )
 {
     if ( empty($term) ) { return; }
-    /// all terms should have a field_for_use_by
-    if ( !isset($term->field_for_use_by) )
+
+    if ( isset($term->field_for_use_by_text) )
     {
-        if ( isset($term->field_for_use_by_text) )
+        $term->field_for_use_by = $term->field_for_use_by_text;
+    } else if ( $term->vocabulary_machine_name == 'site_strucutre_taxonomy' ) {
+        $all_parents = taxonomy_get_parents_all($term->tid);
+        if ( !empty($all_parents) )
         {
-            $term->field_for_use_by = $term->field_for_use_by_text;
-        } else if ( $term->vocabulary_machine_name == 'site_strucutre_taxonomy' ) {
-            $all_parents = taxonomy_get_parents_all($term->tid);
-            if ( !empty($all_parents) )
+            $top_parent = array_pop($all_parents);
+            $top_parent = taxonomy_term_load($top_parent->tid);
+            if ( !empty($top_parent) && !empty($top_parent->name) )
             {
-                $top_parent = array_pop($all_parents);
-                if ( !empty($top_parent) && !empty($top_parent->name) )
-                {
-                    $term->field_for_use_by = array("und"=>array(array(
-                        "value" => $top_parent->name
-                    )));
-                }
-            } else {
-                $term->field_for_use_by = array("und"=>array(array(
-                    "value" => $term->name
-                )));
+                $term->field_for_use_by = $top_parent->field_for_use_by;
             }
-        } else {
-            $term->field_for_use_by = null;
         }
+    } else {
+        $term->field_for_use_by = null;
     }
 }
 function _cmp_api_add_reference_info( &$entity, &$ex_entities )
@@ -770,7 +878,8 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                     }
                     if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
                     {
-                        $entity->{$field} = array();
+                        unset($entity->{$field}['und'][$i]);
+                        $reindex_field[] = $field;
                         _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
                         continue;
                     }
@@ -779,7 +888,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                     $entity->{$field}['und'][$i]['bundle'] = $uuid_info[$ref_uuid]['bundle'];
                     $entity->{$field}['und'][$i]['nid']    = $ref['nid'];
 
-                } else if ( isset($ref['tid']) ) {
+                } elseif ( isset($ref['tid']) ) {
                     if ( isset($ref['uuid']) )
                     {
                         $ref_uuid = $ref['uuid'];
@@ -791,8 +900,9 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                     }
                     if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
                     {
-                        $entity->{$field} = array();
-                        _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
+                        unset($entity->{$field}['und'][$i]);
+                        $reindex_field[] = $field;
+                        // _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
                         continue;
                     }
                     $entity->{$field}['und'][$i]['uuid']   = $ref_uuid;
@@ -800,7 +910,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                     $entity->{$field}['und'][$i]['bundle'] = $uuid_info[$ref_uuid]['bundle'];
                     $entity->{$field}['und'][$i]['tid']    = $uuid_info[$ref_uuid]['id'];
                 } else if ( isset($ref['target_id']) ) {
-                    if (!in_array($ref['target_id'], $ex_entities)) {
+                   if (!in_array($ref['target_id'], $ex_entities)) {
 
                         if (isset($ref['uuid'])) {
                             $ref_uuid = $ref['uuid'];
@@ -813,12 +923,17 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                             }
                             if (empty($ref_uuid)) {
                                 $ref_uuid = entity_get_uuid_by_id('relation', array($ref['target_id']));
+                                $ref_uuid = reset($ref_uuid);
                             }
-                            $ref_uuid = reset($ref_uuid);
+                            if (is_array($ref_uuid) && isset($ref_uuid[$ref['target_id']])){
+                                $ref_uuid = $ref_uuid[$ref['target_id']];
+                            }
                         }
+                       //print_r($uuid_info[$ref_uuid]);exit;
                         if (empty($ref_uuid) || empty($uuid_info[$ref_uuid])) {
-                            $entity->{$field} = array();
-                            _cdss_log('Warn: CDSS ' . __FUNCTION__ . ' uuid:' . $entity->uuid . ' field:' . $field . ' is missing a reference so the field is being removed');
+                            unset($entity->{$field}['und'][$i]);
+                            $reindex_field[] = $field;
+                            // _cdss_log('Warn: CDSS ' . __FUNCTION__ . ' uuid:' . $entity->uuid . ' field:' . $field . ' is missing a reference so the field is being removed');
                             continue;
                         }
                         $entity->{$field}['und'][$i]['uuid'] = $ref_uuid;
@@ -847,7 +962,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                         if ( empty($ref_uuid) || empty($uuid_info[$ref_uuid]) )
                         {
                             $entity->{$field} = array();
-                            _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
+                            // _cdss_log('Warn: CDSS '.__FUNCTION__.' uuid:'. $entity->uuid .' field:'.$field.' is missing a reference so the field is being removed');
                             break;
                         }
                         $entity->{$field}['und'][$i]['endpoints']['und'][$j]['entity_uuid']   = $ref_uuid;
@@ -869,7 +984,7 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
 function _cmp_api_add_term_parent( &$term )
 {
     if ( empty($term) ) { return; }
-    $uuid_info =& _cdss_uuid_info();
+    $uuid_info =& _cmp_api_uuid_info();
     $ref_uuid = null;
     if ( empty($term->parent) )
     {
@@ -899,7 +1014,7 @@ function _cmp_api_add_term_children( &$term )
     if ( empty($term) ) { return; }
     if ( empty($term->children) )
     {
-        $hier =& _cdss_term_hier_info();
+        $hier =& _cmp_api_term_hier_info();
         if ( !empty($hier[$term->uuid]) && !empty($hier[$term->uuid]['children']) )
         {
             $term->children = $hier[$term->uuid]['children'];
@@ -907,6 +1022,51 @@ function _cmp_api_add_term_children( &$term )
     }
     if ( empty($term->children) ) { $term->children = array(); }
 }
+function &_cmp_api_term_hier_info( $refresh=false )
+{
+    $term_hier_info = &drupal_static(__FUNCTION__);
+    if ( $term_hier_info===null || $refresh )
+    {
+        $hier = db_query("
+            SELECT
+                p.tid  as parent_tid,
+                p.uuid as parent_uuid,
+                c.tid  as child_tid,
+                c.uuid as child_uuid
+            FROM {taxonomy_term_hierarchy} h
+                  JOIN {taxonomy_term_data} c ON (h.tid    = c.tid)
+                  JOIN {taxonomy_term_data} p ON (h.parent = p.tid)
+        ");
+        $term_hier_info = array();
+        foreach ( $hier as $info )
+        {
+            if ( !isset($term_hier_info[$info->parent_uuid]) )
+            {
+                $term_hier_info[$info->parent_uuid] = array(
+                    "parent"   => "0",
+                    "children" => array()
+                );
+            }
+            if ( !isset($term_hier_info[$info->child_uuid]) )
+            {
+                $term_hier_info[$info->child_uuid] = array(
+                    "parent"   => "0",
+                    "children" => array()
+                );
+            }
+            $term_hier_info[$info->parent_uuid]['children'][] = array(
+                "uuid" => $info->child_uuid,
+                "tid"  => $info->child_tid
+            );
+            $term_hier_info[$info->child_uuid]['parent'] = array(
+                "uuid" => $info->parent_uuid,
+                "tid"  => $info->parent_tid
+            );
+        }
+    }
+    return $term_hier_info;
+}
+
 function _cmp_api_add_s3_urls( &$node )
 {
     if ( empty($node) ) { return; }
@@ -1092,9 +1252,9 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
                     $nids = array();
                     foreach($vals as $v){
                         $r = db_query("SELECT fu.field_friendly_url_value, t.name, field_asset_order_content_target_id as nid FROM field_data_field_asset_order_content aoc
-  INNER JOIN field_data_field_friendly_url fu ON fu.entity_id = aoc.entity_id
-  INNER JOIN taxonomy_term_data t ON t.tid=aoc.entity_id
-  WHERE fu.field_friendly_url_value LIKE :loc".$i." OR t.name LIKE :loc".$i." OR field_asset_order_content_target_id LIKE :loc".$i, array(":loc".$i=>'%'.db_like($v).'%'));
+                                        INNER JOIN field_data_field_friendly_url fu ON fu.entity_id = aoc.entity_id
+                                        INNER JOIN taxonomy_term_data t ON t.tid=aoc.entity_id
+                                        WHERE fu.field_friendly_url_value LIKE :loc".$i." OR t.name LIKE :loc".$i." OR field_asset_order_content_target_id LIKE :loc".$i, array(":loc".$i=>'%'.db_like($v).'%'));
 
                         foreach($r as $l){
                             $nids[] = $l->nid;
@@ -1361,13 +1521,13 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
 
         $columns = explode(",",strtolower(trim($_REQUEST["result_filter"])));
 
-       foreach($columns as $c){
-           if (!empty($c) && !in_array(trim($c), $allowed_cols)){
-               drupal_json_output(array("metadata" => array("message" => "There was an error in your query", "errors" => array("result_filter" =>$c." is not exist."))));
-               return;
-           }
-           $cols[]=trim($c);
-       }
+        foreach($columns as $c){
+            if (!empty($c) && !in_array(trim($c), $allowed_cols)){
+                drupal_json_output(array("metadata" => array("message" => "There was an error in your query", "errors" => array("result_filter" =>$c." is not exist."))));
+                return;
+            }
+            $cols[]=trim($c);
+        }
     }
     if (isset($_REQUEST["terms_filter"]) && !empty($_REQUEST["terms_filter"])){
         $terms = explode("::",strtolower(trim($_REQUEST["terms_filter"])));
@@ -1380,7 +1540,7 @@ function _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $
                     return;
                 }
                 $vals = explode(",", $fieldVal[1]);
-               //build query based on field
+                //build query based on field
                 if ($fieldVal[0] == 'id'){
                     $extra_where[]=' n.nid IN (:nid)';
                     $extra_where_param[":nid"] = $vals;
@@ -1808,112 +1968,112 @@ function cmp_api_get_text_asset($n, $cols=null){
     $ret = array();
 
     $cached_terms=array();
-        $useby = array();
-        $tags = array();
-        $topics = array();
-        $location = array();
-        foreach($n->field_for_use_by_text['und'] as $uby){
-            $useby[] = $uby['value'];
-        }
+    $useby = array();
+    $tags = array();
+    $topics = array();
+    $location = array();
+    foreach($n->field_for_use_by_text['und'] as $uby){
+        $useby[] = $uby['value'];
+    }
 
-        foreach($n->field_asset_topic_taxonomy['und'] as $att){
-            $term_parents = taxonomy_get_parents_all($att['tid']);
-            foreach($term_parents as $ttt){
-                $topics[] = $ttt->name;
+    foreach($n->field_asset_topic_taxonomy['und'] as $att){
+        $term_parents = taxonomy_get_parents_all($att['tid']);
+        foreach($term_parents as $ttt){
+            $topics[] = $ttt->name;
+        }
+    }
+
+    foreach($n->field_content_tags['und'] as $ctag){
+
+        if (array_key_exists($ctag['tid'],$cached_terms)) {
+            $tags[] = $cached_terms[$ctag['tid']];
+        }
+        else {
+            $r = db_query("SELECT name FROM taxonomy_term_data WHERE tid =:tid", array(":tid" => $ctag['tid']));
+            foreach ($r as $term) {
+                $tags[] = $term->name;
+                $cached_terms[$ctag['tid']] =$term->name;
             }
         }
+    }
+    $site = '';
+    if (in_array("GobiernoUSA.gov", $useby)){
 
-        foreach($n->field_content_tags['und'] as $ctag){
+        $site="https://gobierno.usa.gov";
+    }
+    else{
+        $site="https://usa.gov";
+    }
 
-            if (array_key_exists($ctag['tid'],$cached_terms)) {
-                $tags[] = $cached_terms[$ctag['tid']];
-            }
-            else {
-                $r = db_query("SELECT name FROM taxonomy_term_data WHERE tid =:tid", array(":tid" => $ctag['tid']));
-                foreach ($r as $term) {
-                    $tags[] = $term->name;
-                    $cached_terms[$ctag['tid']] =$term->name;
-                }
-            }
-        }
-        $site = '';
-        if (in_array("GobiernoUSA.gov", $useby)){
-
-            $site="https://gobierno.usa.gov";
-        }
-        else{
-            $site="https://usa.gov";
-        }
-
-        $r = db_query("SELECT fu.field_friendly_url_value, t.name FROM field_data_field_asset_order_content aoc
+    $r = db_query("SELECT fu.field_friendly_url_value, t.name FROM field_data_field_asset_order_content aoc
       INNER JOIN field_data_field_friendly_url fu ON fu.entity_id = aoc.entity_id
       INNER JOIN taxonomy_term_data t ON t.tid=aoc.entity_id
       WHERE field_asset_order_content_target_id = :nid", array(":nid"=>$n->nid));
-        foreach($r as $l){
-            $location[] = array("page_title"=>$l->name, "url"=> $site.$l->field_friendly_url_value."#item-".$n->nid);
-        }
+    foreach($r as $l){
+        $location[] = array("page_title"=>$l->name, "url"=> $site.$l->field_friendly_url_value."#item-".$n->nid);
+    }
 
-        if (empty($cols)) {
-            $ret = array("id" => (int)$n->nid,
-                "title" => $n->title,
-                "summary" => htmlspecialchars($n->field_description['und'][0]['value']),
-                "language" => $n->field_language['und'][0]['value'],
-                "html" => htmlspecialchars($n->body['und'][0]['value']),
-                "contact_center_only" => htmlspecialchars($n->field_contact_center_info['und'][0]['value']),
-                "status" => ($n->status ? "Published" : "Draft"),
-                "location" => $location,
-                "for_use_by" => $useby,
-                "tags" => $tags,
-                "topics" => $topics,
-                "created_at" => date("Y-m-d", $n->created).'T'.date("G:i:s.000",$n->created)."Z",
-                "updated_at" => date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z",
-                "changed_at" => date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z"
-            );
+    if (empty($cols)) {
+        $ret = array("id" => (int)$n->nid,
+            "title" => $n->title,
+            "summary" => htmlspecialchars($n->field_description['und'][0]['value']),
+            "language" => $n->field_language['und'][0]['value'],
+            "html" => htmlspecialchars($n->body['und'][0]['value']),
+            "contact_center_only" => htmlspecialchars($n->field_contact_center_info['und'][0]['value']),
+            "status" => ($n->status ? "Published" : "Draft"),
+            "location" => $location,
+            "for_use_by" => $useby,
+            "tags" => $tags,
+            "topics" => $topics,
+            "created_at" => date("Y-m-d", $n->created).'T'.date("G:i:s.000",$n->created)."Z",
+            "updated_at" => date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z",
+            "changed_at" => date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z"
+        );
+    }
+    else{
+        if (in_array('id', $cols)){
+            $ret['id'] = (int) $n->nid;
         }
-        else{
-            if (in_array('id', $cols)){
-                $ret['id'] = (int) $n->nid;
-            }
-            if (in_array('title', $cols)){
-                $ret['title'] = $n->title;
-            }
-            if (in_array('summary', $cols)){
-                $ret['summary'] = htmlspecialchars($n->field_description['und'][0]['value']);
-            }
-            if (in_array('language', $cols)){
-                $ret['language'] =$n->field_language['und'][0]['value'];
-            }
-            if (in_array('html', $cols)){
-                $ret['html'] = htmlspecialchars($n->body['und'][0]['value']);
-            }
-            if (in_array('contact_center_only', $cols)){
-                $ret['contact_center_only'] = htmlspecialchars($n->field_contact_center_info['und'][0]['value']);
-            }
-            if (in_array('status', $cols)){
-                $ret['status'] = ($n->status ? "Published" : "Draft");
-            }
-            if (in_array('location', $cols)){
-                $ret['location'] = $location;
-            }
-            if (in_array('for_use_by', $cols)){
-                $ret['for_use_by'] = $useby;
-            }
-            if (in_array('tags', $cols)){
-                $ret['tags'] = $tags;
-            }
-            if (in_array('topics', $cols)){
-                $ret['topics'] = $topics;
-            }
-            if (in_array('created_at', $cols)){
-                $ret['created_at'] = date("Y-m-d", $n->created).'T'.date("G:i:s.000",$n->created)."Z";
-            }
-            if (in_array('updated_at', $cols)){
-                $ret['updated_at'] = date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z";
-            }
-            if (in_array('changed_at', $cols)){
-                $ret['changed_at'] = date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z";
-            }
+        if (in_array('title', $cols)){
+            $ret['title'] = $n->title;
         }
+        if (in_array('summary', $cols)){
+            $ret['summary'] = htmlspecialchars($n->field_description['und'][0]['value']);
+        }
+        if (in_array('language', $cols)){
+            $ret['language'] =$n->field_language['und'][0]['value'];
+        }
+        if (in_array('html', $cols)){
+            $ret['html'] = htmlspecialchars($n->body['und'][0]['value']);
+        }
+        if (in_array('contact_center_only', $cols)){
+            $ret['contact_center_only'] = htmlspecialchars($n->field_contact_center_info['und'][0]['value']);
+        }
+        if (in_array('status', $cols)){
+            $ret['status'] = ($n->status ? "Published" : "Draft");
+        }
+        if (in_array('location', $cols)){
+            $ret['location'] = $location;
+        }
+        if (in_array('for_use_by', $cols)){
+            $ret['for_use_by'] = $useby;
+        }
+        if (in_array('tags', $cols)){
+            $ret['tags'] = $tags;
+        }
+        if (in_array('topics', $cols)){
+            $ret['topics'] = $topics;
+        }
+        if (in_array('created_at', $cols)){
+            $ret['created_at'] = date("Y-m-d", $n->created).'T'.date("G:i:s.000",$n->created)."Z";
+        }
+        if (in_array('updated_at', $cols)){
+            $ret['updated_at'] = date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z";
+        }
+        if (in_array('changed_at', $cols)){
+            $ret['changed_at'] = date("Y-m-d", $n->changed).'T'.date("G:i:s.000",$n->changed)."Z";
+        }
+    }
 
     return $ret;
 }
