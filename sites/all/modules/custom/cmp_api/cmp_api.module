@@ -1455,12 +1455,12 @@ function _cmp_api_get_directory_records_router(){
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
         }
-        elseif ($args[5] =='federal'){
+        elseif ($args[5] =='federal.json'){
             $extra_where[]=' fdt.field_directory_type_value LIKE \'Federal Agencies\' ';
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
         }
-        elseif ($args[5] =='consumer_agencies'){
+        elseif ($args[5] =='consumer_agencies.json'){
             $extra_where[]=' fdt.field_directory_type_value LIKE \'Government Consumer Protection Offices\' ';
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
@@ -1468,7 +1468,7 @@ function _cmp_api_get_directory_records_router(){
         elseif ($args[5] =='state' && isset($args[6])){
             $extra_where[]=' LOWER(fs.field_state_value) LIKE :state';
             $extra_join[] =' INNER JOIN field_data_field_state fs ON fs.entity_id = n.nid ';
-            $where_param[":state"] = '%'.db_like(strtolower($args[6])).'%';
+            $where_param[":state"] = '%'.db_like(strtolower(str_replace('.json','',$args[6]))).'%';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join, $where_param );
         }
         elseif(is_numeric(str_replace('.json', '',$args[5]))){

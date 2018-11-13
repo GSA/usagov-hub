@@ -517,7 +517,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_consumer_agencies" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_consumer_agencies" class="toggleOperation">usaapi/directory_records/consumer_agencies</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_consumer_agencies" class="toggleOperation">usaapi/api/v1/usagov/directory_records/consumer_agencies.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -653,7 +653,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_federal" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_federal" class="toggleOperation">usaapi/directory_records/federal</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_federal" class="toggleOperation">usaapi/api/v1/usagov/directory_records/federal.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -788,7 +788,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_state" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_state" class="toggleOperation">usaapi/directory_records/state/{state}</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_state" class="toggleOperation">usaapi/directory_records/state/{state}.json</a>
           </span>
     </h3>
     <ul class="options">
