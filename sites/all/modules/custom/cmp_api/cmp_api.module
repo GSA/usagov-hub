@@ -20,13 +20,13 @@ function cmp_api_menu(){
         'access callback' => TRUE,
         'type' => MENU_NORMAL_ITEM,
     );
-    $items['usaapi/directory_records.json'] = array(
+    $items['usaapi/api/v1/usagov/directory_records.json'] = array(
         'title' => 'USAGov Platform API Interactive Documentation',
-        'page callback' => 'da',
+        'page callback' => '_cmp_api_get_directory_records_router',
         'access callback' => TRUE,
         'type' => MENU_NORMAL_ITEM,
     );
-    $items['usaapi/directory_records/%'] = array(
+    $items['usaapi/api/v1/usagov/directory_records/%'] = array(
         'title' => 'USAGov Platform API Interactive Documentation',
         'page callback' => '_cmp_api_get_directory_records_router',
         'access callback' => TRUE,
@@ -1448,35 +1448,36 @@ function validateDate($date, $format = 'Y-n-j')
 function _cmp_api_get_directory_records_router(){
     $args = arg();
 
-    if (isset($args[2])){
+    if (isset($args[5])){
 
-        if ($args[2] =='bbb'){
+        if ($args[5] =='bbb.json'){
             $extra_where[]=' fdt.field_directory_type_value LIKE \'Better Business Bureaus\' ';
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
         }
-        elseif ($args[2] =='federal'){
+        elseif ($args[5] =='federal'){
             $extra_where[]=' fdt.field_directory_type_value LIKE \'Federal Agencies\' ';
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
         }
-        elseif ($args[2] =='consumer_agencies'){
+        elseif ($args[5] =='consumer_agencies'){
             $extra_where[]=' fdt.field_directory_type_value LIKE \'Government Consumer Protection Offices\' ';
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
         }
-        elseif ($args[2] =='state' && isset($args[3])){
+        elseif ($args[5] =='state' && isset($args[6])){
             $extra_where[]=' LOWER(fs.field_state_value) LIKE :state';
             $extra_join[] =' INNER JOIN field_data_field_state fs ON fs.entity_id = n.nid ';
-            $where_param[":state"] = '%'.db_like(strtolower($args[3])).'%';
+            $where_param[":state"] = '%'.db_like(strtolower($args[6])).'%';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join, $where_param );
         }
-        elseif(is_numeric($args[2])){
+        elseif(is_numeric(str_replace('.json', '',$args[5]))){
             $extra_where[]=' n.nid = :nid';
-            $where_param[":nid"] = $args[2];
+            $nid = str_replace('.json', '',$args[5]);
+            $where_param[":nid"] = $nid;
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where, $extra_join = null, $where_param,null,false,"single_dirtype" );
         }
-        elseif($args[2] =='autocomplete' && isset($_REQUEST["directory_type"])){
+        elseif($args[5] =='autocomplete.json' && isset($_REQUEST["directory_type"])){
             $extra_where[]=' fdt.field_directory_type_value LIKE :dir_type';
             $where_param[":dir_type"] = db_like($_REQUEST["directory_type"]);
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
@@ -1496,7 +1497,7 @@ function _cmp_api_get_directory_records_router(){
             drupal_json_output(array("metadata"=>array("exists"=>"kkk")));
         }
     }
-    elseif(isset($args[1]) && $args[1] == 'directory_records.json'){
+    elseif(isset($args[4]) && $args[4] == 'directory_records.json'){
         _cmp_api_get_directory_records();
     }
     else {

@@ -46,7 +46,7 @@
                   <a href="#!/directory_records/Api_V1_DirectoryRecords_index" class="toggleOperation">get</a>
                   </span>
                   <span class="path">
-                  <a href="#!/directory_records/Api_V1_DirectoryRecords_index" class="toggleOperation">usaapi/directory_records.json</a>
+                  <a href="#!/directory_records/Api_V1_DirectoryRecords_index" class="toggleOperation">usaapi/api/v1/usagov/directory_records.json</a>
                   </span>
                 </h3>
                 <ul class="options">
@@ -181,7 +181,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_show" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_show" class="toggleOperation">usaapi/directory_records/{id}.json</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_show" class="toggleOperation">usaapi/api/v1/usagov/directory_records/{id}.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -274,7 +274,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_autocomplete" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_autocomplete" class="toggleOperation">usaapi/directory_records/autocomplete</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_autocomplete" class="toggleOperation">usaapi/api/v1/usagov/directory_records/autocomplete.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -381,7 +381,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_bbb" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_bbb" class="toggleOperation">usaapi/directory_records/bbb</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_bbb" class="toggleOperation">usaapi/api/v1/usagov/directory_records/bbb.json</a>
           </span>
                 </h3>
                 <ul class="options">
