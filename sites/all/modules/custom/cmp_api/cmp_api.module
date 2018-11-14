@@ -307,8 +307,8 @@ function _do_es_search($from, $size, $params){
     try{
         $sort =  '"sort" : ['
             .'  {"closedate" : {"order" : "asc",  "missing" : "_last", "unmapped_type": "date"}},'
-            .'  {"postdate"  : {"order" : "desc", "missing" : "_last", "unmapped_type": "date"}},'
-            .'  {"subject"   : {"order" : "asc",  "missing" : "_last", "unmapped_type": "keyword"}}'
+            .'  {"postdate"  : {"order" : "desc", "missing" : "_last", "unmapped_type": "date"}}'
+          //  .'  {"subject"   : {"order" : "asc",  "missing" : "_last", "unmapped_type": "keyword"}}'
             .']';
         $param = '{
             "query": {';
