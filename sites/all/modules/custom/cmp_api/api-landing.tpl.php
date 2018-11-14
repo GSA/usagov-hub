@@ -960,7 +960,7 @@
           <a href="#!/text_assets/Api_V1_TextAssets_index" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/text_assets/Api_V1_TextAssets_index" class="toggleOperation">usaapi/narratives.json</a>
+          <a href="#!/text_assets/Api_V1_TextAssets_index" class="toggleOperation">usaapi/api/v1/usagov/narratives.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -1095,7 +1095,7 @@
           <a href="#!/text_assets/Api_V1_TextAssets_show" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/text_assets/Api_V1_TextAssets_show" class="toggleOperation">usaapi/narratives/{id}.json</a>
+          <a href="#!/text_assets/Api_V1_TextAssets_show" class="toggleOperation">usaapi/api/v1/usagov/narratives/{id}.json</a>
           </span>
                 </h3>
                 <ul class="options">

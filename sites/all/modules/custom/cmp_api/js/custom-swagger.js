@@ -32,13 +32,13 @@
                 }
                 //load all results
                 jQuery.ajax({
-                    url: "/usaapi/narratives/"+$('#text_asset_id').val()+".json",
+                    url: "/usaapi/api/v1/usagov/narratives/"+$('#text_asset_id').val()+".json",
                     dataType: 'json',
                     type: 'GET',
                     success: function (data) {
                         $('.text_asset_submit_response').find('.response_throbber').hide();
                         $('.text_asset_submit_response').show();
-                        $('.text_asset_submit_response').find('.request_url').html('<pre>'+"/usaapi/narratives/"+$('#text_asset_id').val()+'.json</pre>');
+                        $('.text_asset_submit_response').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/narratives/"+$('#text_asset_id').val()+'.json</pre>');
                         $('.text_asset_submit_response').find('.response_code').html('<pre>'+200+'</pre>');
                         $('.text_asset_submit_response').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
                     },
@@ -48,7 +48,7 @@
                     error: function () {
                         $('.text_asset_submit_response').find('.response_throbber').hide();
                         $('.text_asset_submit_response').show();
-                        $('.text_asset_submit_response').find('.request_url').html('<pre>'+"/usaapi/narratives/"+$('#text_asset_id').val()+'.json</pre>');
+                        $('.text_asset_submit_response').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/narratives/"+$('#text_asset_id').val()+'.json</pre>');
                         $('.text_asset_submit_response').find('.response_code').html('<pre>'+500+'</pre>');
                     }
                 });
@@ -370,13 +370,13 @@
             }
 
             jQuery.ajax({
-                url: "/usaapi/narratives.json"+param_str,
+                url: "/usaapi/api/v1/usagov/narratives.json"+param_str,
                 dataType: 'json',
                 type: 'GET',
                 success: function (data,status) {
                     $('.text_asset_all_submit').find('.response_throbber').hide();
                     $('.text_asset_all_submit').show();
-                    $('.text_asset_all_submit').find('.request_url').html('<pre>'+"/usaapi/narratives.json"+param_str+'</pre>');
+                    $('.text_asset_all_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/narratives.json"+param_str+'</pre>');
                     $('.text_asset_all_submit').find('.response_code').html('<pre>'+200+'</pre>');
                     $('.text_asset_all_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
                 },
@@ -386,7 +386,7 @@
                 error: function () {
                     $('.text_asset_all_submit').find('.response_throbber').hide();
                     $('.text_asset_all_submit').show();
-                    $('.text_asset_all_submit').find('.request_url').html('<pre>'+"/usaapi/narratives.json"+param_str+'</pre>');
+                    $('.text_asset_all_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/narratives.json"+param_str+'</pre>');
                     $('.text_asset_all_submit').find('.response_code').html('<pre>'+500+'</pre>');
                 }
             });
