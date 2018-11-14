@@ -788,7 +788,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_state" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_state" class="toggleOperation">usaapi/directory_records/state/{state}.json</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_state" class="toggleOperation">usaapi/api/v1/usagov/directory_records/state/{state}.json</a>
           </span>
     </h3>
     <ul class="options">
