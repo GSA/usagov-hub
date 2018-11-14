@@ -350,24 +350,21 @@ class PageRenderer
     public function renderRedirect($redirect)
     {
         $path = trim($redirect['source_path'], '/ ');
-        $base = basename($path);
         $extn = pathinfo($path, PATHINFO_EXTENSION);
 
-        $fileDir = dirname($this->ssg->siteDir.'/'.$path);
         if (empty($extn)) {
-            $file    = $fileDir.'/'.$path.'/index.html';
-            $fileDir = $fileDir.'/'.$path;
+            $file    = $this->ssg->siteDir.'/'.$path.'/index.html';
+            $fileDir = dirname($file);
         } else {
-            $file = $fileDir.'/'.$base;
+            $file = $this->ssg->siteDir.'/'.$path;
+            $fileDir = dirname($file);
         }
-/*
-        if (!( substr($redirect['target'], 0, 7)=='http://'
-            || substr($redirect['target'], 0, 8)=='https://'
-            || $redirect['target']{0} !== '/' ) ) {
-            $redirect['target'] .= '/';
-        }
-*/
-        //$this->log("Redirect: {$redirect['source_path']} => {$redirect['target']} \n");
+        // if (!( substr($redirect['target'], 0, 7)=='http://'
+        //     || substr($redirect['target'], 0, 8)=='https://'
+        //     || $redirect['target']{0} !== '/' ) ) {
+        //     $redirect['target'] .= '/';
+        // }
+        // $this->log("\nRedirect: \n    source:{$redirect['source_path']} \n    path:{$path}\n    extn:{$extn}\n    target:{$redirect['target']} \n    siteDir:{$this->ssg->siteDir} \n    path:{$path}\n    file:{$file}\n    fileDir:{$fileDir}");
 
         $html = "<DOCTYPE html>
             <html>
