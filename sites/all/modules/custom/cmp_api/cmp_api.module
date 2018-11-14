@@ -8,13 +8,13 @@ function cmp_api_menu(){
         'access callback' => TRUE,
         'type' => MENU_NORMAL_ITEM,
     );
-    $items['usaapi/narratives.json'] = array(
+    $items['usaapi/api/v1/usagov/narratives.json'] = array(
         'title' => 'USAGov Platform API Interactive Documentation',
         'page callback' => '_cmp_api_get_text_assets',
         'access callback' => TRUE,
         'type' => MENU_NORMAL_ITEM,
     );
-    $items['usaapi/narratives/%'] = array(
+    $items['usaapi/api/v1/usagov/narratives/%'] = array(
         'title' => 'USAGov Platform API Interactive Documentation',
         'page callback' => '_cmp_api_get_text_asset_by_id',
         'access callback' => TRUE,
@@ -1125,7 +1125,7 @@ function _cmp_api_add_s3_urls( &$node )
     }
 }
 function _cmp_api_get_text_asset_by_id(){
-    $nidjson=arg(2);
+    $nidjson=arg(5);
     if(isset($nidjson)) {
         $nid = str_replace(".json","",$nidjson);
         $n = node_load($nid);
