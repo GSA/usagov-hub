@@ -2033,7 +2033,7 @@ function cmp_api_get_text_asset($n, $cols=null){
             "title" => $n->title,
             "summary" => htmlspecialchars($n->field_description['und'][0]['value']),
             "language" => $n->field_language['und'][0]['value'],
-            "html" => htmlspecialchars($n->body['und'][0]['value']),
+            "html" => htmlspecialchars(_internalLink_fixer($n->body['und'][0]['value'])),
             "contact_center_only" => htmlspecialchars($n->field_contact_center_info['und'][0]['value']),
             "status" => ($n->status ? "Published" : "Draft"),
             "location" => $location,
@@ -2092,6 +2092,30 @@ function cmp_api_get_text_asset($n, $cols=null){
 
     return $ret;
 }
+
+function _internalLink_fixer($html){
+
+    $doc = new DOMDocument();
+    $doc->loadHTML($html);
+    $xpath = new DOMXPath($doc);
+    $nodeList = $xpath->query('//a/@href');
+
+    for ($i = 0; $i < $nodeList->length; $i++) {
+
+        if (substr($nodeList->item($i)->value, 0, 1) == '/'){
+            $itHas = true;
+            $urls[] = $nodeList->item($i)->value;
+        }
+    }
+  
+    if ($itHas){
+        foreach($urls as $url){
+            $html = str_replace($url, 'https://usa.gov'.$url, $html);
+        }
+    }
+    return $html;
+}
+
 function _sanitzie_path($str) {
 
     $table = array(
