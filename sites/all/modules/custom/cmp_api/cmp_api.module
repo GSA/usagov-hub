@@ -1401,7 +1401,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
         }
 
         if ($error_occurred) {
-            drupal_json_output(array("metadata" => array("message" => "There was an error in your query", "errors" => array("date_filter" => "Time is out of range, format is YYYY-MM-DD(,YYYY-MM-DD)"))));
+            drupal_json_output(array("metadata" => array("message" => "There was an error in your query", "errors" => array("date_filter" => "Time is out of range, format is YYYY-MM-DD(,YYYY-MM-DD) or YYYY-MM-DDT00:00:00.00(,YYYY-MM-DD)"))));
             return;
         }
     }
@@ -1428,22 +1428,24 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
 }
 function validateDate($date, $format = 'Y-n-j')
 {
-    $d = DateTime::createFromFormat($format, $date);
-    $res = $d && $d->format($format) == $date;
-    if (!$res){
-        $format1 = 'Y-m-d';
-        $d = DateTime::createFromFormat($format1, $date);
-        $res = $d && $d->format($format1) == $date;
 
-        $date = str_replace('T', '', $date);
-        $date = str_replace('.000Z','', $date);
-        if (!$res){
-            $format2 = 'Y-m-dH:i:s';
-            $d = DateTime::createFromFormat($format2, $date);
-            $res = $d && $d->format($format2) == $date;
+    $formats = array('Y-m-d', 'Y-n-d','Y-m-dH:i:s', 'Y-n-dH:i:s');
+    $date = str_replace('T00:00:00.000', '', $date);
+    $date = str_replace('T00:00:00.00', '', $date);
+    $date = str_replace('T', '', $date);
+    $date = str_replace('.000Z','', $date);
+    $date = str_replace('.000','', $date);
+    $date = str_replace('.00','', $date);
+   // print $date; exit;
+    foreach($formats as $f){
+        $d = DateTime::createFromFormat($format, $date);
+        $res = $d && $d->format($f) == $date;
+
+        if (!$res ){
+         return true;
         }
     }
-    return $res;
+    return false;
 }
 function _cmp_api_get_directory_records_router(){
     $args = arg();
