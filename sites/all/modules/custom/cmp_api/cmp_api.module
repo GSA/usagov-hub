@@ -1289,7 +1289,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
                         $extra_where[]=' ('.join(' OR ', $temp_extra_where).') ';
                     }
                 }
-                if ($fieldVal[0] == 'topics'){
+      /*          if ($fieldVal[0] == 'topics'){
                     $extra_join[] =' INNER JOIN field_data_field_asset_topic_taxonomy fatt ON fatt.entity_id = n.nid ';
                     $extra_join[] =' INNER JOIN taxonomy_term_data ttd2 ON ttd2.tid = fatt.field_asset_topic_taxonomy_tid ';
                     if(count($vals) ==1){
@@ -1306,7 +1306,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
                         }
                         $extra_where[]=' ('.join(' OR ', $temp_extra_where).') ';
                     }
-                }
+                }*/
                 if ($fieldVal[0] == 'summary'){
                     $extra_join[] =' INNER JOIN field_data_field_description fd ON fd.entity_id = n.nid ';
 
