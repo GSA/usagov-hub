@@ -163,8 +163,8 @@ function _returnFBODataResult(){
                 $sa = array();
             }
 
-            $p = array('keyword' => $_REQUEST['keyword'],
-                'postdate' => ($_REQUEST['postdate'] != '--' ? $_REQUEST['postdate'] : null),
+            $p = array('keyword' => (isset($_REQUEST['keyword']) && $_REQUEST['keyword'] !='')? $_REQUEST['keyword']: '' ,
+                'postdate' => (isset($_REQUEST['postdate']) && $_REQUEST['postdate'] != '--' ? $_REQUEST['postdate'] : null),
                 'submitteddate' => time(),
                 'location' => (isset($_REQUEST['state']) && $_REQUEST['state'] != '') ? join(',',$params['state']) : '',
                 'setaside' => join(',', $sa),
