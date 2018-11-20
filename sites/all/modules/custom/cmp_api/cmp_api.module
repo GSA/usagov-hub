@@ -14,6 +14,12 @@ function cmp_api_menu(){
         'access callback' => TRUE,
         'type' => MENU_NORMAL_ITEM,
     );
+    $items['usaapi/api/v1/usagov/narratives'] = array(
+        'title' => 'USAGov Platform API Interactive Documentation',
+        'page callback' => '_cmp_api_get_text_assets',
+        'access callback' => TRUE,
+        'type' => MENU_NORMAL_ITEM,
+    );
     $items['usaapi/api/v1/usagov/narratives/%'] = array(
         'title' => 'USAGov Platform API Interactive Documentation',
         'page callback' => '_cmp_api_get_text_asset_by_id',
@@ -21,6 +27,12 @@ function cmp_api_menu(){
         'type' => MENU_NORMAL_ITEM,
     );
     $items['usaapi/api/v1/usagov/directory_records.json'] = array(
+        'title' => 'USAGov Platform API Interactive Documentation',
+        'page callback' => '_cmp_api_get_directory_records_router',
+        'access callback' => TRUE,
+        'type' => MENU_NORMAL_ITEM,
+    );
+    $items['usaapi/api/v1/usagov/directory_records'] = array(
         'title' => 'USAGov Platform API Interactive Documentation',
         'page callback' => '_cmp_api_get_directory_records_router',
         'access callback' => TRUE,
@@ -1289,7 +1301,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
                         $extra_where[]=' ('.join(' OR ', $temp_extra_where).') ';
                     }
                 }
-      /*          if ($fieldVal[0] == 'topics'){
+                /*if ($fieldVal[0] == 'topics'){
                     $extra_join[] =' INNER JOIN field_data_field_asset_topic_taxonomy fatt ON fatt.entity_id = n.nid ';
                     $extra_join[] =' INNER JOIN taxonomy_term_data ttd2 ON ttd2.tid = fatt.field_asset_topic_taxonomy_tid ';
                     if(count($vals) ==1){
@@ -1462,17 +1474,17 @@ function _cmp_api_get_directory_records_router(){
 
     if (isset($args[5])){
 
-        if ($args[5] =='bbb.json'){
+        if ($args[5] =='bbb.json' || $args[5] =='bbb'){
             $extra_where[]=' fdt.field_directory_type_value LIKE \'Better Business Bureaus\' ';
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
         }
-        elseif ($args[5] =='federal.json'){
+        elseif ($args[5] =='federal.json' || $args[5] =='federal'){
             $extra_where[]=' fdt.field_directory_type_value LIKE \'Federal Agencies\' ';
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
         }
-        elseif ($args[5] =='consumer_agencies.json'){
+        elseif ($args[5] =='consumer_agencies.json' || $args[5] =='consumer_agencies'){
             $extra_where[]=' fdt.field_directory_type_value LIKE \'Government Consumer Protection Offices\' ';
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where , $extra_join  );
@@ -1489,7 +1501,7 @@ function _cmp_api_get_directory_records_router(){
             $where_param[":nid"] = $nid;
             _cmp_api_get_directory_records($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null,$extra_where, $extra_join = null, $where_param,null,false,"single_dirtype" );
         }
-        elseif($args[5] =='autocomplete.json' && isset($_REQUEST["directory_type"])){
+        elseif(($args[5] =='autocomplete.json' || $args[5] =='autocomplete') && isset($_REQUEST["directory_type"])){
             $extra_where[]=' fdt.field_directory_type_value LIKE :dir_type';
             $where_param[":dir_type"] = db_like($_REQUEST["directory_type"]);
             $extra_join[] =' INNER JOIN field_data_field_directory_type fdt ON fdt.entity_id = n.nid ';
@@ -1509,7 +1521,7 @@ function _cmp_api_get_directory_records_router(){
             drupal_json_output(array("metadata"=>array("exists"=>"kkk")));
         }
     }
-    elseif(isset($args[4]) && $args[4] == 'directory_records.json'){
+    elseif(isset($args[4]) && ($args[4] == 'directory_records.json' || $args[4] == 'directory_records')){
         _cmp_api_get_directory_records();
     }
     else {
