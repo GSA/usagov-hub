@@ -2,5 +2,5 @@ name = Static Site Generator
 description = Static Site Generator trigger via UI and cron
 package = CTAC
 core = 7.x
-configure = admin/ssg/ui
-files[] = repo_sync.module
+configure = admin/ssg
+files[] = ssg.module

@@ -497,11 +497,17 @@ function repo_sync_triggerSyncMenuCallback() {
     }
 
     // Fire the function that does the real logic
-    repo_sync_logEvent('A request for a sync has occurred - now syncing.', true);
-    if ( repo_sync_triggerSync() === false ) {
-        repo_sync_logEvent('Repo-Sync failure!', true);
-    } else {
-        repo_sync_logEvent('Repo-Sync Complete', true);
+    // repo_sync_logEvent('A request for a sync has occurred - now syncing.', true);
+    // if ( repo_sync_triggerSync() === false ) {
+    //     repo_sync_logEvent('Repo-Sync failure!', true);
+    // } else {
+    //     repo_sync_logEvent('Repo-Sync Complete', true);
+    // }
+
+    if ( function_exists('_ssg_run_template_update') )
+    {
+        repo_sync_logEvent('A request for a sync has occurred - now triggering SSG Build.', true);
+        _ssg_run_template_update();
     }
 }
 

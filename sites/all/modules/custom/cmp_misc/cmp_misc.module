@@ -16,7 +16,7 @@ function cmp_misc_user_login(&$edit, $account) {
   watchdog('audit','User login name:"%name" uid:%uid',[
         '%name' => $account->name,
         '%uid'  => $account->uid
-  ],WATCHDOG_ALERT);
+  ],WATCHDOG_WARNING);
   // if (isset($edit['redirect']) && !empty($edit['redirect'])) {
   //   drupal_goto($edit['redirect']);
   // }
@@ -25,7 +25,7 @@ function cmp_misc_user_logout($account) {
   watchdog('audit','User logout name:"%name" uid:%uid',[
         '%name' => $account->name,
         '%uid'  => $account->uid
-  ],WATCHDOG_ALERT);
+  ],WATCHDOG_WARNING);
 }
 function cmp_misc_user_presave(&$edit, $account, $category)
 {
@@ -384,6 +384,17 @@ function cmp_misc_form_alter(&$form, &$form_state, $form_id)
         global $user;
         $currentUserStr = $user->name . " (" . $user->uid . ") ";
         $form['field_term_owner']['und'][0]['target_id']['#default_value'] = $currentUserStr;
+    }
+
+    /// hide field for non-top-level term edit forms
+    if ( $form_id=='taxonomy_form_term' && isset($form_state['term']->tid) )
+    {
+        if ( is_array($form['#term']) 
+          && !empty($form['#term']['parent']) 
+          && isset($form['field_for_use_by']) )
+        {
+            $form['field_for_use_by']['#access'] = FALSE;
+        }
     }
 
     // If this is the edit form for any node under the 'Text Asset' content-type

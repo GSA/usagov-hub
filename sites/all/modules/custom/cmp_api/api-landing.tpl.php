@@ -46,7 +46,7 @@
                   <a href="#!/directory_records/Api_V1_DirectoryRecords_index" class="toggleOperation">get</a>
                   </span>
                   <span class="path">
-                  <a href="#!/directory_records/Api_V1_DirectoryRecords_index" class="toggleOperation">usaapi/directory_records.json</a>
+                  <a href="#!/directory_records/Api_V1_DirectoryRecords_index" class="toggleOperation">usaapi/api/v1/usagov/directory_records.json</a>
                   </span>
                 </h3>
                 <ul class="options">
@@ -181,7 +181,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_show" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_show" class="toggleOperation">usaapi/directory_records/{id}.json</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_show" class="toggleOperation">usaapi/api/v1/usagov/directory_records/{id}.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -274,7 +274,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_autocomplete" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_autocomplete" class="toggleOperation">usaapi/directory_records/autocomplete</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_autocomplete" class="toggleOperation">usaapi/api/v1/usagov/directory_records/autocomplete.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -381,7 +381,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_bbb" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_bbb" class="toggleOperation">usaapi/directory_records/bbb</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_bbb" class="toggleOperation">usaapi/api/v1/usagov/directory_records/bbb.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -517,7 +517,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_consumer_agencies" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_consumer_agencies" class="toggleOperation">usaapi/directory_records/consumer_agencies</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_consumer_agencies" class="toggleOperation">usaapi/api/v1/usagov/directory_records/consumer_agencies.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -653,7 +653,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_federal" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_federal" class="toggleOperation">usaapi/directory_records/federal</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_federal" class="toggleOperation">usaapi/api/v1/usagov/directory_records/federal.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -788,7 +788,7 @@
           <a href="#!/directory_records/Api_V1_DirectoryRecords_state" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/directory_records/Api_V1_DirectoryRecords_state" class="toggleOperation">usaapi/directory_records/state/{state}</a>
+          <a href="#!/directory_records/Api_V1_DirectoryRecords_state" class="toggleOperation">usaapi/api/v1/usagov/directory_records/state/{state}.json</a>
           </span>
     </h3>
     <ul class="options">
@@ -960,7 +960,7 @@
           <a href="#!/text_assets/Api_V1_TextAssets_index" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/text_assets/Api_V1_TextAssets_index" class="toggleOperation">usaapi/narratives.json</a>
+          <a href="#!/text_assets/Api_V1_TextAssets_index" class="toggleOperation">usaapi/api/v1/usagov/narratives.json</a>
           </span>
                 </h3>
                 <ul class="options">
@@ -1095,7 +1095,7 @@
           <a href="#!/text_assets/Api_V1_TextAssets_show" class="toggleOperation">get</a>
           </span>
           <span class="path">
-          <a href="#!/text_assets/Api_V1_TextAssets_show" class="toggleOperation">usaapi/narratives/{id}.json</a>
+          <a href="#!/text_assets/Api_V1_TextAssets_show" class="toggleOperation">usaapi/api/v1/usagov/narratives/{id}.json</a>
           </span>
                 </h3>
                 <ul class="options">

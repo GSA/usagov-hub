@@ -332,6 +332,7 @@ function cmp_soft_delete_node_delete_confirm_submit($form, &$form_state)
 
 function _cmp_delete_assets_from_regions($nid){
     // check all regions
+    $changed = time();
     $regions = array('field_asset_order_carousel', 'field_asset_order_content', 'field_asset_order_sidebar', 'field_asset_order_bottom', 'field_asset_order_menu', 'field_home_alert_asset', 'field_home_howdoi_assets');
     $tids = array();
 
@@ -347,7 +348,9 @@ function _cmp_delete_assets_from_regions($nid){
 
     foreach($tids as $t=>$region){
         cache_clear_all('field:taxonomy_term:' . $t, 'cache_field');
+        db_query('UPDATE taxomony_dates set changed=:changed where tid=:tid', array(':changed'=>$changed, ':tid' => $t));
     }
+
 }
 
 // http request handlers
@@ -596,10 +599,11 @@ function _cmp_soft_delete_ridin_dirty($node,$hard_delete=false)
     //     $nidsDeleted[] = $node->nid;
     //     variable_set('udm_nidsDeleted', $nidsDeleted);
     // }
-    if ( module_exists('cmp_data_sync_server') )
-    {
-        _cdss_entity_queue($node,'node', $hard_delete?"remove":null );
-    }
+    // if ( module_exists('cmp_data_sync_server') )
+    // {
+    //     _cdss_entity_queue($node,'node', $hard_delete?"remove":null );
+    // }
+    /// also need to update any references to this item
 }
 function cmp_soft_delete_entity_load($entities, $type)
 {

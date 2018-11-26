@@ -32,13 +32,13 @@
                 }
                 //load all results
                 jQuery.ajax({
-                    url: "/usaapi/narratives/"+$('#text_asset_id').val()+".json",
+                    url: "/usaapi/api/v1/usagov/narratives/"+$('#text_asset_id').val()+".json",
                     dataType: 'json',
                     type: 'GET',
                     success: function (data) {
                         $('.text_asset_submit_response').find('.response_throbber').hide();
                         $('.text_asset_submit_response').show();
-                        $('.text_asset_submit_response').find('.request_url').html('<pre>'+"/usaapi/narratives/"+$('#text_asset_id').val()+'.json</pre>');
+                        $('.text_asset_submit_response').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/narratives/"+$('#text_asset_id').val()+'.json</pre>');
                         $('.text_asset_submit_response').find('.response_code').html('<pre>'+200+'</pre>');
                         $('.text_asset_submit_response').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
                     },
@@ -48,7 +48,7 @@
                     error: function () {
                         $('.text_asset_submit_response').find('.response_throbber').hide();
                         $('.text_asset_submit_response').show();
-                        $('.text_asset_submit_response').find('.request_url').html('<pre>'+"/usaapi/narratives/"+$('#text_asset_id').val()+'.json</pre>');
+                        $('.text_asset_submit_response').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/narratives/"+$('#text_asset_id').val()+'.json</pre>');
                         $('.text_asset_submit_response').find('.response_code').html('<pre>'+500+'</pre>');
                     }
                 });
@@ -82,13 +82,13 @@
 
                 //load all results
                 jQuery.ajax({
-                    url: "/usaapi/directory_records/autocomplete"+param_str,
+                    url: "/usaapi/api/v1/usagov/directory_records/autocomplete.json"+param_str,
                     dataType: 'json',
                     type: 'GET',
                     success: function (data) {
                         $('.dir_type_auto').find('.response_throbber').hide();
                         $('.dir_type_auto').show();
-                        $('.dir_type_auto').find('.request_url').html('<pre>'+"/usaapi/directory_records/autocomplete"+param_str+'</pre>');
+                        $('.dir_type_auto').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/autocomplete.json"+param_str+'</pre>');
                         $('.dir_type_auto').find('.response_code').html('<pre>'+200+'</pre>');
                         $('.dir_type_auto').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
                     },
@@ -98,7 +98,7 @@
                     error: function () {
                         $('.dir_type_auto').find('.response_throbber').hide();
                         $('.dir_type_auto').show();
-                        $('.dir_type_auto').find('.request_url').html('<pre>'+"/usaapi/directory_records/autocomplete"+param_str+'</pre>');
+                        $('.dir_type_auto').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/autocomplete.json"+param_str+'</pre>');
                         $('.dir_type_auto').find('.response_code').html('<pre>'+500+'</pre>');
                     }
                 });
@@ -139,13 +139,13 @@
                 }
 
                 jQuery.ajax({
-                    url: "/usaapi/directory_records/state/"+$('#state_state').val()+param_str,
+                    url: "/usaapi/api/v1/usagov/directory_records/state/"+$('#state_state').val()+'.json'+param_str,
                     dataType: 'json',
                     type: 'GET',
                     success: function (data,status) {
                         $('.state_submit').find('.response_throbber').hide();
                         $('.state_submit').show();
-                        $('.state_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/state/"+$('#state_state').val()+param_str+'</pre>');
+                        $('.state_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/state/"+$('#state_state').val()+'.json'+param_str+'</pre>');
                         $('.state_submit').find('.response_code').html('<pre>'+200+'</pre>');
                         $('.state_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
                     },
@@ -155,7 +155,7 @@
                     error: function () {
                         $('.state_submit').find('.response_throbber').hide();
                         $('.state_submit').show();
-                        $('.state_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/state/"+$('#state_state').val()+param_str+'</pre>');
+                        $('.state_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/state/"+$('#state_state').val()+'.json'+param_str+'</pre>');
                         $('.state_submit').find('.response_code').html('<pre>'+500+'</pre>');
                     }
                 });
@@ -189,13 +189,13 @@
             }
 
             jQuery.ajax({
-                url: "/usaapi/directory_records/bbb"+param_str,
+                url: "/usaapi/api/v1/usagov/directory_records/bbb.json"+param_str,
                 dataType: 'json',
                 type: 'GET',
                 success: function (data,status) {
                     $('.bbb_submit').find('.response_throbber').hide();
                     $('.bbb_submit').show();
-                    $('.bbb_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/bbb"+param_str+'</pre>');
+                    $('.bbb_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/bbb.json"+param_str+'</pre>');
                     $('.bbb_submit').find('.response_code').html('<pre>'+200+'</pre>');
                     $('.bbb_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
                 },
@@ -205,7 +205,7 @@
                 error: function () {
                     $('.bbb_submit').find('.response_throbber').hide();
                     $('.bbb_submit').show();
-                    $('.bbb_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/bbb"+param_str+'</pre>');
+                    $('.bbb_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/bbb.json"+param_str+'</pre>');
                     $('.bbb_submit').find('.response_code').html('<pre>'+500+'</pre>');
                 }
             });
@@ -239,13 +239,13 @@
             }
 
             jQuery.ajax({
-                url: "/usaapi/directory_records/consumer_agencies"+param_str,
+                url: "/usaapi/api/v1/usagov/directory_records/consumer_agencies.json"+param_str,
                 dataType: 'json',
                 type: 'GET',
                 success: function (data,status) {
                     $('.ca_submit').find('.response_throbber').hide();
                     $('.ca_submit').show();
-                    $('.ca_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/consumer_agencies"+param_str+'</pre>');
+                    $('.ca_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/consumer_agencies.json"+param_str+'</pre>');
                     $('.ca_submit').find('.response_code').html('<pre>'+200+'</pre>');
                     $('.ca_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
                 },
@@ -255,7 +255,7 @@
                 error: function () {
                     $('.ca_submit').find('.response_throbber').hide();
                     $('.ca_submit').show();
-                    $('.ca_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/consumer_agencies"+param_str+'</pre>');
+                    $('.ca_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/consumer_agencies"+param_str+'</pre>');
                     $('.ca_submit').find('.response_code').html('<pre>'+500+'</pre>');
                 }
             });
@@ -288,13 +288,13 @@
             }
 
             jQuery.ajax({
-                url: "/usaapi/directory_records/federal"+param_str,
+                url: "/usaapi/api/v1/usagov/directory_records/federal.json"+param_str,
                 dataType: 'json',
                 type: 'GET',
                 success: function (data,status) {
                     $('.fed_submit').find('.response_throbber').hide();
                     $('.fed_submit').show();
-                    $('.fed_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/federal"+param_str+'</pre>');
+                    $('.fed_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/federal.json"+param_str+'</pre>');
                     $('.fed_submit').find('.response_code').html('<pre>'+200+'</pre>');
                     $('.fed_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
                 },
@@ -304,7 +304,7 @@
                 error: function () {
                     $('.fed_submit').find('.response_throbber').hide();
                     $('.fed_submit').show();
-                    $('.fed_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/federal"+param_str+'</pre>');
+                    $('.fed_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/federal.json"+param_str+'</pre>');
                     $('.fed_submit').find('.response_code').html('<pre>'+500+'</pre>');
                 }
             });
@@ -320,13 +320,13 @@
                 }
                 //load all results
                 jQuery.ajax({
-                    url: "/usaapi/directory_records/"+$('#directory_record_id').val(),
+                    url: "/usaapi/api/v1/usagov/directory_records/"+$('#directory_record_id').val()+'.json',
                     dataType: 'json',
                     type: 'GET',
                     success: function (data) {
                         $('.directory_record_submit').find('.response_throbber').hide();
                         $('.directory_record_submit').show();
-                        $('.directory_record_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/"+$('#directory_record_id').val()+'</pre>');
+                        $('.directory_record_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/"+$('#directory_record_id').val()+'.json'+'</pre>');
                         $('.directory_record_submit').find('.response_code').html('<pre>'+200+'</pre>');
                         $('.directory_record_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
                     },
@@ -336,7 +336,7 @@
                     error: function () {
                         $('.directory_record_submit').find('.response_throbber').hide();
                         $('.directory_record_submit').show();
-                        $('.directory_record_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records/"+$('#directory_record_id').val()+'</pre>');
+                        $('.directory_record_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records/"+$('#directory_record_id').val()+'.json'+'</pre>');
                         $('.directory_record_submit').find('.response_code').html('<pre>'+500+'</pre>');
                     }
                 });
@@ -370,13 +370,13 @@
             }
 
             jQuery.ajax({
-                url: "/usaapi/narratives.json"+param_str,
+                url: "/usaapi/api/v1/usagov/narratives.json"+param_str,
                 dataType: 'json',
                 type: 'GET',
                 success: function (data,status) {
                     $('.text_asset_all_submit').find('.response_throbber').hide();
                     $('.text_asset_all_submit').show();
-                    $('.text_asset_all_submit').find('.request_url').html('<pre>'+"/usaapi/narratives.json"+param_str+'</pre>');
+                    $('.text_asset_all_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/narratives.json"+param_str+'</pre>');
                     $('.text_asset_all_submit').find('.response_code').html('<pre>'+200+'</pre>');
                     $('.text_asset_all_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
                 },
@@ -386,7 +386,7 @@
                 error: function () {
                     $('.text_asset_all_submit').find('.response_throbber').hide();
                     $('.text_asset_all_submit').show();
-                    $('.text_asset_all_submit').find('.request_url').html('<pre>'+"/usaapi/narratives.json"+param_str+'</pre>');
+                    $('.text_asset_all_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/narratives.json"+param_str+'</pre>');
                     $('.text_asset_all_submit').find('.response_code').html('<pre>'+500+'</pre>');
                 }
             });
@@ -419,13 +419,13 @@
             }
 
             jQuery.ajax({
-                url: "/usaapi/directory_records.json"+param_str,
+                url: "/usaapi/api/v1/usagov/directory_records.json"+param_str,
                 dataType: 'json',
                 type: 'GET',
                 success: function (data,status) {
                     $('.dir1_submit').find('.response_throbber').hide();
                     $('.dir1_submit').show();
-                    $('.dir1_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records.json"+param_str+'</pre>');
+                    $('.dir1_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records.json"+param_str+'</pre>');
                     $('.dir1_submit').find('.response_code').html('<pre>'+200+'</pre>');
                     $('.dir1_submit').find('.response_body').addClass('json').html('<pre class="json">'+formatData(data)+'</pre>');
                 },
@@ -435,7 +435,7 @@
                 error: function () {
                     $('.dir1_submit').find('.response_throbber').hide();
                     $('.dir1_submit').show();
-                    $('.dir1_submit').find('.request_url').html('<pre>'+"/usaapi/directory_records.json"+param_str+'</pre>');
+                    $('.dir1_submit').find('.request_url').html('<pre>'+"/usaapi/api/v1/usagov/directory_records.json"+param_str+'</pre>');
                     $('.dir1_submit').find('.response_code').html('<pre>'+500+'</pre>');
                 }
             });
