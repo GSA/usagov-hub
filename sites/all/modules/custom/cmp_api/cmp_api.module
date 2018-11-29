@@ -1176,8 +1176,14 @@ function &_cmp_api_uuid_info( $refresh=false )
     return $uuid_info;
 }
 
+if ( !function_exists('entity_language') ) { 
+    function entity_language() { return null; }
+}
+
 function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=null, $terms_filter=null, $result_filter=null){
+    $noDeletedNodes = true;
     $ret = array();
+    $cols = [];
     $allowed_cols = array("id", "title", "summary", "language", "html", "contact_center_only", "status", "location", "for_use_by", "topics", "tags", "created_at", "updated_at", "changed_at");
     if (isset($_REQUEST["page_size"]) && !empty($_REQUEST["page_size"])){
         $page_size = $_REQUEST["page_size"];
@@ -1200,6 +1206,7 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
             $cols[]=trim($c);
         }
     }
+    $nid_sql = ' n.status = 1 ';
     if (isset($_REQUEST["terms_filter"]) && !empty($_REQUEST["terms_filter"])) {
         $terms = explode("::", strtolower(trim($_REQUEST["terms_filter"])));
 
@@ -1221,8 +1228,52 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
                     $extra_where_param[":title"] = $vals;
                 }
                 if ($fieldVal[0] == 'status') {
-                    $extra_where[] = ' n.status = :sstatus ';
-                    $extra_where_param[":sstatus"] = (strtolower($vals[0]) == 'published' ? 1 : 0);
+                    $nid_list = [];
+                    foreach ( $vals as $val ) 
+                    {
+                        $s = strtolower($val);
+                        if ( $s == "published" )
+                        {
+                            $nid_list[] = ' n.nid IN ( SELECT nid FROM node WHERE node.status = 1 ) ';
+                        } else if ( $s == "archived" ) {
+                            $nid_list[] = ' n.nid IN ( 
+                                SELECT
+                                    nn.nid
+                                FROM
+                                    node nn
+                                    LEFT JOIN node_deleted                      nd on ( nn.nid = nd.nid )
+                                    LEFT JOIN field_data_field_archive_date     na on ( nn.nid = na.entity_id )
+                                    LEFT JOIN field_data_field_schedule_publish np on ( nn.nid = np.entity_id )
+                                    LEFT JOIN workbench_moderation_node_history nw on ( nn.nid = nw.nid AND nn.vid = nw.vid AND nw.is_current = 1 )
+                                WHERE
+                                    # node is not deleted
+                                    ( nd.deletion_state IS NULL OR nd.deletion_state != :soft )
+                                    # current revision is not already published
+                                    AND nn.status != 1
+                                    # is not archived
+                                    AND (
+                                        # archive date set
+                                        na.field_archive_date_value IS NOT NULL
+                                        AND # archive date is in the past
+                                        na.field_archive_date_value <= NOW()
+                                        AND ( # there is no auto-publish date
+                                            np.field_schedule_publish_value IS NULL
+                                            OR # the auto-publish date is in the future
+                                            np.field_schedule_publish_value >= NOW()
+                                            OR # the auto-publish date was before the auto-archive date
+                                            np.field_schedule_publish_value <= na.field_archive_date_value
+                                        )
+                                    )
+                            )';
+                            $extra_where_param[":soft"] = "soft";
+                        } else if ( $s == "deleted" ) {
+                            $nid_list[] = ' n.nid IN ( SELECT nid FROM node_deleted ) ';
+                        }
+                    }
+                    if ( !empty($nid_list) )
+                    {
+                        $nid_sql =  ' ( '. join($nid_list,' OR ') .' ) ';
+                    }
                 }
                 if ($fieldVal[0] == 'created_at') {
                     $extra_where[] = ' n.created = :created_at ';
@@ -1376,9 +1427,8 @@ function _cmp_api_get_text_assets($page=0, $page_size=20, $query = null, $date=n
             }
         }
     }
-    $add_where[] = ' n.nid NOT IN (SELECT nid FROM node_deleted) ';
+    $add_where[] = $nid_sql;
     $add_where[] = "n.type = 'text_content_type'";
-    $add_where[] = "n.status = 1";
     if (!empty($extra_where)){
         $add_where = array_merge($add_where, $extra_where);
     }
@@ -2042,12 +2092,18 @@ function cmp_api_get_text_asset($n, $cols=null){
     }
 
     if (empty($cols)) {
+        $ccInfo = "";
+        if ( isset($n->field_contact_center_info['und']) )
+        {
+            $ccInfo = htmlspecialchars($n->field_contact_center_info['und'][0]['value']);
+        }
+
         $ret = array("id" => (int)$n->nid,
             "title" => $n->title,
             "summary" => htmlspecialchars($n->field_description['und'][0]['value']),
             "language" => $n->field_language['und'][0]['value'],
             "html" => htmlspecialchars(_internalLink_fixer($n->body['und'][0]['value'])),
-            "contact_center_only" => htmlspecialchars($n->field_contact_center_info['und'][0]['value']),
+            "contact_center_only" => $ccInfo,
             "status" => ($n->status ? "Published" : "Draft"),
             "location" => $location,
             "for_use_by" => $useby,
@@ -2113,6 +2169,7 @@ function _internalLink_fixer($html){
     $xpath = new DOMXPath($doc);
     $nodeList = $xpath->query('//a/@href');
 
+    $itHas = false;
     for ($i = 0; $i < $nodeList->length; $i++) {
 
         if (substr($nodeList->item($i)->value, 0, 1) == '/'){
