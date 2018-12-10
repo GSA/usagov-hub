@@ -219,12 +219,12 @@ function _compileSuperAssetReportToCSV(){
         $forUseBy = array();
         if ($node->type == 'text_content_type') {
             foreach ($node->field_for_use_by_text['und'] as $valCont) {
-                $forUseBy[] = $valCont['value'];
+                $forUseBy[] = _get_uby_lbl_name($valCont['value']);
             }
         }
         if ($node->type == 'multimedia_content_type' || $node->type == 'html_content_type' || $node->type == 'file_content_type') {
             foreach ($node->field_for_use_by['und'] as $valCont) {
-                $forUseBy[$valCont['value']] = $valCont['value'];
+                $forUseBy[$valCont['value']] = _get_uby_lbl_name($valCont['value']);
             }
         }
         $forUseBy = implode(', ', $forUseBy);
@@ -297,22 +297,22 @@ function _compileSuperAssetReportToCSV(){
                 }
 
                 $usagovURL="//www.usa.gov";
-                $gobgovURL="//gobierno.usa.gov";
+                $gobgovURL=$usagovURL;
 
                 // whether to it is dev or local
                 if (strpos($_SERVER["HTTP_HOST"],'usa.dev') !== false){
-                    $gobgovURL="//gobierno.usa.dev";
-                    $usagovURL="//www.usa.dev";
+                    //$gobgovURL="//gobierno.usa.dev";
+                    $gobgovURL="//www.usa.dev";
                 }
 
                 if (strpos($_SERVER["HTTP_HOST"],'test-') !== false){
-                    $gobgovURL="//test-gobiernogov.ctacdev.com";
-                    $usagovURL="//test-usagov.ctacdev.com";
+                    //$gobgovURL="//test-gobiernogov.ctacdev.com";
+                    $gobgovURL="//test-usagov.ctacdev.com";
                 }
 
                 if (strpos($_SERVER["HTTP_HOST"],'stage-') !== false){
-                    $gobgovURL="//stage-gobiernogov.ctacdev.com";
-                    $usagovURL="//stage-usagov.ctacdev.com";
+                    //$gobgovURL="//stage-gobiernogov.ctacdev.com";
+                    $gobgovURL="//stage-usagov.ctacdev.com";
                 }
                 // USA
                 if ($get_all_parents[$at_lvl-1]->tid == 11726 || $get_ssall_parents[$sst_lvl-1] == 3062){
@@ -656,6 +656,20 @@ function _prepare_att_report() {
 
     exit('working');
 }
+function _get_uby_lbl_name($val) {
+
+    if ($val == 'GobiernoUSA.gov'){
+        $rval = 'USAGov en Espanol';
+    }
+    elseif ($val == 'USA.gov'){
+        $rval = 'USAGov English';
+    }
+    else{
+        $rval = $val;
+    }
+
+    return $rval;
+}
 
 function _compileAssetTopicTaxonomyReportToCSV() {
     $counter =1;
@@ -668,12 +682,12 @@ function _compileAssetTopicTaxonomyReportToCSV() {
         $forUseBy = array();
         if ($node->type == 'text_content_type') {
             foreach ($node->field_for_use_by_text['und'] as $valCont) {
-                $forUseBy[] = $valCont['value'];
+                $forUseBy[] = _get_uby_lbl_name($valCont['value']);
             }
         }
         if ($node->type == 'multimedia_content_type' || $node->type == 'html_content_type' || $node->type == 'file_content_type') {
             foreach ($node->field_for_use_by['und'] as $valCont) {
-                $forUseBy[] = $valCont['value'];
+                $forUseBy[] = _get_uby_lbl_name($valCont['value']);
             }
         }
         $forUseBy = implode(', ', $forUseBy);
@@ -685,6 +699,7 @@ function _compileAssetTopicTaxonomyReportToCSV() {
 
         $sstids = count_findSiteStructTermsThatReferenceAsset($node->nid);
         // Prepare to add new row to the report - for this node under this Asset Topic
+
         $counter++;
         $newRow = array(
             'counter' => $counter,
@@ -1056,8 +1071,8 @@ function get_child_info($tid, $pos,$site_name){
             $voc_tool_export_url = 'https://www.usa.gov'.$friendly_url;
         }
         if($site_name=='GobiernoUSA.gov'){
-            $ga_style_url='gobierno.usa.gov'.$friendly_url;
-            $voc_tool_export_url = 'https://gobierno.usa.gov'.$friendly_url;
+            $ga_style_url='https://www.usa.gov'.$friendly_url;
+            $voc_tool_export_url = 'https://www.usa.gov'.$friendly_url;
         }
         if($site_name=='Kids.gov'){
             $ga_style_url='kids.usa.gov'.$friendly_url;
