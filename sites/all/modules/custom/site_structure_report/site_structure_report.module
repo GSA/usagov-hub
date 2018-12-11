@@ -969,7 +969,7 @@ function get_child_info($tid, $pos,$site_name){
 
     $site_name=$levels[count($levels)-1];
 
-    $site_structure_array[0]=tssr_sanitzie($site_name) ;
+    $site_structure_array[0]=tssr_sanitzie(_get_uby_lbl_name($site_name)) ;
 
     /*if($get_term->changed){
         $last_changed_date =  gmdate("m-d-Y", $get_term->changed);
@@ -1043,7 +1043,7 @@ function get_child_info($tid, $pos,$site_name){
 
 
 
-    $site_structure_array[9]=tssr_sanitzie($get_all_par[0]);
+    $site_structure_array[9]=tssr_sanitzie(_get_uby_lbl_name($get_all_par[0]));
     $rev_levels = array_reverse($levels);
 
     $filled_up_levels=count($rev_levels);
