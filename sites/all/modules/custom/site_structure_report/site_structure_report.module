@@ -1058,7 +1058,7 @@ function get_child_info($tid, $pos,$site_name){
 
     krsort($rev_levels);
     foreach($rev_levels as $level){
-        $site_structure_array[$col]=tssr_sanitzie($level);
+        $site_structure_array[$col]=tssr_sanitzie(_get_uby_lbl_name($level));
         $col++;
     }
 
@@ -1071,7 +1071,7 @@ function get_child_info($tid, $pos,$site_name){
             $voc_tool_export_url = 'https://www.usa.gov'.$friendly_url;
         }
         if($site_name=='GobiernoUSA.gov'){
-            $ga_style_url='https://www.usa.gov'.$friendly_url;
+            $ga_style_url='usa.gov'.$friendly_url;
             $voc_tool_export_url = 'https://www.usa.gov'.$friendly_url;
         }
         if($site_name=='Kids.gov'){
@@ -1090,7 +1090,7 @@ function get_child_info($tid, $pos,$site_name){
     $site_structure_array[19]=tssr_sanitzie($last_changed_date);
     $site_structure_array[20]=count(tssr_getAssetsInSiteStructTerm($get_term));
     // put the toggle url
-    $site_structure_array[21]= (isset($get_term->field_usa_gov_toggle_url['und'][0]['value']) && strlen($get_term->field_usa_gov_toggle_url['und'][0]['value'])>0)? 'https://usa.gov'.$get_term->field_usa_gov_toggle_url['und'][0]['value']:
-        ((isset($get_term->field_gobiernousa_gov_toggle_url['und'][0]['value']) && strlen($get_term->field_gobiernousa_gov_toggle_url['und'][0]['value'])>0)? 'https://gobierno.usa.gov'.$get_term->field_gobiernousa_gov_toggle_url['und'][0]['value']:'');
+    $site_structure_array[21]= (isset($get_term->field_usa_gov_toggle_url['und'][0]['value']) && strlen($get_term->field_usa_gov_toggle_url['und'][0]['value'])>0)? 'https://www.usa.gov'.$get_term->field_usa_gov_toggle_url['und'][0]['value']:
+        ((isset($get_term->field_gobiernousa_gov_toggle_url['und'][0]['value']) && strlen($get_term->field_gobiernousa_gov_toggle_url['und'][0]['value'])>0)? 'https://www.usa.gov'.$get_term->field_gobiernousa_gov_toggle_url['und'][0]['value']:'');
     return $site_structure_array;
 }
