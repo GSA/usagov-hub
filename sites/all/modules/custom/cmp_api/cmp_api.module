@@ -151,7 +151,7 @@ function _returnFBODataResult(){
         $params['setaside'] =explode(',',$_REQUEST['setaside']);
     }
     $ret = _do_es_search($from, $size, $params);
-    if (isset($_REQUEST['do_index']) && $_REQUEST['do_index'] ==="1" ) {
+    if (isset($_REQUEST['do_index']) && $_REQUEST['do_index'] ==1 ) {
 
         // need to user data
         $s = _setupES();
