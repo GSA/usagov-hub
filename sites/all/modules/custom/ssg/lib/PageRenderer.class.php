@@ -350,7 +350,7 @@ class PageRenderer
     public function renderRedirect($redirect)
     {
         $path = trim($redirect['source_path'], '/ ');
-        $path = trim($path, ' ');
+        $path = str_replace(' ','',$path);
         $extn = pathinfo($path, PATHINFO_EXTENSION);
 
         if (empty($extn)) {
