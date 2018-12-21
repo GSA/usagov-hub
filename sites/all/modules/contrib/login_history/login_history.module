@@ -67,9 +67,9 @@ function login_history_user_login(&$edit, $account) {
     ->execute();
   // TODO: would be useful to load the prior login data here e.g. a change of IP address that is
   // still in the same geo location is less risky than a change of IP address across the world.
-    _auditlog_pushMessageToSplunk('Login and SecureAuth authentication successful ');
-    dsm($account->login . ' is logged in');
-    error_log($account->login . ' is logged in');
+    $user = user_load($account->uid);
+    dsm($user->name . ' is logged in');
+    error_log($user->name . ' is logged in');
   $login_history_cookie = login_history_assemble_cookie($device_id, $login_id, drupal_get_hash_salt());
   user_cookie_save(array('login_history' => $login_history_cookie));
 
