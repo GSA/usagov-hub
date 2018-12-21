@@ -116,7 +116,7 @@ function _cmp_misc_loginto_splunk(){
     foreach($res as $r) {
         $user = user_load($r->uid);
         dsm($user->name . ' is logged in');
-        error_log($user->name . ' is logged in');
+        error_log($user->name . ' is logged in. _cmp_misc_loginto_splunk');
         db_query('UPDATE login_history SET sent_to_splunk = true WHERE login_id = :login_id', array(':login_id'=>$r->login_id));
     }
 }
