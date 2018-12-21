@@ -104,7 +104,21 @@ function cmp_misc_init()
 
     // Add Anti-Clickjacking security
     header('X-Frame-Options: SAMEORIGIN');
+    // do user login into splunk
+    _cmp_misc_loginto_splunk();
+}
 
+function _cmp_misc_loginto_splunk(){
+    /*
+     * db_query("ALTER TABLE login_history ADD sent_to_splunk bool;");
+     * */
+    $res = db_query("SELECT * FROM login_history WHERE sent_to_splunk IS NULL");
+    foreach($res as $r) {
+        $user = user_load($r->uid);
+        dsm($user->name . ' is logged in');
+        error_log($user->name . ' is logged in');
+        db_query('UPDATE login_history SET sent_to_splunk = true WHERE login_id = :login_id', array(':login_id'=>$r->login_id));
+    }
 }
 
 function cmp_misc_menu() {
