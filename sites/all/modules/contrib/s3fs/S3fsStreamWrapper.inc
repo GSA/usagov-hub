@@ -358,7 +358,11 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
 
       // public:// files are stored in S3 inside the s3fs_public_folder.
       $public_folder = !empty($this->config['public_folder']) ? $this->config['public_folder'] : 's3fs-public';
-      $s3_key = "{$public_folder}/$s3_key";
+      // If domain root is not set, or the value is set to map to the root
+      // folder, include the public folder.
+      if ($this->config['domain_root'] == 'none' || $this->config['domain_root'] == 'root') {
+        $s3_key = "{$public_folder}/$s3_key";
+      }
     }
 
     // Set up the URL settings as speciied in our settings page.
@@ -393,8 +397,9 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // Allow other modules to change the URL settings.
     drupal_alter('s3fs_url_settings', $url_settings, $s3_key);
 
-    // If a root folder has been set, prepend it to the $s3_key at this time.
-    if (!empty($this->config['root_folder'])) {
+    // If a root folder has been set, and domain root is not set, prepend
+    // the root folder to the $s3_key at this time.
+    if (!empty($this->config['root_folder']) && ($this->config['domain_root'] == 'none')) {
       $s3_key = "{$this->config['root_folder']}/$s3_key";
     }
 
@@ -427,10 +432,9 @@ class S3fsStreamWrapper implements DrupalStreamWrapperInterface {
     // If this file is versioned, append the version number as a GET arg to
     // ensure that browser caches will be bypassed upon version changes.
     $meta = $this->_read_cache($this->uri);
-    if (!empty($meta['version']) && $this->config['s3fs_use_versioning']) {
+    if (!empty($meta['version']) && (isset($this->config['use_versioning']) && $this->config['use_versioning'])) {
       $external_url = $this->_append_get_arg($external_url, $meta['version']);
     }
-
     // Torrents can only be created for publicly-accessible files:
     // https://forums.aws.amazon.com/thread.jspa?threadID=140949
     // So Forced SaveAs and Presigned URLs cannot be served as torrents.

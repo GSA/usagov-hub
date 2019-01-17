@@ -7,6 +7,7 @@ function views_raw_sql_permission() {
   return array(
     'edit views raw sql' => array(
       'title' => t('Add or edit Views raw SQL fields and sorts'),
+      'restrict access' => TRUE,
     ),
   );
 }
