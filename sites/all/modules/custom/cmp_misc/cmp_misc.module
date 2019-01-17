@@ -104,7 +104,21 @@ function cmp_misc_init()
 
     // Add Anti-Clickjacking security
     header('X-Frame-Options: SAMEORIGIN');
+    // do user login into splunk
+    _cmp_misc_loginto_splunk();
+}
 
+function _cmp_misc_loginto_splunk(){
+    /*
+     * db_query("ALTER TABLE login_history ADD sent_to_splunk bool;");
+     * */
+    $res = db_query("SELECT * FROM login_history WHERE sent_to_splunk IS NULL");
+    foreach($res as $r) {
+        $user = user_load($r->uid);
+        dsm($user->name . ' is logged in');
+        error_log($user->name . ' is logged in. _cmp_misc_loginto_splunk');
+        db_query('UPDATE login_history SET sent_to_splunk = true WHERE login_id = :login_id', array(':login_id'=>$r->login_id));
+    }
 }
 
 function cmp_misc_menu() {
@@ -1067,6 +1081,7 @@ function _cmp_misc_node_is_publishable($node)
 function _cmp_misc_get_expiring_nodes()
 {
     $expiring_date = strtotime(date('Y-m-d H:i:s') . ' -6 months');
+    $kidsnodes = _get_only_kids_contents();
 
     $sql = "SELECT n.nid, n.title FROM field_data_field_date_last_reviewed lr
         INNER JOIN node n ON n.nid = lr.entity_id
@@ -1076,16 +1091,33 @@ function _cmp_misc_get_expiring_nodes()
     $result = db_query($sql, array(':start_date'=>$expiring_date));
     $arr = array();
     foreach($result as $row) {
-        $node = node_load($row->nid);
+        if (!in_array($row->nid, $kidsnodes)) {
+            $node = node_load($row->nid);
 
-        if (isset($node->field_owner['und'][0]['target_id'])) {
-            $user = user_load($node->field_owner['und'][0]['target_id']);
-            $arr[$node->field_owner['und'][0]['target_id']]['nodes'][] = l($node->title, 'node/'. $node->nid);
-            $arr[$node->field_owner['und'][0]['target_id']]['name'] = $user->name;
-            $arr[$node->field_owner['und'][0]['target_id']]['mail'] = $user->mail;
+            if (isset($node->field_owner['und'][0]['target_id'])) {
+                $user = user_load($node->field_owner['und'][0]['target_id']);
+                $arr[$node->field_owner['und'][0]['target_id']]['nodes'][] = l($node->title, 'node/' . $node->nid);
+                $arr[$node->field_owner['und'][0]['target_id']]['name'] = $user->name;
+                $arr[$node->field_owner['und'][0]['target_id']]['mail'] = $user->mail;
+            }
         }
     }
     return $arr;
+}
+
+function _get_only_kids_contents(){
+    $ret = array();
+    $res = db_query("SELECT entity_id as val FROM field_data_field_for_use_by_text WHERE field_for_use_by_text_value LIKE 'Kids.USA.gov'  GROUP BY entity_id HAVING count(field_for_use_by_text_value)=1 ");
+
+    foreach($res as $r){
+        $ret[] = $r->val;
+    }
+
+    $res = db_query("SELECT entity_id as val, count(field_for_use_by_value) as val2 FROM field_data_field_for_use_by WHERE  entity_type='node'  AND  field_for_use_by_value LIKE 'Kids.USA.gov'  GROUP BY entity_id HAVING count(field_for_use_by_value)=1 ");
+    foreach($res as $r){
+        $ret[] = $r->val;
+    }
+    return $ret;
 }
 
 function _finally_publish_node($nid,$vid)
