@@ -109,15 +109,20 @@ function cmp_misc_init()
 }
 
 function _cmp_misc_loginto_splunk(){
-    /*
-     * db_query("ALTER TABLE login_history ADD sent_to_splunk bool;");
-     * */
-    $res = db_query("SELECT * FROM login_history WHERE sent_to_splunk IS NULL");
-    foreach($res as $r) {
-        $user = user_load($r->uid);
-        dsm($user->name . ' is logged in');
-        error_log($user->name . ' is logged in. _cmp_misc_loginto_splunk');
-        db_query('UPDATE login_history SET sent_to_splunk = true WHERE login_id = :login_id', array(':login_id'=>$r->login_id));
+    if (db_table_exists('login_history')) {
+        /*
+         * db_query("ALTER TABLE login_history ADD sent_to_splunk bool;");
+         * */
+        $res = db_query("SELECT * FROM login_history WHERE sent_to_splunk IS NULL");
+        foreach ($res as $r) {
+            $user = user_load($r->uid);
+            dsm($user->name . ' is logged in');
+            error_log($user->name . ' is logged in. _cmp_misc_loginto_splunk');
+            db_query('UPDATE login_history SET sent_to_splunk = true WHERE login_id = :login_id', array(':login_id' => $r->login_id));
+        }
+    }
+    else {
+        drupal_set_message("Please enable LOGIN HISTORY module!");
     }
 }
 
