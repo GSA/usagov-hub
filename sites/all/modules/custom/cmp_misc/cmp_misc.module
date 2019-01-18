@@ -105,7 +105,7 @@ function cmp_misc_init()
     // Add Anti-Clickjacking security
     header('X-Frame-Options: SAMEORIGIN');
     // do user login into splunk
-    _cmp_misc_loginto_splunk();
+ //   _cmp_misc_loginto_splunk();
 }
 
 function _cmp_misc_loginto_splunk(){
