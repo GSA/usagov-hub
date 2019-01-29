@@ -9,12 +9,12 @@ class StaticSiteGenerator
     use DirectoryTrait;
 
     public $uuid;
-    
+
     public $time;
 
     public $pages;
     public $pageTree;
-    
+
     public $sitePage;
 
     public $pageTypes;
@@ -88,7 +88,7 @@ class StaticSiteGenerator
 
         $this->prepareDirs();
 
-        $this->templates   = new TemplateSource( $this ); 
+        $this->templates   = new TemplateSource( $this );
         $this->source      = new DrupalAPIDataSource( $this );
         $this->destination = new S3SiteDestination( $this );
         $this->renderer    = new PageRenderer( $this );
@@ -100,7 +100,7 @@ class StaticSiteGenerator
     {
         $this->prepareDir($this->config['tempDir']);
         $this->prepareDir($this->config['permDir']);
-        
+
         //$this->cacheDir = realpath($this->config['permDir']).'/cache';
         $this->cacheDir = $this->config['permDir'].'/cache';
         $this->prepareDir($this->cacheDir);
@@ -115,12 +115,12 @@ class StaticSiteGenerator
         $synced = $this->templates->sync();
         if ( !$synced ) {
             $this->log("syncTemplates: syncing from source failed\n");
-            return false; 
+            return false;
         }
         $loaded = $this->renderer->loadTwigTemplates();
-        if ( !$loaded ) { 
+        if ( !$loaded ) {
             $this->log("syncTemplates: loading templates failed\n");
-            return false; 
+            return false;
         }
 
         return true;
@@ -159,14 +159,14 @@ class StaticSiteGenerator
 
             /// IF THIS IS A PAGE
             if ( isset($entity['tid']) && isset($entity['vocabulary_machine_name'])
-                 && $entity['vocabulary_machine_name']=='site_strucutre_taxonomy' )
+                && $entity['vocabulary_machine_name']=='site_strucutre_taxonomy' )
             {
                 $this->pages[$uuid] =& $this->source->entities[$uuid];
-                if ( !empty($entity['pageType']) 
-                  && !array_key_exists($entity['pageType'],$this->pageTypes) )
+                if ( !empty($entity['pageType'])
+                    && !array_key_exists($entity['pageType'],$this->pageTypes) )
                 {
                     $this->pageTypes[$entity['pageType']] = $entity['pageType'];
-                }                
+                }
                 if ( empty($entity['parent']) )
                 {
                     $rev = array_reverse($entity['for_use_by']);
@@ -177,12 +177,12 @@ class StaticSiteGenerator
                 {
                     $this->pagesByUrl[$this->pages[$uuid]['friendly_url']] =& $this->source->entities[$uuid];
                 }
-                if ( !empty($entity['usa_gov_50_state_category']) ) 
+                if ( !empty($entity['usa_gov_50_state_category']) )
                 {
                     $this->source->entities[$uuid]['usa_gov_50_state_category'] = preg_replace('/^field_/','',$entity['usa_gov_50_state_category']);
                 }
                 $i=0;
-                if ( !empty($entity['browser_title']) && !empty($entity['generate_page']) && strtolower($entity['generate_page'])=='yes' )
+                if ( !empty($entity['browser_title']) && !empty($entity['generate_page']))// && strtolower($entity['generate_page'])=='yes' )
                 {
                     $title = trim(preg_replace('/^\W+/','',$entity['browser_title']));
                     $letter = strtoupper($title{0});
@@ -196,14 +196,14 @@ class StaticSiteGenerator
                         $this->siteIndexAZ[$fub][$letter][] = [ 'uuid'=>$entity['uuid'], 'title'=>$entity['browser_title'] ];
                     }
                 }
-                
+
                 /// amber alert
                 if ( array_key_exists('children',$this->source->entities[$uuid]) )
                 {
                     $this->source->entities[$uuid]['children'] = [];
                 }
-                
-            /// IF THIS IS A CONTENT ITEM
+
+                /// IF THIS IS A CONTENT ITEM
             } else {
 
                 if ( $this->isFeature($entity) )
@@ -247,7 +247,7 @@ class StaticSiteGenerator
                             $this->stateDetails[$fub] = [];
                         }
                         $this->stateDetails[$fub][] = [ 'uuid'=>$uuid, 'state_canonical_name'=>strtolower($entity['state_canonical_name']), 'title'=>$entity['title'] ];
-                        
+
                         /// format state names
                         if ( !empty($entity['state_acronym']) && !empty($entity['state_canonical_name'] ) )
                         {
@@ -324,7 +324,7 @@ class StaticSiteGenerator
 
                         /// AZ Index
                         if ( ( trim(strtolower($type)) == 'federal agencies' )
-                           || strtolower($type) == 'state government agencies' )
+                            || strtolower($type) == 'state government agencies' )
                         {
                             $letter = strtoupper($entity['title']{0});
 
@@ -342,12 +342,12 @@ class StaticSiteGenerator
 
                                 $this->directoryRecordGroups[$fub]['all']['Federal Agencies'][$group_by][]  = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
                                 $this->directoryRecordGroups[$fub][$state]['Federal Agencies'][$group_by][] = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
-        
-                              //  if ( array_key_exists('show_on_az_index',$entity)
+
+                                //  if ( array_key_exists('show_on_az_index',$entity)
                                 //    && trim(strtolower($entity['show_on_az_index'])) == 'yes' )
                                 //{
-                                    $this->directoryRecordGroups[$fub]['all']['Federal Agencies'][$letter][]  = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
-                                    $this->directoryRecordGroups[$fub][$state]['Federal Agencies'][$letter][] = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
+                                $this->directoryRecordGroups[$fub]['all']['Federal Agencies'][$letter][]  = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
+                                $this->directoryRecordGroups[$fub][$state]['Federal Agencies'][$letter][] = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
                                 //}
                             }
 
@@ -378,11 +378,11 @@ class StaticSiteGenerator
                                         $this->directoryRecordGroups[$fub]['all']['Federal Agencies'][$group_by][]  = [ 'uuid'=>$uuid, 'title'=>$synonym['value'] ];
                                         $this->directoryRecordGroups[$fub][$state]['Federal Agencies'][$group_by][] = [ 'uuid'=>$uuid, 'title'=>$synonym['value'] ];
 
-                                      //  if ( array_key_exists('show_on_az_index',$entity)
+                                        //  if ( array_key_exists('show_on_az_index',$entity)
                                         //    && trim(strtolower($entity['show_on_az_index'])) == 'yes' )
-                                       // {
-                                            $this->directoryRecordGroups[$fub]['all']['Federal Agencies'][$letter][]  = [ 'uuid'=>$uuid, 'title'=>$synonym['value'] ];
-                                            $this->directoryRecordGroups[$fub][$state]['Federal Agencies'][$letter][] = [ 'uuid'=>$uuid, 'title'=>$synonym['value'] ];
+                                        // {
+                                        $this->directoryRecordGroups[$fub]['all']['Federal Agencies'][$letter][]  = [ 'uuid'=>$uuid, 'title'=>$synonym['value'] ];
+                                        $this->directoryRecordGroups[$fub][$state]['Federal Agencies'][$letter][] = [ 'uuid'=>$uuid, 'title'=>$synonym['value'] ];
                                         //}
                                     }
                                 }
@@ -393,7 +393,7 @@ class StaticSiteGenerator
                         if ( trim(strtolower($type)) == 'federal agencies' && !empty($entity['government_branch']) )
                         {
                             $letter = strtoupper($entity['title']{0});
-                            
+
                             $this->directoryRecordGroups[$fub]['all'][$type][$entity['government_branch']][]  = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
                             $this->directoryRecordGroups[$fub][$state][$type][$entity['government_branch']][] = [ 'uuid'=>$uuid, 'title'=>$entity['title'] ];
                         }
@@ -406,9 +406,9 @@ class StaticSiteGenerator
                             && !empty($entity['link_form_links']['title']) )
                         {
                             $letter = strtoupper($entity['title']{0});
-                            $this->directoryRecordGroups[$fub]['forms'][$type][$letter][] = [ 
-                                'uuid'=>$uuid, 
-                                'title'=>$entity['title'], 
+                            $this->directoryRecordGroups[$fub]['forms'][$type][$letter][] = [
+                                'uuid'=>$uuid,
+                                'title'=>$entity['title'],
                                 'formTitle'=>$entity['link_form_links']['title']
                             ];
 
@@ -417,9 +417,9 @@ class StaticSiteGenerator
                                 foreach ( $entity['synonym'] as $synonym )
                                 {
                                     $letter = strtoupper($synonym['value']{0});
-                                    $this->directoryRecordGroups[$fub]['forms'][$type][$letter][] = [ 
-                                        'uuid'=>$uuid, 
-                                        'title'=>$synonym['value'], 
+                                    $this->directoryRecordGroups[$fub]['forms'][$type][$letter][] = [
+                                        'uuid'=>$uuid,
+                                        'title'=>$synonym['value'],
                                         'formTitle'=>$entity['link_form_links']['title']
                                     ];
                                 }
@@ -450,7 +450,7 @@ class StaticSiteGenerator
             if ( array_key_exists('parent_uuid',$this->source->entities[$uuid]) )
             {
                 if ( array_key_exists($this->source->entities[$uuid]['parent_uuid'],
-                                      $this->source->entities) )
+                    $this->source->entities) )
                 {
                     $this->source->entities[$this->source->entities[$uuid]['parent_uuid']]['children'][] = [
                         'uuid' => $uuid,
@@ -467,7 +467,7 @@ class StaticSiteGenerator
                     foreach ( $this->source->entities[$uuid][$region_field] as $c=>$content )
                     {
                         if ( ( array_key_exists('uuid',$content) &&
-                              !array_key_exists($content['uuid'],$this->source->entities) )
+                                !array_key_exists($content['uuid'],$this->source->entities) )
                             || $this->source->entities[$content['uuid']]['deleted']==1 )
                         {
                             error_log("\nBAD CONTENT $c:".print_r($content,1)."\n");
@@ -484,12 +484,12 @@ class StaticSiteGenerator
             $fubs = !empty($entity['for_use_by']) ? $entity['for_use_by'] : $this->config['allowedForUseBy'];
 
             if ( isset($entity['tid']) && isset($entity['vocabulary_machine_name'])
-                 && $entity['vocabulary_machine_name']=='site_strucutre_taxonomy' )
+                && $entity['vocabulary_machine_name']=='site_strucutre_taxonomy' )
             {
                 $features = [];
                 foreach ( $fubs as $fub )
                 {
-                    if ( array_key_exists($fub,$this->features) ) 
+                    if ( array_key_exists($fub,$this->features) )
                     {
                         $features = array_merge($features,$this->features[$fub]);
                     }
@@ -505,8 +505,8 @@ class StaticSiteGenerator
                 );
                 if ( !empty($sharesTopic) )
                 {
-                   $first = array_shift($sharesTopic);
-                   $this->source->entities[$uuid]['whats_new'] = [ 'uuid'=>$first['uuid'], 'title'=>$first['title'] ];
+                    $first = array_shift($sharesTopic);
+                    $this->source->entities[$uuid]['whats_new'] = [ 'uuid'=>$first['uuid'], 'title'=>$first['title'] ];
                 } else {
                     $this->source->entities[$uuid]['whats_new'] = null;
                 }
@@ -517,7 +517,7 @@ class StaticSiteGenerator
         {
             array_multisort(
                 array_column($details,'state_canonical_name'),SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
-            $details);
+                $details);
         }
 
         foreach ( array_keys($this->features) as $fub )
@@ -525,7 +525,7 @@ class StaticSiteGenerator
             array_multisort(
                 array_column($this->features[$fub],'created'), SORT_ASC,
                 array_column($this->features[$fub],'changed'), SORT_ASC,
-            $this->features[$fub]);
+                $this->features[$fub]);
         }
 
         /// each feature gets a list of associated features 
@@ -541,8 +541,8 @@ class StaticSiteGenerator
                     {
                         foreach ( $feature['for_use_by'] as $fub )
                         {
-                            if ( array_key_exists($fub,$this->featuresByTopic) && 
-                                 array_key_exists($asset_topic['uuid'],$this->featuresByTopic[$fub]) )
+                            if ( array_key_exists($fub,$this->featuresByTopic) &&
+                                array_key_exists($asset_topic['uuid'],$this->featuresByTopic[$fub]) )
                             {
                                 foreach ( $this->featuresByTopic[$fub][$asset_topic['uuid']] as &$sharesTopic )
                                 {
@@ -560,7 +560,7 @@ class StaticSiteGenerator
                 array_multisort(
                     array_column($feature['shares_topic'],'created'), SORT_ASC,
                     array_column($feature['shares_topic'],'changed'), SORT_ASC,
-                $feature['shares_topic']);
+                    $feature['shares_topic']);
             }
         }
 
@@ -598,7 +598,7 @@ class StaticSiteGenerator
                     {
                         array_multisort(
                             array_column($groupList,'title'), SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
-                        $groupList);
+                            $groupList);
                     }
                 }
             }
@@ -667,16 +667,16 @@ class StaticSiteGenerator
     public function isFeature($entity)
     {
         return array_key_exists('type',$entity)
-                && in_array($entity['type'],['text_content_type','html_content_type','multimedia_content_type'])
-                && array_key_exists('for_use_by',$entity)
-                && (
-                    ( is_array($entity['for_use_by'])
-                      && in_array('Feature',$entity['for_use_by'])
-                    ) || (
-                        is_string($entity['for_use_by'])
-                        && 'feature' == strtolower($entity['for_use_by'])
-                    )
-                );
+        && in_array($entity['type'],['text_content_type','html_content_type','multimedia_content_type'])
+        && array_key_exists('for_use_by',$entity)
+        && (
+            ( is_array($entity['for_use_by'])
+                && in_array('Feature',$entity['for_use_by'])
+            ) || (
+                is_string($entity['for_use_by'])
+                && 'feature' == strtolower($entity['for_use_by'])
+            )
+        );
     }
     public function sharesTopicWith($entities,$uuid)
     {
@@ -719,8 +719,8 @@ class StaticSiteGenerator
             $rev = array_reverse($page['for_use_by']);
             $fub = array_pop($rev);
 
-            if ( array_key_exists($fub,$this->sitePage) 
-                 && $this->sitePage[$fub]['uuid']==$page['uuid'] )
+            if ( array_key_exists($fub,$this->sitePage)
+                && $this->sitePage[$fub]['uuid']==$page['uuid'] )
             {
                 $page['menu'] = $this->buildMainNavMenu($page);
             } else {
@@ -729,11 +729,12 @@ class StaticSiteGenerator
             $page['child_pages'] = $this->buildPageMenu($page);
         }
     }
-    public function buildMainNavMenu($page) 
+    public function buildMainNavMenu($page)
     {
         // menu item's must also have a css field, but that is taken care of at the template level
         $menu = [];
-        $directChildren = $this->filteredDescendantPages($page,'children',['generate_menu','generate_page']);
+        //$directChildren = $this->filteredDescendantPages($page,'children',['generate_menu','generate_page']);
+        $directChildren = $this->filteredDescendantPages($page,'children',['generate_menu']);
         $menu = $directChildren;
         // $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page',['generate_menu','generate_page']);
         // $menu = array_merge($directChildren, $alsoInclude);
@@ -742,7 +743,7 @@ class StaticSiteGenerator
             array_column($menu,'weight'),SORT_ASC,
             array_column($menu,'name'),  SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
             array_column($menu,'tid'),   SORT_ASC,
-        $menu);
+            $menu);
 
         foreach ( $menu as &$menuItem )
         {
@@ -754,55 +755,60 @@ class StaticSiteGenerator
 
         return $menu;
     }
-    public function buildMainNavSubMenu(&$page) 
+    public function buildMainNavSubMenu(&$page)
     {
         $menu = [];
 
-        $directChildren = $this->filteredDescendantPages($page,'children',['generate_menu','generate_page']);
+        //$directChildren = $this->filteredDescendantPages($page,'children',['generate_menu','generate_page']);
+        $directChildren = $this->filteredDescendantPages($page,'children',['generate_menu']);
         array_multisort(
             array_column($directChildren,'weight'),SORT_ASC,
             array_column($directChildren,'name'),  SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
             array_column($directChildren,'tid'),   SORT_ASC,
-        $directChildren);
+            $directChildren);
 
-        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page',['generate_menu','generate_page']);
+        //$alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page',['generate_menu','generate_page']);
+        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page',['generate_menu']);
         array_multisort(
             array_column($alsoInclude,'name'),SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
             array_column($alsoInclude,'tid'), SORT_ASC,
-        $alsoInclude);
+            $alsoInclude);
 
         $menu = array_merge($directChildren, $alsoInclude);
         return $menu;
     }
-    public function buildNavMenu( &$page ) 
+    public function buildNavMenu( &$page )
     {
         $menu = [];
 
-        $directChildren = $this->filteredDescendantPages($page,'children',['generate_menu','generate_page']);
-        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page',['generate_menu','generate_page']);
+        $directChildren = $this->filteredDescendantPages($page,'children',['generate_menu']); //['generate_menu','generate_page']
+        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page',['generate_menu']); //['generate_menu','generate_page']
 
         $menu = array_merge($directChildren, $alsoInclude);
 
         array_multisort(
             array_column($menu,'name'),SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
             array_column($menu,'tid'), SORT_ASC,
-        $menu);
+            $menu);
 
         return $menu;
     }
-    public function buildPageMenu( &$page ) 
+    public function buildPageMenu( &$page )
     {
         $menu = [];
 
-        $directChildren = $this->filteredDescendantPages($page,'children','generate_page');
-        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page','generate_page');
+        //$directChildren = $this->filteredDescendantPages($page,'children','generate_page');
+        $directChildren = $this->filteredDescendantPages($page,'children');
+
+        //$alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page','generate_page');
+        $alsoInclude    = $this->filteredDescendantPages($page,'also_include_on_nav_page');
 
         $menu = array_merge($directChildren, $alsoInclude);
 
         array_multisort(
             array_column($menu,'name'),SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
             array_column($menu,'tid'), SORT_ASC,
-        $menu);
+            $menu);
 
         return $menu;
     }
@@ -820,7 +826,7 @@ class StaticSiteGenerator
             {
                 if ( array_key_exists($generateCheckKey,$child) && $child[$generateCheckKey]=='no' )
                 {
-                    continue 2; 
+                    continue 2;
                 }
             }
             $listItem = [
@@ -842,9 +848,9 @@ class StaticSiteGenerator
     public function validatePage( $filename, $checkHtml = true )
     {
         $fileExists = file_exists($filename);
-        if ( !$fileExists ) { 
+        if ( !$fileExists ) {
             $this->log("Validate Page: no file at $filename\n");
-            return false; 
+            return false;
         }
         $fileFilled = ( filesize($filename) > 0 );
         if ( !$fileFilled )
@@ -853,7 +859,7 @@ class StaticSiteGenerator
             return false;
         }
 
-        if ( !$checkHtml ) 
+        if ( !$checkHtml )
         {
             return true;
         }
@@ -922,11 +928,11 @@ class StaticSiteGenerator
                         $renderedPages++;
                     } else {
                         $this->log("Invalid: {$subUrl}\n");
-                    }        
+                    }
                 }
 
-                if ( isset($page['az_index_data_source']) 
-                  && $page['az_index_data_source'] == 'directory-records-federal' )
+                if ( isset($page['az_index_data_source'])
+                    && $page['az_index_data_source'] == 'directory-records-federal' )
                 {
                     foreach ( $page['for_use_by'] as $fub )
                     {
@@ -946,22 +952,22 @@ class StaticSiteGenerator
                                 $renderedPages++;
                             } else {
                                 $this->log("Invalid: {$subUrl} // {$agency['title']} // {$agency['uuid']}\n");
-                            }        
+                            }
                         }
                     }
                 }
             } else if ( $page['pageType'] == '50StatePage' ) {
-                if ( !empty($page['usa_gov_50_state_category']) 
-                  && preg_match('/^autogenerate\-(.*)/',$page['usa_gov_50_state_category']) )
+                if ( !empty($page['usa_gov_50_state_category'])
+                    && preg_match('/^autogenerate\-(.*)/',$page['usa_gov_50_state_category']) )
                 {
-                    foreach ( $this->stateAcronyms as $stateAcronym=>$stateName ) 
+                    foreach ( $this->stateAcronyms as $stateAcronym=>$stateName )
                     {
                         $requiredPages++;
                         $subUrl = $url.'/'.$this->sanitizeForUrl($stateName);
                         if ( !empty($page['usa_gov_50_state_prefix']) )
                         {
                             $subUrl = $page['usa_gov_50_state_prefix']
-                                        .'/'.$this->sanitizeForUrl($stateName);
+                                .'/'.$this->sanitizeForUrl($stateName);
                         }
                         $subPageDir = rtrim( $this->siteDir.'/'.trim($subUrl,'/'), '/' );
                         $subPageFile = $subPageDir.'/index.html';
@@ -970,14 +976,14 @@ class StaticSiteGenerator
                             $renderedPages++;
                         } else {
                             $this->log("Invalid: {$subUrl}\n");
-                        }        
+                        }
                     }
                 }
             } else if ( $page['pageType'] == 'Features' ) {
-    
+
                 foreach ( $page['for_use_by'] as $fub )
                 {
-                    foreach ( $this->features[$fub] as $feature ) 
+                    foreach ( $this->features[$fub] as $feature )
                     {
                         $requiredPages++;
                         $urlSafeTitle = $this->sanitizeForUrl($feature['title']);
@@ -989,7 +995,7 @@ class StaticSiteGenerator
                             $renderedPages++;
                         } else {
                             $this->log("Invalid: {$subUrl}\n");
-                        }        
+                        }
                     }
                 }
             }
@@ -1026,7 +1032,7 @@ class StaticSiteGenerator
         $redirectResult = $this->renderRedirects();
 
         /// render content pages
-        foreach ( $this->sitePage as $siteName => $sitePage ) 
+        foreach ( $this->sitePage as $siteName => $sitePage )
         {
             $this->log("Rendering: $siteName pages\n");
             $this->renderTree($sitePage);
@@ -1105,7 +1111,7 @@ class StaticSiteGenerator
         // if ( empty($treeResult) ||  empty($redirectResult) ) {
         //     $this->log("Render Site: failed\n");
         // } else {
-            $this->log("Rendering Site: done\n");
+        $this->log("Rendering Site: done\n");
         // }
         // return $redirectResult;
         return true;
@@ -1162,21 +1168,21 @@ class StaticSiteGenerator
     public function getPageType( $page )
     {
         if ( array_key_exists('type_of_page_to_generate',$page)
-             && is_string($page['type_of_page_to_generate']) )
+            && is_string($page['type_of_page_to_generate']) )
         {
             $pageType = $page['type_of_page_to_generate'];
-        } else if (
-             empty($page['field_generate_page'])
-          || empty($page['field_generate_page']['und'])
-          || empty($page['field_generate_page']['und'][0])
-          || empty($page['field_generate_page']['und'][0]['value'])
-          ||       $page['field_generate_page']['und'][0]['value']!=='yes'
-          || empty($page['field_type_of_page_to_generate'])
-          || empty($page['field_type_of_page_to_generate']['und'])
-          || empty($page['field_type_of_page_to_generate']['und'][0])
-          || empty($page['field_type_of_page_to_generate']['und'][0]['value']) )
-        {
-            return null;
+            /*  } else if (
+                   empty($page['field_generate_page'])
+                || empty($page['field_generate_page']['und'])
+                || empty($page['field_generate_page']['und'][0])
+                || empty($page['field_generate_page']['und'][0]['value'])
+            //    ||       $page['field_generate_page']['und'][0]['value']!=='yes'
+                || empty($page['field_type_of_page_to_generate'])
+                || empty($page['field_type_of_page_to_generate']['und'])
+                || empty($page['field_type_of_page_to_generate']['und'][0])
+                || empty($page['field_type_of_page_to_generate']['und'][0]['value']) )
+              {
+                  return null;*/
         } else {
             $pageType = $page['field_type_of_page_to_generate']['und'][0]['value'];
         }
