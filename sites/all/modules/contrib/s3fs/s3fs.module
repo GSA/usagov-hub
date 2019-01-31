@@ -109,6 +109,15 @@ function s3fs_menu() {
     'type' => MENU_LOCAL_TASK,
     'weight' => 10,
   );
+  $items['admin/config/media/s3fs/actions/copy-images'] = array(
+    'title' => 'Copy System Images to S3',
+    'description' => 'Copy system image files from modules, themes, and libraries to S3.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('s3fs_copy_system_images_confirm_form'),
+    'access arguments' => array('administer s3fs'),
+    'file' => 's3fs.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
   // A custom version of system/files/styles/%image_style, based on how the
   // core Image module creates image styles with image_style_deliver().
   $items['s3/files/styles/%image_style'] = array(
@@ -288,6 +297,30 @@ function _s3fs_validate_config($config) {
   if (!empty($config['use_cname']) && empty($config['domain'])) {
     form_set_error('s3fs_domain', 'You must specify a CDN Domain Name to use the CNAME feature.');
     return FALSE;
+  }
+  switch ($config['domain_root']) {
+    case 'root':
+      if (empty($config['root_folder'])) {
+        form_set_error('s3fs_root_folder', 'You must specify a Root folder to map the Domain Name to it.');
+        return FALSE;
+      }
+      break;
+    case 'public':
+      if (empty($config['public_folder'])) {
+        form_set_error('s3fs_public_folder', 'You must specify a Public folder to map the Domain Name to it.');
+        return FALSE;
+      }
+      elseif (!empty($config['root_folder'])) {
+        form_set_error('s3fs_root_folder', 'For the Public folder option, the Root folder must be blank. Otherwise, use the "Root & Public folders" option.');
+        return FALSE;
+      }
+      break;
+    case 'root_public':
+      if (empty($config['root_folder']) || empty($config['public_folder'])) {
+        form_set_error('s3fs_domain_root', 'You must specify both Root and Public folders to map the Domain Name to it.');
+        return FALSE;
+      }
+      break;
   }
 
   try {
@@ -932,6 +965,194 @@ function _s3fs_recursive_dir_scan($dir) {
     }
   }
   return $output;
+}
+
+/*
+ * Confirmation form displaying system images to be deleted from S3 if the process is continued.
+ */
+function s3fs_copy_system_images_confirm_form($form, &$form_state) {
+  if (!variable_get('s3fs_no_rewrite_cssjs', FALSE)) {
+    drupal_goto('admin/config/media/s3fs/actions');
+  }
+
+  // Active stream wrapper.
+  $wrapper = variable_get('file_default_scheme', 'public') . '://';
+  $directories = s3fs_copy_system_images_directories();
+
+  if (!empty($directories['root_dirs'])) {
+    $description = t('<h2><strong><span class="warning">Warning: Unrelated files may be deleted. Proceed with caution.</span></strong></h2>');
+    $description .= t('
+      <p>All files located in the S3 directories shown below will be deleted as part of this copy process. If you have stored files in
+      one of these locations that is not related to S3 system images, <strong>cancel this process immediately and resolve the conflicts
+      before proceeding.</strong> If a large number of modules are installed, this process can take several minutes to complete.</p>');
+    $description .= t('<h3>!count images to be copied to S3:</h3>', array('!count' => $directories['total']));
+    $description .= t('<h4>Summary</h4>');
+    $description .= '<ul>';
+    foreach ($directories['root_dirs'] as $root_dir => $root_count) {
+      $description .= '<li>' . $wrapper . $root_dir . ' (' . $root_count . ')</li>';
+    }
+    $description .= '</ul><br>';
+    $description .= t('<h3>Details</h3>');
+    $description .= '<ul>';
+    foreach ($directories['dirs'] as $dir => $count) {
+      $description .= '<li>' . $wrapper . $dir . ' (' . $count . ')</li>';
+    }
+    $description .= '</ul><br>';
+  }
+  else {
+    $description = t('<p>Copy system images from modules, themes, and libraries to the S3 File System.</p>
+      <p>If a large number of modules are installed, this process can take several minutes to complete.</p>');
+  }
+
+  $form = confirm_form($form,
+    t('Copy System Images to S3'),
+    array('path' => 'admin/config/media/s3fs/actions'),
+    $description
+  );
+
+  // Pass data to form submit through build_info.
+  $form_state['build_info']['system_stream_wrapper'] = $wrapper;
+  $form_state['build_info']['system_image_directories'] = $directories;
+  // Set submit function.
+  $form['actions']['submit']['#submit'] = array('s3fs_copy_system_images_confirm_form_submit');
+
+  return $form;
+}
+
+/*
+ * Form submit to remove previously saved system images from S3 and copy new ones.
+ */
+function s3fs_copy_system_images_confirm_form_submit($form, &$form_state) {
+  $wrapper = $form_state['build_info']['system_stream_wrapper'];
+  $directories = $form_state['build_info']['system_image_directories'];
+  s3fs_copy_system_images_batch_set($wrapper, $directories);
+
+  drupal_set_message(t('Copying of system images from modules, themes, and libraries to S3 is complete.'));
+  $form_state['redirect'] = array('path' => 'admin/config/media/s3fs/actions');
+}
+
+/**
+ * Set batch process to perform copy of system images.
+ *
+ * @param string $wrapper
+ *   System stream wrapper used with S3.
+ * @param array $directories
+ *   Directories where system images are stored.
+ */
+function s3fs_copy_system_images_batch_set($wrapper, $directories) {
+  $operations = array();
+  // Use root directories to recursively delete all images within them.
+  foreach ($directories['root_dirs'] as $directory => $count) {
+    $operations[] = array('s3fs_copy_system_images_delete_batch', array($wrapper, $directory));
+  }
+  // Use individual directories for identifying where images need to be saved.
+  foreach ($directories['dirs'] as $directory => $count) {
+    $operations[] = array('s3fs_copy_system_images_save_batch', array($wrapper, $directory));
+  }
+
+  $batch = array(
+    'title' => t('Copying system images to S3'),
+    'operations' => $operations,
+    'init_message' => t('Starting process of copying system files to S3.'),
+    'error_message' => t('Copying system files to S3 has encountered an error.'),
+  );
+  batch_set($batch);
+}
+
+/**
+ * Build array of modules, themes, and libraries
+ * that may contain system images.
+ *
+ * @return array
+ *   Associative array containing all active sub-directories and
+ *   root-level directories where system images exist, counts for
+ *   each directory, and an overall total of files to be copied.
+ */
+function s3fs_copy_system_images_directories() {
+  // Add Drupal's default misc and modules directories.
+  $dirs = array('misc', 'modules');
+  // Add directories of current libraries.
+  foreach (libraries_get_libraries() as $library_name => $library_path) {
+    $dirs[] = $library_path;
+  }
+  // Add directories of enabled modules.
+  foreach (module_list() as $module_name => $module) {
+    $dirs[] = drupal_get_path('module', $module_name);
+  }
+  // Add directories of available themes.
+  foreach (list_themes() as $theme_name => $theme) {
+    $dirs[] = drupal_get_path('theme', $theme_name);
+  }
+  // Remove duplicate directories.
+  $dirs = array_values(array_unique($dirs));
+  // Remove directories without images, and add counts for those that have images.
+  $image_dirs = array();
+  foreach ($dirs as $dir) {
+    if ($files = file_scan_directory($dir, '/^.*\.(png|gif|jpe?g|svg|bmp)$/')) {
+      $image_dirs[$dir] = count($files);
+    }
+  }
+
+  // Create an array of root-level directories where files reside, and counts for each directory.
+  $root_image_dirs = array();
+  foreach ($image_dirs as $image_dir => $image_count) {
+    $dir_split = explode('/', $image_dir);
+    if (array_key_exists($dir_split[0], $root_image_dirs)) {
+      $root_image_dirs[$dir_split[0]] = $root_image_dirs[$dir_split[0]] + $image_count;
+    }
+    else {
+      $root_image_dirs[$dir_split[0]] = $image_count;
+    }
+  }
+
+  // Sort arrays alphabetically for display.
+  ksort($image_dirs);
+  ksort($root_image_dirs);
+
+  return array(
+    'total' => array_sum($image_dirs),
+    'dirs' => $image_dirs,
+    'root_dirs' => $root_image_dirs,
+  );
+}
+
+/**
+ * Delete previously saved system images from S3. This is done to ensure files
+ * have been removed from modules or themes that are no longer in use.
+ *
+ * @param string $wrapper
+ *   Default file system stream wrapper.
+ * @param array $directory
+ *   A root-level directory of a module, theme, or
+ *   library where system images may exist on S3.
+ */
+function s3fs_copy_system_images_delete_batch($wrapper, $directory) {
+  file_unmanaged_delete_recursive($wrapper . $directory);
+}
+
+/**
+ * Save system images to S3.
+ *
+ * @param string $wrapper
+ *   Default file system stream wrapper.
+ * @param array $directory
+ *   A directory of a module, theme, or library
+ *   where system images are to be saved.
+ */
+function s3fs_copy_system_images_save_batch($wrapper, $directory) {
+  // Scan for images in the relevant directories.
+  $local_files = file_scan_directory($directory, '/^.*\.(png|gif|jpe?g|svg|bmp)$/');
+  // Loop through each local file. "local_file_uri" is path + filename (ex: 'misc/farbtastic/marker.png')
+  foreach ($local_files as $local_file_uri => $local_file) {
+    // Determine file path for each selected file.
+    $remote_file_path = str_replace('/' . $local_file->filename, '', $local_file_uri);
+    // Use file path to make directories. Only create if it doesn't exist.
+    if (!is_dir($wrapper . $remote_file_path)) {
+      drupal_mkdir($wrapper . $remote_file_path, NULL, TRUE, NULL);
+    }
+    // Copy file from the original file path to its location in the stream wrapper.
+    file_unmanaged_copy($local_file_uri, $wrapper . $local_file_uri, FILE_EXISTS_REPLACE);
+  }
 }
 
 /**

@@ -387,7 +387,7 @@ function saml_sp_requirements($phase) {
     else {
       $requirements['php_saml_library'] = array(
         'title' => $t($library['name']),
-        'value' => $t('At least @a', array('@a' => PHP_SAML_LIBRARY_MIN_VERSION)),
+        'value' => $t('At least @a', array('@a' => 3)),
         'severity' => REQUIREMENT_ERROR,
         'description' => $t('You need to download a later version of the !library and replace the old version (%current_version) located in the %path directory on your server.', array('!library' => l($t('PHP SAML library'), $library['download url']), '%path' => $library['library path'], '%current_version' => $library['version'])),
       );
@@ -398,28 +398,30 @@ function saml_sp_requirements($phase) {
     $error_type = isset($library['error']) ? drupal_ucfirst($library['error']) : '';
     $error_message = isset($library['error message']) ? $library['error message'] : '';
 
-    if (empty($library['installed']) && !version_compare($php_saml['version'], 3, '<')) {
-      $requirements['xmlseclibs'] = array(
-        'title' => $t($library['name']),
-        'value' => $t('@e: At least @a', array('@e' => $error_type, '@a' => PHP_SAML_LIBRARY_MIN_VERSION)),
-        'severity' => REQUIREMENT_ERROR,
-        'description' => $t('!error You need to download the !library, extract the archive and place the !machine_name directory in the %path directory on your server.', array('!error' => $error_message, '!library' => l($t('PHP SAML library'), $library['download url']), '%path' => 'sites/all/libraries', '!machine_name' => $library['machine name'])),
-      );
-    }
-    elseif (version_compare($library['version'], 3, '>=')) {
-      $requirements['xmlseclibs'] = array(
-        'title' => $t($library['name']),
-        'severity' => REQUIREMENT_OK,
-        'value' => $library['version'],
-      );
-    }
-    else {
-      $requirements['xmlseclibs'] = array(
-        'title' => $t($library['name']),
-        'value' => $t('At least @a', array('@a' => 3)),
-        'severity' => REQUIREMENT_ERROR,
-        'description' => $t('You need to download a later version of the !library and replace the old version (%current_version) located in the %path directory on your server.', array('!library' => l($t('PHP SAML library'), $library['download url']), '%path' => $library['library path'], '%current_version' => $library['version'])),
-      );
+    if (!version_compare($php_saml['version'], 3, '<')) {
+      if (empty($library['installed'])) { // xmlseclibs isn't installed
+        $requirements['xmlseclibs'] = array(
+          'title' => $t($library['name']),
+          'value' => $t('@e: At least @a', array('@e' => $error_type, '@a' => PHP_SAML_LIBRARY_MIN_VERSION)),
+          'severity' => REQUIREMENT_ERROR,
+          'description' => $t('!error You need to download the !library, extract the archive and place the !machine_name directory in the %path directory on your server.', array('!error' => $error_message, '!library' => l($library['name'], $library['download url']), '%path' => 'sites/all/libraries', '!machine_name' => $library['machine name'])),
+        );
+      }
+      elseif (version_compare($library['version'], 3, '>=')) {
+        $requirements['xmlseclibs'] = array(
+          'title' => $t($library['name']),
+          'severity' => REQUIREMENT_OK,
+          'value' => $library['version'],
+        );
+      }
+      else {
+        $requirements['xmlseclibs'] = array(
+          'title' => $t($library['name']),
+          'value' => $t('At least @a', array('@a' => 3)),
+          'severity' => REQUIREMENT_ERROR,
+          'description' => $t('You need to download a later version of the !library and replace the old version (%current_version) located in the %path directory on your server.', array('!library' => l($library['name'], $library['download url']), '%path' => $library['library path'], '%current_version' => $library['version'])),
+        );
+      }
     }
   }
 
@@ -872,13 +874,6 @@ function saml_sp_cron() {
   db_delete('saml_sp_requests')
     ->condition('expires', REQUEST_TIME, '<')
     ->execute();
-}
-
-function saml_sp_user_login(&$edit, $account) {
-    // Redirecting user to desired path
-    if (isset($edit['redirect']) && !empty($edit['redirect'])) {
-        drupal_goto($edit['redirect']);
-    }
 }
 
 /**

@@ -378,6 +378,13 @@ function s3fs_update_7205() {
   variable_set('s3fs_use_versioning', TRUE);
 }
 
+/**
+ * Add s3fs_domain_root as a variable, which allows for mapping of a CDN to a specific
+ * folder, such as "mybucket/staging/s3fs-public". By default, map to entire bucket.
+ */
+function s3fs_update_7206() {
+  variable_set('s3fs_domain_root', 'none');
+}
 
 /******************************************************************************
  *                            INTERNAL FUNCTONS
