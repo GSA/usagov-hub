@@ -1926,7 +1926,7 @@ function cmp_api_get_directory_record($n,$cols){
             $source_url= ( $englishMode ? '/state-government/' : '/gobiernos-estatales/') . _sanitzie_path($urlShortState);break;
         default:
 
-            $source_url= ( $englishMode ? '/federal-agencies/' : '/federal-agencies/') . _sanitzie_path($urlTitle);
+            $source_url= ( $englishMode ? '/federal-agencies/' : '/agencias-federales/') . _sanitzie_path($urlTitle);
     }
 
 
