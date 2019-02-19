@@ -33,10 +33,15 @@ hooks_reaction_add('HOOK_node_postsave',
         $nodeNew = $node;
         $nodeOld = ( empty($node->original) ? false : $node->original );
 
-        if (!empty($nodeNew->field_parent_record_en['und'][0]['target_id']) && $nodeNew->field_parent_record_en['und'][0]['target_id'] != $nodeOld->field_parent_record_en['und'][0]['target_id']) {
+        if ($nodeNew->field_parent_record_en['und'][0]['target_id'] != $nodeOld->field_parent_record_en['und'][0]['target_id']) {
 
-            // we found referenced node
-            $nodeRef = node_load($nodeNew->field_parent_record_en['und'][0]['target_id']);
+            if (!empty($nodeNew->field_parent_record_en['und'][0]['target_id'])) {
+                // we found referenced node
+                $nodeRef = node_load($nodeNew->field_parent_record_en['und'][0]['target_id']);
+            }
+            else{
+                $nodeOldParentRef = node_load($nodeOld->field_parent_record_en['und'][0]['target_id']);
+            }
 
 
             if (!empty($nodeRef)) {
@@ -71,6 +76,34 @@ hooks_reaction_add('HOOK_node_postsave',
                     "warning",
                     FALSE
                 );
+            }
+
+            // remove from children list if parent changes
+            if(!empty($nodeOldParentRef)){
+                if (isset($nodeOldParentRef->field_child_records_en['und'])) {
+                    $jj =0;
+                    foreach ($nodeOldParentRef->field_child_records_en['und'] as $nchild) {
+                        $jj++;
+                        if ($nchild['target_id'] == $nodeNew->nid) {
+                            unset($nodeOldParentRef->field_child_records_en['und'][$jj]);
+                            break;
+                        }
+                    }
+
+                    $jj = 0;
+                    foreach ($nodeOldParentRef->field_child_records_en['und'] as $nchild) {
+                        $jj++;
+                        if (!empty($nchild)) {
+                            $nodeOldParentRef->field_child_records_en['und'][$jj][$nchild['target_id']] = $nchild['target_id'];
+
+                        }
+                    }
+                    $GLOBALS['DirRecordHelperParent_noPostProc'] = true;
+                    $GLOBALS['DirRecordHelperParent_ignoreNids'][] = intval($nodeOldParentRef->nid);
+                    node_save($nodeOldParentRef);
+                    $GLOBALS['DirRecordHelperParent_noPostProc'] = false;
+
+                }
             }
         }
 
