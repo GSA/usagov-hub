@@ -43,7 +43,7 @@ hooks_reaction_add('HOOK_node_postsave',
                 $nodeOldParentRef = node_load($nodeOld->field_parent_record_en['und'][0]['target_id']);
             }
 
-
+dsm($nodeOldParentRef);
             if (!empty($nodeRef)) {
                 $found = false;
 
