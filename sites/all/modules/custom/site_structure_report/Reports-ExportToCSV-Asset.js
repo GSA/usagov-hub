@@ -36,7 +36,7 @@ function _getReport(reqId, noInit) {
         } else {
             jQuery('#reportDownloadingUiProgress').hide();
             jQuery('#reportDownloadingUiComplete').show();
-            var csvData = new Blob([data], { type: 'text/csv' });
+            var csvData = new Blob([data], {type: 'text/csv;charset=UTF-8' });
             jQuery('#reportDownloadingUiComplete a').eq(0).attr('href', URL.createObjectURL(csvData));
             jQuery('#reportDownloadingUiComplete a').eq(0).click();
         }
@@ -86,7 +86,7 @@ function _getSuperReport(reqId, noInit) {
         } else {
             jQuery('#reportDownloadingUiProgress').hide();
             jQuery('#reportDownloadingUiComplete').show();
-            var csvData = new Blob([data], { type: 'text/csv' });
+            var csvData = new Blob([data], {type: 'text/csv;charset=windows-1252' });
             jQuery('#reportDownloadingUiComplete a').eq(0).attr('href', URL.createObjectURL(csvData));
             jQuery('#reportDownloadingUiComplete a').eq(0).click();
         }
@@ -135,7 +135,7 @@ function _getFBOReport(reqId, noInit) {
         } else {
             jQuery('#reportDownloadingUiProgress').hide();
             jQuery('#reportDownloadingUiComplete').show();
-            var csvData = new Blob([data], { type: 'text/csv' });
+            var csvData = new Blob([data], {type: 'text/csv;charset=UTF-8' });
             jQuery('#reportDownloadingUiComplete a').eq(0).attr('href', URL.createObjectURL(csvData));
             jQuery('#reportDownloadingUiComplete a').eq(0).click();
         }

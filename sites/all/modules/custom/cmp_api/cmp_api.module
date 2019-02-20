@@ -1824,7 +1824,7 @@ function cmp_api_get_directory_record($n,$cols){
 
     if ($n->field_language['und'][0]['value'] == 'Spanish'){
         $englishMode=false;
-        $site = "https://gobierno.usa.gov";
+        $site = "https://www.usa.gov/espanol";
     }
     else{
         $englishMode=true;
@@ -1875,6 +1875,7 @@ function cmp_api_get_directory_record($n,$cols){
         $urlAlphaOrderName = str_replace(',', '-', $urlAlphaOrderName);
         $urlAlphaOrderName = str_replace(')', '-', $urlAlphaOrderName);
         $urlAlphaOrderName = str_replace('(', '-', $urlAlphaOrderName);
+        $urlAlphaOrderName = str_replace('–', '-', $urlAlphaOrderName);
         $urlAlphaOrderName = rtrim($urlAlphaOrderName, '-');
         $urlAlphaOrderName = ltrim($urlAlphaOrderName, '-');
         while ( strpos($urlAlphaOrderName, '--') !== false ) {
@@ -1893,6 +1894,7 @@ function cmp_api_get_directory_record($n,$cols){
         $urlTitle = str_replace(',', '-', $urlTitle);
         $urlTitle = str_replace('(', '-', $urlTitle);
         $urlTitle = str_replace(')', '-', $urlTitle);
+        $urlTitle = str_replace('–', '-', $urlTitle);
         $urlTitle = rtrim($urlTitle, '-');
         $urlTitle = ltrim($urlTitle, '-');
         while ( strpos($urlTitle, '--') !== false ) {
@@ -1924,7 +1926,7 @@ function cmp_api_get_directory_record($n,$cols){
             $source_url= ( $englishMode ? '/state-government/' : '/gobiernos-estatales/') . _sanitzie_path($urlShortState);break;
         default:
 
-            $source_url= ( $englishMode ? '/federal-agencies/' : '/federal-agencies/') . _sanitzie_path($urlTitle);
+            $source_url= ( $englishMode ? '/federal-agencies/' : '/agencias-federales/') . _sanitzie_path($urlTitle);
     }
 
 
@@ -2196,7 +2198,7 @@ function _sanitzie_path($str) {
         'à'=>'a', 'á'=>'a', 'â'=>'a', 'ã'=>'a', 'ä'=>'a', 'å'=>'a', 'æ'=>'a', 'ç'=>'c', 'è'=>'e', 'é'=>'e',
         'ê'=>'e', 'ë'=>'e', 'ì'=>'i', 'í'=>'i', 'î'=>'i', 'ï'=>'i', 'ð'=>'o', 'ñ'=>'n', 'ò'=>'o', 'ó'=>'o',
         'ô'=>'o', 'õ'=>'o', 'ö'=>'o', 'ø'=>'o', 'ù'=>'u', 'ú'=>'u', 'û'=>'u', 'ý'=>'y', 'ý'=>'y', 'þ'=>'b',
-        'ÿ'=>'y', 'R'=>'R', 'r'=>'r', "'"=>'-', '"'=>'-', '.'=>'-', ','=>'-', '('=>'-', ')'=>'-'
+        'ÿ'=>'y', 'R'=>'R', 'r'=>'r', "'"=>'-', '"'=>'-', '.'=>'-', ','=>'-', '('=>'-', ')'=>'-', '–'=>'-'
     );
 
     $sanitized = strtr($str, $table);
