@@ -1,10 +1,44 @@
 <?php
 
+use Aws\Common\Aws;
+
 /** update base_url to be https **/
 if ( empty($GLOBALS['base_url']) && !empty($_SERVER['HTTP_HOST']) )
 {
     $GLOBALS['base_url'] = ( (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS']=='on') ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'];
 }
+
+// function cmp_misc_cronapi()
+// {
+//     $items['analytics_realtime'] = array(
+//         'description' => 'Trigger realtime Analytics Reports',
+//         'rule' => '*/5 * * * *',
+//         'callback' => '_cmp_misc_analytics_report_trigger',
+//         'arguments' => array('realtime'),
+//     );
+//     $items['analytics_hourly'] = array(
+//         'description' => 'Trigger hourly Analytics Reports',
+//         'rule' => '*/5 * * * *',
+//         'callback' => '_cmp_misc_analytics_report_trigger',
+//         'arguments' => array('hourly'),
+//     );
+//     $items['analytics_daily'] = array(
+//         'description' => 'Trigger daily Analytics Reports',
+//         'rule' => '*/5 * * * *',
+//         'callback' => '_cmp_misc_analytics_report_trigger',
+//         'arguments' => array('daily'),
+//     );
+//     return $items;
+// }
+// function _cmp_misc_analytics_report_trigger() {
+//     /// how do i get the config info to instance profile
+//     /// is the sdk smart enough to figure that out if I just 
+//     /// don't pass access/secret?
+//     // $config['awssdk2_access_key']
+//     // $config['awssdk2_secret_key']
+// }
+
+
 function cmp_misc_audit_log(Auditlog $log) {
     $roles = user_roles(TRUE);
     foreach ( $log->role_ids as $i=>$rid  ) {
