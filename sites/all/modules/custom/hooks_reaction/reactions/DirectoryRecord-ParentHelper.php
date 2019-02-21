@@ -32,6 +32,8 @@ hooks_reaction_add('HOOK_node_postsave',
 
         $nodeNew = $node;
         $nodeOld = ( empty($node->original) ? false : $node->original );
+        dsm($nodeNew);
+        dsm($nodeOld);
 
         if ($nodeNew->field_parent_record_en['und'][0]['target_id'] != $nodeOld->field_parent_record_en['und'][0]['target_id']) {
 
