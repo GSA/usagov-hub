@@ -105,11 +105,6 @@ hooks_reaction_add('HOOK_node_presave',
                 $GLOBALS['DirRecordHelperChild_noPreProc'] = false;
             }
         }
-
-
-
-
-
     } // End Hook: node_presave
 
 ); // End hooks_reaction_add() call
