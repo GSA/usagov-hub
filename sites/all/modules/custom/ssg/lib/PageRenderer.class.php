@@ -128,7 +128,7 @@ class PageRenderer
         if ($this->runtimeEnvironment() == 'standalone') {
             $_url = str_pad($url, (strlen($url)+( 25 - ( strlen($url) % 25 ) )));
             $_type = str_pad($page['pageType'], (strlen($page['pageType'])+( 25 - ( strlen($page['pageType']) % 25 ) )));
-            $this->log("Path: {$_type}  {$path}\n", false);
+            // $this->log("Path: {$_type}  {$path}\n", false);
         }
 
         $twig = $this->getTwigPageRenderer($page);
@@ -156,7 +156,6 @@ class PageRenderer
             $this->log("UnRenderable: no params for $url ({$page['pageType']}) \"{$page['name']}\"\n");
             return null;
         }
-
         $html = $twig->render($pageParams);
         $html = trim($html);
         if (!empty($html)) {
@@ -171,6 +170,9 @@ class PageRenderer
             if (empty(file_put_contents($file, $html))) {
                 $msg = "Write Failed\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
                 $this->log($msg);
+            } else {
+                // $msg = "Write SUCCESS\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
+                // $this->log($msg);
             }
         } else {
             if (!file_exists($fileDir)) {
@@ -235,9 +237,6 @@ class PageRenderer
             
             /// render one sub-page per item
             if ($page['az_index_data_source'] == 'directory-records-federal') {
-            // echo "Render Attempt<br />\nPath: /".$path."/SUBITEMS<br />\nType: ".$page['pageType']."<br />\nName: ".$page['name'];
-                // genreate one subpage per record
-                // {
                 foreach ($this->ssg->directoryRecordGroups[$fub]['all']['Federal Agencies']['all'] as $agencyInfo) {
                     $agency = $this->ssg->source->entities[$agencyInfo['uuid']];
 
@@ -260,7 +259,6 @@ class PageRenderer
                     $subPaths = $this->renderPage($directoryRecordPage);
                     $paths = array_merge($paths, $subPaths);
                 }
-                // }
             }
         } elseif ($page['pageType'] == '50StatePage') {
             $matches = [];
@@ -271,12 +269,14 @@ class PageRenderer
                     $detailsType = ucfirst($matches[1]);
                     $detailsPage['pageType'] = 'StateDetails'.$detailsType;
                     $detailsPage['type_of_page_to_generate'] = 'state-details-'.strtolower($detailsType);
-                    $baseUrl = $url;
+                    if (!empty($detailsPage['usa_gov_50_state_prefix'])) {
+                        $baseUrl = $detailsPage['usa_gov_50_state_prefix'];
+                    } else {
+                        $baseUrl = $url;
+                    }
+                    
                     // for each state
                     foreach ($this->ssg->stateAcronyms[$fub] as $acronym => $name) {
-                        if (!empty($detailsPage['usa_gov_50_state_prefix'])) {
-                            $baseUrl = $detailsPage['usa_gov_50_state_prefix'];
-                        }
                         $urlSafeName = $this->sanitizeForUrl($name);
                         $detailsPage['friendly_url'] = $baseUrl.'/'.$urlSafeName;
                         $detailsPage['state'] = $acronym;
