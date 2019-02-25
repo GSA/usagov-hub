@@ -1,6 +1,7 @@
 #treeWrap{
     position: relative;
     display: flex;
+    clear: left;
 }
 
 #tree{

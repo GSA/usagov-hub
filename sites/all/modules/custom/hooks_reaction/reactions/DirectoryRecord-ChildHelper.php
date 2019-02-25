@@ -12,7 +12,9 @@
 
 $GLOBALS['DirRecordHelperChild_updateRefNid'] = null;
 $GLOBALS['DirRecordHelperChild_noPostProc'] = false;
+$GLOBALS['DirRecordHelperChild_noPreProc'] = false;
 $GLOBALS['DirRecordHelperChild_ignoreNids'] = array();
+$GLOBALS['DirRecordHelperChildPre_ignoreNids'] = array();
 
 hooks_reaction_add('HOOK_node_postsave',
     function ($node) {
@@ -23,10 +25,10 @@ hooks_reaction_add('HOOK_node_postsave',
         }
 
         // This is needed in order to prevent infinite loops (see later code)
-        if ( $GLOBALS['DirRecordHelperChild_noPostProc'] ) {
+        if ( $GLOBALS['DirRecordHelperParent_noPostProc'] || $GLOBALS['DirRecordHelperParent_noPreProc'] || $GLOBALS['DirRecordHelperChild_noPreProc'] || $GLOBALS['DirRecordHelperChild_noPostProc']) {
             return;
         }
-        if ( in_array(intval($node->nid), $GLOBALS['DirRecordHelperChild_ignoreNids']) ) {
+        if ( in_array(intval($node->nid), $GLOBALS['DirRecordHelperChild_ignoreNids']) || in_array(intval($node->nid), $GLOBALS['DirRecordHelperChildPre_ignoreNids'])) {
             return;
         }
 
@@ -60,6 +62,49 @@ hooks_reaction_add('HOOK_node_postsave',
             }
         }
 
+    } // End Hook: node_presave
+
+); // End hooks_reaction_add() call
+
+
+hooks_reaction_add('HOOK_node_presave',
+    function ($node) {
+
+        // We only care about Text-Asset nodes here
+        if ( $node->type !== 'directory_record_content_type' ) {
+            return;
+        }
+        // This is needed in order to prevent infinite loops (see later code)
+        if ( $GLOBALS['DirRecordHelperParent_noPostProc'] || $GLOBALS['DirRecordHelperParent_noPreProc'] || $GLOBALS['DirRecordHelperChild_noPreProc'] || $GLOBALS['DirRecordHelperChild_noPostProc']) {
+            return;
+        }
+        if ( in_array(intval($node->nid), $GLOBALS['DirRecordHelperChild_ignoreNids']) ||  in_array(intval($node->nid), $GLOBALS['DirRecordHelperChildPre_ignoreNids']) ) {
+            return;
+        }
+
+        $nodeNew = $node;
+        $nodeOld = ( empty($node->original) ? false : $node->original );
+
+        foreach($nodeOld->field_child_records_en['und'] as $oldChild){
+            $found =false;
+
+            foreach($nodeNew->field_child_records_en['und'] as $child){
+                if ($child['target_id'] == $oldChild['target_id']){
+                    $found=true;
+                    break;
+                }
+            }
+
+            if(!$found){
+                $nodeOldParentRef = node_load($oldChild['target_id']);
+                $nodeOldParentRef->field_parent_record_en=array();
+
+                $GLOBALS['DirRecordHelperChild_noPreProc'] = true;
+                $GLOBALS['DirRecordHelperChildPre_ignoreNids'][] = intval($nodeOldParentRef->nid);
+                node_save($nodeOldParentRef);
+                $GLOBALS['DirRecordHelperChild_noPreProc'] = false;
+            }
+        }
     } // End Hook: node_presave
 
 ); // End hooks_reaction_add() call
