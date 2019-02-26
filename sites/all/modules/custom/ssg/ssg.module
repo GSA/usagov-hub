@@ -573,6 +573,12 @@ function ssg_entity_update( $entity, $type )
     /// trigger site rebuild
     $GLOBALS['ssg_run_needed'] = true;
 }
+function ssg_entity_postsave($entity, $entity_type, $op) {
+    $GLOBALS['ssg_run_needed'] = true;
+}
+function ssg_node_presave($node) {
+    $GLOBALS['ssg_run_needed'] = true;
+}
 function ssg_node_delete( $entity )
 {
     /// trigger site rebuild
