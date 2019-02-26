@@ -1,12 +1,11 @@
 <?php
-/*
+
 hooks_reaction_add([
         "hook_taxonomy_term_update",
         "hook_taxonomy_term_save"
     ],function ($term) {
-        error_log("\nWEIGHT UPDATE FOR {$term->tid}\n");
-        /// if we are changing the weight of an object
-        /// that might effect the weight of all of it's siblings
+        /// if we are changing the weight of an object,
+        /// that might effect the weight of all of it's siblings,
         /// so all siblings need to be seen as 'updated' too
         
         /// I think the logic is clearer this way, even though
@@ -15,20 +14,24 @@ hooks_reaction_add([
         if ( !property_exists($term,'original') )
         {
             /// if we are saving a new object, it won't have an original
-            /// and that counts as a change to it's siblings weights
+            /// and that counts as a change, so we need to update
+            /// it's siblings weights as well
             $weight_change = true;
         } else if ( property_exists($term->original,'weight') 
                  && property_exists($term,'weight') 
                  && $term->original->weight !== $term->weight ) 
         {
+            /// if we are updating the object and it's weight
+            /// has explicitly changed
             $weight_change = true;
         }
         if ( !$weight_change )
         {
             return;
         }
+
         /// touch all siblings and update the changed time
-        /// in the two tables that track it
+        /// in the two tables that track these things
         db_query("
             UPDATE {taxonomy_term_data} d
             SET d.changed = UNIX_TIMESTAMP(NOW())
@@ -49,13 +52,9 @@ hooks_reaction_add([
                     AND h.parent = :parent
             )
         ",[':parent'=>$term->parent]);
+
         /// recalculate weight for all effected items
-
-        $minWeight = min($term->original->weight,$term->weight);
-        $maxWeight = max($term->original->weight,$term->weight);
-
-        /// items where weight >=  min(orig,new) and weight <= max(orig,new)
-        db_query("
+        $siblingResults = db_query("
             SELECT 
                 d.tid, d.name, d.weight 
             FROM 
@@ -63,26 +62,32 @@ hooks_reaction_add([
                 JOIN {taxonomy_term_data} d ON (d.tid = h.tid)
             WHERE 
                 h.parent = :parent
-                AND d.weight BETWEEN :minWeight AND :maxWeight
-        ")->fetchAll();
-
-
-        array_multisort(
-            array_column($menu,'weight'),SORT_ASC,
-            array_column($menu,'name'),  SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
-            array_column($menu,'tid'),   SORT_ASC,
-            $menu);
-
-        foreach ( $menu as &$menuItem )
+        ");
+        /// put these into array format so we can make user of _multisort func
+        $siblings = [];
+        while( $siblingArray = $siblingResults->fetchAssoc() )
         {
-            if ( !empty($this->source->entities[$menuItem['uuid']]) )
-            {
-                $menuItem['menu'] = $this->buildMainNavSubMenu($this->source->entities[$menuItem['uuid']]);
-            }
+          $siblings[] = $siblingArray;
         }
+        array_multisort(
+            array_column($siblings,'weight'),SORT_ASC,
+            array_column($siblings,'name'),  SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
+            array_column($siblings,'tid'),   SORT_ASC,
+        $siblings);
 
-        INSERT INTO {taxonomy_term_data} (tid,weight) VALUES ()
-        
+        /// convert these into one sql update query
+        $sql_values = [];
+        foreach ( $siblings as $weight=>&$sibling )
+        {
+            $sql_values[] = "({$sibling['tid']},{$weight})";
+        }        
+        db_query("
+            INSERT INTO {taxonomy_term_data} 
+                (tid,weight) 
+            VALUES 
+                ".implode(',',$sql_values)." 
+            ON DUPLICATE KEY UPDATE 
+                weight=VALUES(weight)
+        ");
     }
 );
-*/

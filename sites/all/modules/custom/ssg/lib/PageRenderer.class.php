@@ -119,17 +119,20 @@ class PageRenderer
             $this->log("UnRenderable: no type for $url ({$page['pageType']}) \"{$page['name']}\"\n");
             return null;
         }
-        $path = trim($url, '/ ');
+        $path = $this->sanitizeForUrl($url);
+        $path = trim($path, '/ ');
 
         $fileDir = $this->ssg->siteDir.'/'.$path;
         $file = $fileDir.'/index.html';
         /// TEMPLATE
 
+        /*
         if ($this->runtimeEnvironment() == 'standalone') {
-            $_url = str_pad($url, (strlen($url)+( 25 - ( strlen($url) % 25 ) )));
+            $_url = str_pad($path, (strlen($path)+( 25 - ( strlen($path) % 25 ) )));
             $_type = str_pad($page['pageType'], (strlen($page['pageType'])+( 25 - ( strlen($page['pageType']) % 25 ) )));
-            // $this->log("Path: {$_type}  {$path}\n", false);
+            $this->log("Path: {$_type}  {$path}\n", false);
         }
+        */
 
         $twig = $this->getTwigPageRenderer($page);
         if (empty($twig)) {
@@ -351,6 +354,7 @@ class PageRenderer
     {
         $path = trim($redirect['source_path'], '/ ');
         $path = str_replace(' ','',$path);
+        $path = strtolower($path);
         $extn = pathinfo($path, PATHINFO_EXTENSION);
 
         if (empty($extn)) {
