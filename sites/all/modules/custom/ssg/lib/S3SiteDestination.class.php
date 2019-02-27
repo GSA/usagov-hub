@@ -44,6 +44,8 @@ class S3SiteDestination
         // $this->s3Sync = "{$inlineEnv} aws s3 sync {$this->source} {$this->dest} --delete";
         // $this->s3Pull = "{$inlineEnv} aws s3 sync {$this->dest} {$this->source} --delete";
 
+        // echo "aws s3 sync {$this->source} {$this->dest} --delete --exclude \"/analytics/raw-data/*\""."\n";
+
         $this->s3Sync = "aws s3 sync {$this->source} {$this->dest} --delete";
         $this->s3Pull = "aws s3 sync {$this->dest} {$this->source} --delete";
 
@@ -96,6 +98,7 @@ class S3SiteDestination
         // }
         // if ( $looksGood )
         // {
+            /// first pull down any files we want to preserve, then sync
             $this->log($this->s3Sync."\n");
             $result = `{$this->s3Sync}`;
             foreach ( $this->bads as $bad )

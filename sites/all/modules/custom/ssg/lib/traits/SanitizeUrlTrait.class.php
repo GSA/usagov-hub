@@ -4,7 +4,7 @@ namespace ctac\ssg;
 
 trait SanitizeUrlTrait
 {
-  
+
     public function sanitizeForUrl( $string='' )
     {
         $string = $this->remove_accents($string);
@@ -17,7 +17,8 @@ trait SanitizeUrlTrait
         //     '’', '”', '"', "'",
         // ], '', $string);
     
-        $string = preg_replace('/[\W_]+/','-',$string);
+        // $string = preg_replace('/[\W_]+/','-',$string);
+        $string = preg_replace('/[^a-zA-Z0-9\/]+/','-',$string);
         $string = preg_replace('/-+/','-',$string);
         $string = preg_replace('/^-+/','',$string);
         $string = preg_replace('/-+$/','',$string);
@@ -231,7 +232,7 @@ trait SanitizeUrlTrait
     
         return $string;
     }
-    
+
     public function seems_utf8($str)
     {
         $length = strlen($str);
@@ -251,5 +252,5 @@ trait SanitizeUrlTrait
         }
         return true;
     }
-  
+
 }

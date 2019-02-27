@@ -35,6 +35,35 @@ class DrupalAPIDataSource extends DataSource
       $loadStartTime = microtime(true);
       try
       {
+        $query = [
+          'page_size'=>$batchSize,
+          'page'=>$currentPage
+        ];
+        if ( !empty(intval($since)) ) {
+          $this->log("\nLOADING since(".date('Y/m/d H:i:s',$since).")");
+          $query['since'] = intval($since);
+        }
+        $body = file_get_contents(
+          "{$server}{$url}",
+          FALSE,
+          stream_context_create([
+            'http'=>[
+                'method'=>'POST',
+                'header'=>"Content-type: application/x-www-form-urlencoded\r\n",
+                'content'=>http_build_query($query)
+            ],
+            'ssl' => [
+                'verify_peer'       => false,
+                'verify_peer_name'  => false
+            ]
+        ]));
+        if ( empty($body) )
+        {
+          $this->log("No Entities");
+          return false;
+        }
+        $responseData = json_decode($body,true);
+        /*
         $client   = new \GuzzleHttp\Client(['base_uri' => $server, 'verify' => false]);
         $query = [
           'page_size'=>$batchSize,
@@ -50,6 +79,7 @@ class DrupalAPIDataSource extends DataSource
         $body = $response->getBody();
         if ( empty($body) )
         {
+          echo "EMPTY REPSONSE\n";
           continue;
         }
         $responseData = json_decode($body->getContents(),true);
@@ -57,7 +87,11 @@ class DrupalAPIDataSource extends DataSource
         {
           break;
         }
+        */
       } catch (Exception $e) {
+        print_r($e->getMessage());
+        print_r($e);
+        die('ERRORS');
       }
       $loadEndTime = microtime(true);
       $loadTime = round($loadEndTime - $loadStartTime,4);
@@ -86,7 +120,7 @@ class DrupalAPIDataSource extends DataSource
         break;
       }
 
-      $this->log(" ... load($loadTime) results(". count($responseData['result']) .")");
+      $this->log(" ... load($loadTime) results(". count($responseData['result']) .")\n");
 
       
       $processStartTime = microtime(true);
@@ -315,7 +349,8 @@ class DrupalAPIDataSource extends DataSource
     $url    = $this->ssg->config['drupalAPI']['redirectsUrl'];
 
     $this->redirects = [];
-
+    
+    /*
     $client   = new \GuzzleHttp\Client(['base_uri' => $server, 'verify' => false]);
     $response = $client->post( $url );
     if ( $response->getStatusCode()!==200 )
@@ -330,6 +365,25 @@ class DrupalAPIDataSource extends DataSource
       return false;
     }
     $responseData = json_decode($body->getContents(),true);
+    */
+    $body = file_get_contents(
+      "{$server}{$url}",
+      FALSE,
+      stream_context_create([
+        'http'=>[
+            'method'=>'POST'
+        ],
+        'ssl' => [
+            'verify_peer'       => false,
+            'verify_peer_name'  => false
+        ]
+    ]));
+    if ( empty($body) )
+    {
+      $this->log("No Redirects");
+      return false;
+    }
+    $responseData = json_decode($body,true);
 
     foreach( $responseData['result'] as $result )
     {
