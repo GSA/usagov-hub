@@ -36,7 +36,8 @@ class StaticSiteGenerator
 
     public function __construct( $configName='USA.gov' )
     {
-        $this->uuid = sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X', mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(16384, 20479), mt_rand(32768, 49151), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535));
+        $this->uuid = date('Y-m-d-H-i-s').'-'.mt_rand(10000, 99999);
+        //$this->uuid = sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X', mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(16384, 20479), mt_rand(32768, 49151), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(10000, 99999));
 
         /// setup page references
         $this->pages       = [];
@@ -105,9 +106,8 @@ class StaticSiteGenerator
         $this->cacheDir = $this->config['permDir'].'/cache';
         $this->prepareDir($this->cacheDir);
 
-        $this->siteDir = $this->config['tempDir'].'/sites/'.trim(strtolower($this->config['siteName']),'/ ');
+        $this->siteDir = $this->config['tempDir'].'/sites/'.trim(strtolower($this->config['siteName']),'/ ').'/'.$this->uuid;
         $this->prepareDir($this->siteDir);
-
     }
 
     public function loadTemplates()
@@ -1005,6 +1005,73 @@ class StaticSiteGenerator
         return ($requiredPages <= $renderedPages);
     }
 
+    public function cleanupSite()
+    {
+        $thisBuild = $this->config['tempDir'].'/sites/'.trim(strtolower($this->config['siteName']),'/ ').'/'.$this->uuid;
+        if ( !empty($thisBuild) && $thisBuild !== '/' )
+        {
+            $this->rmDir($thisBuild);
+        }
+    }
+
+    public function cleanupAllSites()
+    {
+        $baseSiteDir = $this->config['tempDir'].'/sites/'.trim(strtolower($this->config['siteName']),'/ ');
+        if ( !empty($baseSiteDir) && $baseSiteDir !== '/' )
+        {
+            $this->rmDir($baseSiteDir);
+        }
+    }
+
+    public function cleanupOldSitesByDate($howOld='-24 hours')
+    {
+        $minDirAge   = strtotime($howOld);
+        $baseSiteDir = $this->config['tempDir'].'/sites/'.trim(strtolower($this->config['siteName']),'/ ');
+        if ( !empty($baseSiteDir) && $baseSiteDir !== '/' )
+        {
+            $dirList = new RecursiveDirectoryIterator($baseSiteDir);
+            foreach ( $dirList as $dirItem )
+            {
+                $dirName = $dirItem->getFileName();
+                $m = [];
+                if ( preg_match("/^(?<YMD>\d{4}\-\d{2}\-\d{2})\-(?<H>\d{2})\-(?<i>\d{2})\-(?<s>\d{2})/",$dirName,$m) )
+                {
+                    $dirTime = strtotime("{$m['YMD']} {$m['H']}:{$m['i']}:{$m['s']}");
+                    if ( $dirTime < $minDirAge )
+                    {
+                        $this->rmDir($dirItem->getPathName());
+                    }
+                }
+            }
+        }
+    }
+
+    public function cleanupOldSitesByNumber($numberToKeep=10)
+    {
+        $baseSiteDir = $this->config['tempDir'].'/sites/'.trim(strtolower($this->config['siteName']),'/ ');
+        if ( !empty($baseSiteDir) && $baseSiteDir !== '/' )
+        {
+            $dirList  = new \RecursiveDirectoryIterator($baseSiteDir);
+            $sortList = [];
+            foreach ( $dirList as $dirItem )
+            {
+                $dirName = $dirItem->getFileName();
+                $m = [];
+                if ( preg_match("/^(?<YMD>\d{4}\-\d{2}\-\d{2})\-(?<H>\d{2})\-(?<i>\d{2})\-(?<s>\d{2})/",$dirName,$m) )
+                {
+                    $dirTime = strtotime("{$m['YMD']} {$m['H']}:{$m['i']}:{$m['s']}");
+                    $sortList[$dirTime] = $dirItem->getPathName();
+                }
+            }
+        }
+        krsort($sortList,SORT_NUMERIC);
+        $removable = array_slice($sortList,10,NULL,TRUE);
+        foreach ( $removable as $dirPath )
+        {
+            $this->rmDir($dirPath);
+        }
+    }
+
     public function deploySite()
     {
         return $this->destination->sync();
@@ -1020,13 +1087,7 @@ class StaticSiteGenerator
 
         /// clean out the site page
         $this->log("Rendering Site: cleanup up old site ... \n");
-        if ( !empty($this->siteDir) && $this->siteDir !== '/' )
-        {
-            $this->rmDir($this->siteDir);
-            // $remove_cmd = "rm -rf {$this->siteDir}";
-            // // $this->ssg->log($remove_cmd."\n",false);
-            // $rslt = `{$remove_cmd} 2>&1 > /dev/null`;
-        }
+        $this->cleanupSite();
 
         /// render redirects
         $this->log("Rendering: redirects\n");
