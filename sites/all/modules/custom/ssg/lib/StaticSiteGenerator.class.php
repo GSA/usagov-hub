@@ -1066,9 +1066,16 @@ class StaticSiteGenerator
         }
         krsort($sortList,SORT_NUMERIC);
         $removable = array_slice($sortList,10,NULL,TRUE);
-        foreach ( $removable as $dirPath )
+
+        $currTime = time();
+        foreach ( $removable as $dirTime => $dirPath )
         {
-            $this->rmDir($dirPath);
+            /// for sanity reasons, give builds time
+            /// remove only dirs older than 10 mins
+            if ( ($currTime-$dirTime) > 6000 ) 
+            {
+                $this->rmDir($dirPath);
+            }   
         }
     }
 

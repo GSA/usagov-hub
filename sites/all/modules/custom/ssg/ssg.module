@@ -612,5 +612,7 @@ function _ssg_cleanup ()
             AND 
             ( UNIX_TIMESTAMP() - updated ) > 1800
     ");
+    $site = new \ctac\ssg\StaticSiteGenerator();
+    $site->cleanupOldSitesByNumber();
     return true;
 }
