@@ -1076,7 +1076,7 @@ class StaticSiteGenerator
         }
     }
 
-    public function cleanupOldSitesByNumber($numberToKeep=2,$bufferSeconds=6000)
+    public function cleanupOldSitesByNumber($numberToKeep=2,$bufferSeconds=600)
     {
         /// keep all dirs less than Y seconds old
         /// keep X dirs more than Y seconds old
