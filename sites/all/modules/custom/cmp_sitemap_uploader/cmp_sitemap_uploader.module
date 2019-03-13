@@ -108,10 +108,10 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
         $xml_data_gob = new SimpleXMLElement('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd http://www.google.com/schemas/sitemap-mobile/1.0/sitemap-mobile.xsd http://www.google.com/schemas/sitemap-video/1.1/sitemap-video.xsd" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>');
         $xml_data_usa = new SimpleXMLElement('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd http://www.google.com/schemas/sitemap-mobile/1.0/sitemap-mobile.xsd http://www.google.com/schemas/sitemap-video/1.1/sitemap-video.xsd" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>');
 
-       //array_to_xml($USA_sitemap, $xml_data_usa);
+        convert_array_to_xml($USA_sitemap, $xml_data_usa);
         $usa_xml_data_content = $xml_data_usa->asXML();
 
-        //array_to_xml($Gob_sitemap, $xml_data_gob);
+        convert_array_to_xml($Gob_sitemap, $xml_data_gob);
         $gob_xml_data_content = $xml_data_gob->asXML();
 
         $file_usa = file_save_data($usa_xml_data_content,'s3://usa_sitemap.xml', FILE_EXISTS_REPLACE);
@@ -129,7 +129,7 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
     }
 }
 
-function array_to_xml( $data, &$xml_data ) {
+function convert_array_to_xml( $data, &$xml_data ) {
 
     foreach( $data as $key => $value ) {
         if( is_numeric($key) ){
