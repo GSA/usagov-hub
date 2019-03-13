@@ -40,19 +40,19 @@ class StaticSiteGenerator
         //$this->uuid = sprintf('%04X%04X-%04X-%04X-%04X-%04X%04X%04X', mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(16384, 20479), mt_rand(32768, 49151), mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(10000, 99999));
 
         /// setup page references
-        $this->pages       = [];
-        $this->sitePage    = null;
-        $this->pageTypes   = [];
+        $this->pages     = [];
+        $this->sitePage  = null;
+        $this->pageTypes = [];
 
         /// setup content references
         $this->directoryRecordGroups = [];
-        $this->features = [];
+        $this->features        = [];
         $this->featuresByTopic = [];
 
-        $this->pagesByUrl = [];
-        $this->siteIndexAZ  = [];
+        $this->pagesByUrl    = [];
+        $this->siteIndexAZ   = [];
         $this->stateAcronyms = [];
-        $this->feeds = [];
+        $this->feeds         = [];
         $this->contentTypeOverride = [];
 
         $configLoader = new ConfigLoader();
@@ -87,7 +87,12 @@ class StaticSiteGenerator
             }
         }
 
-        $this->prepareDirs();
+        if ( !$this->prepareDirs() )
+        {
+            /// don't bother booting the rest of the stuff if this fails
+            die;
+            return;
+        }
 
         $this->templates   = new TemplateSource( $this ); 
         $this->source      = new DrupalAPIDataSource( $this );
@@ -99,15 +104,41 @@ class StaticSiteGenerator
 
     public function prepareDirs()
     {
-        $this->prepareDir($this->config['tempDir']);
-        $this->prepareDir($this->config['permDir']);
+        if ( !$this->prepareDir($this->config['tempDir']) )
+        {
+            $this->log("SSG error : tempDir not available : {$this->config['tempDir']}\n");
+            return false;
+        }
+        if ( !$this->prepareDir($this->config['permDir']) )
+        {
+            $this->log("SSG error : permDir not available : {$this->config['permDir']}\n");
+            return false;
+        }
         
         //$this->cacheDir = realpath($this->config['permDir']).'/cache';
         $this->cacheDir = $this->config['permDir'].'/cache';
-        $this->prepareDir($this->cacheDir);
+        if ( !$this->prepareDir($this->cacheDir) )
+        {
+            $this->log("SSG error : cacheDir not available : {$this->cacheDir}\n");
+            return false;
+        }
 
         $this->siteDir = $this->config['tempDir'].'/sites/'.trim(strtolower($this->config['siteName']),'/ ').'/'.$this->uuid;
-        $this->prepareDir($this->siteDir);
+        if ( !$this->prepareDir($this->siteDir) )
+        {
+            $this->log("SSG error : siteDir not available : {$this->siteDir}\n");
+            return false;
+        }
+        if ( !$this->validateDiskSpace() )
+        {
+            $this->cleanupOldSitesByNumber();
+            if ( !$this->validateDiskSpace() )
+            {
+                $this->log("SSG error : insufficient disk space\n",false);
+                return false;
+            }
+        }
+        return true;
     }
 
     public function loadTemplates()
@@ -652,7 +683,6 @@ class StaticSiteGenerator
         $this->log("Site Tree building from entities ... done\n");
     }
 
-
     public function formatStateCanonicalName( $stateCanonicalName )
     {
         $stateCanonicalName = str_replace('.',' ',$stateCanonicalName);
@@ -1023,7 +1053,7 @@ class StaticSiteGenerator
         }
     }
 
-    public function cleanupOldSitesByDate($howOld='-24 hours')
+    public function cleanupOldSitesByDate($howOld='-6 hours')
     {
         $minDirAge   = strtotime($howOld);
         $baseSiteDir = $this->config['tempDir'].'/sites/'.trim(strtolower($this->config['siteName']),'/ ');
@@ -1046,33 +1076,42 @@ class StaticSiteGenerator
         }
     }
 
-    public function cleanupOldSitesByNumber($numberToKeep=10)
+    public function cleanupOldSitesByNumber($numberToKeep=2,$bufferSeconds=6000)
     {
+        /// keep all dirs less than Y seconds old
+        /// keep X dirs more than Y seconds old
         $baseSiteDir = $this->config['tempDir'].'/sites/'.trim(strtolower($this->config['siteName']),'/ ');
         if ( !empty($baseSiteDir) && $baseSiteDir !== '/' )
         {
-            $dirList  = new \RecursiveDirectoryIterator($baseSiteDir);
+            $dirList  = new \RecursiveDirectoryIterator($baseSiteDir,\FilesystemIterator::SKIP_DOTS);
             $sortList = [];
             foreach ( $dirList as $dirItem )
             {
                 $dirName = $dirItem->getFileName();
+                if ( $dirName == '.' || $dirName == '..' )
+                {
+                    continue;
+                }
                 $m = [];
                 if ( preg_match("/^(?<YMD>\d{4}\-\d{2}\-\d{2})\-(?<H>\d{2})\-(?<i>\d{2})\-(?<s>\d{2})/",$dirName,$m) )
                 {
                     $dirTime = strtotime("{$m['YMD']} {$m['H']}:{$m['i']}:{$m['s']}");
                     $sortList[$dirTime] = $dirItem->getPathName();
+                } else {
+                    $this->rmDir($dirItem->getPathName());
                 }
             }
         }
+        /// slice off X items, these dirs will be kept
         krsort($sortList,SORT_NUMERIC);
-        $removable = array_slice($sortList,10,NULL,TRUE);
+        $removable = array_slice($sortList,$numberToKeep,NULL,TRUE);
 
         $currTime = time();
         foreach ( $removable as $dirTime => $dirPath )
         {
-            /// for sanity reasons, give builds time
-            /// remove only dirs older than 10 mins
-            if ( ($currTime-$dirTime) > 6000 ) 
+            /// for sanity reasons, give builds time to complete
+            /// remove only dirs older than Y seconds
+            if ( ($currTime-$dirTime) > $bufferSeconds ) 
             {
                 $this->rmDir($dirPath);
             }   
@@ -1097,7 +1136,7 @@ class StaticSiteGenerator
         $this->cleanupSite();
 
         /// render redirects
-        $this->log("Rendering: redirects\n");
+        $this->log("Rendering: Redirects\n");
         $redirectResult = $this->renderRedirects();
 
         /// render content pages
@@ -1189,11 +1228,22 @@ class StaticSiteGenerator
     {
         if ( empty($page) )
         {
-            return false;
+            return null;
         }
+        $paths = [];
         if ( !empty($page['generate_page']) && $page['generate_page']!='no' )
         {
-            $this->renderer->renderPage($page,$renderPageOnFailure);
+            $renderResult = $this->renderer->renderPage($page,$renderPageOnFailure);
+            if ( $renderResult === false )
+            {
+                /// there was a failure
+                return false;
+            } else if ( $renderResult === null ) {
+                /// there was nothing to be generated
+            } else {
+                /// pageResult is an array of paths generated
+                $paths = array_merge($paths, $renderResult);
+            }
         }
         if ( array_key_exists('children',$page) )
         {
@@ -1204,12 +1254,22 @@ class StaticSiteGenerator
                     if ( !empty($this->source->entities[$childPage['uuid']]) )
                     {
                         $child =& $this->source->entities[$childPage['uuid']];
-                        $this->renderTree($child);
+                        $renderResult = $this->renderTree($child);
+                        if ( $renderResult === false )
+                        {
+                            /// there was a failure
+                            return false;
+                        } else if ( $renderResult === null ) {
+                            /// there was no file generated
+                        } else {
+                            /// pageResult is an array of paths generated
+                            $paths = array_merge($paths, $renderResult);
+                        }            
                     }
                 }
             }
         }
-        return true;
+        return $paths;
     }
 
     public function renderRedirects()
@@ -1254,6 +1314,34 @@ class StaticSiteGenerator
     {
         /// check that config params can be found
         /// check /temp and /perm for read-write permission
+        /// check /temp and /perm have enough space for a build
+    }
+
+    public function validateDiskSpace()
+    {
+        $minFreeBytes = 0;
+        $baseSiteDir  = $this->config['tempDir'].'/sites/'.trim(strtolower($this->config['siteName']),'/ ');
+        /// check any previous builds for their actual size
+        $dirList      = new \RecursiveDirectoryIterator($baseSiteDir, \FilesystemIterator::SKIP_DOTS);
+        foreach ( $dirList as $dirItem )
+        {
+            $size = `du -sk {$dirItem->getPathName()}`;
+            $size = substr ( $size, 0, strpos ( $size, "\t" ) );
+            $usedBytes = $size*1024;
+            if ( $usedBytes > $minFreeBytes )
+            {
+                $minFreeBytes = $usedBytes;
+            }
+        }
+        /// default to a previously known size
+        if ( empty($minFreeBytes) )
+        {
+            $minFreeBytes = 144340000; /// ~141 M
+        }
+        $availableBytes = disk_free_space( $baseSiteDir );
+        /// go ahead and make sure we have twice what we need
+        
+        return ( $availableBytes > ($minFreeBytes*2) );
     }
 
     public function validateDataSource()

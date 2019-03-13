@@ -107,6 +107,7 @@ class PageRenderer
 
     public function renderPage(&$page)
     {
+        /// this needs to fail better
         $paths = [];
         /// PATH
         $url = $this->getPageUrl($page);
@@ -146,7 +147,14 @@ class PageRenderer
             @chmod($fileDir, 0755);
             $msg = "No renderer found <br />\nPath:".$path." <br />\nType: ".$page['pageType']." <br />\nName: ".$page['name'];
             if ($this->renderPageOnFailure) {
-                file_put_contents($file, $msg);
+                if (empty(file_put_contents($file, $msg))) {
+                    $msg = "Write Failed\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
+                    $this->log($msg);
+                    return false;
+                } elseif ($this->runtimeEnvironment() == 'standalone') {
+                    // $msg = "Write SUCCESS\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
+                    // $this->log($msg);                
+                }    
             }
             $this->log(preg_replace('/(\<br \/\>|\n)/', '', $msg)."\n");
             return null;
@@ -173,9 +181,10 @@ class PageRenderer
             if (empty(file_put_contents($file, $html))) {
                 $msg = "Write Failed\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
                 $this->log($msg);
-            } else {
+                return false;
+            } elseif ($this->runtimeEnvironment() == 'standalone') {
                 // $msg = "Write SUCCESS\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
-                // $this->log($msg);
+                // $this->log($msg);                
             }
         } else {
             if (!file_exists($fileDir)) {
@@ -187,7 +196,14 @@ class PageRenderer
             @chmod($fileDir, 0755);
             $msg = "Render Failed<br />\nPath:".$path." <br />\nType: ".$page['pageType']." <br />\nName: ".$page['name'];
             if ($this->renderPageOnFailure) {
-                file_put_contents($file, $msg);
+                if (empty(file_put_contents($file, $msg))) {
+                    $msg = "Write Failed\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
+                    $this->log($msg);
+                    return false;
+                } else {
+                    // $msg = "Write SUCCESS\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
+                    // $this->log($msg);                
+                }
             }
             $this->log(preg_replace('/(\<br \/\>|\n)/', '', $msg)."\n");
         }
@@ -220,7 +236,14 @@ class PageRenderer
                         @mkdir($fileDir, 0755, true);
                     }
                     @chmod($fileDir, 0755);
-                    file_put_contents($file, $html);
+                    if (empty(file_put_contents($file, $html))) {
+                        $msg = "Write Failed\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
+                        $this->log($msg);
+                        return false;
+                    } elseif ($this->runtimeEnvironment() == 'standalone') {
+                        // $msg = "Write SUCCESS\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
+                        // $this->log($msg);                
+                    }
                     array_unshift($paths, $path.'/'.strtolower($letter));
                 } else {
                     $msg = "Render Failed<br />\nPath: /".$path.'/'.strtolower($letter)."<br />\nType: ".$page['pageType']."<br />\nName: ".$page['name'];
@@ -232,7 +255,14 @@ class PageRenderer
                     }
                     @chmod($fileDir, 0755);
                     if ($this->renderPageOnFailure) {
-                        file_put_contents($file, $msg."<pre>".print_r($page, 1)."</pre>");
+                        if (empty(file_put_contents($file, $msg))) {
+                            $msg = "Write Failed\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
+                            $this->log($msg);
+                            return false;
+                        } elseif ($this->runtimeEnvironment() == 'standalone') {
+                            // $msg = "Write SUCCESS\nPath:".$file." \nType: ".$page['pageType']." \nName: ".$page['name']."\n";
+                            // $this->log($msg);                
+                        }
                     }
                     $this->log(preg_replace('/(\<br \/\>|\n)/', '', $msg)."\n");
                 }
@@ -394,9 +424,16 @@ class PageRenderer
                 @mkdir($fileDir, 0755, true);
             }
             @chmod($fileDir, 0755);
-            @file_put_contents($file, $html);
+            if (empty(file_put_contents($file, $html))) {
+                $msg = "Write Failed\nPath:".$file." \nType: Redirect \n";
+                $this->log($msg);
+                return false;
+            } elseif ($this->runtimeEnvironment() == 'standalone') {
+                // $msg = "Write SUCCESS\nPath:".$file." \nType: Redirect \n";
+                // $this->log($msg);                
+            }
         }
-        return true;
+        return [$path];
     }
 
     public function renderFeed($feed)
@@ -417,7 +454,7 @@ class PageRenderer
                 $this->ssg->contentTypeOverride[$path] = 'application/json; charset=utf-8';
                 break;
             default:
-                return false;
+                return null;
         }
 
         $matches = [];
@@ -458,10 +495,11 @@ class PageRenderer
         if (empty(file_put_contents($file, $output))) {
             $msg = "Write Failed Path:".$path." Type: ".$feed['feed_type']." Name: ".$feed['title']."\n";
             $this->log($msg);
+            return false;
         } elseif ($this->runtimeEnvironment() == 'standalone') {
-            $_url = str_pad($path, (strlen($path)+( 25 - ( strlen($path) % 25 ) )));
-            $_type = str_pad($feed['feed_type'], (strlen($feed['feed_type'])+( 25 - ( strlen($feed['feed_type']) % 25 ) )));
-            $this->log("Path: {$_type}  {$_url}\n", false);
+        //     $_url = str_pad($path, (strlen($path)+( 25 - ( strlen($path) % 25 ) )));
+        //     $_type = str_pad($feed['feed_type'], (strlen($feed['feed_type'])+( 25 - ( strlen($feed['feed_type']) % 25 ) )));
+        //     $this->log("Path: {$_type}  {$_url}\n", false);
         }
         return [$path];
     }
@@ -684,4 +722,5 @@ class PageRenderer
 
         return $dataLayer;
     }
+
 }
