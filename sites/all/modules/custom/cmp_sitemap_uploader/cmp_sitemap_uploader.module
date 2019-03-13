@@ -105,19 +105,14 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
         $node_gob = node_load(variable_get('sitemap_gob'));
         $node_usa = node_load(variable_get('sitemap_usa'));
 
-        $xml_data_gob = new SimpleXMLElement('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd http://www.google.com/schemas/sitemap-mobile/1.0/sitemap-mobile.xsd http://www.google.com/schemas/sitemap-video/1.1/sitemap-video.xsd" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>');
-        $xml_data_usa = new SimpleXMLElement('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd http://www.google.com/schemas/sitemap-mobile/1.0/sitemap-mobile.xsd http://www.google.com/schemas/sitemap-video/1.1/sitemap-video.xsd" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>');
+        $xml_data_gob = '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd http://www.google.com/schemas/sitemap-mobile/1.0/sitemap-mobile.xsd http://www.google.com/schemas/sitemap-video/1.1/sitemap-video.xsd" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>';
+        $xml_data_usa = '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd http://www.google.com/schemas/sitemap-mobile/1.0/sitemap-mobile.xsd http://www.google.com/schemas/sitemap-video/1.1/sitemap-video.xsd" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>';
 
-        convert_array_to_xml($USA_sitemap, $xml_data_usa);
-        $usa_xml_data_content = $xml_data_usa->asXML();
 
-        convert_array_to_xml($Gob_sitemap, $xml_data_gob);
-        $gob_xml_data_content = $xml_data_gob->asXML();
-
-        $file_usa = file_save_data($usa_xml_data_content,'s3://usa_sitemap.xml', FILE_EXISTS_REPLACE);
+        $file_usa = file_save_data(arrayToXml($USA_sitemap, $xml_data_usa),'s3://usa_sitemap.xml', FILE_EXISTS_REPLACE);
         $file_usa->status = 1;
 
-        $file_gob = file_save_data($gob_xml_data_content,'s3://espanol_sitemap.xml', FILE_EXISTS_REPLACE);
+        $file_gob = file_save_data(arrayToXml($Gob_sitemap, $xml_data_gob),'s3://espanol_sitemap.xml', FILE_EXISTS_REPLACE);
         $file_gob->status = 1;
 
         $node_gob->field_file_media['und'][0] = (array)$file_gob;
@@ -129,17 +124,36 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
     }
 }
 
-function convert_array_to_xml( $data, &$xml_data ) {
+function arrayToXml($array, $rootElement = null, $xml = null) {
+    $_xml = $xml;
 
-    foreach( $data as $key => $value ) {
-        if( is_numeric($key) ){
-            $key = 'url';
+    // If there is no Root Element then insert root
+    if ($_xml === null) {
+        $_xml = new SimpleXMLElement($rootElement !== null ? $rootElement : '<root/>');
+    }
+
+    // Visit all key value pair
+    foreach ($array as $k => $v) {
+
+        // If there is nested array then
+        if (is_array($v)) {
+
+            // Call function for nested array
+            arrayToXml($v, $k, $_xml->addChild($k));
         }
-        if( is_array($value) ) {
-            $subnode = $xml_data->addChild($key);
-            array_to_xml($value, $subnode);
-        } else {
-            $xml_data->addChild("$key",htmlspecialchars("$value"));
+
+        else {
+
+            if (is_numeric($k)) {
+                $_xml->addChild("url", $v);
+            }
+            else {
+                // Simply add child element.
+                $_xml->addChild($k, $v);
+            }
         }
     }
+
+    return $_xml->asXML();
 }
+
