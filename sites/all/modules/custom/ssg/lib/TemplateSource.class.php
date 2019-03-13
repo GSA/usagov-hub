@@ -14,7 +14,7 @@ class TemplateSource
     public $sourceAssetDir;
     public $sourceStaticDir;
 
-    public $destTemplateDir;
+    // public $destTemplateDir;
     public $destAssetDir;
     public $destStaticDir;
 
@@ -26,7 +26,7 @@ class TemplateSource
         $this->ssg = &$ssg;
 
         $repoBaseDir = strtolower(basename($this->ssg->config['templateSync']['repo_url'],'.git'));
-        $this->sourceDir         = $this->ssg->config['tempDir'].'/'.$repoBaseDir;
+        $this->sourceDir         = $this->ssg->config['permDir'].'/'.$repoBaseDir;
 
         $repoTemplateDir = $this->ssg->config['templateSync']['repo_template_dir'];
         $repoTemplateDir = preg_replace('(^[\.\/]|[\.\/]$)','',$repoTemplateDir);

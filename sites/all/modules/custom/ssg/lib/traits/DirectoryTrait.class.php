@@ -35,7 +35,7 @@ trait DirectoryTrait
         {
             return false;
         }
-        $path = $real_path;
+        // $path = $real_path;
         return true;
     }
     public function prepareDirShell( &$path )

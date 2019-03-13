@@ -412,15 +412,16 @@ function _ssg_build_and_deploy_site( &$site )
         // _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
         // $site->deploySite();
     // }
+    $site->cleanupOldSitesByNumber();
     _ssgUpdateBuildStatus($site->uuid,'6 complete');
     $site->log("Done building site\n",false);
 }
 
 function _ssgGetBuildStatus($uuid)
 {
-    if ( !preg_match('/^\w{8}\-\w{4}\-\w{4}\-\w{4}\-\w{12}$/',$uuid) ) {
-        return false;
-    }
+    // if ( !preg_match('/^\w{8}\-\w{4}\-\w{4}\-\w{4}\-\w{12}$/',$uuid) ) {
+    //     return false;
+    // }
     $result = db_query("SELECT * FROM {ssg_builds} WHERE uuid=:uuid",[':uuid'=>$uuid]);
     $record = $result->fetchAssoc();
     if ( !empty($record) )
@@ -482,9 +483,9 @@ function _ssgGetCurrentBuildStatusesTable()
 
 function _ssgCreateBuildStatus($uuid)
 {
-    if ( !preg_match('/^\w{8}\-\w{4}\-\w{4}\-\w{4}\-\w{12}$/',$uuid) ) {
-        return false;
-    }
+    // if ( !preg_match('/^\w{8}\-\w{4}\-\w{4}\-\w{4}\-\w{12}$/',$uuid) ) {
+    //     return false;
+    // }
     $t = time();
     $result = db_query("INSERT INTO {ssg_builds} VALUES (:uuid,'starting','',:created,:updated)",[
         ':uuid'=>$uuid,
@@ -495,9 +496,9 @@ function _ssgCreateBuildStatus($uuid)
 }
 function _ssgUpdateBuildStatus($uuid,$state)
 {
-    if ( !preg_match('/^\w{8}\-\w{4}\-\w{4}\-\w{4}\-\w{12}$/',$uuid) ) {
-        return false;
-    }
+    // if ( !preg_match('/^\w{8}\-\w{4}\-\w{4}\-\w{4}\-\w{12}$/',$uuid) ) {
+    //     return false;
+    // }
     $t = time();
     $result = db_query("UPDATE {ssg_builds} SET state=:state, updated=:updated WHERE uuid=:uuid",[
         ':uuid'=>$uuid,
@@ -611,5 +612,7 @@ function _ssg_cleanup ()
             AND 
             ( UNIX_TIMESTAMP() - updated ) > 1800
     ");
+    $site = new \ctac\ssg\StaticSiteGenerator();
+    $site->cleanupOldSitesByNumber();
     return true;
 }
