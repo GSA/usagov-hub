@@ -83,23 +83,33 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
         'file_validate_extensions' => array('xml'),
     );
 
+    $ignoreURLs = array();
+    if (isset($form_state['values']['ignoringURLs']) && !empty($form_state['values']['ignoringURLs'])) {
+        $ignoreURLs = explode(PHP_EOL, $form_state['values']['ignoringURLs']);
+    }
+
     if ($file = file_save_upload('filexml', $validators, 'public://',FILE_EXISTS_REPLACE)) {
 
         $contents = file_get_contents($file->uri);
         $xml = simplexml_load_string($contents);
         $json = json_encode($xml);
         $array = json_decode($json,TRUE);
-
+      //  dsm($ignoreURLs);
         $USA_sitemap = array();
         $Gob_sitemap = array();
         if (isset($array['url'])) {
             foreach ($array['url'] as $url) {
-                if (isset($url['loc']) && strpos($url['loc'], 'espanol')===false){
-                    $USA_sitemap[] = $url;
+
+                if (!in_array($url['loc'], $ignoreURLs)) {
+                    if (isset($url['loc']) && strpos($url['loc'], 'espanol') === false) {
+                        $USA_sitemap[] = $url;
+                    } else {
+                        $Gob_sitemap[] = $url;
+                    }
                 }
-                else{
-                    $Gob_sitemap[] = $url;
-                }
+              /*  else{
+                    dsm($url['loc']);
+                }*/
             }
         }
         $node_gob = node_load(variable_get('sitemap_gob'));
@@ -122,6 +132,8 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
         $node_usa->field_file_media['und'][0] = (array)$file_usa;
         node_save($node_gob);
         node_save($node_usa);
+
+        drupal_set_message("Sitemaps have been updated in 1-3'. USA Sitemap has ". count($USA_sitemap). ' URLS in it. USA Espanol Sitemap has ' .count($Gob_sitemap).' URLS in it.' );
     }
 }
 
