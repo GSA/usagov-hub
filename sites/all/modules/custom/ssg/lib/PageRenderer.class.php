@@ -380,6 +380,59 @@ class PageRenderer
         return $paths;
     }
 
+    public function renderSitemap(&$sitemap)
+    {
+        if ( !array_key_exists('file_media',$sitemap) || 
+             !array_key_exists('uri',$sitemap['file_media']) )
+        {
+            return false;
+        }
+
+        $sitemap_uri = $sitemap['file_media']['uri'];
+        // print_r([substr($sitemap_uri,0,2),$sitemap['file_media']]);
+        if ( substr($sitemap_uri,0,2) == '//' )
+        {
+            $sitemap_uri = 'https:'.$sitemap_uri;
+        }
+        $sitemap_contents = file_get_contents($sitemap_uri);
+        if ( empty($sitemap_contents) )
+        {
+            return false;
+        }
+
+        $fileDir = $this->ssg->siteDir;
+        $path    = '/sitemap.xml';
+        if ( in_array('GobiernoUSA.gov',$sitemap['for_use_by']) ) {
+            $fileDir = $this->ssg->siteDir.'/espanol';
+            $path    = '/espanol/sitemap.xml';
+        }
+        $file = $fileDir.'/sitemap.xml';
+
+        $sitemap_contents = trim($sitemap_contents);
+        if (!empty($sitemap_contents))
+        {
+            /// directory for path
+            if (!file_exists($fileDir))
+            {
+                @mkdir($fileDir, 0755, true);
+            } elseif (!is_dir($fileDir)) {
+                @unlink($fileDir);
+                @mkdir($fileDir, 0755, true);
+            }
+            @chmod($fileDir, 0755);
+            if (empty(file_put_contents($file, $sitemap_contents)))
+            {
+                $msg = "Write Failed\nPath:".$file." \nType: Sitemap \n";
+                $this->log($msg);
+                return false;
+            } elseif ($this->runtimeEnvironment() == 'standalone') {
+                $msg = "Write SUCCESS\nPath:".$file." \nType: Sitemap \n";
+                $this->log($msg);
+            }
+        }
+        return [$path];
+    }
+
     public function renderRedirect($redirect)
     {
         $path = trim($redirect['source_path'], '/ ');
