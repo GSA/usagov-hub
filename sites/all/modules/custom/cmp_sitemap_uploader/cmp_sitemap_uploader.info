@@ -1,0 +1,4 @@
+name = CMP Sitemap upload
+description = Update sitemap for USA.gov and Espanol via UI
+package = CTAC
+core = 7.x
