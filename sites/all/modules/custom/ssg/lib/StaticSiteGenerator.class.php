@@ -179,6 +179,7 @@ class StaticSiteGenerator
         $this->featuresByTopic = [];
         $this->stateDetails    = [];
         $this->feeds           = [];
+        $this->sitemaps        = [];
 
         $this->siteIndexAZ = [
             'all' => ['A'=>[],'B'=>[],'C'=>[],'D'=>[],'E'=>[],'F'=>[],'G'=>[],'H'=>[],'I'=>[],'J'=>[],'K'=>[],'L'=>[],'M'=>[],'N'=>[],'O'=>[],'P'=>[],'Q'=>[],'R'=>[],'S'=>[],'T'=>[],'U'=>[],'V'=>[],'W'=>[],'X'=>[],'Y'=>[],'Z'=>[]]
@@ -266,6 +267,11 @@ class StaticSiteGenerator
                             }
                         }
                     }
+                }
+
+                if ( $this->isSitemap($entity) )
+                {
+                    $this->sitemaps[$entity['uuid']] = $entity;
                 }
 
                 /// fill in any missing states from our hardcoded list
@@ -695,6 +701,11 @@ class StaticSiteGenerator
         return $stateCanonicalName;
     }
 
+    public function isSitemap($entity)
+    {
+        return array_key_exists('media_type',$entity)
+                && in_array(strtolower($entity['media_type']),['sitemap']);
+    }
     public function isFeature($entity)
     {
         return array_key_exists('type',$entity)
@@ -1216,6 +1227,10 @@ class StaticSiteGenerator
             }
         }
 
+        /// render sitemap
+        $this->log("Rendering: Sitemap\n");
+        $sitemapResult = $this->renderSitemaps();
+
         // if ( empty($treeResult) ||  empty($redirectResult) ) {
         //     $this->log("Render Site: failed\n");
         // } else {
@@ -1293,6 +1308,16 @@ class StaticSiteGenerator
         }
         return true;
     }
+
+    public function renderSitemaps()
+    {
+        foreach ( $this->sitemaps as $sitemap )
+        {
+            $this->renderer->renderSitemap($sitemap);
+        }
+        return true;
+    }
+
 
     public function getPageType( $page )
     {
