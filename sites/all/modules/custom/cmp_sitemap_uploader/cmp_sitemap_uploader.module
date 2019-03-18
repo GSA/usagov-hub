@@ -71,10 +71,10 @@ function cmp_sitemap_form(){
 }
 
 function cmp_sitemap_form_validate($form, &$form_state){
-/*
-    if (! file_save_upload('filexml', $validators, 'public://',FILE_EXISTS_REPLACE)) {
-        form_set_error('filexml', t('Unable to copy upload file to'));
-    }*/
+    /*
+        if (! file_save_upload('filexml', $validators, 'public://',FILE_EXISTS_REPLACE)) {
+            form_set_error('filexml', t('Unable to copy upload file to'));
+        }*/
 }
 
 function cmp_sitemap_form_submit(&$form, &$form_state){
@@ -94,7 +94,7 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
         $xml = simplexml_load_string($contents);
         $json = json_encode($xml);
         $array = json_decode($json,TRUE);
-      //  dsm($ignoreURLs);
+
         $USA_sitemap = array();
         $Gob_sitemap = array();
         if (isset($array['url'])) {
@@ -107,9 +107,6 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
                         $Gob_sitemap[] = $url;
                     }
                 }
-              /*  else{
-                    dsm($url['loc']);
-                }*/
             }
         }
         $node_gob = node_load(variable_get('sitemap_gob'));
@@ -117,11 +114,11 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
 
         $xml_data_gob = '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd http://www.google.com/schemas/sitemap-mobile/1.0/sitemap-mobile.xsd http://www.google.com/schemas/sitemap-video/1.1/sitemap-video.xsd" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>';
         $xml_data_usa = '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd http://www.google.com/schemas/sitemap-mobile/1.0/sitemap-mobile.xsd http://www.google.com/schemas/sitemap-video/1.1/sitemap-video.xsd" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>';
-/*
-       print "<pre>";
-            echo arrayToXml($USA_sitemap, $xml_data_usa);
-            exit;
-        print "<pre>";*/
+        /*
+               print "<pre>";
+                    echo arrayToXml($USA_sitemap, $xml_data_usa);
+                    exit;
+                print "<pre>";*/
         $file_usa = file_save_data(arrayToXml($USA_sitemap, $xml_data_usa),'s3://usa_sitemap.xml', FILE_EXISTS_REPLACE);
         $file_usa->status = 1;
 
@@ -148,7 +145,7 @@ function arrayToXml($array, $rootElement = null, $xml = null) {
     // Visit all key value pair
     foreach ($array as $k => $v) {
         if (is_array($v)) {
-           arrayToXml($v, 'url', $_xml->addChild('url'));
+            arrayToXml($v, 'url', $_xml->addChild('url'));
         }
         else {
             $_xml->addChild($k, $v);
