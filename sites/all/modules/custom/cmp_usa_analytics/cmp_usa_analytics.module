@@ -26,7 +26,7 @@ function cmp_usa_analytics_cronapi()
     );
     return $items;
 }
-function _cmp_usa_analytics_report_trigger( $frequency=null, $reports=null, $topic_arn=null ) 
+function _cmp_usa_analytics_report_trigger( $frequency=null, $reports=null, $topic_arn=null, $environment=null ) 
 {   
     if ( empty(variable_get('cmp_usa_analytics_enabled')) )
     {
@@ -43,9 +43,15 @@ function _cmp_usa_analytics_report_trigger( $frequency=null, $reports=null, $top
         return false;
       }
     }
-  
-    $payload = [];
 
+    $payload = [];
+  
+    if ( empty($environment) )
+    {
+      $payload['ENVIRONMENT'] = strtolower(getenv('CMP_DRUPAL_ENVIRONMENT_NAME'));
+    } else {
+      $payload['ENVIRONMENT'] = $environment;
+    }
     if ( empty($reports) )
     {
       $reports = variable_get('cmp_usa_analytics_reports');
@@ -102,8 +108,10 @@ function _cmp_usa_analytics_report_trigger( $frequency=null, $reports=null, $top
 function _cmp_usa_analytics_trigger_ajax()
 {
 
-  $frequency = null;
-  $reports   = null;
+  $frequency   = null;
+  $reports     = null;
+  $topic_arn   = null;
+  $environment = null;
 
   if ( !empty($_REQUEST['frequency']) ) 
   {
@@ -112,9 +120,13 @@ function _cmp_usa_analytics_trigger_ajax()
   if ( !empty($_REQUEST['reports']) ) 
   {
     $reports = $_REQUEST['reports'];
+  }  
+  if ( !empty($_REQUEST['environment']) ) 
+  {
+    $environment = $_REQUEST['environment'];
   }
-  
-  _cmp_usa_analytics_report_trigger( $frequency, $reports );
+
+  _cmp_usa_analytics_report_trigger( $frequency, $reports, $topic_arn, $environment );
 }
 
 function _get_amazon_sns_client($config)
@@ -302,7 +314,18 @@ function cmp_usa_analytics_form()
         'daily'    =>'daily' 
       ],
     );
-    $form['manual']['cmp_usa_analytics_trigger'] = array(
+    $form['manual']['manual_environment'] = array(
+      '#type' => 'select',
+      '#title' => 'Environment',
+      '#default_value' => strtolower(getenv('CMP_DRUPAL_ENVIRONMENT_NAME')),
+      '#options' => [
+        'local' =>'local', 
+        'test'  =>'test', 
+        'stg'   =>'stg',
+        'prod'  =>'prod' 
+      ],
+    );
+    $form['manual']['manual_trigger'] = array(
       '#type' => 'item',
       '#title' => '',
       '#markup' => '
@@ -311,8 +334,9 @@ function cmp_usa_analytics_form()
           function ajax_trigger_reports()
           {
               var data = {};
-              var inputReports   = jQuery("#edit-manual-reports");
-              var inputFrequency = jQuery("#edit-manual-frequency");
+              var inputReports     = jQuery("#edit-manual-reports");
+              var inputFrequency   = jQuery("#edit-manual-frequency");
+              var inputEnvironment = jQuery("#edit-manual-environment");
               if ( inputReports && inputReports.val() )
               {
                 data.reports = inputReports.val();
@@ -320,6 +344,10 @@ function cmp_usa_analytics_form()
               if ( inputFrequency && inputFrequency.val() )
               {
                 data.frequency = inputFrequency.val();
+              }
+              if ( inputEnvironment && inputEnvironment.val() )
+              {
+                data.environment = inputEnvironment.val();
               }
               jQuery("#ajax_reports_response").html("triggering").fadeIn();
               clearTimeout(triggerReportsTimer);
