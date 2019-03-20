@@ -216,7 +216,7 @@ function cmp_usa_analytics_menu()
 
     // Configuration page URL handler
     $items['admin/usa_analytics'] = array(
-        'title' => 'CMP Analytics Integration',
+        'title' => 'Analytics',
         'description' => 'Setup and manage a Analytics Integration',
         'page callback' => 'drupal_get_form',
         'page arguments' => array('cmp_usa_analytics_form'),
