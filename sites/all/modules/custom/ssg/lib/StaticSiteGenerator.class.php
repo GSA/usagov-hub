@@ -1363,7 +1363,8 @@ class StaticSiteGenerator
         $dirList      = new \RecursiveDirectoryIterator($this->siteBaseDir, \FilesystemIterator::SKIP_DOTS);
         foreach ( $dirList as $dirItem )
         {
-            $size = `du -sk {$dirItem->getPathName()}`;
+            $cleanPath = preg_replace("/([^\w\/\-\.])/", '\\\$1', $dirItem->getPathName() );
+            $size = `du -sk {$cleanPath}`;
             $size = substr ( $size, 0, strpos ( $size, "\t" ) );
             $usedBytes = $size*1024;
             if ( $usedBytes > $minFreeBytes )
