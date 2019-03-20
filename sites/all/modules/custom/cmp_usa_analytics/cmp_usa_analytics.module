@@ -4,7 +4,7 @@ use Doctrine\Common\Cache\FilesystemCache;
 use Guzzle\Cache\DoctrineCacheAdapter;
 use Aws\Sns\SnsClient;
 
-function cmp_usa_analytics_cron_api()
+function cmp_usa_analytics_cronapi()
 {
     $items['analytics_realtime'] = array(
         'description' => 'Trigger realtime Analytics Reports',
@@ -30,6 +30,7 @@ function _cmp_usa_analytics_report_trigger( $frequency=null, $reports=null, $top
 {   
     if ( empty(variable_get('cmp_usa_analytics_enabled')) )
     {
+      error_log('CMP Analytics Trigger aborted: disabled');
       return null;
     }
 
@@ -38,6 +39,7 @@ function _cmp_usa_analytics_report_trigger( $frequency=null, $reports=null, $top
       $topic_arn = variable_get('cmp_usa_analytics_topic_arn');
       if ( empty($topic_arn) )
       {
+        error_log('CMP Analytics Trigger aborted: no TopicARN found');
         return false;
       }
     }
@@ -84,6 +86,7 @@ function _cmp_usa_analytics_report_trigger( $frequency=null, $reports=null, $top
         $payload = '{}';
       }
 
+      error_log('CMP Analytics Trigger TopicARN:'.$topic_arn.' Message:'.$payload);
       $sns    = _get_amazon_sns_client($config);
       $result = $sns->publish([
         'Message'  => $payload,
@@ -91,6 +94,7 @@ function _cmp_usa_analytics_report_trigger( $frequency=null, $reports=null, $top
       ]);
       return $result;
     } catch ( Exception $e ) {
+      error_log('CMP Analytics Trigger failed: '.$e->getMessage());
       return false;
     }
   }
@@ -256,20 +260,24 @@ function cmp_usa_analytics_form()
       '#title' => 'Analytics Integration Enabled',
       '#default_value' => variable_get('cmp_usa_analytics_enabled',false)
     );
-
     $form['cmp_usa_analytics_use_instance_profile'] = array(
       '#type' => 'checkbox',
       '#title' => 'Use Instance Profile Credentials',
       '#default_value' => variable_get('cmp_usa_analytics_use_instance_profile',false),
       '#description' => 'False to use S3FS credentials'
     );
-
     $form['cmp_usa_analytics_topic_arn'] = array(
         '#type' => 'textfield',
         '#title' => 'Topic ARN',
         '#default_value' => variable_get('cmp_usa_analytics_topic_arn'),
         '#description' => 'AWS Topic ARN to receive notification'
     );
+
+    /// users without trigger permission only get half the form
+    if ( ! user_access('trigger usa analytics') ) 
+    {
+      return system_settings_form($form);
+    }
 
     $form['manual'] = array(
       '#type' => 'fieldset',
@@ -294,8 +302,6 @@ function cmp_usa_analytics_form()
         'daily'    =>'daily' 
       ],
     );
-
-
     $form['manual']['cmp_usa_analytics_trigger'] = array(
       '#type' => 'item',
       '#title' => '',
