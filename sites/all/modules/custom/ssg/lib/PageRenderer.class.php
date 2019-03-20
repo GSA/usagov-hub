@@ -426,8 +426,8 @@ class PageRenderer
                 $this->log($msg);
                 return false;
             } elseif ($this->runtimeEnvironment() == 'standalone') {
-                $msg = "Write SUCCESS\nPath:".$file." \nType: Sitemap \n";
-                $this->log($msg);
+                // $msg = "Write SUCCESS\nPath:".$file." \nType: Sitemap \n";
+                // $this->log($msg);
             }
         }
         return [$path];

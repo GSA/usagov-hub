@@ -1,0 +1,347 @@
+<?php
+
+use Doctrine\Common\Cache\FilesystemCache;
+use Guzzle\Cache\DoctrineCacheAdapter;
+use Aws\Sns\SnsClient;
+
+function cmp_usa_analytics_cronapi()
+{
+    $items['analytics_realtime'] = array(
+        'description' => 'Trigger realtime Analytics Reports',
+        'rule' => '*/5 * * * *',
+        'callback' => '_cmp_usa_analytics_report_trigger',
+        'arguments' => array('realtime'),
+    );
+    $items['analytics_hourly'] = array(
+        'description' => 'Trigger hourly Analytics Reports',
+        'rule' => '0 * * * *',
+        'callback' => '_cmp_usa_analytics_report_trigger',
+        'arguments' => array('hourly'),
+    );
+    $items['analytics_daily'] = array(
+        'description' => 'Trigger daily Analytics Reports',
+        'rule' => '0 0 * * *',
+        'callback' => '_cmp_usa_analytics_report_trigger',
+        'arguments' => array('daily'),
+    );
+    return $items;
+}
+function _cmp_usa_analytics_report_trigger( $frequency=null, $reports=null, $topic_arn=null ) 
+{   
+    if ( empty(variable_get('cmp_usa_analytics_enabled')) )
+    {
+      error_log('CMP Analytics Trigger aborted: disabled');
+      return null;
+    }
+
+    if ( empty($topic_arn) )
+    {
+      $topic_arn = variable_get('cmp_usa_analytics_topic_arn');
+      if ( empty($topic_arn) )
+      {
+        error_log('CMP Analytics Trigger aborted: no TopicARN found');
+        return false;
+      }
+    }
+  
+    $payload = [];
+
+    if ( empty($reports) )
+    {
+      $reports = variable_get('cmp_usa_analytics_reports');
+    }
+    if ( !empty($reports) )
+    { 
+      $payload['ANALYTICS_REPORTS'] = json_decode($reports);
+    }
+
+    if ( !empty($frequency) ) 
+    {
+      $payload['FREQUENCY'] = $frequency;
+    }
+
+    try 
+    {
+      $cache_dir = variable_get('cmp_usa_analytics_cache_dir');
+      if ( empty($cache_dir) )
+      {
+        $cache_dir = '/tmp/analytics';
+      }
+      /// prepare aws cache directory
+      if ( !file_exists($cache_dir) )
+      {
+        @mkdir($cache_dir,0777);
+      }
+      /// steal basic config from s3fs module
+      $config = _s3fs_get_config();
+      $config['awssdk2_default_cache_config'] = $cache_dir;
+      unset($config['domain']);
+      unset($config['hostname']);
+      unset($config['use_cname']);
+      unset($config['use_customhost']);
+  
+      if ( !empty($payload) ) {
+        $payload = json_encode($payload);
+      } else {
+        $payload = '{}';
+      }
+
+      error_log('CMP Analytics Trigger TopicARN:'.$topic_arn.' Message:'.$payload);
+      $sns    = _get_amazon_sns_client($config);
+      $result = $sns->publish([
+        'Message'  => $payload,
+        'TopicArn' => $topic_arn
+      ]);
+      return $result;
+    } catch ( Exception $e ) {
+      error_log('CMP Analytics Trigger failed: '.$e->getMessage());
+      return false;
+    }
+  }
+
+function _cmp_usa_analytics_trigger_ajax()
+{
+
+  $frequency = null;
+  $reports   = null;
+
+  if ( !empty($_REQUEST['frequency']) ) 
+  {
+    $frequency = $_REQUEST['frequency'];
+  }
+  if ( !empty($_REQUEST['reports']) ) 
+  {
+    $reports = $_REQUEST['reports'];
+  }
+  
+  _cmp_usa_analytics_report_trigger( $frequency, $reports );
+}
+
+function _get_amazon_sns_client($config)
+{
+  static $sns;
+  static $static_config;
+
+  $sns = [];
+
+  // If the client hasn't been set up yet, or the config given to this call is
+  // different from the previous call, (re)build the client.
+  if (!isset($sns) || $static_config != $config) {
+    // For the SDK credentials, get the saved settings from _s3fs_get_setting(). But since $config might be populated
+    // with to-be-validated settings, its contents (if set) override the saved settings.
+    $access_key = _s3fs_get_setting('awssdk2_access_key');
+    if (isset($config['awssdk2_access_key'])) {
+      $access_key = $config['awssdk2_access_key'];
+    }
+    $secret_key = _s3fs_get_setting('awssdk2_secret_key');
+    if (isset($config['awssdk2_secret_key'])) {
+      $secret_key = $config['awssdk2_secret_key'];
+    }
+    $use_instance_profile = _s3fs_get_setting('awssdk2_use_instance_profile');
+    if (isset($config['awssdk2_use_instance_profile'])) {
+      $use_instance_profile = $config['awssdk2_use_instance_profile'];
+    }
+    $default_cache_config = _s3fs_get_setting('awssdk2_default_cache_config');
+    if (isset($config['awssdk2_default_cache_config'])) {
+      $default_cache_config = $config['awssdk2_default_cache_config'];
+    }
+    $library = _s3fs_load_awssdk2_library();
+
+    if ( variable_get('cmp_usa_analytics_use_instance_profile') )
+    {
+      $use_instance_profile = true;
+    }
+
+    if (!$library['loaded']) {
+      throw new Exception(
+        t('Unable to load the AWS SDK. Please ensure that the awssdk2 library is installed correctly.')
+      );
+    }
+    elseif (!class_exists('Aws\Sns\SnsClient')) {
+      throw new Exception(
+        t('Cannot load Aws\Sns\SnsClient class. Please ensure that the awssdk2 library is installed correctly.')
+      );
+    }
+    elseif (!$use_instance_profile && (!$secret_key || !$access_key)) {
+      # s3fs isn't configured to use instance profile credentials, but also doesn't have the secret/access keys defined.
+      throw new Exception(t("Your AWS credentials have not been properly configured.
+        Please set them on the S3 File System !settings_page or
+        set \$conf['awssdk2_access_key'] and \$conf['awssdk2_secret_key'] in settings.php.",
+        array('!settings_page' => l(t('settings page'), 'admin/config/media/s3fs/settings')))
+      );
+    }
+    elseif ($use_instance_profile &&
+        (empty($default_cache_config) || !(is_writable($default_cache_config) && is_readable($default_cache_config)))) {
+      # s3fs is configured to use instance profile credentials, but the default_cache_config folder is either unset or
+      # isn't read/writable by the web server.
+      throw new Exception(t("Your AWS credentials have not been properly configured.
+        You are attempting to use instance profile credentials but you have not set a valid default cache location.
+        Please set it on the !settings_page or set \$conf['awssdk2_default_cache_config'] in settings.php.
+        Note that this cache location must be an existing folder that can be read and written by your webserver.
+        It should also be writable by whichever user you run drush commands under.",
+        array('!settings_page' => l(t('settings page'), 'admin/config/media/s3fs/settings')))
+      );
+    }
+    if ($use_instance_profile) {
+      // Create a cache adapter that stores cached credentials on the filesystem
+      // in the default cache config folder.
+      $cache_adapter = new DoctrineCacheAdapter(new FilesystemCache($default_cache_config));
+      $client_config = array('credentials.cache' => $cache_adapter);
+    }
+    else {
+      $client_config = array(
+        'key'    => $access_key,
+        'secret' => $secret_key,
+      );
+    }
+    if (!empty($config['region'])) {
+      $client_config['region'] = $config['region'];
+      // Signature v4 is only required in the Beijing and Frankfurt regions.
+      // Also, setting it will throw an exception if a region hasn't been set.
+      $client_config['signature'] = 'v4';
+    }
+    if (!empty($config['use_customhost']) && !empty($config['hostname'])) {
+      $client_config['base_url'] = $config['hostname'];
+    }
+    // Create the Aws\Sns\SnsClient object with the specified configuration.
+    $sns = SnsClient::factory($client_config);
+  }
+  $static_config = $config;
+  return $sns;
+}
+
+function cmp_usa_analytics_menu() 
+{
+    $items = array();
+
+    // Configuration page URL handler
+    $items['admin/config/usa_analytics'] = array(
+        'title' => 'Analytics Integration',
+        'description' => 'Setup and manage a Analytics Integration',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('cmp_usa_analytics_form'),
+        'access arguments' => array('configure analytics'),
+        'type' => MENU_NORMAL_ITEM
+    );
+
+    $items['admin/usa_analytics/trigger'] = array(
+      'page callback' => '_cmp_usa_analytics_trigger_ajax',
+      'access arguments' => array('trigger usa analytics'),
+      'type' => MENU_CALLBACK
+    );
+
+    return $items;
+}
+
+function cmp_usa_analytics_permission()
+{
+    return [
+        'configure usa analytics' => [
+            'title'           => t('Configure USA Analytics Integration'),
+            'description'     => t('Configure USA Analytics Integration Settings.'),
+            'restrict access' => TRUE,
+        ],
+        'trigger usa analytics' => [
+          'title'           => t('Trigger USA Analytics Report Generation'),
+          'description'     => t('Trigger USA Analytics Report Generation.'),
+          'restrict access' => TRUE,
+      ]
+  ];
+}
+
+function cmp_usa_analytics_form_validate($form, &$form_state) 
+{
+}
+
+function cmp_usa_analytics_form()
+{
+    $form['cmp_usa_analytics_enabled'] = array(
+      '#type' => 'checkbox',
+      '#title' => 'Analytics Integration Enabled',
+      '#default_value' => variable_get('cmp_usa_analytics_enabled',false)
+    );
+    $form['cmp_usa_analytics_use_instance_profile'] = array(
+      '#type' => 'checkbox',
+      '#title' => 'Use Instance Profile Credentials',
+      '#default_value' => variable_get('cmp_usa_analytics_use_instance_profile',false),
+      '#description' => 'False to use S3FS credentials'
+    );
+    $form['cmp_usa_analytics_topic_arn'] = array(
+        '#type' => 'textfield',
+        '#title' => 'Topic ARN',
+        '#default_value' => variable_get('cmp_usa_analytics_topic_arn'),
+        '#description' => 'AWS Topic ARN to receive notification'
+    );
+
+    /// users without trigger permission only get half the form
+    if ( ! user_access('trigger usa analytics') ) 
+    {
+      return system_settings_form($form);
+    }
+
+    $form['manual'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Manual Trigger'),
+      '#collapsible' => TRUE,
+      '#collapsed'   => TRUE,
+    );
+    $form['manual']['manual_reports'] = array(
+      '#type' => 'textfield',
+      '#title' => 'Reports JSON',
+      '#default_value' => variable_get('cmp_usa_analytics_reports'),
+      '#description' => 'empty to use default set ex. [ {"id":"ga:147714046","path":"analytics/raw-data"}, ... ]'
+    );
+    $form['manual']['manual_frequency'] = array(
+      '#type' => 'select',
+      '#title' => 'Frequency',
+      '#default_value' => 'any',
+      '#options' => [ 
+        ''         =>'all', 
+        'realtime' =>'realtime', 
+        'hourly'   =>'hourly', 
+        'daily'    =>'daily' 
+      ],
+    );
+    $form['manual']['cmp_usa_analytics_trigger'] = array(
+      '#type' => 'item',
+      '#title' => '',
+      '#markup' => '
+        <script>
+          var triggerReportsTimer = null;
+          function ajax_trigger_reports()
+          {
+              var data = {};
+              var inputReports   = jQuery("#edit-manual-reports");
+              var inputFrequency = jQuery("#edit-manual-frequency");
+              if ( inputReports && inputReports.val() )
+              {
+                data.reports = inputReports.val();
+              }
+              if ( inputFrequency && inputFrequency.val() )
+              {
+                data.frequency = inputFrequency.val();
+              }
+              jQuery("#ajax_reports_response").html("triggering").fadeIn();
+              clearTimeout(triggerReportsTimer);
+              jQuery.ajax({
+                  url: "/admin/usa_analytics/trigger",
+                  data: data,
+                  success:function(data) {
+                      status = " trigger:<span style=\"color:green\">success</span>";
+                      jQuery("#ajax_reports_response").html(status);
+                  },
+                  error:function(data) {
+                      status = " trigger:<span style=\"color:orange\">failure</span>";
+                      jQuery("#ajax_reports_response").html(status);
+                  }
+              });
+          }
+        </script><div class="form-item form-type-button form-item-ajax-trigger-reports">
+        <input type="button" onclick="ajax_trigger_reports();" value="Trigger Reports" class="form-submit"/>
+        <div id="ajax_reports_response" style="display:inline;"></div><br />
+        </div>
+      '
+    );
+
+    return system_settings_form($form);
+}

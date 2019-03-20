@@ -1,0 +1,4 @@
+name = CMP USA Analytics
+description = Module will be used for triggering USA Analytic Reports
+package = CTAC Custom
+core = 7.x
