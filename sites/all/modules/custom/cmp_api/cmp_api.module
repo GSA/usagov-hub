@@ -882,7 +882,9 @@ function _cmp_api_add_reference_info( &$entity, &$ex_entities )
                     if ( isset($ref['uuid']) )
                     {
                         $ref_uuid = $ref['uuid'];
-                    } else if ( is_string($ref['id']) && strlen($ref['nid'])==36 ) {
+                    } else if ( is_string($ref['nid']) && strlen($ref['nid'])==36 ) {
+                        $ref_uuid = $ref['nid'];
+                    } else if ( isset($ref['id']) && is_string($ref['id']) && strlen($ref['id'])==36 ) {
                         $ref_uuid = $ref['id'];
                     } else {
                         $ref_uuid = entity_get_uuid_by_id('node', array($ref['nid']));
