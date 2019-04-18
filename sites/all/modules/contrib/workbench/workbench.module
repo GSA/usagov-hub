@@ -107,7 +107,7 @@ function workbench_block_info() {
 function workbench_block_view($delta = '') {
   $items = module_invoke_all('workbench_block');
   if (empty($items)) {
-    return;
+    return array();
   }
   $block = array(
     'subject' => '',
@@ -213,6 +213,9 @@ function workbench_preprocess_views_view_field(&$variables) {
 function workbench_ctools_plugin_directory($owner, $plugin_type) {
   if ($owner == 'page_manager') {
     return 'plugins/page_manager/' . $plugin_type;
+  }
+  elseif ($owner == 'ctools' && $plugin_type == 'content_types') {
+    return 'plugins/' . $plugin_type;
   }
 }
 
