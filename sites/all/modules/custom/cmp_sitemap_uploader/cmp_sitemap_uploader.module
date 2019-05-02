@@ -87,6 +87,9 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
     if (isset($form_state['values']['ignoringURLs']) && !empty($form_state['values']['ignoringURLs'])) {
         $ignoreURLs = explode(PHP_EOL, $form_state['values']['ignoringURLs']);
     }
+    foreach($ignoreURLs as $iUrl){
+        $ignoreURLscl[] = trim($iUrl);
+    }
 
     if ($file = file_save_upload('filexml', $validators, 'public://',FILE_EXISTS_REPLACE)) {
 
@@ -94,22 +97,24 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
         $xml = simplexml_load_string($contents);
         $json = json_encode($xml);
         $array = json_decode($json,TRUE);
-        //  dsm($ignoreURLs);
+        $ignoredURLs = array();
+        //dsm($ignoreURLscl);
+        //dsm($array);
         $USA_sitemap = array();
         $Gob_sitemap = array();
         if (isset($array['url'])) {
             foreach ($array['url'] as $url) {
 
-                if (!in_array($url['loc'], $ignoreURLs)) {
+                if (!in_array($url['loc'], $ignoreURLscl)) {
                     if (isset($url['loc']) && strpos($url['loc'], 'espanol') === false) {
                         $USA_sitemap[] = $url;
                     } else {
                         $Gob_sitemap[] = $url;
                     }
                 }
-                /*  else{
-                      dsm($url['loc']);
-                  }*/
+                else{
+                    $ignoredURLs[] = $url['loc'];
+                }
             }
         }
         $node_gob = node_load(variable_get('sitemap_gob'));
@@ -117,11 +122,6 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
 
         $xml_data_gob = '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd http://www.google.com/schemas/sitemap-mobile/1.0/sitemap-mobile.xsd http://www.google.com/schemas/sitemap-video/1.1/sitemap-video.xsd" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>';
         $xml_data_usa = '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xhtml="http://www.w3.org/1999/xhtml" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd http://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd http://www.google.com/schemas/sitemap-mobile/1.0/sitemap-mobile.xsd http://www.google.com/schemas/sitemap-video/1.1/sitemap-video.xsd" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"></urlset>';
-        /*
-               print "<pre>";
-                    echo arrayToXml($USA_sitemap, $xml_data_usa);
-                    exit;
-                print "<pre>";*/
         $file_usa = file_save_data(arrayToXml($USA_sitemap, $xml_data_usa),'s3://usa_sitemap.xml', FILE_EXISTS_REPLACE);
         $file_usa->status = 1;
 
@@ -133,7 +133,10 @@ function cmp_sitemap_form_submit(&$form, &$form_state){
         node_save($node_gob);
         node_save($node_usa);
 
-        drupal_set_message("Sitemaps have been updated in 1-3'. USA Sitemap has ". count($USA_sitemap). ' URLS in it. USA Espanol Sitemap has ' .count($Gob_sitemap).' URLS in it.' );
+        drupal_set_message("Sitemaps have been updated in 1-3 seconds. USA Sitemap has ". count($USA_sitemap). ' URLS in it. USA Espanol Sitemap has ' .count($Gob_sitemap).' URLS in it.', 'status' );
+        foreach($ignoredURLs as $iURL){
+            drupal_set_message('"'.$iURL.'" is not included in new sitemap.','status');
+        }
     }
 }
 
