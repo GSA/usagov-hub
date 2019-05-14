@@ -77,7 +77,7 @@ class TemplateSource
         // }
 
         if ( !$this->sourceRepoExists() || $this->freshTemplates )
-        { 
+        {
             $this->cleanRepo();
             $this->cloneRepo();
             $this->checkoutBranch();
@@ -100,7 +100,7 @@ class TemplateSource
         /// should template object operate straight outa source
         /// or be merged into a diff location before compilation
         /// theoretically, a version of the templates from git
-        /// could be checked into the ssg repo in case there was 
+        /// could be checked into the ssg repo in case there was
         /// no git access
         // $this->mergeSourceIntoDestination();
         // return $this->verifyDestination();
@@ -119,10 +119,10 @@ class TemplateSource
         $git_repo = 'https://'.urlencode($this->ssg->config['templateSync']['repo_user'])
                 .':'.urlencode($this->ssg->config['templateSync']['repo_pass'])
                 .'@'.$this->ssg->config['templateSync']['repo_url'];
-        
-        $clone_cmd = "git clone '{$git_repo}' {$this->sourceDir}";
+
+        $clone_cmd = "git clone -c http.sslVerify=false '{$git_repo}' {$this->sourceDir}";
         // $this->log($clone_cmd."\n",false);
-        $rslt = `{$clone_cmd} 2>&1`; 
+        $rslt = `{$clone_cmd} 2>&1`;
         // $this->log($rslt."\n");
 
         if ( strpos($rslt, 'Authentication failed') !== false ) {
