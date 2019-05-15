@@ -348,7 +348,7 @@ function _cmp_delete_assets_from_regions($nid){
 
     foreach($tids as $t=>$region){
         cache_clear_all('field:taxonomy_term:' . $t, 'cache_field');
-        db_query('UPDATE taxomony_dates set changed=:changed where tid=:tid', array(':changed'=>$changed, ':tid' => $t));
+        db_query('UPDATE taxonomy_dates set changed=:changed where tid=:tid', array(':changed'=>$changed, ':tid' => $t));
     }
 
 }
