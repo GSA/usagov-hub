@@ -510,7 +510,7 @@ function workflow_label($workflow) {
     $output = t('No workflow');
   }
   elseif ($workflow) {
-    $output = check_plain(t($workflow->label()));
+    $output = $workflow->label();
   }
   else {
     // E.g., NULL.

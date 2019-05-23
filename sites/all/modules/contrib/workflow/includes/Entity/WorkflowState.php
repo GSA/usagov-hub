@@ -153,7 +153,7 @@ class WorkflowState extends Entity {
   public static function loadByName($name, $wid = 0) {
     /* @var $state WorkflowState */
     foreach ($states = self::getStates($wid) as $state) {
-      if ($name == $state->getName()) {
+      if ($name == $state->name) {
         return $state;
       }
     }
@@ -458,7 +458,7 @@ class WorkflowState extends Entity {
       // We cannot use getTransitions, since there are no ConfigTransitions
       // from State with ID 0, and we do not want to repeat States.
       foreach ($workflow->getStates() as $state) {
-        $options[$state->value()] = $state->label(); // Translation is done later.
+        $options[$state->value()] = $state->label(); // Translation is done as part of defaultLabel().
       }
     }
     else {
@@ -473,7 +473,7 @@ class WorkflowState extends Entity {
           $label = $target_state ? $target_state->label() : '';
         }
         $new_sid = $transition->target_sid;
-        $options[$new_sid] = $label; // Translation is done later.
+        $options[$new_sid] = $label; // Translation is done as part of defaultLabel().
       }
 
       // Include current state for same-state transitions, except when $sid = 0.
@@ -481,14 +481,8 @@ class WorkflowState extends Entity {
       // but only if the transitions have been saved at least one time.
       if ($current_sid && ($current_sid != $workflow->getCreationSid())) {
         if (!isset($options[$current_sid])) {
-          $options[$current_sid] = $this->label(); // Translation is done later.
+          $options[$current_sid] = $this->label(); // Translation is done as part of defaultLabel().
         }
-      }
-
-      // Properly fix the labels.
-      // Translate, convert '&', make secure.
-      foreach($options as $key => $label) {
-        $options[$key] = html_entity_decode(check_plain(t($label)));
       }
 
       // Save to entity-specific cache.
@@ -538,7 +532,7 @@ class WorkflowState extends Entity {
    * Mimics Entity API functions.
    */
   protected function defaultLabel() {
-    return $this->state;
+    return isset($this->state) ? t('@state', ['@state' => $this->state]) : '';
   }
 
   public function getName() {

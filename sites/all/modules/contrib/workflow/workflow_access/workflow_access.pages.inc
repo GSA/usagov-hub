@@ -90,7 +90,7 @@ function workflow_access_form($form, $form_state, Workflow $workflow) {
     // @todo: better tables using a #theme function instead of direct #prefixing.
     $form[$state->sid] = array(
       '#type' => 'fieldset',
-      '#title' => check_plain($state->label()),
+      '#title' => $state->label(),
       '#collapsible' => TRUE,
       '#collapsed' => FALSE,
       '#tree' => TRUE,

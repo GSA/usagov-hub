@@ -3,7 +3,7 @@ description = Workflow API. (Enable Workflow Node or Workflow Field to add arbit
 package = Workflow
 core = 7.x
 
-dependencies[] = entity (>7.x-1.5)
+dependencies[] = entity (>7.x-1.6)
 dependencies[] = list
 
 files[] = includes/Entity/Workflow.php
@@ -18,9 +18,8 @@ files[] = includes/Field/WorkflowDefaultWidget.php
 files[] = includes/Form/WorkflowTransitionForm.php
 files[] = workflow.features.inc
 
-; Information added by Drupal.org packaging script on 2017-10-26
-version = "7.x-2.11"
+; Information added by Drupal.org packaging script on 2019-05-22
+version = "7.x-2.12"
 core = "7.x"
 project = "workflow"
-datestamp = "1509025748"
-
+datestamp = "1558509189"

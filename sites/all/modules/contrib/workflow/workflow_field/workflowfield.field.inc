@@ -329,23 +329,15 @@ function workflowfield_i18n_field_info() {
 /**
  * Returns the array of translated allowed values for a workflow (list) field.
  *
- * The strings are not safe for output. Keys and values of the array should be
- * sanitized through field_filter_xss() before being displayed.
- *
  * @param $field
  *   The field definition.
  *
  * @return
  *   The array of allowed values. Keys of the array are the raw stored values
- *   (number or text), values of the array are the display labels.
+ *   (number or text), values are the translated, sanitized labels.
  */
 function workflowfield_i18n_field_translate_allowed_values($field) {
-  $allowed_values = array();
-
+  // State labels are already translated and sanitized.
   $workflow_states = workflow_get_workflow_state_names($field['settings']['wid'], $grouped = FALSE, $all = TRUE);
-  foreach ($workflow_states as $sid => $state_name) {
-    $allowed_values[$sid] = t($state_name);
-  }
-
-  return $allowed_values;
+  return $workflow_states;
 }

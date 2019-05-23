@@ -190,7 +190,7 @@ class WorkflowTransitionForm { // extends FormBase {
       }
     }
 
-    $workflow_label = $workflow ? check_plain(t($workflow->label())) : '';
+    $workflow_label = $workflow ? $workflow->label() : '';
 
     // Change settings locally.
     if (!$field_name) {
@@ -300,7 +300,7 @@ class WorkflowTransitionForm { // extends FormBase {
       else {
         $element['workflow'] += array(
           '#type' => 'fieldset',
-          '#title' => t($workflow_label),
+          '#title' => $workflow_label,
           '#collapsible' => TRUE,
           '#collapsed' => ($settings_fieldset == 1) ? FALSE : TRUE,
         );
@@ -312,13 +312,13 @@ class WorkflowTransitionForm { // extends FormBase {
       $help_text = isset($instance['description']) ? $instance['description'] : '';
       $element['workflow']['workflow_sid'] = array(
         '#type' => $settings_options_type,
-        '#title' => $settings_title_as_name ? t('Change !name state', array('!name' => $workflow_label)) : t('Target state'),
+        '#title' => $settings_title_as_name ? t('Change @name state', array('@name' => $workflow_label)) : t('Target state'),
         '#access' => TRUE,
         '#options' => $options,
         // '#name' => $workflow_label,
         // '#parents' => array('workflow'),
         '#default_value' => $default_value,
-        '#description' => $help_text,
+        '#description' => t('@help', ['@help' => $help_text]),
       );
     }
 
@@ -605,7 +605,7 @@ class WorkflowTransitionForm { // extends FormBase {
       // content is not associated to a workflow, old_sid is now 0. This may
       // happen in workflow_vbo, if you assign a state to non-relevant nodes.
       $entity_id = entity_id($entity_type, $entity);
-      drupal_set_message(t('Error: content !id has no workflow attached. The data is not saved.', array('!id' => $entity_id)), 'error');
+      drupal_set_message(t('Error: content @id has no workflow attached. The data is not saved.', array('@id' => $entity_id)), 'error');
       // The new state is still the previous state.
       $new_sid = $old_sid;
       return $new_sid;
@@ -617,7 +617,8 @@ class WorkflowTransitionForm { // extends FormBase {
     // Try to execute the transition. Return $old_sid when error.
     if (!$transition) {
       // This should only happen when testing/developing.
-      drupal_set_message(t('Error: the transition from %old_sid to %new_sid could not be generated.'), 'error');
+      drupal_set_message(t('Error: the transition from @old_sid to @new_sid could not be generated.',
+        array('@old_sid' => $old_sid, '@new_sid' => $new_sid)), 'error');
       // The current value is still the previous state.
       $new_sid = $old_sid;
     }

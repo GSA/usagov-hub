@@ -133,6 +133,17 @@ function workflow_notify_workflow($op, $old_state, $new_state, $entity, $force, 
 }
 
 /**
+ * Implements hook_entity_insert().
+ * Calls drupal_mail via _workflow_notify() for Workflow Field;
+ *
+ * @param $entity
+ * @param $entity_type
+ */
+function workflow_notify_entity_insert($entity, $entity_type) {
+  _workflow_notify_entity_update($entity, $entity_type);
+}
+
+/**
  * Implements hook_entity_update().
  * Calls drupal_mail via _workflow_notify() for Workflow Field;
  *
@@ -140,6 +151,16 @@ function workflow_notify_workflow($op, $old_state, $new_state, $entity, $force, 
  * @param $entity_type
  */
 function workflow_notify_entity_update($entity, $entity_type) {
+  _workflow_notify_entity_update($entity, $entity_type);
+}
+
+/**
+ * Calls drupal_mail via _workflow_notify() for Workflow Field;
+ *
+ * @param $entity
+ * @param $entity_type
+ */
+function _workflow_notify_entity_update($entity, $entity_type) {
   if (isset($entity->workflow_transitions)) {
     $new_state = workflow_node_current_state($entity, $entity_type, $field_name);
     foreach ($entity->workflow_transitions as $field_name => &$transition) {

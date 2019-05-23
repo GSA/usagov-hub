@@ -446,7 +446,7 @@ class WorkflowTransition extends Entity {
           $args = array(
             '@type' => $entity_type_info['label'],
             '%label' => entity_label($entity_type, $entity),
-            '%state_name' => check_plain(t($new_state->label())),
+            '%state_name' => $new_state->label(),
           );
           $uri = entity_uri($entity_type, $entity);
           watchdog('workflow', $message, $args, WATCHDOG_NOTICE, l('view', $uri['path']));

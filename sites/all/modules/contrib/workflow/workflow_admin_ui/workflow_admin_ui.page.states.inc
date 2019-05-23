@@ -59,7 +59,7 @@ function workflow_admin_ui_states_form($form, &$form_state, $workflow, $op) {
         '#type' => 'textfield',
         '#size' => 30,
         '#maxlength' => 255,
-        '#default_value' => check_plain($label),
+        '#default_value' => $label,
       ),
 
       'name' => array(

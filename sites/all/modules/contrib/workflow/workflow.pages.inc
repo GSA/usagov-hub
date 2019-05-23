@@ -61,7 +61,7 @@ function workflow_tab_page($entity_type, $entity = NULL) {
     $new_state = $history->getNewState();
     if ($new_state) {
       $name = $new_state->getName();
-      $label = check_plain(t($new_state->label()));
+      $label = $new_state->label();
     }
 
     if (!$new_state) {
@@ -98,7 +98,7 @@ function workflow_tab_page($entity_type, $entity = NULL) {
     $old_state = $history->getOldState();
     if ($old_state) {
       $name = $old_state->getName();
-      $label = check_plain(t($old_state->label()));
+      $label = $old_state->label();
     }
 
     if (!$old_state) {

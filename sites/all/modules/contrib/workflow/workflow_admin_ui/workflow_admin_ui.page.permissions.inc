@@ -32,7 +32,7 @@ function workflow_admin_ui_view_permissions_form($workflow, $op) {
     foreach ($transition->roles as $rid) {
       $old_state = $transition->getOldState();
       $new_state = $transition->getNewState();
-      $all[$rid]['transitions'][] = array(check_plain(t($old_state->label())), WORKFLOW_ADMIN_UI_ARROW, check_plain(t($new_state->label())));
+      $all[$rid]['transitions'][] = array($old_state->label(), WORKFLOW_ADMIN_UI_ARROW, $new_state->label());
     }
   }
 

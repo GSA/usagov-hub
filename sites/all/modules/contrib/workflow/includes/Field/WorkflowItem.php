@@ -297,7 +297,7 @@ class WorkflowItem extends WorkflowD7Base {// D8: extends ConfigFieldItemBase im
           $previous_wid = $state->wid;
           $lines[] = $state->name . "'s states: ";
         }
-        $label = check_plain(t($state->label()));
+        $label = $state->label();
         $states[$state->sid] = $label;
         $lines[] = $state->sid . ' | ' . $label;
       }

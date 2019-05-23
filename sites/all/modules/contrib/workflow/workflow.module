@@ -643,7 +643,7 @@ function workflow_get_workflow_state_names($wid = 0, $grouped = FALSE, $all = FA
 function workflow_get_workflow_names() {
   $options = array();
   foreach (workflow_load_multiple() as $workflow) {
-    $options[$workflow->wid] = html_entity_decode(t($workflow->label()));
+    $options[$workflow->wid] = $workflow->label();
   }
 
   return $options;
@@ -662,7 +662,7 @@ function workflow_get_sid_label($sid) {
   else {
     $label = 'Unknown state';
   }
-  return html_entity_decode(t($label));
+  return $label;
 }
 
 /**
