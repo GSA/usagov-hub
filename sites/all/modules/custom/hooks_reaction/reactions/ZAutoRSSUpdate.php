@@ -45,16 +45,16 @@ hooks_reaction_add(
 
                     if (in_array('USA.gov', $ubys)){
                         // usa.gov
-                        $node = node_load(USA_RSS_NID);
+                        $noderss = node_load(USA_RSS_NID);
                     }
                     else{
                         // gobierno.gov
-                        $node = node_load(GOBIERNO_RSS_NID);
+                        $noderss = node_load(GOBIERNO_RSS_NID);
                     }
                     $exist = false;
                     _generate_cmp_feed_item($node, $is_USA, $feed_item_node);
 
-                    foreach($node->field_feed_items['und'] as $feed_item){
+                    foreach($noderss->field_feed_items['und'] as $feed_item){
                         if($feed_item['target_id'] == $feed_item_node->nid){
                             $exist = true;
                         }
