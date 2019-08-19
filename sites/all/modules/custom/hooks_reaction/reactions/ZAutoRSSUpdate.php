@@ -94,7 +94,7 @@ function _generate_cmp_feed_item($text_asset_node, $is_USA, $old_feed_item_node 
     $cmp_feed_item_node->uid = $text_asset_node->uid;
     $cmp_feed_item_node->title = $text_asset_node->title;
     $cmp_feed_item_node->field_for_use_by_text = $text_asset_node->field_for_use_by_text;
-    $cmp_feed_item_node->field_feed_item_link['und'][0]['value'] = ($is_USA) ? 'https://www.usa.gov/features/' : 'https://gobierno.usa.gov/novedades/' . _aliasPathHelper_urlFriendlyString($text_asset_node->title);
+    $cmp_feed_item_node->field_feed_item_link['und'][0]['value'] = ($is_USA ? 'https://www.usa.gov/features/' : 'https://gobierno.usa.gov/novedades/') . _aliasPathHelper_urlFriendlyString($text_asset_node->title);
     $cmp_feed_item_node->field_feed_item_pubdate['und'][0] = array('value' => date('Y-m-d H:i:s', time()),
         'timezone' => 'America/New_York',
         'timezone_db' => 'UTC',
