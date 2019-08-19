@@ -90,7 +90,7 @@ function _generate_cmp_feed_item($text_asset_node, $is_USA){
         'date_type'=>'datetime');
     $cmp_feed_item_node->body['und'][0]['format'] = 'filtered_html';
     $cmp_feed_item_node->body['und'][0]['summary'] = '';
-    $cmp_feed_item_node->body['und'][0]['value'] = 'Content';
+    $cmp_feed_item_node->body['und'][0]['value'] = $text_asset_node->field_description['und'][0]['value'];
     node_save($cmp_feed_item_node);
     return $cmp_feed_item_node;
 }
