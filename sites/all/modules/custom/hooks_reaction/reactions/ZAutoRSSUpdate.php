@@ -37,6 +37,7 @@ hooks_reaction_add(
                 }
                 else{
                     $feed_item_node = node_load($res);
+
                     $ubys=array();
                     foreach($feed_item_node->field_for_use_by_text['und'] as $uby){
                         $ubys[] = $uby['value'];
@@ -44,14 +45,16 @@ hooks_reaction_add(
 
                     if (in_array('USA.gov', $ubys)){
                         // usa.gov
-                        $node = node_load(USA_RSS_NID);
+                        $noderss = node_load(USA_RSS_NID);
                     }
                     else{
                         // gobierno.gov
-                        $node = node_load(GOBIERNO_RSS_NID);
+                        $noderss = node_load(GOBIERNO_RSS_NID);
                     }
                     $exist = false;
-                    foreach($node->field_feed_items['und'] as $feed_item){
+                    _generate_cmp_feed_item($node, $is_USA, $feed_item_node);
+
+                    foreach($noderss->field_feed_items['und'] as $feed_item){
                         if($feed_item['target_id'] == $feed_item_node->nid){
                             $exist = true;
                         }
@@ -71,26 +74,35 @@ hooks_reaction_add(
     }
 );
 
-function _generate_cmp_feed_item($text_asset_node, $is_USA){
+function _generate_cmp_feed_item($text_asset_node, $is_USA, $old_feed_item_node = null){
 
-    $cmp_feed_item_node = new StdClass();
-    $cmp_feed_item_node->type = 'cmp_feed_item';
-    $cmp_feed_item_node->comment = 0;
-    $cmp_feed_item_node->status = 1;
-    $cmp_feed_item_node->promote = 0;
-    $cmp_feed_item_node->language = 'en';
+    if ($old_feed_item_node == null) {
+
+        $cmp_feed_item_node = new StdClass();
+        $cmp_feed_item_node->type = 'cmp_feed_item';
+        $cmp_feed_item_node->comment = 0;
+        $cmp_feed_item_node->status = 1;
+        $cmp_feed_item_node->promote = 0;
+        $cmp_feed_item_node->language = 'en';
+
+        node_object_prepare($cmp_feed_item_node);
+    }
+    else
+    {
+        $cmp_feed_item_node = $old_feed_item_node;
+    }
     $cmp_feed_item_node->uid = $text_asset_node->uid;
-    node_object_prepare($cmp_feed_item_node);
     $cmp_feed_item_node->title = $text_asset_node->title;
     $cmp_feed_item_node->field_for_use_by_text = $text_asset_node->field_for_use_by_text;
-    $cmp_feed_item_node->field_feed_item_link['und'][0]['value'] = ($is_USA)?'https://www.usa.gov/features/':'https://gobierno.usa.gov/novedades/'._aliasPathHelper_urlFriendlyString($text_asset_node->title);
-    $cmp_feed_item_node->field_feed_item_pubdate['und'][0] = array('value'=> date('Y-m-d H:i:s',time()),
-        'timezone'=>'America/New_York',
-        'timezone_db'=>'UTC',
-        'date_type'=>'datetime');
+    $cmp_feed_item_node->field_feed_item_link['und'][0]['value'] = ($is_USA ? 'https://www.usa.gov/features/' : 'https://gobierno.usa.gov/novedades/') . _aliasPathHelper_urlFriendlyString($text_asset_node->title);
+    $cmp_feed_item_node->field_feed_item_pubdate['und'][0] = array('value' => date('Y-m-d H:i:s', time()),
+        'timezone' => 'America/New_York',
+        'timezone_db' => 'UTC',
+        'date_type' => 'datetime');
     $cmp_feed_item_node->body['und'][0]['format'] = 'filtered_html';
     $cmp_feed_item_node->body['und'][0]['summary'] = '';
-    $cmp_feed_item_node->body['und'][0]['value'] = 'Content';
+    $cmp_feed_item_node->body['und'][0]['value'] = $text_asset_node->field_description['und'][0]['value'];
+
     node_save($cmp_feed_item_node);
     return $cmp_feed_item_node;
 }
