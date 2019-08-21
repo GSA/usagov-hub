@@ -39,13 +39,13 @@ class DrupalAPIDataSource extends DataSource
           'page_size'=>$batchSize,
           'page'=>$currentPage
         ];
-//         JKH commented out for test...        
-//         if ( !empty(intval($since)) ) {
-//           $this->log("\nLOADING since(".date('Y/m/d H:i:s',$since).")");
-//           $query['since'] = intval($since);
-//         }
+        // JKH commented out for test...        
+        if ( !empty(intval($since)) ) {
+             $this->log("\nLOADING since(".date('Y/m/d H:i:s',$since).")");
+             $query['since'] = intval($since);
+        }
         // JKH added for test 
-        $query['since'] = strtotime('-5 year');
+        // $query['since'] = strtotime('-5 year');
         $this->log("\nLOADING since(".date('Y/m/d H:i:s',$query['since']).")");
         $body = file_get_contents(
           "{$server}{$url}",
