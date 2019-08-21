@@ -93,7 +93,10 @@ class StaticSiteGenerator
         if ( !$this->prepareDirs() )
         {
             /// don't bother booting the rest of the stuff if this fails
-            die;
+            // JKH comment out die...
+            // die;
+            // JKH add log of failure
+            $this->log("SSG error : prepareDirs() fails",false);
             return;
         }
 

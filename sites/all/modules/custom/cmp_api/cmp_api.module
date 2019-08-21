@@ -386,6 +386,7 @@ function _do_es_search($from, $size, $params){
 
         $response = _fbo_elasticsearch_request("/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty",['data'=>$param]);
         $r = json_decode($response->data);
+        // JKH die is commented out..., ok.
         // print_r(["/opportunities/opportunity/_search?size=".$size."&from=".$from."&pretty",$param]);flush();die;
         if(isset($r->hits->hits)){
             $sols = _get_array_of_obj($r->hits->hits);
@@ -808,7 +809,8 @@ function _cmp_api_get_all_entities(){
                 $obj['tid'] = $r->entity_id;
             }
             else{
-                $obj['title'] = $r->title;
+            	// JKH checks for object properties set 
+                $obj['title'] = isset($r->title) ? $r->title : "";
                 $obj['nid'] = $r->entity_id;
             }
             $entities[] = $obj;

@@ -321,8 +321,12 @@ function cmp_misc_views_pre_render(&$view) {
                 $owner = _get_asset_owner_by_tid($row->tid);
             }
 
-
-            $owner_txt = strlen($owner) > 0? ' is owned by ' . $owner : '' ;
+            // JKH updated to check that $owner is set...
+            if(isset($owner)) {
+               $owner_txt = strlen($owner) > 0? ' is owned by ' . $owner : '' ;
+            } else {
+               $owner_txt = "owner not set";
+            }
 
             $new_title = $view->result[$i]->taxonomy_term_data_name . $owner_txt . ' ( '
                 . $asset_count . ' Asset' . (($asset_count!=0)?'s':'')
