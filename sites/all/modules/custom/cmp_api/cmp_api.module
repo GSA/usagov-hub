@@ -797,10 +797,20 @@ function _cmp_api_get_all_entities(){
     */
     //need to include deleted
     if (isset($_REQUEST["since"])) {
-        $res = db_query("SELECT de.entity_type, de.name, de.entity_id, de.uuid FROM cmp_api_deleted_entities de WHERE de.changed > :since UNION SELECT 'soft' AS entity_type, 'title' AS name, nd.nid as entity_id, 0 AS 'uuid' FROM node_deleted nd WHERE nd.deletion_timestamp > :since", $where_param);
+        $res = db_query("SELECT de.entity_type, de.name, de.entity_id, de.uuid FROM cmp_api_deleted_entities de WHERE de.changed > :since
+          UNION SELECT 'soft' AS entity_type, 'title' AS name, nd.nid as entity_id, 0 AS 'uuid' FROM node_deleted nd WHERE nd.deletion_timestamp > :since", $where_param);
+
         foreach ($res as $r) {
+
+            if ($r->uuid == 0) {
+                $tmpuuid = db_query('SELECT uuid FROM {node} WHERE nid = :nid', array(':nid'=>$r->entity_id))->fetchField(0);
+            }
+            else{
+                $tmpuuid = $r->uuid;
+            }
+
             $obj = [];
-            $obj['uuid'] = $r->uuid;
+            $obj['uuid'] = $tmpuuid;
             $obj['deleted'] = 1;
             $obj['type'] = $r->entity_type;
             if ($r->entity_type == 'term'){
