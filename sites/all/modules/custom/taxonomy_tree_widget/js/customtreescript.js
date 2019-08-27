@@ -61,7 +61,9 @@ jQuery(document).ready(function (){
         jQuery('#frame').hide();
         jQuery('#frame').attr('src', '/admin/structure/taxonomy/site_strucutre_taxonomy/add?hideHeader=1');
         jQuery('#frame').show();
-        jQuery('#frame').load(function() {
+        // JKH attempting fix a.indexOf is not a function
+        // jQuery('#frame').load(function() {
+        jQuery('#frame').on('load', function() {
             jQuery('#frame').contents().find('#edit-parent').val(term_id);
         });  
     }

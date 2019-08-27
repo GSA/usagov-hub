@@ -929,6 +929,7 @@ function export_to_csv(array &$array)
         }
     }
     fclose($csv_file);
+    // JKH why is die called here?
     die;
 }
 

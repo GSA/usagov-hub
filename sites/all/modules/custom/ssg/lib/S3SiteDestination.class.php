@@ -72,7 +72,8 @@ class S3SiteDestination
 
     public function syncFilesCli()
     {
-        $looksGood = true;
+        // JKH changed looksgood to retcode
+        $retcode = true;
 
         $envAccessKey = getenv('AWS_ACCESS_KEY_ID');
         $accessKey    = getenv('CMP_AWS_ACCESS_KEY');
@@ -87,28 +88,17 @@ class S3SiteDestination
             putenv('AWS_SECRET_ACCESS_KEY='.$secretKey);
         }
 
-        // $this->log($this->s3Sync." --dryrun\n");
-        // $result = `{$this->s3Sync} --dryrun`;
-        // foreach ( $this->bads as $bad )
-        // {
-        //     if ( stristr($bad,$result) )
-        //     {
-        //         $looksGood = false;
-        //     }
-        // }
-        // if ( $looksGood )
-        // {
-            /// first pull down any files we want to preserve, then sync
-            $this->log($this->s3Sync."\n");
-            $result = `{$this->s3Sync}`;
-            foreach ( $this->bads as $bad )
-            {
-                if ( stristr($bad,$result) )
-                {
-                    $looksGood = false;
-                }
-            }
-        // }
+		// JKH s3Sync is defined as ..., you can also pass --dryrun to this $result = `{$this->s3Sync} --dryrun`;
+		// $this->s3Sync = "aws s3 sync {$this->source} {$this->dest} --delete --acl public-read";
+		/// first pull down any files we want to preserve, then sync
+		$this->log($this->s3Sync."\n");
+		$result = `{$this->s3Sync}`;
+		// $bad = 'command not found', 'usage', 'error'
+		foreach ( $this->bads as $bad ) {
+			if ( stristr($bad,$result) ) {
+				$retcode = false;
+			}
+		}
 
         $this->log("Sync: uploading site manifest.\n");
         try {    
@@ -140,9 +130,11 @@ class S3SiteDestination
 
         } catch (\Aws\S3\Exception\S3Exception $e) {
             $this->log("Sync: There was an error uploading Manifest file. ". $e->getMessage()."\n");
+            // JKH added
+            $retcode = false;
         } 
 
-        return $looksGood;
+        return $retcode;
     }
 
     public function getFilesInDir($targetDir,$md5=false)
@@ -384,6 +376,7 @@ class S3SiteDestination
         //     foreach ($objects as $object) 
         //     {
         //         print_r($object);
+        //         JKH double checking that this die is commented out
         //         // if ( !empty($object['Key']) ) { print_r($object);die; }
         //         continue;
         //         try {

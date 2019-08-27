@@ -1,5 +1,7 @@
 <?php
-
+//
+// JKH note: changed the "log" column type to LONGBLOB 08/09/19
+//
 namespace ctac\ssg;
 
 // $GLOBALS['logMessage'] = '';

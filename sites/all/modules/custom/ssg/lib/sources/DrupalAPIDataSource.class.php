@@ -39,10 +39,14 @@ class DrupalAPIDataSource extends DataSource
           'page_size'=>$batchSize,
           'page'=>$currentPage
         ];
+        // JKH commented out for test...        
         if ( !empty(intval($since)) ) {
-          $this->log("\nLOADING since(".date('Y/m/d H:i:s',$since).")");
-          $query['since'] = intval($since);
+             $this->log("\nLOADING since(".date('Y/m/d H:i:s',$since).")");
+             $query['since'] = intval($since);
         }
+        // JKH added for test 
+        // $query['since'] = strtotime('-5 year');
+        $this->log("\nLOADING since(".date('Y/m/d H:i:s',$query['since']).")");
         $body = file_get_contents(
           "{$server}{$url}",
           FALSE,
@@ -89,9 +93,11 @@ class DrupalAPIDataSource extends DataSource
         }
         */
       } catch (Exception $e) {
-        print_r($e->getMessage());
-        print_r($e);
-        die('ERRORS');
+      	// JKH changing obscure 'ERRORS' message, and use of die
+      	$exception = sprintf("%s\n",$e->getMessage());
+      	printf("%s",$exception);
+      	$this->log($exception);
+        return false;
       }
       $loadEndTime = microtime(true);
       $loadTime = round($loadEndTime - $loadStartTime,4);

@@ -58,7 +58,9 @@ function adminimal_admin_menu_page_build(&$page) {
 
   // Check if both slicknav and custom jQuery must be loaded.
   if ($load_slicknav and $load_jquery) {
-    drupal_add_js($path . '/js/jquery.min.js', array(
+      // JKH no no, we are going to use jquery_update version
+    global $base_url;  
+    drupal_add_js($base_url . '/misc/jquery.min.js', array(
       'type' => 'file',
       'scope' => 'header',
       'weight' => 888,

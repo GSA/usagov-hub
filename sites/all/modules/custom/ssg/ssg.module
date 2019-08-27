@@ -521,10 +521,11 @@ function _ssg_finish_request()
   }
   if (session_id()) session_write_close();
   $GLOBALS['_ssg_request_buffer_flushed'] = true;
-  if ( function_exists('fastcgi_finish_request') )
-  {
-    @fastcgi_finish_request();
-  }
+  // JKH no no sending header here...
+  //   if ( function_exists('fastcgi_finish_request') )
+  //   {
+  //     @fastcgi_finish_request();
+  //   }
   set_time_limit($minutes_to_process*60);
   ini_set('max_execution_time',$minutes_to_process*60);
 }
@@ -542,8 +543,9 @@ function ssg_exit()
             $site->templates->updateTemplates = true;
         }
         _ssg_build_and_deploy_site($site);
+        // JKH why do we need to call die here?
         die;
-    }
+    }   
 }
 
 function ssg_taxonomy_term_delete( $term )
@@ -551,6 +553,7 @@ function ssg_taxonomy_term_delete( $term )
     /// trigger site rebuild
     $GLOBALS['ssg_run_needed'] = true;
 }
+
 function ssg_workbench_moderation_transition($entity, $fromState, $toState)
 {
     /// make sure we are acting on the proper revision - might need to load another version of the node or something
@@ -563,29 +566,33 @@ function ssg_workbench_moderation_transition($entity, $fromState, $toState)
         /// trigger site rebuild
         $GLOBALS['ssg_run_needed'] = true;
     }
-}
+} 
+
 function ssg_entity_insert( $entity, $type )
 {
     /// trigger site rebuild
     $GLOBALS['ssg_run_needed'] = true;
 }
+
 function ssg_entity_update( $entity, $type )
 {
     /// trigger site rebuild
     $GLOBALS['ssg_run_needed'] = true;
 }
+
 function ssg_entity_postsave($entity, $entity_type, $op) {
     $GLOBALS['ssg_run_needed'] = true;
 }
+
 function ssg_node_presave($node) {
     $GLOBALS['ssg_run_needed'] = true;
 }
+
 function ssg_node_delete( $entity )
 {
     /// trigger site rebuild
     $GLOBALS['ssg_run_needed'] = true;
 }
-
 
 function ssg_cronapi ()
 {

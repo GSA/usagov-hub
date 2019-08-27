@@ -33,5 +33,7 @@
     position:absolute;
     top:20%;
     left:50%;
+    /* JKH this is not available, or necessary
     background: #fff url("/sites/all/themes/adminimal_theme/images/loading.gif") no-repeat 50%;
+    */
 }
