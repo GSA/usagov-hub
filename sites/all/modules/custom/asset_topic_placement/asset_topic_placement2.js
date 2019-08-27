@@ -1,6 +1,8 @@
 function setupAssetTopicEvents(){/* nothing to see here for now */};
 
+
 jQuery(document).ready(function(){
+
 
     //Things to do on initial page load....
 
@@ -33,6 +35,9 @@ jQuery(document).ready(function(){
 
         getNodes();
     });
+
+
+
 
     function parentTermWidget(){
 
@@ -122,6 +127,21 @@ jQuery(document).ready(function(){
             jQuery('.group-asset-placement').show();
             jQuery('.group-homepage-container').hide();
         }
+
+        if ( jQuery('#edit-field-type-of-page-to-generate-und').val() != 'home'
+            && jQuery('#edit-field-type-of-page-to-generate-und').val() != 'generic-navigation-page'
+            && jQuery('#edit-field-type-of-page-to-generate-und').val() != 'more') {
+
+            jQuery('#taxo_id_42').hide();
+            jQuery('#tree_42').hide();
+            jQuery('#edit-field-also-include-on-nav-page').hide();
+        }
+        else {
+            jQuery('#taxo_id_42').show();
+            jQuery('#tree_42').show();
+            jQuery('#edit-field-also-include-on-nav-page').show();
+        }
+
         jQuery('#edit-field-type-of-page-to-generate-und').change(function(){
             if ( jQuery('#edit-field-type-of-page-to-generate-und').val() == 'home' ) {
                 jQuery('.group-asset-placement').hide();
@@ -129,6 +149,20 @@ jQuery(document).ready(function(){
             } else {
                 jQuery('.group-asset-placement').show();
                 jQuery('.group-homepage-container').hide();
+            }
+
+            if ( jQuery('#edit-field-type-of-page-to-generate-und').val() != 'home'
+                && jQuery('#edit-field-type-of-page-to-generate-und').val() != 'generic-navigation-page'
+                && jQuery('#edit-field-type-of-page-to-generate-und').val() != 'more') {
+
+                jQuery('#taxo_id_42').hide();
+                jQuery('#tree_42').hide();
+                jQuery('#edit-field-also-include-on-nav-page').hide();
+            }
+            else {
+                jQuery('#taxo_id_42').show();
+                jQuery('#tree_42').show();
+                jQuery('#edit-field-also-include-on-nav-page').show();
             }
         });
 
