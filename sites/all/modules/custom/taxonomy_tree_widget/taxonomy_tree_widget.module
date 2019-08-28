@@ -142,7 +142,8 @@ function taxonomy_tree_autocomplete_validate($element, &$form_state) {
 function taxonomy_tree_widget_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id){
 
     $form['#attached']['js'] = array(
-        drupal_get_path('module', 'taxonomy_tree_widget') . '/js/jquery.min.js' => array(
+    	// JKH changed to trigger jquery update 
+        '/misc/jquery.min.js' => array(
             'type' => "file",
             'scope' => 'footer',
             'weight' => 101
