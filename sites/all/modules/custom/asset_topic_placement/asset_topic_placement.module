@@ -474,23 +474,24 @@ function __get_node_info($nids)
 /// When a Term updates, go ahead and vet it's Region's Assets and remove any bad ones
 function asset_topic_placement_taxonomy_term_presave($term)
 {
-    /// grab existing region/asset maps
-    // $topics  = field_get_items('taxonomy_term', $term, 'field_asset_topic_taxonomy');
-    // $assets  = [];
-    // foreach ( ['bottom','carousel','content','menu','sidebar'] as $region )
-    // {
-    //     $region_assets = field_get_items('taxonomy_term', $term, 'field_asset_order_'.$region);
-    //     foreach ( $region_assets as $asset )
-    //     {
-    //         $assets[$asset['target_id']] = array( 'nid'=>$asset['target_id'], ''=>'' );
-    //     }
-    // }
+    if (isset($term) && isset($term->tid)){
+        /// grab existing region/asset maps
+        // $topics  = field_get_items('taxonomy_term', $term, 'field_asset_topic_taxonomy');
+        // $assets  = [];
+        // foreach ( ['bottom','carousel','content','menu','sidebar'] as $region )
+        // {
+        //     $region_assets = field_get_items('taxonomy_term', $term, 'field_asset_order_'.$region);
+        //     foreach ( $region_assets as $asset )
+        //     {
+        //         $assets[$asset['target_id']] = array( 'nid'=>$asset['target_id'], ''=>'' );
+        //     }
+        // }
 
-    /// for a page term, get all of it's region's asset id
-    /// match the assets against how many topics they share with the page
-    /// return any assets that do not share any topics with their page
-    /// return a list of unwated assets for each region
-    $sql = "
+        /// for a page term, get all of it's region's asset id
+        /// match the assets against how many topics they share with the page
+        /// return any assets that do not share any topics with their page
+        /// return a list of unwated assets for each region
+        $sql = "
         SELECT
             pageRegion.region as region,
             pageRegion.target_id as nid,
@@ -523,24 +524,25 @@ function asset_topic_placement_taxonomy_term_presave($term)
     ";
     /// put them in this format list[region]=array(1,2,3)
     $remove = [];
-    $removable_assets = db_query($sql,array(':tid'=>$term->tid));
-    foreach ( $removable_assets as $asset )
-    {
-        if ( !isset($remove[$asset->region]) ) { $remove[$asset->region] = array(); }
+    $removable_assets = db_query($sql, array(':tid' => $term->tid));
+    foreach ($removable_assets as $asset) {
+        if (!isset($remove[$asset->region])) {
+            $remove[$asset->region] = array();
+        }
         $remove[$asset->region][] = $asset->nid;
     }
-    $changed_tids  = array();
+    $changed_tids = array();
     /// remove any unwanted asset ids from each region's table
-    foreach ( $remove as $region=>$nids )
-    {
+    foreach ($remove as $region => $nids) {
         $sql_sstid = "SELECT entity_id FROM field_data_field_asset_order_{$region} WHERE entity_id = :tid AND field_asset_order_{$region}_target_id IN (:nids)";
-        $sstid_rest = db_query($sql_sstid,array( ':tid'=>$term->tid, ':nids'=>$nids ));
-        foreach($sstid_rest as $rtid){
+        $sstid_rest = db_query($sql_sstid, array(':tid' => $term->tid, ':nids' => $nids));
+        foreach ($sstid_rest as $rtid) {
             $changed_tids[$rtid] = $rtid;
         }
 
         $sql = "DELETE FROM field_data_field_asset_order_{$region} WHERE entity_id = :tid AND field_asset_order_{$region}_target_id IN (:nids)";
-        db_query($sql,array( ':tid'=>$term->tid, ':nids'=>$nids ));
+        db_query($sql, array(':tid' => $term->tid, ':nids' => $nids));
     }
 
+    }
 }

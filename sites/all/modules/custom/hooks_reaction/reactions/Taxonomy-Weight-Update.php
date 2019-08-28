@@ -62,7 +62,7 @@ hooks_reaction_add([
                 JOIN {taxonomy_term_data} d ON (d.tid = h.tid)
             WHERE 
                 h.parent = :parent
-        ");
+        ",[':parent'=>$term->parent]);
         /// put these into array format so we can make user of _multisort func
         $siblings = [];
         while( $siblingArray = $siblingResults->fetchAssoc() )
