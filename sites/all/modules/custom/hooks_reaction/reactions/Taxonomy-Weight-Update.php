@@ -7,7 +7,7 @@ hooks_reaction_add([
         /// if we are changing the weight of an object,
         /// that might effect the weight of all of it's siblings,
         /// so all siblings need to be seen as 'updated' too
-        
+
         /// I think the logic is clearer this way, even though
         /// it could be turned into a fancy one-liner
         $weight_change = false;
@@ -17,9 +17,9 @@ hooks_reaction_add([
             /// and that counts as a change, so we need to update
             /// it's siblings weights as well
             $weight_change = true;
-        } else if ( property_exists($term->original,'weight') 
-                 && property_exists($term,'weight') 
-                 && $term->original->weight !== $term->weight ) 
+        } else if ( property_exists($term->original,'weight')
+            && property_exists($term,'weight')
+            && $term->original->weight !== $term->weight )
         {
             /// if we are updating the object and it's weight
             /// has explicitly changed
@@ -62,25 +62,25 @@ hooks_reaction_add([
                 JOIN {taxonomy_term_data} d ON (d.tid = h.tid)
             WHERE 
                 h.parent = :parent
-        ");
+        ",[':parent'=>$term->parent]);
         /// put these into array format so we can make user of _multisort func
         $siblings = [];
         while( $siblingArray = $siblingResults->fetchAssoc() )
         {
-          $siblings[] = $siblingArray;
+            $siblings[] = $siblingArray;
         }
         array_multisort(
             array_column($siblings,'weight'),SORT_ASC,
             array_column($siblings,'name'),  SORT_ASC,SORT_STRING|SORT_FLAG_CASE,
             array_column($siblings,'tid'),   SORT_ASC,
-        $siblings);
+            $siblings);
 
         /// convert these into one sql update query
         $sql_values = [];
         foreach ( $siblings as $weight=>&$sibling )
         {
             $sql_values[] = "({$sibling['tid']},{$weight})";
-        }        
+        }
         db_query("
             INSERT INTO {taxonomy_term_data} 
                 (tid,weight) 
