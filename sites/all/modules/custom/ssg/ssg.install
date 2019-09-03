@@ -17,7 +17,7 @@ function ssg_schema()
       ),
       'log' => array(
         'description' => 'Log',
-        'type' => 'blob'
+        'type' => 'longblob' // JKH changed this to long blob
       ),
       'created' => array(
         'description' => 'Time of execution start',
