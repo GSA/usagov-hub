@@ -41,7 +41,7 @@ function ssg_permission()
     return array(
         'configure ssg' => array(
             'title' => t('Configure Static Site Generator'),
-            'description' => t('Confiure SSG Settings.'),
+            'description' => t('Configure SSG Settings.'),
             'restrict access' => TRUE,
         ),
         'run ssg' => array(
@@ -360,8 +360,13 @@ function _ssg_run_ajax()
         $site->templates->updateTemplates = true;
     }
     // $site->templates->updateTemplates = true;
-
-    _ssg_build_and_deploy_site($site);
+    // JKH added 
+    try {
+    	_ssg_build_and_deploy_site($site);
+    } catch (Exception $e) {
+		// JKH added 
+		$site->log("_ssg_build_and_deploy_site(): Exception ". $e->getMessage()."\n");
+	}
 }
 
 function _ssg_build_and_deploy_site( &$site )

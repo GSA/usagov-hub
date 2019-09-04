@@ -118,21 +118,64 @@ class S3SiteDestination
                 unset($file['path']);
             }
 
+			// JKH added
+			$this->log("S3 file_put_contents()\n");
             file_put_contents($this->source.'/manifest.json',json_encode($sourceFiles));
             $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null, 'created'=>time() ];
+			// JKH added 
+			try {
+				tracetofile(__FILE__,__LINE__,"1");
+				$jconfig = _s3fs_get_config();
+				$jconfig['bucket']  = 'app-hsc-prod-1';
+				$jconfig['version'] = 'latest';
+				$jconfig['awssdk2_access_key'] = 'AKIAIV53IP54AZWATVVA';
+				$jconfig['awssdk2_secret_key'] = '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'; 
+				tracetofile(__FILE__,__LINE__,"config -");
+				traceobjects($jconfig);
+				$s3 = _s3fs_get_amazons3_client($jconfig);    
+				tracetofile(__FILE__,__LINE__,"2");           	
+				$key = 'manifest.json';
+				$file_path = $this->source . "/" . $key;
+				tracetofile(__FILE__,__LINE__,"file path " . $file_path);
+				tracetofile(__FILE__,__LINE__,"attempting putObject()");
+				$result = $s3->putObject([
+					'Bucket' => 'app-hsc-prod-1',
+					'Key'    => $key,
+					'SourceFile' => $file_path]);	
+				tracetofile(__FILE__,__LINE__, "result");
+				traceobjects($result);		
+				$this->log("Sync: putObject() succeeds\n");			
+			} catch (\Aws\S3\Exception\S3Exception $e) {
+				tracetofile(__FILE__,__LINE__,"aws exception putObject() " . $e->getAwsErrorCode());
+				$this->log("Sync: putObject() aws exception ". $e->getAwsErrorCode() ."\n");
+				$retcode = false;			
+			} catch(Exception $e) {
+				tracetofile(__FILE__,__LINE__,"php exception putObject() " . $e->getMessage());
+				$site->log("Sync: putObject() php exception " . $e->getMessage() . "\n");
+				$retcode = false;
+			}	            
+            /*
+            $bucket = $this->ssg->config['aws']['bucket'];
+            $this->log("S3 this->ssg->s3->putObject($bucket)\n");
             $this->ssg->s3->putObject([
-                'Bucket' => $this->ssg->config['aws']['bucket'],
+                'Bucket' => $bucket,
                 'Key'    => 'manifest.json',
                 'Body'   => json_encode($sourceFiles),
                 'ContentType' => 'application/json',
                 'ACL'    => 'public-read',
             ]);
-
+            */
+            // JKH added 
+			$this->log("S3 object put!\n");
         } catch (\Aws\S3\Exception\S3Exception $e) {
             $this->log("Sync: There was an error uploading Manifest file. ". $e->getMessage()."\n");
             // JKH added
             $retcode = false;
-        } 
+        } catch (Exception $e) {
+        	// JKH added 
+        	$this->log("Sync: Exception ". $e->getMessage()."\n");
+        	$retcode = false;
+        }
 
         return $retcode;
     }
