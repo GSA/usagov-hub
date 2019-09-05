@@ -38,7 +38,26 @@ function _ssg_run_drush()
     } else {
         $site->destination->allowDeploy = false;
     }
-    
-    _ssg_build_and_deploy_site($site);
+    // JKH added acquire mutex
+    $site->log("SSG Checking instance...\n",false);
+	$_ssg_mutex = new Mutex("ssg-mutex"); 
+	if($_ssg_mutex->isLocked()) { 
+		$site->log("SSG instance is busy!\n",false);
+		return; 	
+	}
+    $site->log("SSG Acquiring instance...\n",false); 	
+	if(!$_ssg_mutex->getLock()) { 
+		$site->log("SSG instance failed to lock!\n",false);
+		return; 
+	} 
+    try {
+    	_ssg_build_and_deploy_site($site);
+    } catch (Exception $e) {
+		// JKH added 
+		$site->log("_ssg_build_and_deploy_site(): Exception ". $e->getMessage()."\n");
+	}
+    // JKH release mutex
+    $site->log("SSG Releasing instance...\n",false);
+    $_ssg_mutex->releaseLock();
     
 }
