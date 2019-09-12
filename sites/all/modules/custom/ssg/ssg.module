@@ -378,6 +378,7 @@ function _ssg_run_ajax()
     } catch (Exception $e) {
 		// JKH added 
 		$site->log("_ssg_build_and_deploy_site(): Exception ". $e->getMessage()."\n");
+		_ssgUpdateBuildStatus($site->uuid,'-1 exception ' . $e->getMessage());
 	}
     // JKH release mutex
     $site->log("SSG Releasing instance...\n",false);

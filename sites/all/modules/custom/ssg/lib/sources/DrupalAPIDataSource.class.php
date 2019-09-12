@@ -48,8 +48,7 @@ class DrupalAPIDataSource extends DataSource
              $this->log("\nLOADING since(".date('Y/m/d H:i:s',$since).")");
              $query['since'] = intval($since);
         }
-        // JKH added for test 
-        // $query['since'] = strtotime('-5 year');
+
         $this->log("\nLOADING since(".date('Y/m/d H:i:s',$query['since']).")");
         $body = file_get_contents(
           "{$server}{$url}",
@@ -67,6 +66,7 @@ class DrupalAPIDataSource extends DataSource
         ]));
         if ( empty($body) )
         {
+          // JKH added 	
           $this->log("No Entities");
           return false;
         }
@@ -179,6 +179,8 @@ class DrupalAPIDataSource extends DataSource
           }
           $acceptedCount++;
         } catch (Exception $e) {
+        	// JKH added log entry
+        	$this->log("exception " . $e->getMessage());
             continue;
         }
       }

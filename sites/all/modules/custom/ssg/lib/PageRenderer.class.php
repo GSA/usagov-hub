@@ -453,7 +453,7 @@ class PageRenderer
         //     $redirect['target'] .= '/';
         // }
         // $this->log("\nRedirect: \n    source:{$redirect['source_path']} \n    path:{$path}\n    extn:{$extn}\n    target:{$redirect['target']} \n    siteDir:{$this->ssg->siteDir} \n    path:{$path}\n    file:{$file}\n    fileDir:{$fileDir}");
-
+		// JKH added utf8mb4
         $html = "<DOCTYPE html>
             <html>
                 <head>

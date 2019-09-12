@@ -124,33 +124,33 @@ class S3SiteDestination
             $sourceFiles['manifest.json'] = [ 'key'=>'manifest.json', 'md5'=>null, 'created'=>time() ];
 			// JKH added 
 			try {
-				tracetofile(__FILE__,__LINE__,"1");
+				// tracetofile(__FILE__,__LINE__,"1");
 				$jconfig = _s3fs_get_config();
 				$jconfig['bucket']  = 'app-hsc-prod-1';
 				$jconfig['version'] = 'latest';
 				$jconfig['awssdk2_access_key'] = 'AKIAIV53IP54AZWATVVA';
 				$jconfig['awssdk2_secret_key'] = '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'; 
-				tracetofile(__FILE__,__LINE__,"config -");
-				traceobjects($jconfig);
+				// tracetofile(__FILE__,__LINE__,"config -");
+				// traceobjects($jconfig);
 				$s3 = _s3fs_get_amazons3_client($jconfig);    
-				tracetofile(__FILE__,__LINE__,"2");           	
+				// tracetofile(__FILE__,__LINE__,"2");           	
 				$key = 'manifest.json';
 				$file_path = $this->source . "/" . $key;
-				tracetofile(__FILE__,__LINE__,"file path " . $file_path);
-				tracetofile(__FILE__,__LINE__,"attempting putObject()");
+				// tracetofile(__FILE__,__LINE__,"file path " . $file_path);
+				// tracetofile(__FILE__,__LINE__,"attempting putObject()");
 				$result = $s3->putObject([
 					'Bucket' => 'app-hsc-prod-1',
 					'Key'    => $key,
 					'SourceFile' => $file_path]);	
-				tracetofile(__FILE__,__LINE__, "result");
-				traceobjects($result);		
+				// tracetofile(__FILE__,__LINE__, "result");
+				// traceobjects($result);		
 				$this->log("Sync: putObject() succeeds\n");			
 			} catch (\Aws\S3\Exception\S3Exception $e) {
-				tracetofile(__FILE__,__LINE__,"aws exception putObject() " . $e->getAwsErrorCode());
+				// tracetofile(__FILE__,__LINE__,"aws exception putObject() " . $e->getAwsErrorCode());
 				$this->log("Sync: putObject() aws exception ". $e->getAwsErrorCode() ."\n");
 				$retcode = false;			
 			} catch(Exception $e) {
-				tracetofile(__FILE__,__LINE__,"php exception putObject() " . $e->getMessage());
+				// tracetofile(__FILE__,__LINE__,"php exception putObject() " . $e->getMessage());
 				$site->log("Sync: putObject() php exception " . $e->getMessage() . "\n");
 				$retcode = false;
 			}	            
