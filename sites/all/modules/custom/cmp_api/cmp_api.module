@@ -695,7 +695,10 @@ function _cmp_api_get_all_entities(){
     { 
         if ( !empty($bucket['nodes']) )
         {
-            $nodes = node_load_multiple($bucket['nodes']);
+        	// JKH added 
+        	// tracetofile(__FILE__,__LINE__,"nodes");
+        	// traceobjects($bucket['nodes']);
+            $nodes = node_load_multiple($bucket['nodes']);           
             foreach( $nodes as $node )
             {
                 unset($node->uid);
@@ -797,8 +800,15 @@ function _cmp_api_get_all_entities(){
     */
     //need to include deleted
     if (isset($_REQUEST["since"])) {
-        $res = db_query("SELECT de.entity_type, de.name, de.entity_id, de.uuid FROM cmp_api_deleted_entities de WHERE de.changed > :since
-          UNION SELECT 'soft' AS entity_type, 'title' AS name, nd.nid as entity_id, 0 AS 'uuid' FROM node_deleted nd WHERE nd.deletion_timestamp > :since", $where_param);
+    	// JKH added...
+    	$sql = "SELECT de.entity_type, de.name, de.entity_id, de.uuid FROM cmp_api_deleted_entities de WHERE de.changed > :since
+          UNION SELECT 'soft' AS entity_type, 'title' AS name, nd.nid as entity_id, 0 AS 'uuid' FROM node_deleted nd WHERE nd.deletion_timestamp > :since";
+        // tracetofile(__FILE__,__LINE__,"sql = " . $sql);
+        // tracetofile(__FILE__,__LINE__,"where = "); 
+        // traceobjects($where_param);
+        // JKH added de.vid, and vid to query below, so the record set matches....
+        $res = db_query("SELECT de.entity_type, de.name, de.vid, de.entity_id, de.uuid FROM cmp_api_deleted_entities de WHERE de.changed > :since
+          UNION SELECT 'soft' AS entity_type, 'title' AS name, 0 AS 'vid', nd.nid as entity_id, 0 AS 'uuid' FROM node_deleted nd WHERE nd.deletion_timestamp > :since", $where_param);
 
         foreach ($res as $r) {
 
@@ -815,7 +825,7 @@ function _cmp_api_get_all_entities(){
             $obj['type'] = $r->entity_type;
             if ($r->entity_type == 'term'){
                 $obj['name'] = $r->name;
-                $obj['vid'] = $r->vid;
+                $obj['vid'] = $r->vid; // JKH, this is being used, and not defined in SQL above?
                 $obj['tid'] = $r->entity_id;
             }
             else{
