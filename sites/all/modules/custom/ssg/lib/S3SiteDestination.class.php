@@ -126,10 +126,10 @@ class S3SiteDestination
 			try {
 				// tracetofile(__FILE__,__LINE__,"1");
 				$jconfig = _s3fs_get_config();
-				$jconfig['bucket']  = 'app-hsc-prod-1';
+				$jconfig['bucket']  = $this->ssg->config['aws']['bucket'];
 				$jconfig['version'] = 'latest';
-				$jconfig['awssdk2_access_key'] = 'AKIAIV53IP54AZWATVVA';
-				$jconfig['awssdk2_secret_key'] = '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'; 
+				$jconfig['awssdk2_access_key'] = $accessKey;
+				$jconfig['awssdk2_secret_key'] = $secretKey; 
 				// tracetofile(__FILE__,__LINE__,"config -");
 				// traceobjects($jconfig);
 				$s3 = _s3fs_get_amazons3_client($jconfig);    
@@ -139,7 +139,7 @@ class S3SiteDestination
 				// tracetofile(__FILE__,__LINE__,"file path " . $file_path);
 				// tracetofile(__FILE__,__LINE__,"attempting putObject()");
 				$result = $s3->putObject([
-					'Bucket' => 'app-hsc-prod-1',
+					'Bucket' => $this->ssg->config['aws']['bucket'],
 					'Key'    => $key,
 					'SourceFile' => $file_path]);	
 				// tracetofile(__FILE__,__LINE__, "result");
