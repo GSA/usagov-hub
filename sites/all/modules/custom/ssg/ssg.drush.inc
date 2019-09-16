@@ -38,6 +38,11 @@ function _ssg_run_drush()
     } else {
         $site->destination->allowDeploy = false;
     }
+    
+	// JKH moved this to here...
+    _ssgCreateBuildStatus($site->uuid);
+    _ssg_finish_request();
+        
     // JKH added acquire mutex
     $site->log("SSG Checking instance...\n",false);
 	$_ssg_mutex = new Mutex("ssg-mutex"); 
@@ -54,7 +59,7 @@ function _ssg_run_drush()
     	_ssg_build_and_deploy_site($site);
     } catch (Exception $e) {
 		// JKH added 
-		$site->log("_ssg_build_and_deploy_site(): Exception ". $e->getMessage()."\n");
+		$site->log("_ssg_build_and_deploy_site(): Exception ". $e->getMessage()."\n",false);
 	}
     // JKH release mutex
     $site->log("SSG Releasing instance...\n",false);

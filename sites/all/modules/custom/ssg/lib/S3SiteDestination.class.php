@@ -166,7 +166,9 @@ class S3SiteDestination
             ]);
             */
             // JKH added 
-			$this->log("S3 object put!\n");
+			if($retcode) { 
+				$this->log("S3 object put!\n");
+			}
         } catch (\Aws\S3\Exception\S3Exception $e) {
             $this->log("Sync: There was an error uploading Manifest file. ". $e->getMessage()."\n");
             // JKH added

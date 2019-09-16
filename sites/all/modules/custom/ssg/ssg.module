@@ -362,6 +362,10 @@ function _ssg_run_ajax()
     }
     // $site->templates->updateTemplates = true;
 
+	// JKH moved this to here...
+    _ssgCreateBuildStatus($site->uuid);
+    _ssg_finish_request();
+    
     // JKH added acquire mutex
     $site->log("SSG Checking instance...\n",false);
 	$_ssg_mutex = new Mutex("ssg-mutex"); 
@@ -378,7 +382,7 @@ function _ssg_run_ajax()
     	_ssg_build_and_deploy_site($site);
     } catch (Exception $e) {
 		// JKH added 
-		$site->log("_ssg_build_and_deploy_site(): Exception ". $e->getMessage()."\n");
+		$site->log("_ssg_build_and_deploy_site(): Exception ". $e->getMessage()."\n",false);
 		_ssgUpdateBuildStatus($site->uuid,'-1 exception ' . $e->getMessage());
 	}
     // JKH release mutex
@@ -395,8 +399,9 @@ function _ssg_build_and_deploy_site( &$site )
         return;
     }
 
-    _ssgCreateBuildStatus($site->uuid);
-    _ssg_finish_request();
+	// JKH moved to main processing...
+    // _ssgCreateBuildStatus($site->uuid);
+    // _ssg_finish_request();
 
     /// we should always use existing data
     /// existing data should be freshened here
@@ -427,8 +432,9 @@ function _ssg_build_and_deploy_site( &$site )
     _ssgUpdateBuildStatus($site->uuid,'4 validateSite');
     // if ( $site->validateSite() )
     // {
-        _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
-        $site->deploySite();
+    _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
+    // JKH added 
+    $success = $site->deploySite();
     // } else {
         /// TEMP - DEPLOY ANYWAY ON FAILURE
         // _ssgUpdateBuildStatus($site->uuid,'6 failed');
@@ -436,7 +442,7 @@ function _ssg_build_and_deploy_site( &$site )
         // $site->deploySite();
     // }
     $site->cleanupOldSitesByNumber();
-    _ssgUpdateBuildStatus($site->uuid,'6 complete');
+    _ssgUpdateBuildStatus($site->uuid,$success ? '6 complete' : '6 fail');
     $site->log("Done building site\n",false);
 
 }
@@ -566,30 +572,36 @@ function ssg_exit()
         {
             $site->templates->updateTemplates = true;
         }
+		// JKH moved this to here...
+		_ssgCreateBuildStatus($site->uuid);
+		_ssg_finish_request();        
 		// JKH added acquire mutex
 		$site->log("SSG Checking instance...\n",false);
 		$_ssg_mutex = new Mutex("ssg-mutex"); 
 		if($_ssg_mutex->isLocked()) { 
 			$site->log("SSG instance is busy!\n",false);
-			die;  // JKH die is called at end of function, need to figure out why	
+			// die;  // JKH die is called at end of function, need to figure out why	
+			return;
 		}
 		$site->log("SSG Acquiring instance...\n",false); 	
 		if(!$_ssg_mutex->getLock()) { 
 			$site->log("SSG instance failed to lock!\n",false);
-			die;  // JKH die is called at end of function, need to figure out why 
+			// die;  // JKH die is called at end of function, need to figure out why 
+			return;
 		} 
 		try {
 			_ssg_build_and_deploy_site($site);
 		} catch (Exception $e) {
 			// JKH added 
-			$site->log("_ssg_build_and_deploy_site(): Exception ". $e->getMessage()."\n");
+			$site->log("_ssg_build_and_deploy_site(): Exception ". $e->getMessage()."\n",false);
 		}
 		// JKH release mutex
 		$site->log("SSG Releasing instance...\n",false);
 		$_ssg_mutex->releaseLock();        
 
         // JKH why do we need to call die here?
-        die;
+        // die;
+        return;
     }   
 }
 

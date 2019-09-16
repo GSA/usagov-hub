@@ -52,7 +52,7 @@ trait LoggingTrait
             }
             error_log(preg_replace("/[\n\r\t\s]+$/",'',$msg));
         } else {
-            echo $msg;
+            echo "Not drupal " . $msg;
         }
     }
 

@@ -19,6 +19,8 @@ trait DirectoryTrait
         }
         if ( !is_dir($path) )
         {
+	    // JKH added to trace path ...
+            // error_log("\n!!path!! $path\n");
             mkdir($path, 0744, true);
         }
         if ( !is_writable($path) )
