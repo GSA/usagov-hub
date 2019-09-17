@@ -96,7 +96,7 @@ class DrupalAPIDataSource extends DataSource
           break;
         }
         */
-      } catch (Exception $e) {
+      } catch (\Exception $e) {
       	// JKH changing obscure 'ERRORS' message, and use of die
       	$exception = sprintf("%s\n",$e->getMessage());
       	printf("%s",$exception);
@@ -178,7 +178,7 @@ class DrupalAPIDataSource extends DataSource
             $this->log("\nimporting {$type} title:{$title}");
           }
           $acceptedCount++;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
         	// JKH added log entry
         	$this->log("exception " . $e->getMessage());
             continue;

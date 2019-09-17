@@ -425,6 +425,7 @@ function _ssg_build_and_deploy_site( &$site )
     $site->log("Start organizing data\n",false);
     $site->buildSiteTreeFromEntities();
 
+	$site->log("Start rendering data\n",false);
     _ssgUpdateBuildStatus($site->uuid,'3 renderSite');
     $site->renderSite();
 
@@ -434,6 +435,7 @@ function _ssg_build_and_deploy_site( &$site )
     // {
     _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
     // JKH added 
+    $site->log("Start deploying data\n",false);
     $success = $site->deploySite();
     // } else {
         /// TEMP - DEPLOY ANYWAY ON FAILURE
@@ -441,9 +443,13 @@ function _ssg_build_and_deploy_site( &$site )
         // _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
         // $site->deploySite();
     // }
+    // $site->log("Cleanup!\n",false);
+    // JKH added 
+    $site->log("Start cleanup\n",false);    
     $site->cleanupOldSitesByNumber();
-    _ssgUpdateBuildStatus($site->uuid,$success ? '6 complete' : '6 fail');
-    $site->log("Done building site\n",false);
+    // $site->log("End cleanup!\n",false);
+    _ssgUpdateBuildStatus($site->uuid,$success ? '6 complete' : '6 failed');
+    $site->log("Site building done\n",false);
 
 }
 

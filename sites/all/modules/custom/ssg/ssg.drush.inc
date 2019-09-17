@@ -57,7 +57,7 @@ function _ssg_run_drush()
 	} 
     try {
     	_ssg_build_and_deploy_site($site);
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
 		// JKH added 
 		$site->log("_ssg_build_and_deploy_site(): Exception ". $e->getMessage()."\n",false);
 	}
