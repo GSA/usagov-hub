@@ -141,9 +141,9 @@ class S3SiteDestination
 				'Key'    => $key,
 				'SourceFile' => $file_path]);	
 			// JKH added 
-			$this->log("putObject Result\n");
-			$this->log(serialize($result) . "\n");	
-			$this->log($result['ObjectURL'] . "\n");
+			// $this->log("putObject Result\n");
+			// $this->log(serialize($result) . "\n");	
+			// $this->log($result['ObjectURL'] . "\n");
 			$this->log("Sync: putObject() succeeds\n");					
 
             // JKH added 
