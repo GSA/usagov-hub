@@ -1,15 +1,23 @@
 <?php
+// JKH 
+// setupAssetTopicEvents question, again...
+// require_once DRUPAL_ROOT . "/tracetofile.php";
 
 function asset_topic_placement_init() {
 	// JKH added to figure out why setupAssetTopicEvents is not defined...
 	// tracetofile(__FILE__,__LINE__,'asset_topic_placement_init()');
+	// tracetofile(__FILE__,__LINE__,request_uri());
+	// JKH changed this 
+	$request_uri = request_uri();
     // On any taxonomy edit-page or site_strucutre_taxonomy adding-page...
-    if (
-        strpos(request_uri(), 'taxonomy/term/') !== false && strpos(request_uri(), '/edit') !== false
-        || strpos(request_uri(), '/admin/structure/taxonomy/site_strucutre_taxonomy/add') !== false
-        || strpos(request_uri(), '/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy') !== false
-        // JKH added additional URI, after trace work...
-        || strpos(request_uri(), '/admin/structure/taxonomy_manager/voc/agency_tags') !== false
+    // this one showing error...
+    // admin/structure/taxonomy_manager/voc/asset_topic_taxonomy
+    if (strpos($request_uri, 'taxonomy/term/') !== false && strpos($request_uri, '/edit') !== false
+        || strpos($request_uri, '/admin/structure/taxonomy/site_strucutre_taxonomy/add') !== false
+        || strpos($request_uri, '/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy') !== false
+        // JKH added additional URIs, after trace work...,  
+        // stopped looking after this length -> /admin/structure/taxonomy_manager/voc
+        || strpos($request_uri, '/admin/structure/taxonomy_manager/voc') !== false
     ) {
         // tracetofile(__FILE__,__LINE__,'including js');
         // Include asset_topic_placement.js
@@ -17,6 +25,9 @@ function asset_topic_placement_init() {
         drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement2.js', 'file');
         drupal_add_css(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement.css', 'file');
 
+    } else {
+    	// JKH added 
+    	// tracetofile(__FILE__,__LINE__,'not including js');
     }
 }
 

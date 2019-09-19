@@ -48,11 +48,13 @@ function _ssg_run_drush()
 	$_ssg_mutex = new Mutex("ssg-mutex"); 
 	if($_ssg_mutex->isLocked()) { 
 		$site->log("SSG instance is busy!\n",false);
+		_ssgUpdateBuildStatus($site->uuid,'6 busy');
 		return; 	
 	}
     $site->log("SSG Acquiring instance...\n",false); 	
 	if(!$_ssg_mutex->getLock()) { 
 		$site->log("SSG instance failed to lock!\n",false);
+		_ssgUpdateBuildStatus($site->uuid,'-1 lock fails');
 		return; 
 	} 
     try {
