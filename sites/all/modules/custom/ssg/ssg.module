@@ -372,7 +372,7 @@ function _ssg_run_ajax()
 	if($_ssg_mutex->isLocked()) { 
 		$site->log("SSG instance is busy!\n",false);
 		_ssgUpdateBuildStatus($site->uuid,'6 busy');
-		return; 	
+		return;	
 	}
     $site->log("SSG Acquiring instance...\n",false); 	
 	if(!$_ssg_mutex->getLock()) { 
@@ -500,7 +500,8 @@ function _ssgGetCurrentBuildStatusesTable()
     {
         $current_status .= "<tr id=\"build-{$curr['uuid']}\">";
         $current_status .= "<td id=\"build-{$curr['uuid']}-state\">".preg_replace('/^\d+\s+/','',$curr['state'])."</td>";
-        if ( in_array( $curr['state'],  ['6 failed', '6 complete','6 shutdown'] ) ) {
+        // JKH added busy status, failed status
+        if ( in_array( $curr['state'],  ['6 failed', '6 complete', '6 shutdown', '6 busy','-1 lock fails'] ) ) {
             $time = $curr['updated'] - $curr['created'];
         } else {
             $time = time() - $curr['created'];
@@ -589,15 +590,13 @@ function ssg_exit()
 		if($_ssg_mutex->isLocked()) { 
 			$site->log("SSG instance is busy!\n",false);
 			_ssgUpdateBuildStatus($site->uuid,'6 busy');
-			// die;  // JKH die is called at end of function, need to figure out why	
-			return;
+			return; 
 		}
 		$site->log("SSG Acquiring instance...\n",false); 	
 		if(!$_ssg_mutex->getLock()) { 
 			$site->log("SSG instance failed to lock!\n",false);
 			_ssgUpdateBuildStatus($site->uuid,'-1 lock fails');
-			// die;  // JKH die is called at end of function, need to figure out why 
-			return;
+			return; 
 		} 
 		try {
 			_ssg_build_and_deploy_site($site);
@@ -609,9 +608,6 @@ function ssg_exit()
 		$site->log("SSG Releasing instance...\n",false);
 		$_ssg_mutex->releaseLock();        
 
-        // JKH why do we need to call die here?
-        // die;
-        return;
     }   
 }
 

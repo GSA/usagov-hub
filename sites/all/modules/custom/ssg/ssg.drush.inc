@@ -67,4 +67,5 @@ function _ssg_run_drush()
     $site->log("SSG Releasing instance...\n",false);
     $_ssg_mutex->releaseLock();
     
+    
 }
