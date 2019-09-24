@@ -54,7 +54,7 @@ function site_structure_report_menu() {
         'type' => MENU_NORMAL_ITEM,
         'access callback' => 'check_access_to_site_structure'
     );
-/*
+    /*
     $items['roleuserperm'] = array(
         'page callback' => '__report',
         'type' => MENU_NORMAL_ITEM,
@@ -207,7 +207,11 @@ function _prepare_super_att_report() {
 }
 
 function _compileSuperAssetReportToCSV(){
-    $counter =1;
+    $counter = 1;
+	// JKH this function needs to be rewritten...
+	if($counter == 1) {
+		exit('complete');		
+	}    
     $nodecount = db_query("SELECT COUNT(*) FROM node WHERE type IN ('file_content_type', 'html_content_type', 'multimedia_content_type', 'text_content_type')")->fetchField(0);
     // Get the nodes associated with this
     $nodes = db_query("SELECT nid FROM node WHERE type IN ('file_content_type', 'html_content_type', 'multimedia_content_type', 'text_content_type') LIMIT ".$nodecount);
@@ -258,7 +262,8 @@ function _compileSuperAssetReportToCSV(){
 
         $counter++;
         $nodeStatus = _node_actual_status($node->nid, $node->status);
-        $jk =0;
+        $jk = 0;
+        // JKH this function needs to be re-written...
         $skip = false;
         if (count($node->field_asset_topic_taxonomy['und']) > 0) {
             foreach ($node->field_asset_topic_taxonomy['und'] as $asstt) {
@@ -620,9 +625,11 @@ function _prepare_att_report() {
    // foreach ( $topTerms as $topTerm ) {
     $rows= _compileAssetTopicTaxonomyReportToCSV();
 
-    // Open the file for writing
+	// tracetofile(__FILE__,__LINE__,"filename sites/default/files/report_ar_{$reqid}.csv");
+	// Open the file for writing
     $h = fopen("sites/default/files/report_ar_{$reqid}.csv", 'w');
     if ( $h === false ) {
+        // tracetofile(__FILE__,__LINE__,"error opening sites/default/files/report_ar_{$reqid}.csv");
         exit('error');
     }
     // Write the CSV headers
@@ -653,9 +660,11 @@ function _prepare_att_report() {
     this reqid is created and complete */
     $reportsTATR[$reqid] = 'complete';
     variable_set('reports_ar', $reportsTATR);
-
+    // tracetofile(__FILE__,__LINE__,"report done working...");
+    // JKH commented, exit point from this report
     exit('working');
 }
+
 function _get_uby_lbl_name($val) {
 
     if ($val == 'GobiernoUSA.gov'){
@@ -673,6 +682,7 @@ function _get_uby_lbl_name($val) {
 
 function _compileAssetTopicTaxonomyReportToCSV() {
     $counter =1;
+    // tracetofile(__FILE__,__LINE__,"_compileAssetTopicTaxonomyReportToCSV()");
     // Get the nodes associated with this Topic
     $nodes = db_query("SELECT nid FROM {node} WHERE type IN ('file_content_type', 'html_content_type', 'multimedia_content_type', 'text_content_type')");
 
@@ -686,9 +696,15 @@ function _compileAssetTopicTaxonomyReportToCSV() {
             }
         }
         if ($node->type == 'multimedia_content_type' || $node->type == 'html_content_type' || $node->type == 'file_content_type') {
-            foreach ($node->field_for_use_by['und'] as $valCont) {
-                $forUseBy[] = _get_uby_lbl_name($valCont['value']);
-            }
+            // tracetofile(__FILE__,__LINE__,"node type match for node " . $node->nid);
+			if(!isset($node->field_for_use_by['und'])) {
+			    // node (186546) field_for_use_by[und] not set site_structure_report.module ln[691]
+				// tracetofile(__FILE__,__LINE__,"node (" . $node->nid . ") field_for_use_by[und] not set");
+				continue;
+			}
+			foreach ($node->field_for_use_by['und'] as $valCont) {
+				$forUseBy[] = _get_uby_lbl_name($valCont['value']);
+			}
         }
         $forUseBy = implode(', ', $forUseBy);
 
@@ -724,6 +740,8 @@ function _compileAssetTopicTaxonomyReportToCSV() {
         $rows[$node->nid] = $newRow;
 
     }
+    // tracetofile(__FILE__,__LINE__,"_compileAssetTopicTaxonomyReportToCSV() returning rows");
+    // traceobjects($rows);
     return $rows;
 }
 
