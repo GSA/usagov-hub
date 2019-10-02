@@ -14,8 +14,8 @@ function asset_topic_placement_init() {
     // admin/structure/taxonomy_manager/voc/asset_topic_taxonomy
     if (strpos($request_uri, 'taxonomy/term/') !== false && strpos($request_uri, '/edit') !== false
         || strpos($request_uri, '/admin/structure/taxonomy/site_strucutre_taxonomy/add') !== false
-        || strpos($request_uri, '/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy') !== false
-        // JKH added additional URIs, after trace work...,  
+        // || strpos($request_uri, '/admin/structure/taxonomy_manager/voc/site_strucutre_taxonomy') !== false
+        // JKH added generic  URIs, after trace work...,  
         // stopped looking after this length -> /admin/structure/taxonomy_manager/voc
         || strpos($request_uri, '/admin/structure/taxonomy_manager/voc') !== false
     ) {
@@ -543,6 +543,11 @@ function asset_topic_placement_taxonomy_term_presave($term)
         GROUP BY pageRegion.region, pageRegion.target_id
         HAVING remainingTopics = 0
     ";
+    // JKH we need to check this...
+    if(!isset($term->tid)) {
+        // if no tid, return
+	return;
+    }
     /// put them in this format list[region]=array(1,2,3)
     $remove = [];
     $removable_assets = db_query($sql,array(':tid'=>$term->tid));
