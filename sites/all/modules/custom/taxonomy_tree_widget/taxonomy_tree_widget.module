@@ -141,9 +141,10 @@ function taxonomy_tree_autocomplete_validate($element, &$form_state) {
  */
 function taxonomy_tree_widget_form_taxonomy_form_term_alter(&$form, &$form_state, $form_id){
 
+	global $base_url;
     $form['#attached']['js'] = array(
     	// JKH changed to trigger jquery update 
-        '/misc/jquery.min.js' => array(
+        $base_url . '/misc/jquery.min.js' => array(
             'type' => "file",
             'scope' => 'footer',
             'weight' => 101
@@ -168,7 +169,6 @@ function taxonomy_tree_widget_form_taxonomy_form_term_alter(&$form, &$form_state
 
 
 }
-
 
 /**
  * Implements hook_field_widget_form().
@@ -195,7 +195,7 @@ function taxonomy_tree_widget_field_widget_form(&$form, &$form_state, $field, $i
 			}
 
 			drupal_add_css(drupal_get_path('module', 'taxonomy_tree_widget') . '/dist/themes/default/style.min.css','file');
-      drupal_add_css(drupal_get_path('module', 'taxonomy_tree_widget') . '/css/ .css','file');
+            drupal_add_css(drupal_get_path('module', 'taxonomy_tree_widget') . '/css/ .css','file');
 
 			drupal_add_css(
 					'#tree_'.$vid.' {
@@ -205,7 +205,7 @@ function taxonomy_tree_widget_field_widget_form(&$form, &$form_state, $field, $i
 					'inline'
 			);
 
-      $taxo_ids_str='';
+            $taxo_ids_str='';
 			foreach ($items as $item) {
 				$taxo_ids_str.=$item['tid'].",";
 			}

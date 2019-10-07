@@ -1,9 +1,28 @@
 <?php
+hooks_reaction_add([
+        "hook_taxonomy_term_validate",
+    ],function ($term) {
+       tracetofile(__FILE__,__LINE__,"hook v");
+    }
+);
 
 hooks_reaction_add([
         "hook_taxonomy_term_update",
-        "hook_taxonomy_term_save"
+        "hook_taxonomy_term_save",
+        // JKH added presave
+        "hook_taxonomy_term_presave", 
     ],function ($term) {
+        // tracetofile(__FILE__,__LINE__,"hook u s p");
+        // JKH added  
+        if(!isset($term->parent) || empty($term->parent)) {
+        	// tracetofile(__FILE__,__LINE__,"no parent!");
+        	drupal_set_message(t("You tried to save this taxonomy node without a parent node. Please assign a parent to this node before saving."), 'Error');
+        	$curr_uri = check_plain(request_uri());
+			drupal_goto($curr_uri);        	
+        }
+        // tracetofile(__FILE__,__LINE__,"parent is set to ... ");
+        // traceobjects($term->parent);
+        drupal_set_message(t(""));
         /// if we are changing the weight of an object,
         /// that might effect the weight of all of it's siblings,
         /// so all siblings need to be seen as 'updated' too

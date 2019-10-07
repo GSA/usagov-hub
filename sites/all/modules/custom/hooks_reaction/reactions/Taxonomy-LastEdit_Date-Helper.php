@@ -2,7 +2,7 @@
 
 hooks_reaction_add(array("hook_form_taxonomy_form_term_alter","hook_form_taxonomy_manager_form_alter"),
     function (&$form, &$form_state, $form_id) {
-
+        
         if (isset($form['#entity']->tid)) {
             $form['name']['#prefix'] = '<div class="form-item form-type-textfield form-item-name"><label for="edit-name">' . t("Taxonomy Term Id: ") .'</label>'. $form['#entity']->tid . '</div>';
         }

@@ -72,9 +72,6 @@ class JSTaxTree
 			}			
 		}
 	}
-		
-
-		
 
 	private function jstree_format( $tid )
 	{
@@ -97,7 +94,6 @@ class JSTaxTree
 		$term->vid=42; 
 		$term->name=$term_name;
 		$term->parent=$par_term_id;
-		
 		//if(!empty($term->tid) ) {
 			taxonomy_term_save($term);
 		//}
