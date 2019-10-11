@@ -1,6 +1,7 @@
 jQuery(document).ready(function (){       
 
-    // this will be called from the child iframe page to redraw the tree after a new term has been created or a new parent has been selected
+    // this will be called from the child iframe page to redraw the tree 
+    // after a new term has been created or a new parent has been selected
     redrawTreeValue = false;
     redrawTree = function(){
         if(redrawTreeValue == true){
@@ -32,16 +33,22 @@ jQuery(document).ready(function (){
 
     //changing iframe location based on selection
     jQuery('#tree').on("select_node.jstree", function (e, data){
-
+    	// JKH added 
+		// console.log("dimmy, why you do this to me?");
         var term_id = data.node.id;
         var currentUrl = jQuery('#frame').attr('src');
 
         
         currentUrl = currentUrl.replace('/taxonomy/term/', '');
         currentUrl = currentUrl.replace('/edit?hideHeader=1', '');
+        // JKH added 
+        // console.log("current Url " + currentUrl);
 
         if(term_id != currentUrl){
+        	// JKH looking into this ...., this is where the tax term edit form is loaded...
+        	// console.log('before' + '/taxonomy/term/'+term_id+'/edit?hideHeader=1');
             jQuery('#frame').attr('src', '/taxonomy/term/'+term_id+'/edit?hideHeader=1');
+            // console.log('after');
         }        
     });
 

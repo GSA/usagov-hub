@@ -302,7 +302,6 @@ function _draw_taxo_tree()
     drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/js/iframeparentreload.js','file');
     drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/js/customtreescript.js','file');
 
-
 	$form = array();
 
 	$form['taxonomy_term_add'] = array(

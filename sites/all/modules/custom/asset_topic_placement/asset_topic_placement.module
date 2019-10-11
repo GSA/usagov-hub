@@ -546,7 +546,7 @@ function asset_topic_placement_taxonomy_term_presave($term)
     // JKH we need to check this...
     if(!isset($term->tid)) {
         // if no tid, return
-	return;
+		return;
     }
     /// put them in this format list[region]=array(1,2,3)
     $remove = [];
