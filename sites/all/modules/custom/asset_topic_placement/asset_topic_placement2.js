@@ -3,7 +3,7 @@ function setupAssetTopicEvents(){/* nothing to see here for now */};
 
 jQuery(document).ready(function(){
 
-
+	console.log('asset_topic_placement2.js doc ready');
     //Things to do on initial page load....
 
     //redraw this terms parent iframe page's jstree
@@ -32,7 +32,8 @@ jQuery(document).ready(function(){
         nodes = [];
         selectedItemsArray = [];
         selectedItemsArray = getCurrentlySelectedItems();
-
+		// JKH added 
+		console.log('getNodes()');
         getNodes();
     });
 
@@ -41,11 +42,17 @@ jQuery(document).ready(function(){
 
     function parentTermWidget(){
 
+		// JKH added 
+		console.log('parentTermWidget()');
         var ep = document.getElementById('edit-parent');
-        if ( ep ) { ep.setAttribute('size',20); }
-        return;
+        if ( ep ) { 
+        	ep.setAttribute('size',20); 	
+        }
+        // JKH commented out return 
+        // console.log('returning');
+        // return;
 
-        // this var is to make sure the parent select box isnt effected on initial load of tree
+        // this var is to make sure the parent select box isn't affected on initial load of tree
         var initial_click = false;
 
         jQuery('fieldset#edit-relations').after('<div class="form-wrapper parent-taxonomy-term"><div class="form-item"><label for="">Parent Taxonomy Term</label><div id="parent-term"></div></div></div>');
@@ -71,6 +78,8 @@ jQuery(document).ready(function(){
 
             initial_click = true;
             jQuery('#parent-term').jstree(true).select_node(existing_asset_id);
+			// JKH added 
+			console.log('select node ' + existing_asset_id);            
 
             //remove currently edited term from the list in the tree
             var currentTermId = '';
@@ -79,14 +88,18 @@ jQuery(document).ready(function(){
                 currentTermId = currentTermId.replace('/taxonomy/term/', '');
                 currentTermId = currentTermId.replace('/edit', '');
                 jQuery('#parent-term').jstree(true).hide_node(currentTermId);
+				// JKH added 
+				console.log('hide current term id ' + currentTermId);                
             }
         });
 
         //updating parent using the select tree
         jQuery('#parent-term').on("select_node.jstree", function (e, data){
-            if(initial_click == false){
+			// JKH added 
+			console.log('on(select_node.jstree)');        
+            if(initial_click == false) {
                 var term_id = data.node.id;
-                if(term_id.length > 0){
+                if(term_id.length > 0) {
 
                     jQuery('select#edit-parent option').each(function(){
                         jQuery(this).prop('selected',false);
@@ -95,6 +108,8 @@ jQuery(document).ready(function(){
                     var selector = 'select#edit-parent option[value="' + term_id + '"]';
 
                     jQuery(selector).trigger( "click" ).prop('selected',true).trigger('change');
+                    // JKH added 
+                    console.log('triggered click for term id ' + term_id);
                 }
             }
             initial_click = false;
