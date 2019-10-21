@@ -3,7 +3,7 @@ function setupAssetTopicEvents(){/* nothing to see here for now */};
 
 jQuery(document).ready(function(){
 
-	console.log('asset_topic_placement2.js doc ready');
+	// console.log('asset_topic_placement2.js doc ready');
     //Things to do on initial page load....
 
     //redraw this terms parent iframe page's jstree
@@ -33,17 +33,14 @@ jQuery(document).ready(function(){
         selectedItemsArray = [];
         selectedItemsArray = getCurrentlySelectedItems();
 		// JKH added 
-		console.log('getNodes()');
+		// console.log('getNodes()');
         getNodes();
     });
-
-
-
 
     function parentTermWidget(){
 
 		// JKH added 
-		console.log('parentTermWidget()');
+		// console.log('parentTermWidget()');
         var ep = document.getElementById('edit-parent');
         if ( ep ) { 
         	ep.setAttribute('size',20); 	
@@ -79,7 +76,7 @@ jQuery(document).ready(function(){
             initial_click = true;
             jQuery('#parent-term').jstree(true).select_node(existing_asset_id);
 			// JKH added 
-			console.log('select node ' + existing_asset_id);            
+			// console.log('select node ' + existing_asset_id);            
 
             //remove currently edited term from the list in the tree
             var currentTermId = '';
@@ -89,14 +86,14 @@ jQuery(document).ready(function(){
                 currentTermId = currentTermId.replace('/edit', '');
                 jQuery('#parent-term').jstree(true).hide_node(currentTermId);
 				// JKH added 
-				console.log('hide current term id ' + currentTermId);                
+				// console.log('hide current term id ' + currentTermId);                
             }
         });
 
         //updating parent using the select tree
         jQuery('#parent-term').on("select_node.jstree", function (e, data){
 			// JKH added 
-			console.log('on(select_node.jstree)');        
+			// console.log('on(select_node.jstree)');        
             if(initial_click == false) {
                 var term_id = data.node.id;
                 if(term_id.length > 0) {
@@ -109,7 +106,7 @@ jQuery(document).ready(function(){
 
                     jQuery(selector).trigger( "click" ).prop('selected',true).trigger('change');
                     // JKH added 
-                    console.log('triggered click for term id ' + term_id);
+                    // console.log('triggered click for term id ' + term_id);
                 }
             }
             initial_click = false;

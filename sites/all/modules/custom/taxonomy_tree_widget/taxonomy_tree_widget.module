@@ -9,7 +9,7 @@ function taxonomy_tree_widget_menu()
       'title'           => 'Site Structure Taxonomy Manager',
       'description'     => 'Site Structure Taxonomy Manager',
       'page callback'   => '_draw_taxo_tree',
-  		'access callback' => 'user_is_logged_in',
+      'access callback' => 'user_is_logged_in',
       'file'            => 'tree_class.inc'
     );
 
@@ -17,7 +17,7 @@ function taxonomy_tree_widget_menu()
       'title'           => 'Site Structure Taxonomy Manager',
       'description'     => 'Site Structure Taxonomy Manager',
       'page callback'   => '_json_tree_view',
-		  'access callback' => 'user_is_logged_in',
+      'access callback' => 'user_is_logged_in',
       'file'            => 'tree_class.inc'
     );
 
@@ -30,8 +30,8 @@ function taxonomy_tree_widget_menu()
 
 	$items['admin/taxonomy-tree-widget/get_selected_asset'] = array(
 		'title'           => 'Get Selected Asset IDs',
-    'description'     => 'Get Selected Asset IDs',
-    'page callback'   => '_get_selected_asset_ids',
+		'description'     => 'Get Selected Asset IDs',
+		'page callback'   => '_get_selected_asset_ids',
 		'access callback' => 'user_is_logged_in',
 	);
 
@@ -299,7 +299,7 @@ function _draw_taxo_tree()
 	// no no, we're going to use the jquery_update version, this will trigger that 
 	drupal_add_js($base_url . '/misc/jquery.min.js','file');
 	drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/dist/jstree.min.js','file');
-    drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/js/iframeparentreload.js','file');
+    // drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/js/iframeparentreload.js','file');
     drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/js/customtreescript.js','file');
 
 	$form = array();

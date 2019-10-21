@@ -78,32 +78,31 @@ function react($term) {
 
 // JKH added 
 hooks_reaction_add("hook_taxonomy_term_insert",function ($term) {
-	tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term insert"); 
+	// tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term insert"); 
  
 	}
 );
 
 // JKH added 
 hooks_reaction_add("hook_taxonomy_term_update",function ($term) {
-	tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term update"); 
+	// tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term update"); 
 	react($term);   
 	}
 );
 
 // JKH added 
 hooks_reaction_add("hook_taxonomy_term_delete",function ($term) {
-	tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term delete"); 
-	global $base_url;   // get global base uri
-	global $base_path;  // get at least "/" or the subdirectory where the drupal in installed
-	$link = $base_url . $base_path . 'admin/taxonomy-tree-widget';
-	tracetofile(__FILE__,__LINE__,"going to " . $link); 
-	header("Location: $link");	 
+	// tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term delete");
+	// after a delete, we need to reset the screen
+	
+	// drupal_add_js('top.frames.location.reload(false);', 'inline');
+	// drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/js/iframeparentreload.js');
 	}
 );
 
 // JKH added
 hooks_reaction_add("hook_taxonomy_term_save",function ($term) {
-	tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term save"); 
+	// tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term save"); 
 	react($term);     
 	}
 );

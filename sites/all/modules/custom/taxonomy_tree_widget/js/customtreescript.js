@@ -10,7 +10,6 @@ jQuery(document).ready(function (){
         }
     }
 
-
     jQuery('#treeWrap iframe.data_iframe, #treeWrap').height(getHeight());
     jQuery(window).resize(function () {
         jQuery('#treeWrap iframe.data_iframe, #treeWrap').height(getHeight());
@@ -52,10 +51,6 @@ jQuery(document).ready(function (){
         }        
     });
 
-
-
-
-
     // load new term page in iframe when user clicks 'create' button on left nav area               
     function create_term(){
         var ref = jQuery('#tree').jstree(true),
@@ -74,7 +69,6 @@ jQuery(document).ready(function (){
             jQuery('#frame').contents().find('#edit-parent').val(term_id);
         });  
     }
-
 
     function getHeight(){
         var offsetheight = jQuery('#treeWrap').offset().top

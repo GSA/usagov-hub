@@ -8,6 +8,8 @@ class JSTaxTree
 	
 	public function __construct( $vid )
 	{
+		// JKH 
+		// tracetofile(__FILE__,__LINE__,"__construct(" . $vid . ")");
 		//$this->get_node();
 		//$this->options = array_merge($this->default, $options);
 		$this->terms = taxonomy_get_tree($vid,0);
@@ -42,6 +44,8 @@ class JSTaxTree
 	
 	private function hier_from_terms()
 	{
+		// JKH 
+		// tracetofile(__FILE__,__LINE__,"hier_from_terms()");
 		$this->hier = array();
 		foreach($this->terms as $term_info)
 		{
@@ -63,6 +67,8 @@ class JSTaxTree
 	
 	private function json_from_hier()
 	{
+		// JKH 
+		// tracetofile(__FILE__,__LINE__,"json_from_hier()");
 		$this->json_obj = array();
 		foreach($this->hier as $tid => $hier_info)
 		{
@@ -75,6 +81,8 @@ class JSTaxTree
 
 	private function jstree_format( $tid )
 	{
+		// JKH  
+		// tracetofile(__FILE__,__LINE__,"jstree_format()");
 		$hier_info = $this->hier[$tid];
 
 		$item = new stdClass();
@@ -95,7 +103,8 @@ class JSTaxTree
 		$term->name=$term_name;
 		$term->parent=$par_term_id;
 		taxonomy_term_save($term);
-		
+		// JKH 
+		// tracetofile(__FILE__,__LINE__,"taxonomy_term_save()");		
 	}
 
 }

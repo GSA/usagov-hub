@@ -47,9 +47,6 @@ function treewidgetforms(widgetVid){
                 source.val(tid_array.join(',')).trigger('change')
             }
         }
-
-
-
     }).on('deselect_node.jstree', function(e, data) {
         var source = jQuery('#taxo_id_'+widgetVid);
         var tid_array = stringToTids(source.val())
@@ -58,7 +55,7 @@ function treewidgetforms(widgetVid){
             });
         source.val(tid_array.join(',')).trigger('change');
     });
-
+	
     function cleanSource(source)
     {
         vid = source.attr('id').replace(/^taxo_id_/,'');
