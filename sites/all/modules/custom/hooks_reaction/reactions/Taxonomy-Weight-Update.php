@@ -2,14 +2,24 @@
 // JKH added 
 function react($term) {
 
-	// JKH added  
-	if(!isset($term->parent) || empty($term->parent) || $term->parent==0) {
-		// tracetofile(__FILE__,__LINE__,"no parent!");
-		drupal_set_message(t("You tried to save this taxonomy node without a parent node. Please assign a parent to this node before saving."), 'Error');
-		$curr_uri = check_plain(request_uri());
-		drupal_goto($curr_uri);        	
+	// JKH added for debug...
+	// tracetofile(__FILE__,__LINE__,"term object");
+	// traceobjects($term);
+	// JKH added, per Joanne, we don't want the parent rule applied to ATT
+	// vid	name					machine_name			description	hierarchy	module		weight
+	// 57	Asset Topic Taxonomy	asset_topic_taxonomy				1			taxonomy	0
+	if($term->vid != 57) {  
+	    // tracetofile(__FILE__,__LINE__,"term is not ATT");
+		// if this is not ATT, make sure that it has a parent
+		if(!isset($term->parent) || empty($term->parent) || $term->parent==0) {
+			// tracetofile(__FILE__,__LINE__,"no parent!");
+			drupal_set_message(t("You tried to save this taxonomy node without a parent node. Please assign a parent to this node before saving."), 'Error');
+			$curr_uri = check_plain(request_uri());
+			drupal_goto($curr_uri);        	
+		}
 	}
-
+    // JKH added 
+    // tracetofile(__FILE__,__LINE__,"term has parent " . $term->parent);
 	drupal_set_message(t(""));
 
 	// touch all siblings and update the changed time
