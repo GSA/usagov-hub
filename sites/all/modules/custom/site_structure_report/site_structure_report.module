@@ -4,6 +4,8 @@
 * Purpose of this module is to create site structure report into csv file
 *
 */
+// JKH added ...
+$itemCount = 0;
 
 function site_structure_report_menu() {
     $items = array();
@@ -904,10 +906,32 @@ function get_onetime_child_info_report($tid, $pos,$site_name){
 function _prepare_report()
 {
 
-    // Crete data array
+    // Create data array
     unset($site_structure_array);
-    $site_structure_array[0]=array('Site','Owner','Hierarchy Level','Page Type','Topic Desk Replacement','Friendly URL','CMP Edit Link','Page ID','Page Title',
-        'Parent Title','Level 6','Level 5', 'Level 4', 'Level 3',' Level 2', 'Level 1', 'USAGov Topic Crosswalk', 'GA style URL', 'VOC tool export URL style','Last Changed Date', 'Assets on Page', 'Toggle URL');
+    // JKH more formal list, commented 'USAGov Topic Crosswalk', 16 out
+    $site_structure_array[0]=array(
+    	'Site',						// 0
+    	'Owner',					// 1			
+    	'Hierarchy Level',			// 2
+    	'Page Type',				// 3
+    	'Topic Desk Replacement',	// 4
+    	'Friendly URL',				// 5
+    	'CMP Edit Link',			// 6
+    	'Page ID',					// 7
+    	'Page Title',				// 8
+        'Parent Title',				// 9
+        'Level 6',					// 10
+        'Level 5',					// 11 
+        'Level 4',					// 12 
+        'Level 3',					// 13
+        'Level 2',					// 14 
+        'Level 1',					// 15 
+        // 'USAGov Topic Crosswalk',	// 16 
+        'GA style URL',				// 17 
+        'VOC tool export URL style',// 18
+        'Last Changed Date',		// 19 
+        'Assets on Page',			// 20 
+        'Toggle URL');				// 21
 
     $get_root_level_site_name = taxonomy_get_tree(42,0,1);
     foreach($get_root_level_site_name as $root_level){
@@ -920,12 +944,10 @@ function _prepare_report()
 
         foreach($get_all_terms as $get_term) {
             $site_structure_array[]=get_child_info($get_term->tid,$get_term->depth,$site_name);
-
         }
     }
 
     export_to_csv($site_structure_array);
-
 }
 
 function export_to_csv(array &$array)
@@ -955,7 +977,6 @@ function get_child_info($tid, $pos,$site_name){
 
     global $base_url;
 
-
     $get_all_parents=taxonomy_get_parents_all($tid);
     $last_changed_date='-';
 
@@ -968,7 +989,6 @@ function get_child_info($tid, $pos,$site_name){
             if($page_type_info=='more' && $site_name!='Kids.USA.gov'){
 
             }
-
             else{
                 $par_title=$par_info->field_page_title['und'][0]['value'];
                 $levels[$i]=$par_title;
@@ -984,7 +1004,6 @@ function get_child_info($tid, $pos,$site_name){
         }
 
     }
-
 
     $site_name=$levels[count($levels)-1];
 
@@ -1006,28 +1025,24 @@ function get_child_info($tid, $pos,$site_name){
         $last_changed_date = "N/A. Page is NOT content page";
     }
 
-
     if($get_term->field_term_owner){
         $owner_target_id=$get_term->field_term_owner['und'][0]['target_id'];
         $user_name = db_query("SELECT name FROM {users} WHERE uid = :user_id",array(":user_id"=>$owner_target_id))->fetchAssoc();
         $username = $user_name['name'];
         $site_structure_array[1]=$username;
     }
-    else{
+    else {
         $site_structure_array[1]='NOT SET IN CMP';
     }
-
-
     //$position = count((array)$get_all_parents);
     $site_structure_array[2]=$pos+1;
 
     if($get_term->field_type_of_page_to_generate){
         $page_type = $get_term->field_type_of_page_to_generate['und'][0]['value'];
     }
-    else{
+    else {
         $page_type ='NOT SET IN CMP';
     }
-
     $site_structure_array[3]=tssr_sanitzie($page_type);
 
     $help_desk = 'NOT SET IN CMP';
@@ -1035,16 +1050,14 @@ function get_child_info($tid, $pos,$site_name){
         $help_term = taxonomy_term_load($get_term->field_help_desk['und'][0]['tid']);
         $help_desk = (!empty($help_term))? $help_term->name : '';
     }
-
     $site_structure_array[4]=tssr_sanitzie($help_desk);
 
     if($get_term->field_friendly_url){
         $friendly_url = $get_term->field_friendly_url['und'][0]['value'];
     }
-    else{
+    else {
         $friendly_url='NOT SET IN CMP';
     }
-
     $site_structure_array[5]=tssr_sanitzie($friendly_url);
 
     $cmp_edit_link=$base_url.'/taxonomy/term/'.$get_term->tid.'/edit';
@@ -1060,8 +1073,6 @@ function get_child_info($tid, $pos,$site_name){
     }
     $site_structure_array[8]=tssr_sanitzie($page_title);
 
-
-
     $site_structure_array[9]=tssr_sanitzie(_get_uby_lbl_name($get_all_par[0]));
     $rev_levels = array_reverse($levels);
 
@@ -1073,15 +1084,16 @@ function get_child_info($tid, $pos,$site_name){
         }
     }
 
-    $col=10;
-
+	$col = 10;
     krsort($rev_levels);
     foreach($rev_levels as $level){
-        $site_structure_array[$col]=tssr_sanitzie(_get_uby_lbl_name($level));
-        $col++;
+        $site_structure_array[$col++]=tssr_sanitzie(_get_uby_lbl_name($level));
     }
 
-    $site_structure_array[16]='';
+	// JKH 
+	// this should be 16 now after Level 6 ... 1, and 
+	// 'USAGov Topic Crosswalk',	// 16 is not used any longer...
+    // $site_structure_array[$col++]='';
     $ga_style_url='';
     $voc_tool_export_url='';
     if($friendly_url!='NOT SET IN CMP'){
@@ -1103,13 +1115,20 @@ function get_child_info($tid, $pos,$site_name){
         }
     }
 
-    $site_structure_array[17]=tssr_sanitzie($ga_style_url);
-    $site_structure_array[18]=tssr_sanitzie($voc_tool_export_url);
+    $site_structure_array[$col++]=tssr_sanitzie($ga_style_url);
+    $site_structure_array[$col++]=tssr_sanitzie($voc_tool_export_url);
 
-    $site_structure_array[19]=tssr_sanitzie($last_changed_date);
-    $site_structure_array[20]=count(tssr_getAssetsInSiteStructTerm($get_term));
+    $site_structure_array[$col++]=tssr_sanitzie($last_changed_date);
+    $site_structure_array[$col++]=count(tssr_getAssetsInSiteStructTerm($get_term));
     // put the toggle url
-    $site_structure_array[21]= (isset($get_term->field_usa_gov_toggle_url['und'][0]['value']) && strlen($get_term->field_usa_gov_toggle_url['und'][0]['value'])>0)? 'https://www.usa.gov'.$get_term->field_usa_gov_toggle_url['und'][0]['value']:
+    $site_structure_array[$col++]= (isset($get_term->field_usa_gov_toggle_url['und'][0]['value']) && strlen($get_term->field_usa_gov_toggle_url['und'][0]['value'])>0)? 'https://www.usa.gov'.$get_term->field_usa_gov_toggle_url['und'][0]['value']:
         ((isset($get_term->field_gobiernousa_gov_toggle_url['und'][0]['value']) && strlen($get_term->field_gobiernousa_gov_toggle_url['und'][0]['value'])>0)? 'https://www.usa.gov'.$get_term->field_gobiernousa_gov_toggle_url['und'][0]['value']:'');
+    
+    // JKH added for debug
+    // global $itemCount;
+    // tracetofile(__FILE__,__LINE__,"**** Array " . ++$itemCount . " ****");
+    // traceobjects($site_structure_array);
+    // tracetofile(__FILE__,__LINE__,"**** End   ****");
+    
     return $site_structure_array;
 }

@@ -9,6 +9,7 @@
  * Implements hook_field_info().
  */
 function autocomplete_deluxe_field_widget_info() {
+  // tracetofile(__FILE__,__LINE__,"autocomplete_deluxe_field_widget_info()");
   return array(
     'autocomplete_deluxe_taxonomy' => array(
       'label' => t('Autocomplete Deluxe'),
@@ -28,6 +29,7 @@ function autocomplete_deluxe_field_widget_info() {
  * Custom taxonomy callback, which also accepts an empty string search.
  */
 function autocomplete_deluxe_taxonomy_callback($field_name, $tags_typed = '', $limit = 10) {
+  // tracetofile(__FILE__,__LINE__,"autocomplete_deluxe_taxonomy_callback()");
   $field = field_info_field($field_name);
   $use_synonyms = !empty($_GET['synonyms']);
 
@@ -115,6 +117,7 @@ function autocomplete_deluxe_taxonomy_callback($field_name, $tags_typed = '', $l
  * Returns all allowed terms for a field without any prefix.
  */
 function autocomplete_deluxe_allowed_terms($field) {
+  // tracetofile(__FILE__,__LINE__,"autocomplete_deluxe_allowed_terms()");
   $options = array();
   foreach ($field['settings']['allowed_values'] as $tree) {
     if ($vocabulary = taxonomy_vocabulary_machine_name_load($tree['vocabulary'])) {
@@ -132,6 +135,7 @@ function autocomplete_deluxe_allowed_terms($field) {
  * Implements hook_field_widget_settings_form().
  */
 function autocomplete_deluxe_field_widget_settings_form($field, $instance) {
+  // tracetofile(__FILE__,__LINE__,"autocomplete_deluxe_field_widget_settings_form()");
   $widget = $instance['widget'];
   $settings = $widget['settings'];
 
@@ -189,6 +193,7 @@ function autocomplete_deluxe_field_widget_settings_form($field, $instance) {
  * implode the tags. It will help keep problems with delimiters to a minimum.
  */
 function autocomplete_deluxe_taxonomy_implode_tags($tags, $vid = NULL) {
+  // tracetofile(__FILE__,__LINE__,"autocomplete_deluxe_taxonomy_implode_tags()");
   $typed_tags = array();
   foreach ($tags as $tag) {
     // Extract terms belonging to the vocabulary in question.
@@ -218,6 +223,7 @@ function autocomplete_deluxe_field_widget_error($element, $error, $form, &$form_
  * Implements hook_field_widget_form().
  */
 function autocomplete_deluxe_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+  // tracetofile(__FILE__,__LINE__,"autocomplete_deluxe_field_widget_form()");
   $element += array(
     '#type' => 'autocomplete_deluxe',
     '#size' => $instance['widget']['settings']['size'],
@@ -249,6 +255,7 @@ function autocomplete_deluxe_field_widget_form(&$form, &$form_state, $field, $in
  * Generates the basic form elements and javascript settings.
  */
 function autocomplete_deluxe_element_process($element) {
+  // tracetofile(__FILE__,__LINE__,"autocomplete_deluxe_element_process()");
   $element['#attached'] = array(
     'library' => array(array('system', 'ui.autocomplete'), array('system', 'ui.button')),
     'js' => array(drupal_get_path('module', 'autocomplete_deluxe') . '/autocomplete_deluxe.js'),
@@ -333,6 +340,7 @@ function autocomplete_deluxe_element_process($element) {
  * element.
  */
 function autocomplete_deluxe_value(&$element, $input = FALSE, $form_state = NULL) {
+  // tracetofile(__FILE__,__LINE__,"autocomplete_deluxe_value()");
   // This runs before child elements are processed, so we cannot calculate the
   // value here. But we have to make sure the value is an array, so the form
   // API is able to proccess the children to set their values in the array. Thus
@@ -347,6 +355,7 @@ function autocomplete_deluxe_value(&$element, $input = FALSE, $form_state = NULL
  * Fixes up the form value by applying the multiplier.
  */
 function autocomplete_deluxe_after_build($element, &$form_state) {
+  // tracetofile(__FILE__,__LINE__,"autocomplete_deluxe_after_build()");
   // By default drupal sets the maxlength to 128 if the property isn't
   // specified, but since the limit isn't useful in some cases,
   // we unset the property.
@@ -377,6 +386,7 @@ function autocomplete_deluxe_after_build($element, &$form_state) {
  * Implements hook_element_info().
  */
 function autocomplete_deluxe_element_info() {
+  // tracetofile(__FILE__,__LINE__,"autocomplete_deluxe_element_info()");
   $types['autocomplete_deluxe'] = array(
     '#input' => TRUE,
     '#value_callback' => 'autocomplete_deluxe_value',
@@ -390,6 +400,7 @@ function autocomplete_deluxe_element_info() {
  * Implements hook_menu().
  */
 function autocomplete_deluxe_menu() {
+  // tracetofile(__FILE__,__LINE__,"autocomplete_deluxe_menu()");
   $items['autocomplete_deluxe/taxonomy'] = array(
     'title' => 'Autocomplete deluxe taxonomy',
     'page callback' => 'autocomplete_deluxe_taxonomy_callback',

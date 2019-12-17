@@ -501,12 +501,14 @@ function _ssgGetCurrentBuildStatusesTable()
         $current_status .= "<tr id=\"build-{$curr['uuid']}\">";
         $current_status .= "<td id=\"build-{$curr['uuid']}-state\">".preg_replace('/^\d+\s+/','',$curr['state'])."</td>";
         // JKH added busy status, failed status
-        if ( in_array( $curr['state'],  ['6 failed', '6 complete', '6 shutdown', '6 busy','-1 lock fails'] ) ) {
+        if ( in_array( $curr['state'],  ['6 failed', '6 complete', '6 shutdown', '6 busy', '-1 lock fails'] ) ) {
             $time = $curr['updated'] - $curr['created'];
         } else {
             $time = time() - $curr['created'];
         }
-        $runtime = ( ( $time > 1 ) ? @round($time/pow(60, ($i=floor(log($time, 60)))), 2).' '.@$tunit[$i] : $time.' '.$tunit[0] );
+        $runtime = ( ( $time > 1 ) ? 
+        	@round($time/pow(60, ($i=floor(log($time, 60)))), 2).' '.@$tunit[$i] 
+        	: $time.' '.$tunit[0] );
         $current_status .= "<td id=\"build-{$curr['uuid']}-runtime\">". $runtime ."</td>";
         #$current_status .= "<td id=\"build-{$curr['uuid']}-uuid\">{$curr['uuid']}</td>";
         $current_status .= "<td id=\"build-{$curr['uuid']}-created\">". date('Y/m/d H:i:s',$curr['created']) ."</td>";

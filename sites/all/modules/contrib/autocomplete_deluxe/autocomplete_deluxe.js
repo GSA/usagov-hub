@@ -5,6 +5,7 @@
  */
 
 (function($) {
+  // console.log('$()');
   Drupal.autocomplete_deluxe = Drupal.autocomplete_deluxe || {};
 
   Drupal.behaviors.autocomplete_deluxe = {
@@ -13,8 +14,10 @@
 
       $('input.autocomplete-deluxe-form').once( function() {
         if (autocomplete_settings[$(this).attr('id')].multiple === true) {
+          // console.log('MultipleWidget(' + $(this).attr('id') + ')');
           new Drupal.autocomplete_deluxe.MultipleWidget(this, autocomplete_settings[$(this).attr('id')]);
         } else {
+          // console.log('SingleWidget(' + $(this).attr('id') + ')');
           new Drupal.autocomplete_deluxe.SingleWidget(autocomplete_settings[$(this).attr('id')]);
         }
       });
@@ -28,7 +31,7 @@
    *
    */
   $.fn.autoGrowInput = function(o) {
-
+    // console.log('autoGrowInput()');
     o = $.extend({
       maxWidth: 1000,
       minWidth: 0,
@@ -36,7 +39,7 @@
     }, o);
 
     this.filter('input:text').each(function(){
-
+	  // console.log('filter()');
       var minWidth = o.minWidth || $(this).width(),
         val = '',
         input = $(this),
@@ -52,7 +55,7 @@
           whiteSpace: 'nowrap'
         }),
         check = function() {
-
+          // console.log('check()');
           if (val === (val = input.val())) {return;}
 
           // Enter new content into testSubject
@@ -74,8 +77,11 @@
         };
 
       testSubject.insertAfter(input);
-
-      $(this).bind('keyup keydown blur update', check);
+      // // console.log('bind()');
+      // JKH changed bind() to on()
+      // $(this).bind('keyup keydown blur update', check);
+      // console.log('on()');
+      $(this).on('keyup keydown blur update', check);
 
     });
 
@@ -86,6 +92,7 @@
    * Unescapes the given string.
    */
   Drupal.autocomplete_deluxe.unescape = function (input) {
+    // console.log('unescape()');
     // Unescaping is done via a textarea, since the text inside of it is never
     // executed. This method also allows us to support older browsers like
     // IE 9 and below.
@@ -108,6 +115,7 @@
    * EscapeRegex function from jquery autocomplete, is not included in drupal.
    */
   Drupal.autocomplete_deluxe.escapeRegex = function(value) {
+    // console.log('escapeRegex()');
     return value.replace(/[-[\]{}()*+?.,\\^$|#\s]/gi, "\\$&");
   };
 
@@ -115,6 +123,7 @@
    * Filter function from jquery autocomplete, is not included in drupal.
    */
   Drupal.autocomplete_deluxe.filter = function(array, term) {
+    // console.log('filter()');
     var matcher = new RegExp(Drupal.autocomplete_deluxe.escapeRegex(term), "i");
     return $.grep(array, function(value) {
       return matcher.test(value.label || value.value || value);
@@ -122,6 +131,7 @@
   };
 
   Drupal.autocomplete_deluxe.Widget = function() {
+  	// console.log('Widget()');
   };
 
   /**
@@ -137,10 +147,12 @@
    *   True if the term should be accepted.
    */
   Drupal.autocomplete_deluxe.Widget.prototype.acceptTerm = function(term) {
+    // console.log('acceptTerm()');
     return true;
   };
 
   Drupal.autocomplete_deluxe.Widget.prototype.init = function(settings) {
+    // console.log('init()');
     if(navigator.appVersion.indexOf("MSIE 6.") != -1) {
       return;
     }
@@ -174,6 +186,7 @@
     parent = parents_parent;
 
     var generateValues = function(data, term) {
+      // console.log('generateValues()');
       var result = new Array();
       for (var terms in data) {
         if (self.acceptTerm(terms)) {
@@ -197,6 +210,7 @@
     var lastXhr = null;
 
     this.source = function(request, response) {
+      // console.log('_renderItem()');
       var term = request.term;
       if (term in cache) {
         response(generateValues(cache[term], term));
@@ -243,6 +257,7 @@
     // Monkey patch the _renderItem function jquery so we can highlight the
     // text, that we already entered.
     $.ui.autocomplete.prototype._renderItem = function( ul, item) {
+      // console.log('_renderItem()');
       var t = item.label;
       if (this.term != "") {
         var escapedValue = Drupal.autocomplete_deluxe.escapeRegex( this.term );
@@ -258,6 +273,7 @@
   };
 
   Drupal.autocomplete_deluxe.Widget.prototype.generateValues = function(data) {
+    // console.log('generateValues()');
     var result = new Array();
     for (var index in data) {
       result.push(data[index]);
@@ -269,6 +285,7 @@
    * Generates a single selecting widget.
    */
   Drupal.autocomplete_deluxe.SingleWidget = function(settings) {
+    // console.log('SingleWidget()');
     this.init(settings);
     this.setup();
     this.jqObject.addClass('autocomplete-deluxe-form-single');
@@ -277,10 +294,12 @@
   Drupal.autocomplete_deluxe.SingleWidget.prototype = new Drupal.autocomplete_deluxe.Widget();
 
   Drupal.autocomplete_deluxe.SingleWidget.prototype.setup = function() {
+    // console.log('setup()');
     var jqObject = this.jqObject;
     var parent = jqObject.parent();
 
     parent.mousedown(function() {
+      // console.log('mousedown()');
       if (parent.hasClass('autocomplete-deluxe-single-open')) {
         jqObject.autocomplete('close');
       } else {
@@ -307,6 +326,7 @@
   };
 
   Drupal.autocomplete_deluxe.MultipleWidget.Item = function (widget, item) {
+    // console.log('Item()');
     if (item.newTerm === true) {
       item.label = item.value;
     }
@@ -330,6 +350,7 @@
   };
 
   Drupal.autocomplete_deluxe.MultipleWidget.Item.prototype.remove = function() {
+    // console.log('remove()');
     this.element.remove();
     var values = this.widget.valueForm.val();
     var escapedValue = Drupal.autocomplete_deluxe.escapeRegex( this.item.value );
@@ -339,6 +360,7 @@
   };
 
   Drupal.autocomplete_deluxe.MultipleWidget.prototype.setup = function() {
+    // console.log('setup()');
     var jqObject = this.jqObject;
     var parent = jqObject.parents('.autocomplete-deluxe-container');
     var value_container = parent.next();
@@ -385,6 +407,7 @@
 
     // Adds a value to the list.
     this.addValue = function(ui_item) {
+      // console.log('addValue()');
       var item = new Drupal.autocomplete_deluxe.MultipleWidget.Item(self, ui_item);
       item.element.insertBefore(jqObject);
       items[ui_item.value] = item;
@@ -395,6 +418,7 @@
     };
 
     parent.mouseup(function() {
+      // console.log('mouseup()');
       jqObject.autocomplete('search', '');
       jqObject.focus();
     });
@@ -404,6 +428,7 @@
       // open to XSS issues. Drupal.autocomplete.Item also escapes on rendering
       // the DOM elements. Thus we have to unescape the label here before adding
       // the new item.
+      // console.log('bind(autocompletechange) 1');
       var item = ui.item;
       item.label = Drupal.autocomplete_deluxe.unescape(item.label);
       self.addValue(item);
@@ -413,10 +438,12 @@
     });
 
     jqObject.bind("autocompletechange", function(event, ui) {
+      // console.log('bind(autocompletechange) 2'); 
       jqObject.val('');
     });
 
     jqObject.blur(function() {
+      // console.log('blur()');
       var last_element = jqObject.parent().children('.autocomplete-deluxe-item').last();
       last_element.removeClass('autocomplete-deluxe-item-focus');
     });
@@ -424,6 +451,7 @@
     var clear = false;
 
     jqObject.keypress(function (event) {
+      // console.log('keypress()');
       var value = jqObject.val();
       // If a comma was entered and there is none or more then one comma,or the
       // enter key was entered, then enter the new term.
@@ -468,6 +496,7 @@
 
 
     jqObject.keyup(function (event) {
+      // console.log('keyup()');
       if (clear) {
         // Trigger the search, so it display the values for an empty string.
         jqObject.autocomplete('search', '');

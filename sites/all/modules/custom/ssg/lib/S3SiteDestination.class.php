@@ -323,7 +323,9 @@ class S3SiteDestination
                             $sourceFiles[$key]['keys'][] = $cleanKey;
                             $key = $cleanKey;
                         }
-                        // $this->log("Sync: Create $key \n");
+                        //
+                        // JKH added 
+                        //  
                         $this->ssg->s3->putObject([
                             'Bucket' => $this->ssg->config['aws']['bucket'],
                             'Key'    => $key,
