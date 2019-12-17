@@ -3,14 +3,13 @@ function setupAssetTopicEvents(){/* nothing to see here for now */};
 
 jQuery(document).ready(function(){
 
-	// console.log('asset_topic_placement2.js doc ready');
+	console.log('asset_topic_placement2.js doc ready');
     //Things to do on initial page load....
-
+	
     //redraw this terms parent iframe page's jstree
 
-
-    // //Call back to the parent of this terms iframe and tell it to reload if needed.
-    if ( window.hasOwnProperty('parent') &&  'redrawTree' in window.parent )
+    // Call back to the parent of this terms iframe and tell it to reload if needed.
+    if ( window.hasOwnProperty('parent') && 'redrawTree' in window.parent )
     {
         window.parent.redrawTree();
         jQuery('input.form-submit').click(function(){
@@ -26,7 +25,7 @@ jQuery(document).ready(function(){
     getNodes();
     regionPlacementToggle();
     parentTermWidget();
-
+   
     // Things to do after someone selects a different asset topic from the asset topic taxonomy tree
     jQuery('input[name="field_asset_topic_taxonomy[und]"]').change(function() {
         nodes = [];
@@ -54,7 +53,7 @@ jQuery(document).ready(function(){
 
         jQuery('fieldset#edit-relations').after('<div class="form-wrapper parent-taxonomy-term"><div class="form-item"><label for="">Parent Taxonomy Term</label><div id="parent-term"></div></div></div>');
         console.log("creating jstree on parent-term");
-        jQuery('#parent-term').jstree({   // JKH jstree is not a function!
+        jQuery('#parent-term').jstree({   // JKH rec'd error jstree is not a function!
             'core' : {
                 'data' : {
                     'url' : '/admin/taxonomy-tree-widget/ajax/fulltree/42',
@@ -73,7 +72,8 @@ jQuery(document).ready(function(){
         }).on('ready.jstree', function () {
             //get selected parent and forces that selection on tree
             var existing_asset_id=jQuery('select#edit-parent option[selected="selected"]').val();
-
+			// JKH added 
+			console.log('ready.jstree');
             initial_click = true;
             jQuery('#parent-term').jstree(true).select_node(existing_asset_id);
 			// JKH added 

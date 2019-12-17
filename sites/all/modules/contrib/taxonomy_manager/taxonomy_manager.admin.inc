@@ -1695,6 +1695,9 @@ function taxonomy_manager_term_data_form_ajax_callback($form, $form_state) {
 function taxonomy_manager_term_data_form_submit($form, &$form_state) {
   $old_term = taxonomy_term_load($form_state['values']['tid']);
   $term = taxonomy_form_term_submit_build_taxonomy_term($form, $form_state);
+  // JKH added for debug 
+  tracetofile(__FILE__,__LINE__,"term...");
+  traceobjects($term);
   if ($term->weight != $old_term->weight) {
     form_set_value(array('#parents' => array('tree-update')), array('update' => TRUE), $form_state);
   }

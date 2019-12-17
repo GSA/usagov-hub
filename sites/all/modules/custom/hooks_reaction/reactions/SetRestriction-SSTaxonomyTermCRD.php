@@ -47,8 +47,11 @@ hooks_reaction_add(
             $form['relations']['weight']['#description']='This field impacts the order of nodes in the taxonomy. Do not touch without training. Terms are displayed in ascending order by weight.';
             $form['relations']['#description'] = 'Select the parent node for this page.';
             $form['name']['#description']='Page Title as listed on Nav Pages, Menus, etc.';
+            // JKH added to see if we could fix "the description problem" here
+            tracetofile(__FILE__,__LINE__,"Adding description field");
+            // JKH why is this in here twice? JKH commenting one...
             $form['description']['#description']= 'This description of the page will appear on Nav Pages and must be Short. This field also supplies the Page Intro on Top Level Nav pages. Character limit: 170';
-            $form['description']['#description']= 'This description of the page will appear on Nav Pages and must be Short. This field also supplies the Page Intro on Top Level Nav pages. Character limit: 170';
+            // $form['description']['#description']= 'This description of the page will appear on Nav Pages and must be Short. This field also supplies the Page Intro on Top Level Nav pages. Character limit: 170';
         }
     }
 );
