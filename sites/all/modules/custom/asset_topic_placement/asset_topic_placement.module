@@ -21,6 +21,8 @@ function asset_topic_placement_init() {
     ) {
         // tracetofile(__FILE__,__LINE__,'including js');
         // Include asset_topic_placement.js
+        // JKH we need to load the jstree control, jstree checks for existing...
+        drupal_add_js(drupal_get_path('module', 'taxonomy_tree_widget') . '/dist/jstree.min.js','file');
         drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/jquery.waituntilexists.js', 'file');
         drupal_add_js(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement2.js', 'file');
         drupal_add_css(drupal_get_path('module', 'asset_topic_placement') . '/asset_topic_placement.css', 'file');
