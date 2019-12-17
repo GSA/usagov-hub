@@ -35,7 +35,7 @@ function react($term) {
 		}
 	}
     // JKH added 
-    tracetofile(__FILE__,__LINE__,"term has parent id " . $thisParent);
+    // tracetofile(__FILE__,__LINE__,"term has parent id " . $thisParent);
 	drupal_set_message(t(""));
 
 	// JKH using my varibles thisParent
@@ -70,7 +70,7 @@ function react($term) {
 	$count = 0;
 	while($sibling = $siblingResults->fetchAssoc())
 	{
-		tracetofile(__FILE__,__LINE__,"db_query updating sibling " . $sibling['name'] . " weight " . $count);
+		// tracetofile(__FILE__,__LINE__,"db_query updating sibling " . $sibling['name'] . " weight " . $count);
 		db_query("
 			UPDATE taxonomy_term_data
 			SET weight = " . $count++ . "
