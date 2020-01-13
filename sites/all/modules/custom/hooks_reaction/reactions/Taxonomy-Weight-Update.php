@@ -3,7 +3,7 @@
 // JKH added 
 function reactDelete($term) {
 	// JKH added for debug...
-	tracetofile(__FILE__,__LINE__,"reactDelete()");
+	// tracetofile(__FILE__,__LINE__,"reactDelete()");
 	// traceobjects($term);
 	
 	// JKH note: changed this function so that it actually 
@@ -11,7 +11,7 @@ function reactDelete($term) {
 	$thisParent = 0;
 	$parents = taxonomy_get_parents($term->tid); 
 	$numberOfParents = sizeof($parents);
-	tracetofile(__FILE__,__LINE__,"number of parents " . $numberOfParents);
+	// tracetofile(__FILE__,__LINE__,"number of parents " . $numberOfParents);
 	if($numberOfParents > 0) {
 		// see if we need to update others
 		// traceobjects($parents);
@@ -19,7 +19,7 @@ function reactDelete($term) {
 			$thisParent = $parent->tid;
 			break;
 		}	
-		tracetofile(__FILE__,__LINE__,"term has parent id " . $thisParent);
+		// tracetofile(__FILE__,__LINE__,"term has parent id " . $thisParent);
 		drupal_set_message(t(""));
 
 		// JKH using my varibles thisParent
@@ -54,14 +54,14 @@ function reactDelete($term) {
 		$count = 0;
 		while($sibling = $siblingResults->fetchAssoc())
 		{
-			tracetofile(__FILE__,__LINE__,"db_query updating sibling " . $sibling['name'] . " weight " . $count);
+			// tracetofile(__FILE__,__LINE__,"db_query updating sibling " . $sibling['name'] . " weight " . $count);
 			db_query("
 				UPDATE taxonomy_term_data
 				SET weight = " . $count++ . "
 				WHERE tid = " . $sibling['tid']);		
 		}		
 	} else {
-		tracetofile(__FILE__,__LINE__,"term has no parent id");	
+		// tracetofile(__FILE__,__LINE__,"term has no parent id");	
 	}
 	// 
 	// JKH after deleting item, refresh entire page here!
@@ -72,7 +72,7 @@ function reactDelete($term) {
 function reactAddUpdate($term) {
 
 	// JKH added for debug...
-	tracetofile(__FILE__,__LINE__,"reactAddUpdate()");
+	// tracetofile(__FILE__,__LINE__,"reactAddUpdate()");
 	// traceobjects($term);
 	
 	// JKH note: changed this function so that it actually 
@@ -83,9 +83,9 @@ function reactAddUpdate($term) {
 		// tracetofile(__FILE__,__LINE__,"get parents");
 		$parents = taxonomy_get_parents($term->tid); 
 		$numberOfParents = sizeof($parents);
-		tracetofile(__FILE__,__LINE__,"number of parents " . $numberOfParents);
+		// tracetofile(__FILE__,__LINE__,"number of parents " . $numberOfParents);
 		// traceobjects($parents);
-	    tracetofile(__FILE__,__LINE__,"term is not ATT");
+	    // tracetofile(__FILE__,__LINE__,"term is not ATT");
 		// if this is not ATT, make sure that it has a parent
 		if($numberOfParents == 0) {
 			// tracetofile(__FILE__,__LINE__,"no parent!");
@@ -102,7 +102,7 @@ function reactAddUpdate($term) {
 		}
 	}
     // JKH added 
-    tracetofile(__FILE__,__LINE__,"term has parent id " . $thisParent);
+    // tracetofile(__FILE__,__LINE__,"term has parent id " . $thisParent);
 	drupal_set_message(t(""));
 
 	// JKH using my varibles thisParent
@@ -137,7 +137,7 @@ function reactAddUpdate($term) {
 	$count = 0;
 	while($sibling = $siblingResults->fetchAssoc())
 	{
-		tracetofile(__FILE__,__LINE__,"db_query updating sibling " . $sibling['name'] . " weight " . $count);
+		// tracetofile(__FILE__,__LINE__,"db_query updating sibling " . $sibling['name'] . " weight " . $count);
 		db_query("
 			UPDATE taxonomy_term_data
 			SET weight = " . $count++ . "
@@ -147,28 +147,28 @@ function reactAddUpdate($term) {
 
 // JKH added 
 hooks_reaction_add("hook_taxonomy_term_insert",function ($term) {
-	tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term insert");
+	// tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term insert");
 	reactAddUpdate($term); 
 	}
 );
 
 // JKH added 
 hooks_reaction_add("hook_taxonomy_term_update",function ($term) {
-	tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term update"); 
+	// tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term update"); 
 	reactAddUpdate($term);   
 	}
 );
 
 // JKH added 
 hooks_reaction_add("hook_taxonomy_term_delete",function ($term) {
-	tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term delete");
+	// tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term delete");
 	reactDelete($term);
 	}
 );
 
 // JKH added
 hooks_reaction_add("hook_taxonomy_term_save",function ($term) {
-	tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term save"); 
+	// tracetofile(__FILE__,__LINE__,"hook reaction taxonomy term save"); 
 	reactAddUpdate($term);     
 	}
 );
