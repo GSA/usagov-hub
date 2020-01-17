@@ -65,6 +65,9 @@ function reactDelete($term) {
 	}
 	// 
 	// JKH after deleting item, refresh entire page here!
+	echo '<script type="text/javascript">window.parent.document.getElementById("frame").src="about:blank";window.parent.location.href=window.parent.location.href;</script>';
+	flush();
+	drupal_exit();
 	// 
 }
 

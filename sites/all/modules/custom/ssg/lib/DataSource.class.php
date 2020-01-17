@@ -50,7 +50,10 @@ class DataSource
     {
         $success    = false;
         $sourceFail = false;
-        if ( $this->freshData )
+        // JKH look at the comment below, I don't think that this question was answered....
+        // so because the deletes are not working, for the time being I'm just going 
+        // to put a flag here so that it updates every time...
+        if ( $this->freshData || true)
         {
             /// if we want data from source - we might only need to update
             /// how do we know if we want totally new data or just updated
