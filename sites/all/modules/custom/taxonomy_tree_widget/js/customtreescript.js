@@ -42,7 +42,6 @@ jQuery(document).ready(function (){
         currentUrl = currentUrl.replace('/edit?hideHeader=1', '');
         // JKH added 
         // console.log("current Url " + currentUrl);
-
         if(term_id != currentUrl){
         	// JKH looking into this ...., this is where the tax term edit form is loaded...
         	// console.log('before' + '/taxonomy/term/'+term_id+'/edit?hideHeader=1');
@@ -77,17 +76,17 @@ jQuery(document).ready(function (){
         return height;
     }
 
-
     jQuery('.create-new-term').click(function(){
         create_term();
     });
-
+    
 });
-
+	
 function tweakIframeCSS()
 {
     var iframe = document.getElementById('frame');
     var style = document.createElement('style');
+    // JKH changed this to accommodate the new type for edit-cancel
     style.textContent = '\
         .form-actions {\
             position: fixed;\
@@ -102,7 +101,7 @@ function tweakIframeCSS()
             margin: 14px 0px 0px 14px;\
         }\
         .form-actions input#edit-delete[type="submit"],\
-        .form-actions a#edit-cancel {\
+        .form-actions input#edit-cancel[type="submit"] {\
             display: block;\
             float: right;\
             margin: 14px 14px 0px 0px;\

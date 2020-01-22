@@ -40,11 +40,31 @@ function cmp_site_structure_taxonomy_form_alter(&$form,&$form_state){
            }
        }
        else {
+           // JKH readable...     		
            $form['field_directory_record_url']['und']['#options'] = _cmp_sst_get_dir_listing();
-           if ((isset($form['actions']['submit']['#value']) && $form['actions']['submit']['#value'] != 'Delete' ) && isset($form['#term']['field_directory_record_url']['und'][0]['value'])) {
+           if ((isset($form['actions']['submit']['#value']) 
+           		&& $form['actions']['submit']['#value'] != 'Delete' ) 
+           		&& isset($form['#term']['field_directory_record_url']['und'][0]['value'])) {
                $form['field_directory_record_url']['und']['#default_value'][0] = $form['#term']['field_directory_record_url']['und'][0]['value'];
            }
        }
+       // JKH measuring...                                   [actions]  [submit]  [#value]                                                     
+	   if ($form['#form_id'] == 'taxonomy_form_term' && $form['actions']['submit']['#value'] == 'Delete') {
+	      // JKH we know that we're on the delete page, set the cancel button...
+	      // [actions]  [cancel]
+	      // remove the href 
+	      unset($form['actions']['cancel']['#href']);
+	      // remove options
+	      unset($form['actions']['cancel']['#options']);
+		  // change type
+		  $form['actions']['cancel']['#type'] = 'button';
+		  // add value 
+		  $form['actions']['cancel']['#value'] = 'Cancel';
+		  // change the action 
+		  $form['actions']['cancel']['#attributes'] = array("onClick" => 'window.parent.document.getElementById("frame").src="about:blank";window.parent.location.href=window.parent.location.href;return false;');          
+	   } else {
+	      // tracetofile(__FILE__,__LINE__,"no match!");
+	   }      
     }
 }
 
