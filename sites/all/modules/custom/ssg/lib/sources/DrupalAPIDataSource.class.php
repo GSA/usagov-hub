@@ -30,7 +30,7 @@ class DrupalAPIDataSource extends DataSource
     $acceptedCount  = 0;
 
     $this->dataPullTime = time();
-    while ( $sanity-- )
+    while ( true )  // JKH this used to be $sanity--, I'm going to let it run
     {
       $loadStartTime = microtime(true);
       try
