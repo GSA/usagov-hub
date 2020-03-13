@@ -941,7 +941,23 @@ class StaticSiteGenerator
     /// EDNARK needs to be fixed somehow
     public function validateSite()
     {
-        return true;
+        $validationStatus = (
+            is_dir($this->siteDir)
+            && file_exists($this->siteDir.'/index.html')
+            && filesize($this->siteDir.'/index.html') > 0
+            && is_dir($this->siteDir.'/espanol')
+            && file_exists($this->siteDir.'/espanol/index.html')
+            && filesize($this->siteDir.'/espanol/index.html') > 0
+        );
+        
+        if ( empty($validationStatus) ){
+            $this->log("Validate Site: Empty Site \n");
+        }
+        else $this->log("Validate Site: Valid\n");
+
+        return $validationStatus;
+        
+        /*
         if ( empty($this->pagesByUrl) )
         {
             $this->log("Validate Site: no site found to validate\n");
@@ -1057,6 +1073,7 @@ class StaticSiteGenerator
         }
         $this->log("Site Validation: $renderedPages of $requiredPages pages rendered to /sites/{$this->config['siteName']} \n");
         return ($requiredPages <= $renderedPages);
+        */
     }
 
     public function cleanupSite()

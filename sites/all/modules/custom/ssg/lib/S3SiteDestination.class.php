@@ -59,6 +59,12 @@ class S3SiteDestination
             $this->log("Syncing to destination disabled\n");
             return true;
         }
+        
+        // if ( !$this->ssg->validateSite() ) {
+        //     $this->log("Sync Files ... DENIED validation failed\n");
+        //     return false;
+        // }
+
         $this->log("Syncing to destination bucket\n");
         $filesSynced = $this->syncFilesCli();
         // $filesSynced = $this->syncFilesSdk();

@@ -1,0 +1,110 @@
+From 1960ba23d079305f3a37b0c4d74a33ea3ed6e136 Mon Sep 17 00:00:00 2001
+From: Kyle Jester <raymond.jester@gsa.gov>
+Date: Fri, 13 Mar 2020 11:49:58 -0500
+Subject: [PATCH] USA-289 This verifies the site is not empty before pushing
+
+---
+ .../ssg/lib/S3SiteDestination.class.php       |  6 ++++
+ .../ssg/lib/StaticSiteGenerator.class.php     | 19 +++++++++++-
+ sites/all/modules/custom/ssg/ssg.module       | 29 +++++++------------
+ 3 files changed, 34 insertions(+), 20 deletions(-)
+
+diff --git a/sites/all/modules/custom/ssg/lib/S3SiteDestination.class.php b/sites/all/modules/custom/ssg/lib/S3SiteDestination.class.php
+index 35bfd692..90b9ede8 100644
+--- a/sites/all/modules/custom/ssg/lib/S3SiteDestination.class.php
++++ b/sites/all/modules/custom/ssg/lib/S3SiteDestination.class.php
+@@ -59,6 +59,12 @@ class S3SiteDestination
+             $this->log("Syncing to destination disabled\n");
+             return true;
+         }
++        
++        // if ( !$this->ssg->validateSite() ) {
++        //     $this->log("Sync Files ... DENIED validation failed\n");
++        //     return false;
++        // }
++
+         $this->log("Syncing to destination bucket\n");
+         $filesSynced = $this->syncFilesCli();
+         // $filesSynced = $this->syncFilesSdk();
+diff --git a/sites/all/modules/custom/ssg/lib/StaticSiteGenerator.class.php b/sites/all/modules/custom/ssg/lib/StaticSiteGenerator.class.php
+index 56a3ca21..266e9dbe 100644
+--- a/sites/all/modules/custom/ssg/lib/StaticSiteGenerator.class.php
++++ b/sites/all/modules/custom/ssg/lib/StaticSiteGenerator.class.php
+@@ -941,7 +941,23 @@ class StaticSiteGenerator
+     /// EDNARK needs to be fixed somehow
+     public function validateSite()
+     {
+-        return true;
++        $validationStatus = (
++            is_dir($this->siteDir)
++            && file_exists($this->siteDir.'/index.html')
++            && filesize($this->siteDir.'/index.html') > 0
++            && is_dir($this->siteDir.'/espanol')
++            && file_exists($this->siteDir.'/espanol/index.html')
++            && filesize($this->siteDir.'/espanol/index.html') > 0
++        );
++        
++        if ( empty($validationStatus) ){
++            $this->log("Validate Site: Empty Site \n");
++        }
++        else $this->log("Validate Site: Valid\n");
++
++        return $validationStatus;
++        
++        /*
+         if ( empty($this->pagesByUrl) )
+         {
+             $this->log("Validate Site: no site found to validate\n");
+@@ -1057,6 +1073,7 @@ class StaticSiteGenerator
+         }
+         $this->log("Site Validation: $renderedPages of $requiredPages pages rendered to /sites/{$this->config['siteName']} \n");
+         return ($requiredPages <= $renderedPages);
++        */
+     }
+ 
+     public function cleanupSite()
+diff --git a/sites/all/modules/custom/ssg/ssg.module b/sites/all/modules/custom/ssg/ssg.module
+index bdcab7f2..7e90dd0c 100644
+--- a/sites/all/modules/custom/ssg/ssg.module
++++ b/sites/all/modules/custom/ssg/ssg.module
+@@ -431,27 +431,18 @@ function _ssg_build_and_deploy_site( &$site )
+     _ssgUpdateBuildStatus($site->uuid,'3 renderSite');
+     $site->renderSite();
+ 
+-    /// TEMP - don't even bother running validation
+     _ssgUpdateBuildStatus($site->uuid,'4 validateSite');
+-    // if ( $site->validateSite() )
+-    // {
+-    _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
+-    // JKH added 
+-    $site->log("Start deploying data\n",false);
+-    $success = $site->deploySite();
+-    // } else {
+-        /// TEMP - DEPLOY ANYWAY ON FAILURE
+-        // _ssgUpdateBuildStatus($site->uuid,'6 failed');
+-        // _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
+-        // $site->deploySite();
+-    // }
+-    // $site->log("Cleanup!\n",false);
+-    // JKH added 
+-    $site->log("Start cleanup\n",false);    
++    if ( $site->validateSite() )
++    {
++        _ssgUpdateBuildStatus($site->uuid,'5 deploySite');
++        $site->deploySite();
++        _ssgUpdateBuildStatus($site->uuid,'6 complete');
++    } else {
++        _ssgUpdateBuildStatus($site->uuid,'6 Failed');
++    }
++
+     $site->cleanupOldSitesByNumber();
+-    // $site->log("End cleanup!\n",false);
+-    _ssgUpdateBuildStatus($site->uuid,$success ? '6 complete' : '6 failed');
+-    $site->log("Site building done\n",false);
++    $site->log("Done building site\n",false);
+ 
+ }
+ 
+-- 
+2.25.1
+
