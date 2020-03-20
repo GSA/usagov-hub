@@ -554,10 +554,10 @@ function _ssg_finish_request()
   if (session_id()) session_write_close();
   $GLOBALS['_ssg_request_buffer_flushed'] = true;
   // JKH no no sending header here...
-  //   if ( function_exists('fastcgi_finish_request') )
-  //   {
-  //     @fastcgi_finish_request();
-  //   }
+  if ( function_exists('fastcgi_finish_request') )
+  {
+    @fastcgi_finish_request();
+  }
   set_time_limit($minutes_to_process*60);
   ini_set('max_execution_time',$minutes_to_process*60);
 }
