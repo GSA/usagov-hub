@@ -674,7 +674,7 @@ function _ssg_cleanup ()
         UPDATE {ssg_builds} 
         SET state='6 shutdown'
         WHERE 
-            state NOT IN ( '6 failed', 6 complete', '6 shutdown' )
+            state NOT IN ( '6 failed', '6 complete', '6 shutdown' )
             AND 
             ( UNIX_TIMESTAMP() - updated ) > 1800
     ");
