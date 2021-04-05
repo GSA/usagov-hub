@@ -55,6 +55,18 @@
                     </li>
                 </ul>
             </div>
+            <div class="content" id="directory_records_Api_V1_DirectoryRecords_index_content" style="display:none">
+                <div class="response dir1_submit" style="display:none">
+                    <h4>Request URL</h4>
+                    <div class="block request_url"></div>
+                    <h4>Response Body</h4>
+                    <div class="block response_body"></div>
+                    <h4>Response Code</h4>
+                    <div class="block response_code"></div>
+                    <h4>Response Headers</h4>
+                    <div class="block response_headers"></div>
+                </div>
+            </div>
         </li>
     </ul>
 </li>
@@ -76,6 +88,18 @@
                     </li>
                 </ul>
             </div>
+            <div class="content" id="directory_records_Api_V1_DirectoryRecords_show_content" style="display:none">
+                <div class="response directory_record_submit" style="display:none">
+                    <h4>Request URL</h4>
+                    <div class="block request_url"></div>
+                    <h4>Response Body</h4>
+                    <div class="block response_body"></div>
+                    <h4>Response Code</h4>
+                    <div class="block response_code"></div>
+                    <h4>Response Headers</h4>
+                    <div class="block response_headers"></div>
+                </div>
+            </div>
         </li>
     </ul>
 </li><li class="endpoint">
@@ -95,6 +119,18 @@
                         <a href="#!/directory_records/Api_V1_DirectoryRecords_autocomplete" class="toggleOperation">Powers autocomplete style lookup of names and locations of directory records</a>
                     </li>
                 </ul>
+            </div>
+            <div class="content" id="directory_records_Api_V1_DirectoryRecords_autocomplete_content" style="display:none">
+                <div class="response dir_type_auto" style="display:none">
+                    <h4>Request URL</h4>
+                    <div class="block request_url"></div>
+                    <h4>Response Body</h4>
+                    <div class="block response_body"></div>
+                    <h4>Response Code</h4>
+                    <div class="block response_code"></div>
+                    <h4>Response Headers</h4>
+                    <div class="block response_headers"></div>
+                </div>
             </div>
         </li>
     </ul>
@@ -116,6 +152,19 @@
                     </li>
                 </ul>
             </div>
+            <div class="content" id="directory_records_Api_V1_DirectoryRecords_bbb_content" style="display:none">
+
+                <div class="response bbb_submit" style="display:none">
+                    <h4>Request URL</h4>
+                    <div class="block request_url"></div>
+                    <h4>Response Body</h4>
+                    <div class="block response_body"></div>
+                    <h4>Response Code</h4>
+                    <div class="block response_code"></div>
+                    <h4>Response Headers</h4>
+                    <div class="block response_headers"></div>
+                </div>
+            </div>
         </li>
     </ul>
 </li><li class="endpoint">
@@ -135,6 +184,18 @@
                         <a href="#!/directory_records/Api_V1_DirectoryRecords_consumer_agencies" class="toggleOperation">Fetches all records representing consumer agencies in the system</a>
                     </li>
                 </ul>
+            </div>
+            <div class="content" id="directory_records_Api_V1_DirectoryRecords_consumer_agencies_content" style="display:none">
+                <div class="response ca_submit" style="display:none">
+                    <h4>Request URL</h4>
+                    <div class="block request_url"></div>
+                    <h4>Response Body</h4>
+                    <div class="block response_body"></div>
+                    <h4>Response Code</h4>
+                    <div class="block response_code"></div>
+                    <h4>Response Headers</h4>
+                    <div class="block response_headers"></div>
+                </div>
             </div>
         </li>
     </ul>
@@ -156,6 +217,17 @@
                     </li>
                 </ul>
             </div>
+            <div class="content" id="directory_records_Api_V1_DirectoryRecords_federal_content" style="display:none">
+                <div class="response fed_submit" style="display:none">
+                    <h4>Request URL</h4>
+                    <div class="block request_url"></div>
+                    <h4>Response Body</h4>
+                    <div class="block response_body"></div>
+                    <h4>Response Code</h4>
+                    <div class="block response_code"></div>
+                    <h4>Response Headers</h4>
+                    <div class="block response_headers"></div>
+                </div>
             </div>
         </li>
     </ul>
@@ -176,6 +248,18 @@
             <a href="#!/directory_records/Api_V1_DirectoryRecords_state" class="toggleOperation">Fetches all records tied to a state in the system, also achievable using a terms_filter=state:state_acronym</a>
         </li>
     </ul>
+</div>
+<div class="content" id="directory_records_Api_V1_DirectoryRecords_state_content" style="display:none">
+    <div class="response state_submit" style="display:none">
+        <h4>Request URL</h4>
+        <div class="block request_url"></div>
+        <h4>Response Body</h4>
+        <div class="block response_body"></div>
+        <h4>Response Code</h4>
+        <div class="block response_code"></div>
+        <h4>Response Headers</h4>
+        <div class="block response_headers"></div>
+    </div>
 </div>
 </li>
 </ul>
@@ -224,6 +308,18 @@
                     </li>
                 </ul>
             </div>
+            <div class="content" id="text_assets_Api_V1_TextAssets_index_content" style="display: none">
+                <div class="response text_asset_all_submit" style="display:none">
+                    <h4>Request URL</h4>
+                    <div class="block request_url"></div>
+                    <h4>Response Body</h4>
+                    <div class="block response_body"></div>
+                    <h4>Response Code</h4>
+                    <div class="block response_code"></div>
+                    <h4>Response Headers</h4>
+                    <div class="block response_headers"></div>
+                </div>
+            </div>
         </li>
     </ul>
 </li><li class="endpoint">
@@ -243,6 +339,19 @@
                         <a href="#!/text_assets/Api_V1_TextAssets_show" class="toggleOperation">Returns a single text asset by id</a>
                     </li>
                 </ul>
+            </div>
+            <div class="content" id="text_assets_Api_V1_TextAssets_show_content" style="display:none">
+
+                <div class="response text_asset_submit_response" style="display:none">
+                    <h4>Request URL</h4>
+                    <div class="block request_url"></div>
+                    <h4>Response Body</h4>
+                    <div class="block response_body"></div>
+                    <h4>Response Code</h4>
+                    <div class="block response_code"></div>
+                    <h4>Response Headers</h4>
+                    <div class="block response_headers"></div>
+                </div>
             </div>
         </li>
     </ul>
@@ -290,6 +399,18 @@
                                 <a href="#!/entities_index" class="toggleOperation">Fetches all contents from the system, with the ability to query and narrow down results</a>
                             </li>
                         </ul>
+                    </div>
+                    <div class="content" id="entities_index_content" style="display: none">
+                        <div class="response entities_submit" style="display:none">
+                            <h4>Request URL</h4>
+                            <div class="block request_url"></div>
+                            <h4>Response Body</h4>
+                            <div class="block response_body"></div>
+                            <h4>Response Code</h4>
+                            <div class="block response_code"></div>
+                            <h4>Response Headers</h4>
+                            <div class="block response_headers"></div>
+                        </div>
                     </div>
                 </li>
             </ul>
