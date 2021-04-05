@@ -153,7 +153,6 @@
                 </ul>
             </div>
             <div class="content" id="directory_records_Api_V1_DirectoryRecords_bbb_content" style="display:none">
-
                 <div class="response bbb_submit" style="display:none">
                     <h4>Request URL</h4>
                     <div class="block request_url"></div>
@@ -309,6 +308,7 @@
                 </ul>
             </div>
             <div class="content" id="text_assets_Api_V1_TextAssets_index_content" style="display: none">
+
                 <div class="response text_asset_all_submit" style="display:none">
                     <h4>Request URL</h4>
                     <div class="block request_url"></div>
@@ -341,7 +341,6 @@
                 </ul>
             </div>
             <div class="content" id="text_assets_Api_V1_TextAssets_show_content" style="display:none">
-
                 <div class="response text_asset_submit_response" style="display:none">
                     <h4>Request URL</h4>
                     <div class="block request_url"></div>
