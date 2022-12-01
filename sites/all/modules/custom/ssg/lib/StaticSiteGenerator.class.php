@@ -929,7 +929,7 @@ class StaticSiteGenerator
         $fileHeader = fread($fileHandle, 100);
         fclose($fileHandle);
         $fileHeader = trim($fileHeader);
-        $fileIsHtml = ( $fileHeader{0} == '<');
+        $fileIsHtml = ( $fileHeader[0] == '<');
         if ( !$fileIsHtml )
         {
             $this->log("Validate Page: non-html file at $filename: $fileHeader\n");
