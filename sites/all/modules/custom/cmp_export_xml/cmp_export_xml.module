@@ -203,7 +203,7 @@ function _cmp_export_xml_download_xml() {
     return $file_content;
 }
 
-function _cmp_export_xml_sba_sir_ssa_uc($use_by='Print CAH', $dir_type) {
+function _cmp_export_xml_sba_sir_ssa_uc(string $use_by='Print CAH', $dir_type) {
 
     $sql = "SELECT DISTINCT n.nid, n.title, st1.field_street_1_value AS street1,
     st2.field_street_2_value AS street2,
