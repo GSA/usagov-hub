@@ -1661,7 +1661,7 @@ function _cmp_misc_elasticsearch_server()
     $host = variable_get('elasticsearch_server');
     $port = variable_get('elasticsearch_port');
     $ssl  = variable_get('elasticsearch_ssl', false);
-    if ( boolval($ssl)===false || ( is_string($ssl) && strlen($ssl)>0 && in_array(strtolower($ssl{0}),['n','f']) ) ) {
+    if ( boolval($ssl)===false || ( is_string($ssl) && strlen($ssl)>0 && in_array(strtolower($ssl[0]),['n','f']) ) ) {
         $ssl = false;
     } else {
         $ssl = true;
