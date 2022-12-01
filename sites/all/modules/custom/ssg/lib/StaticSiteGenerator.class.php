@@ -230,7 +230,7 @@ class StaticSiteGenerator
                 if ( !empty($entity['browser_title']) && !empty($entity['generate_page']))// && strtolower($entity['generate_page'])=='yes' )
                 {
                     $title = trim(preg_replace('/^\W+/','',$entity['browser_title']));
-                    $letter = strtoupper($title{0});
+                    $letter = strtoupper($title[0]);
                     $this->siteIndexAZ['all'][$letter][] = [ 'uuid'=>$entity['uuid'], 'title'=>$entity['browser_title'] ];
                     foreach ( $fubs as $fub )
                     {
