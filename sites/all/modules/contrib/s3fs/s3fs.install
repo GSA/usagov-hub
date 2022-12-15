@@ -5,6 +5,8 @@
  * Install, update and uninstall functions for the S3 File System module.
  */
 
+use Aws\Sdk;
+
 /**
  * Implements hook_requirements().
  */
@@ -47,58 +49,79 @@ function s3fs_requirements($phase) {
     );
   }
 
-  // Check for the Libraries module. This shouldn't really be needed, but if
-  // the user doesn't have Libraries, the error won't be reported correctly.
-  if (!module_exists('libraries')) {
-    $requirements['s3fs_libraries'] = array(
-      'title' => $t('Libraries module'),
-      'value' => $t('Not installed.'),
-      'description' => $t('S3 File System requires the Libraries module. Please install it from !here.',
-        array('!here' => l('here', 'http://www.drupal.org/project/libraries'))
-      ),
-      'severity' => REQUIREMENT_ERROR,
-    );
-    // Return immediately, since we can't attempt to determine if AWS SDK 2
-    // is installed.
-    return $requirements;
+  // Check if Composer Manager module exists.
+  if (module_exists('composer_manager')) {
+    if (class_exists('Aws\Sdk')) {
+      $requirements['s3fs_awssdk'] = array(
+        'title' => $t('AWS SDK for PHP'),
+        'value' => $t('AWS SDK is installed.'),
+        'severity' => REQUIREMENT_OK,
+      );
+    }
+    else {
+      $requirements['s3fs_awssdk'] = array(
+        'title' => $t('AWS SDK for PHP'),
+        'value' => $t('The S3 File System module requires the AWS SDK for PHP v3.x library.'),
+        'description' => $t('The AWS SDK could not be loaded.'),
+        'severity' => REQUIREMENT_ERROR,
+      );
+    }
   }
-
-  $library = libraries_detect('awssdk2');
-  if ($library && !empty($library['installed'])) {
-    $requirements['s3fs_awssdk2'] = array(
-      'title' => $t('AWS SDK for PHP'),
-      'value' => $t('Installed @ v@version.', array('@version' => $library['version'])),
-      'severity' => REQUIREMENT_OK,
-    );
+  // Check if Libraries module exists.
+  elseif (module_exists('libraries')) {
+    $library = libraries_detect('awssdk');
+    if ($library && !empty($library['installed']) && version_compare($library['version'], '3') >= 0) {
+      $requirements['s3fs_awssdk'] = array(
+        'title' => $t('AWS SDK for PHP'),
+        'value' => $t('Installed @ v@version.', array('@version' => $library['version'])),
+        'severity' => REQUIREMENT_OK,
+      );
+    }
+    else {
+      $requirements['s3fs_awssdk'] = array(
+        'title' => $t('AWS SDK for PHP'),
+        'value' => $t('The S3 File System module requires the AWS SDK for PHP v3.x library.'),
+        'description' => $t('The Libraries module reported the following error: !error_message<br>
+          Please check the installation instructions for S3 File System.',
+          array('!error_message' => filter_xss($library['error message']))
+        ),
+        'severity' => REQUIREMENT_ERROR,
+      );
+    }
   }
+  // If neither Composer Manager nor Libraries exist, display status error.
   else {
-    $requirements['s3fs_awssdk2'] = array(
-      'title' => $t('AWS SDK for PHP'),
-      'value' => $t('The S3 File System module requires the AWS SDK for PHP v2.x library.'),
-      'description' => $t('The Libraries module reported the following error: !error_message<br>
-        Please check the installation instructions for S3 File System.', array('!error_message' => filter_xss($library['error message']))
+    $requirements['s3fs_awssdk_manager'] = array(
+      'title' => $t('S3FS AWS SDK Management Tool'),
+      'value' => $t('Not installed.'),
+      'description' => $t('S3 File System requires either the Composer Manager or Libraries
+        module to manage the AWS SDK. Please install !composer_manager or !libraries.',
+        array(
+          '!composer_manager' => l('Composer Manager', 'http://www.drupal.org/project/composer_manager'),
+          '!libraries' => l('Libraries', 'http://www.drupal.org/project/libraries'),
+        )
       ),
       'severity' => REQUIREMENT_ERROR,
     );
   }
 
-  if (_s3fs_get_setting('awssdk2_use_instance_profile')) {
-    $default_cache_config = _s3fs_get_setting('awssdk2_default_cache_config');
+  if (_s3fs_get_setting('use_instance_profile')) {
+    $credentials_file = _s3fs_get_setting('credentials_file');
 
     $message  = array(
-      'title' => $t('AWS Instance Profile Cache'),
+      'title' => $t('AWS Custom Credentials File'),
     );
 
-    if (empty($default_cache_config) || !(is_writable($default_cache_config) && is_readable($default_cache_config))) {
-      $message['value'] = $t('The instance profile cache is NOT configured correctly in S3FS. It must be set to an
-        existing folder on the server, and the webserver must have read and write permissions on that folder.');
+    if (empty($credentials_file) || !is_readable($credentials_file)) {
+      $message['value'] = $t('The credentials file is NOT configured correctly in S3FS. It must be set to an
+        existing folder on the server, and the webserver must have read permissions on that folder.');
       $message['severity'] = REQUIREMENT_ERROR;
     }
     else {
-      $message['value'] = $t('The instance profile cache setting in S3FS is configured correctly.');
+      $message['value'] = $t('The custom credentials file for S3FS is configured correctly.');
       $message['severity'] = REQUIREMENT_INFO;
     }
-    $requirements['s3fs_default_cache_location_status'] = $message;
+    $requirements['s3fs_credentials_file_status'] = $message;
   }
 
   return $requirements;
@@ -386,8 +409,29 @@ function s3fs_update_7206() {
   variable_set('s3fs_domain_root', 'none');
 }
 
+/**
+ * Update s3fs variable names to support AWS SDK v3.
+ */
+function s3fs_update_7207() {
+  $var_conversions = array(
+    'awssdk2_access_key' => 'awssdk_access_key',
+    'awssdk2_secret_key' => 'awssdk_secret_key',
+    's3fs_awssdk2_access_key' => 's3fs_awssdk_access_key',
+    's3fs_awssdk2_secret_key' => 's3fs_awssdk_secret_key',
+    'awssdk2_use_instance_profile' => 's3fs_use_instance_profile',
+    'awssdk2_default_cache_config' => 's3fs_credentials_file',
+  );
+  foreach ($var_conversions as $old_var => $new_var) {
+    $old_value = variable_get($old_var, 'unset');
+    if ($old_value != 'unset') {
+      variable_set($new_var, $old_value);
+      variable_del($old_var);
+    }
+  }
+}
+
 /******************************************************************************
- *                            INTERNAL FUNCTONS
+ *                            INTERNAL FUNCTIONS
  ******************************************************************************/
 function _s3fs_register_s3_as_public_schema() {
   $public_schema = variable_get('file_public_schema', array('public'));
