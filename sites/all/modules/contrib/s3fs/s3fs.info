@@ -1,22 +1,24 @@
 name = S3 File System
 description = Adds an Amazon Simple Storage Service-based remote file system to Drupal.
 core = 7.x
-php = 5.5
 configure = admin/config/media/s3fs/settings
 
-; Either or dependencies don't exist.
-;dependencies[] = composer_manager
-; or
-;dependencies[] = libraries
+dependencies[] = libraries (2.x)
 
 ; Includes
 files[] = S3fsStreamWrapper.inc
 
 ; Tests
 files[] = tests/s3fs.test
+; s3fs's tests depend on simpletest_clone, but you only need it for the tests,
+; so I don't want to force everyone to install it. There is an alternate check
+; for simpletest_clone in the test code itself.
+; dependencies[] = simpletest_clone
+; If you decide to run the tests, you'll need this patch for simpletest_clone:
+; https://drupal.org/node/1877956
 
-; Information added by Drupal.org packaging script on 2022-09-28
-version = "7.x-3.0-alpha3"
+; Information added by Drupal.org packaging script on 2019-01-04
+version = "7.x-2.13"
 core = "7.x"
 project = "s3fs"
-datestamp = "1664334749"
+datestamp = "1546631285"
